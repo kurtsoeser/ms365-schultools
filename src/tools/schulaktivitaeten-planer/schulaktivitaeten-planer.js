@@ -622,7 +622,8 @@ function bindStatic() {
     root.querySelectorAll('[data-akt-reload-stammdaten]').forEach((btn) => {
         btn.addEventListener('click', () => {
             void (async () => {
-                const url = await ensureAktSiteUrl();
+                // Ausdrücklicher Klick: hier darf bei Bedarf die Anmeldung starten.
+                const url = await ensureAktSiteUrl({ interactive: true });
                 if (!url) {
                     toast(
                         state.roleHint ||
@@ -2033,9 +2034,15 @@ async function runDemoReset() {
 
 /**
  * Lehrer-Browser oft ohne lokale IT-Einrichtung: Site-URL aus Lizenz übernehmen.
+ *
+ * Standard ist still (nur Token-Cache): Beim Laden der Seite, bei Konto-Wechsel und beim
+ * Blättern darf der Planer nicht von selbst zur Microsoft-Anmeldung springen. Nur ein
+ * ausdrücklicher Klick (`interactive: true`) darf eine Anmeldung auslösen.
+ * @param {{ interactive?: boolean }} [opts]
  * @returns {Promise<string>}
  */
-async function ensureAktSiteFromLicense() {
+async function ensureAktSiteFromLicense(opts) {
+    const interactive = !!(opts && opts.interactive);
     const local = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
     if (local) {
         state.siteUrl = local;
@@ -2046,8 +2053,8 @@ async function ensureAktSiteFromLicense() {
         if (!api || typeof api.fetchLicenseMe !== 'function') return '';
         let token = '';
         if (typeof api.acquireLicenseToken === 'function') {
-            token = await api.acquireLicenseToken();
-        } else if (typeof window.ms365AuthAcquireIdToken === 'function') {
+            token = await api.acquireLicenseToken(interactive ? undefined : { silentOnly: true });
+        } else if (interactive && typeof window.ms365AuthAcquireIdToken === 'function') {
             token = await window.ms365AuthAcquireIdToken();
         }
         if (!token) return '';
@@ -2075,15 +2082,16 @@ async function ensureAktSiteFromLicense() {
 
 /**
  * Effektive Site-URL: lokal → Lizenz. Immer bevor „keine URL“ gemeldet wird.
+ * @param {{ interactive?: boolean }} [opts] siehe ensureAktSiteFromLicense
  * @returns {Promise<string>}
  */
-async function ensureAktSiteUrl() {
+async function ensureAktSiteUrl(opts) {
     let url = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
     if (url) {
         state.siteUrl = url;
         return url;
     }
-    url = await ensureAktSiteFromLicense();
+    url = await ensureAktSiteFromLicense(opts);
     if (url) return url;
     url = loadSavedSiteUrl();
     if (url) {

@@ -4,7 +4,9 @@
 import { buildItemTitle, buildPruefplanKurz } from './srdp-anmeldung-logic.js';
 
 export const DEMO_SITE_DEFAULT = 'https://demo.sharepoint.com/sites/MS365-Schultools/';
-export const DEMO_SEED_TAG = 'srdp-demo-2026';
+/** Haupttermin der Demo – Wizard, Abschlussklassen und Seed-Zeilen müssen übereinstimmen. */
+export const DEMO_TERMIN_JAHR = '2027';
+export const DEMO_SEED_TAG = 'srdp-demo-' + DEMO_TERMIN_JAHR;
 
 /** IT bleibt angemeldet; Persona filtert als Lehrkraft. */
 export const DEMO_TEACHER_PERSONA = {
@@ -13,9 +15,16 @@ export const DEMO_TEACHER_PERSONA = {
     label: 'Mag. Müller'
 };
 
+/**
+ * Schüler-Persona der Demo: steht in den Stammdaten, hat aber bewusst noch keine
+ * Seed-Anmeldung – sonst zeigt die Schüleransicht „bereits angemeldet“ statt des Formulars.
+ */
 export const DEMO_STUDENT_PERSONA = {
-    email: 'anna.huber@demo.schule.at',
-    name: 'Anna Huber'
+    email: 'lena.bauer@demo.schule.at',
+    name: 'Lena Bauer',
+    vorname: 'Lena',
+    nachname: 'Bauer',
+    klasse: '5AHAK'
 };
 
 function isoAdd(days) {
@@ -31,8 +40,8 @@ function isoAdd(days) {
 export function buildDemoWizard() {
     return {
         profileId: 'hak',
-        jahr: '2026',
-        terminJahr: '2026',
+        jahr: DEMO_TERMIN_JAHR,
+        terminJahr: DEMO_TERMIN_JAHR,
         siteUrl: DEMO_SITE_DEFAULT,
         klassen: ['5AHAK', '5BHAK', '5CHAK'],
         lfsText: 'EN\nENWS\nFR\nFRWS\nIT\nITWS\nSP\nSPWS',
@@ -47,9 +56,9 @@ export function buildDemoWizard() {
 export function buildDemoStammdaten() {
     return {
         classes: [
-            { code: '5AHAK', name: '5AHAK', year: '2026', headEmail: 'kv.ahak@demo.schule.at' },
-            { code: '5BHAK', name: '5BHAK', year: '2026', headEmail: 'mueller@demo.schule.at' },
-            { code: '5CHAK', name: '5CHAK', year: '2026', headEmail: 'kv.chak@demo.schule.at' }
+            { code: '5AHAK', name: '5AHAK', year: DEMO_TERMIN_JAHR, headEmail: 'kv.ahak@demo.schule.at' },
+            { code: '5BHAK', name: '5BHAK', year: DEMO_TERMIN_JAHR, headEmail: 'mueller@demo.schule.at' },
+            { code: '5CHAK', name: '5CHAK', year: DEMO_TERMIN_JAHR, headEmail: 'kv.chak@demo.schule.at' }
         ],
         teachers: [
             { code: 'MUEL', name: 'Mag. Müller', email: 'mueller@demo.schule.at' },
@@ -66,6 +75,12 @@ export function buildDemoStammdaten() {
                 vorname: 'Anna',
                 email: 'anna.huber@demo.schule.at',
                 klasse: '5AHAK'
+            },
+            {
+                nachname: DEMO_STUDENT_PERSONA.nachname,
+                vorname: DEMO_STUDENT_PERSONA.vorname,
+                email: DEMO_STUDENT_PERSONA.email,
+                klasse: DEMO_STUDENT_PERSONA.klasse
             }
         ]
     };
@@ -95,7 +110,7 @@ function row(partial) {
         bestaetigung: true,
         nacharbeitErledigt: partial.nacharbeitErledigt === true,
         schulform: 'HAK',
-        terminJahr: '2026',
+        terminJahr: DEMO_TERMIN_JAHR,
         schuelerEmail: email,
         beantragtVon: email,
         createdBy: email,

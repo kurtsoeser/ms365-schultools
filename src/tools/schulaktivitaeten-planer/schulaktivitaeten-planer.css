@@ -1,5 +1,14 @@
 /* Schulaktivitaeten-Planer – Layout an app.css / tool-modern angelehnt */
 
+/*
+ * --brand und --primary gibt es in app.css nicht; bisher griffen deshalb überall die
+ * violetten Fallbacks (#6d28d9 / #5b4bb7). Hier an die Markenfarbe des Themes binden.
+ */
+.akt-page {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+
 .akt-page .content {
     padding-bottom: 24px;
 }

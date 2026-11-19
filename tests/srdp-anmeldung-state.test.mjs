@@ -17,10 +17,19 @@ import {
 import { isSrdpDemoRoleUiEnabled } from '../src/tools/srdp-anmeldung/srdp-anmeldung-entra-role.js';
 import {
     DEMO_SEED_TAG,
+    DEMO_STUDENT_PERSONA,
+    DEMO_TERMIN_JAHR,
     buildDemoItems,
+    buildDemoStammdaten,
+    buildDemoWizard,
     isDemoSeedItem,
     stripDemoSeedItems
 } from '../src/tools/srdp-anmeldung/srdp-anmeldung-demo.js';
+import {
+    filterAbschlussklassen,
+    findAnmeldungBySchuelerEmail
+} from '../src/tools/srdp-anmeldung/srdp-anmeldung-logic.js';
+import { matchStudentByEmail } from '../src/tools/srdp-anmeldung/srdp-anmeldung-state.js';
 import { mapAnmeldungFromItem } from '../src/tools/srdp-anmeldung/srdp-anmeldung-graph.js';
 
 describe('srdp nav / staff', () => {
@@ -98,6 +107,25 @@ describe('srdp demo seed', () => {
         expect(stripDemoSeedItems(mixed)).toEqual([{ itemId: 'live-1', nachname: 'Live' }]);
         expect(isDemoSeedItem(seed[0])).toBe(true);
         expect(isDemoSeedItem({ itemId: 'live-1' })).toBe(false);
+    });
+
+    it('Schüler-Persona ist in den Stammdaten, aber noch nicht angemeldet (Formular zeigbar)', () => {
+        const students = buildDemoStammdaten().students;
+        const st = matchStudentByEmail(students, DEMO_STUDENT_PERSONA.email);
+        expect(st).toBeTruthy();
+        expect(st.klasse).toBe(DEMO_STUDENT_PERSONA.klasse);
+        expect(DEMO_STUDENT_PERSONA.name).toBe(st.vorname + ' ' + st.nachname);
+        expect(findAnmeldungBySchuelerEmail(buildDemoItems(), DEMO_STUDENT_PERSONA.email)).toBeFalsy();
+    });
+
+    it('Demo-Jahr ist in Wizard, Abschlussklassen und Seed-Zeilen dasselbe', () => {
+        const wizard = buildDemoWizard();
+        expect(wizard.jahr).toBe(DEMO_TERMIN_JAHR);
+        expect(wizard.terminJahr).toBe(DEMO_TERMIN_JAHR);
+        expect(DEMO_SEED_TAG).toContain(DEMO_TERMIN_JAHR);
+        const klassen = filterAbschlussklassen(buildDemoStammdaten().classes, wizard.jahr);
+        expect(klassen).toEqual(wizard.klassen);
+        expect(buildDemoItems().every((it) => it.terminJahr === DEMO_TERMIN_JAHR)).toBe(true);
     });
 });
 
