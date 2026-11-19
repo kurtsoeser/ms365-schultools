@@ -1,5 +1,15 @@
 /* sRDP-Anmeldung – Shell analog Schulaktivitäten (akt-*) */
 
+/*
+ * --primary und --bg-soft gibt es in app.css nicht. Ohne diese Zuordnung sind alle
+ * var(--primary)-Regeln ungültig (Balken, Badges, Links ohne Farbe) und --bg-soft
+ * fällt im Dunkelmodus auf helle Hex-Werte zurück.
+ */
+.srdp-page {
+    --primary: var(--brand1);
+    --bg-soft: var(--surface-muted);
+}
+
 .srdp-page .content {
     padding-bottom: 24px;
 }
@@ -131,7 +141,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    background: var(--bg-soft, var(--bg));
+    background: var(--bg);
 }
 
 .srdp-top {
