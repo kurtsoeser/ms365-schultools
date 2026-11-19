@@ -2568,8 +2568,11 @@ function init() {
     if (getActiveGroupId()) live().loadGroup({ silent: true });
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
+// Im Vite-Build läuft dieses Modul vor den klassischen defer-Skripten der Seite
+// (group-detail.js, slg-live-details.js, app-data-v2.js). Erst ab DOMContentLoaded
+// sind sie garantiert ausgeführt – 'interactive' reicht dafür nicht.
+if (document.readyState === 'complete') {
     init();
+} else {
+    document.addEventListener('DOMContentLoaded', init);
 }
