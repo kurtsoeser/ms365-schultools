@@ -3,7 +3,10 @@
 const { app } = require('@azure/functions');
 const { jsonResponse, corsPreflightResponse, readJsonBody } = require('../lib/http-utils');
 const store = require('../lib/store');
-const { decodePublicToken } = require('../lib/token');
+const { decodePublicToken, publicApiEnabled } = require('../lib/token');
+const { createRateLimiter, clientKey } = require('../lib/rate-limit');
+
+const krankmeldungLimiter = createRateLimiter({ windowMs: 60_000, max: 10 });
 
 function adminKeyOk(request) {
     const expected = String(process.env.EINSAMMLER_ADMIN_KEY || '').trim();
@@ -17,13 +20,25 @@ function adminKeyOk(request) {
     return String(h).trim() === expected;
 }
 
+function remoteDisabledResponse(request) {
+    return jsonResponse(request, 503, {
+        error: 'Remote-API abgeschaltet. EINSAMMLER_LINK_SECRET setzen und signierte Elternlinks verwenden.',
+        code: 'parent_api_disabled'
+    });
+}
+
 app.http('einsammlerHealth', {
     methods: ['GET', 'OPTIONS'],
     authLevel: 'anonymous',
     route: 'einsammler/health',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
-        return jsonResponse(request, 200, { ok: true, service: 'einsammler-api', store: 'memory' });
+        return jsonResponse(request, 200, {
+            ok: true,
+            service: 'einsammler-api',
+            store: 'memory',
+            publicApi: publicApiEnabled()
+        });
     }
 });
 
@@ -33,6 +48,7 @@ app.http('einsammlerPublish', {
     route: 'einsammler/publish',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
+        if (!publicApiEnabled()) return remoteDisabledResponse(request);
         if (!adminKeyOk(request)) {
             return jsonResponse(request, 401, { error: 'Admin-Key fehlt oder ungültig.' });
         }
@@ -54,6 +70,7 @@ app.http('einsammlerView', {
     route: 'einsammler/view',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
+        if (!publicApiEnabled()) return remoteDisabledResponse(request);
         const url = new URL(request.url);
         const token = String(url.searchParams.get('p') || url.searchParams.get('token') || '').trim();
         const decoded = decodePublicToken(token);
@@ -76,6 +93,7 @@ app.http('einsammlerRespond', {
     route: 'einsammler/respond',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
+        if (!publicApiEnabled()) return remoteDisabledResponse(request);
         const body = await readJsonBody(request);
         const token = String(body.token || '').trim();
         const status = String(body.status || '')
@@ -130,7 +148,12 @@ app.http('krankmeldungHealth', {
     route: 'krankmeldung/health',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
-        return jsonResponse(request, 200, { ok: true, service: 'krankmeldung', store: 'memory' });
+        return jsonResponse(request, 200, {
+            ok: true,
+            service: 'krankmeldung',
+            store: 'memory',
+            publicApi: publicApiEnabled()
+        });
     }
 });
 
@@ -140,6 +163,15 @@ app.http('krankmeldungSubmit', {
     route: 'krankmeldung',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
+        // Anonyme Krankmeldung nur mit freigeschalteter API + Rate-Limit (R2/a5)
+        if (!publicApiEnabled()) return remoteDisabledResponse(request);
+        const limited = krankmeldungLimiter.check(clientKey(request));
+        if (!limited.ok) {
+            return jsonResponse(request, 429, {
+                error: 'Zu viele Meldungen. Bitte später erneut versuchen.',
+                retryAfterSec: limited.retryAfterSec
+            });
+        }
         const body = await readJsonBody(request);
         const m = body.meldung || body;
         const schuelerName = String(m.schuelerName || '').trim();
@@ -177,6 +209,7 @@ app.http('krankmeldungList', {
     route: 'krankmeldung/list',
     handler: async (request) => {
         if (request.method === 'OPTIONS') return corsPreflightResponse(request);
+        if (!publicApiEnabled()) return remoteDisabledResponse(request);
         if (!adminKeyOk(request)) {
             return jsonResponse(request, 401, { error: 'Admin-Key fehlt oder ungültig.' });
         }

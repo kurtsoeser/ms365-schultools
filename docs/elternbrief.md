@@ -40,7 +40,7 @@ Einwilligungen (Foto, Exkursion) bleiben im **Einsammler**. Elternbrief kann dar
 - Absender: eigenes Konto **oder** zentrales Postfach (Einstellungen / Stammdaten-Mailbox)  
 - Optionaler Anhang (IndexedDB, max. 6 MB) – Download auf der öffentlichen Seite  
 - Status: Entwurf → gesendet → geschlossen  
-- Persönliche Links (`elternbrief-lesen.html?p=…`)  
+- Persönliche Links (`elternbrief-lesen.html#p=…`, HMAC-signiert; Legacy-`?p=` wird noch gelesen)  
 - Lesebestätigung + Bestätigungscode / lokaler Inbox-Merge  
 - Lehrkraft sieht nur eigene Briefe; Admin: „Alle“  
 - SharePoint-Listen-Setup (Site über `resolveSchoolToolSiteUrl('elternbrief')`)  

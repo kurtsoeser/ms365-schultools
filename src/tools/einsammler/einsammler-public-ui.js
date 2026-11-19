@@ -14,7 +14,8 @@ import { einsammlerRemoteConfigured, remoteRespond, remoteView } from './einsamm
 import {
     buildResponseSlip,
     decodePublicToken,
-    encodeResponseSlip
+    encodeResponseSlip,
+    readParentLinkToken
 } from './einsammler-token.js';
 
 function esc(s) {
@@ -33,8 +34,7 @@ function formatDeDate(iso) {
 }
 
 function readTokenFromLocation() {
-    const q = new URLSearchParams(window.location.search);
-    return String(q.get('p') || q.get('token') || '').trim();
+    return readParentLinkToken(window.location);
 }
 
 /**

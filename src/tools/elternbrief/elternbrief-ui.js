@@ -698,7 +698,10 @@ export function mountApp(root) {
               sd.classes.length +
               ' sichtbar · ' +
               sd.students.length +
-              ' Schüler:innen.</p>'
+              ' Schüler:innen.</p>' +
+              (sd.students.length
+                  ? ''
+                  : '<p class="eb-hint">Keine Schüler:innen geladen. Unter <a href="../tenant.html">Stammdaten → Schüler</a> prüfen und die Seite neu laden.</p>')
             : '<p class="eb-hint">Keine Klassen in den Stammdaten – unter <a href="../tenant.html">Stammdaten</a> pflegen oder Codes manuell.</p>';
 
         const vorlagen = VORLAGEN.map(
@@ -1022,6 +1025,7 @@ export function mountApp(root) {
             '<label>Link gültig (Tage)<input name="expDays" type="number" min="1" value="' +
             esc(String(settings.expDays)) +
             '"></label>' +
+            '<p class="eb-hint">Elternlinks sind HMAC-signiert und stehen im Fragment (<code>#p=</code>). Lesebestätigungen landen in der Schul-SharePoint-Site.</p>' +
             '<p class="eb-hint">' +
             esc(stammdatenSourceHint()) +
             '</p>' +
@@ -1143,9 +1147,12 @@ export function mountApp(root) {
                         ' Empfänger aus Stammdaten übernommen (Name;Klasse;Eltern-E-Mail).'
                 );
             } else {
+                const total = loadEinsammlerStammdaten().students.length;
                 setMessage(
                     'warn',
-                    'Keine Schüler:innen für die gewählten Klassen in den Stammdaten.'
+                    total
+                        ? 'Für die gewählten Klassen gibt es keine Schüler:innen in den Stammdaten (Klasse stimmt ggf. nicht mit dem Feld „Klasse“ der Schüler überein).'
+                        : 'Keine Schüler:innen in den Stammdaten geladen. Bitte unter Stammdaten → Schüler prüfen und die Seite neu laden.'
                 );
             }
             render();

@@ -1030,7 +1030,7 @@ export function mountApp(root) {
         }
         return (
             '<div class="ein-head"><div><h2>Admin-Einstellungen</h2>' +
-            '<p>Schulweite Optionen, Admin-Mails, Magic-Links, optional Remote-API.</p></div></div>' +
+            '<p>Schulweite Optionen, Admin-Mails, signierte Magic-Links. Antworten landen in der Schul-SharePoint-Site.</p></div></div>' +
             '<form class="ein-form" id="einSettingsForm">' +
             '<label>Schulname (auf Elternseite)<input name="schoolName" value="' +
             esc(settings.schoolName) +
@@ -1048,12 +1048,9 @@ export function mountApp(root) {
                   (getEinsammlerAdminAccessCache().demo ? ' (IT-Vorschau)' : '') +
                   '</p>'
                 : '') +
-            '<label>API-Basis-URL (optional)<input name="apiBaseUrl" placeholder="https://…/api" value="' +
-            esc(settings.apiBaseUrl) +
-            '"></label>' +
-            '<label>Admin-Key (optional)<input name="adminKey" value="' +
-            esc(settings.adminKey) +
-            '" autocomplete="off"></label>' +
+            '<p class="ein-hint">Remote-API ist abgeschaltet (Sicherheit). Elternlinks sind HMAC-signiert und stehen im URL-Fragment (<code>#p=</code>). Ablage: SharePoint der Schule.</p>' +
+            '<input type="hidden" name="apiBaseUrl" value="">' +
+            '<input type="hidden" name="adminKey" value="">' +
             '<div class="ein-form__actions"><button type="submit" class="btn btn-success">Einstellungen speichern</button></div>' +
             '</form>' +
             syncPanel +
@@ -1501,8 +1498,9 @@ export function mountApp(root) {
                 }
                 saveEinsammlerSettings({
                     schoolName: String(fd.get('schoolName') || ''),
-                    apiBaseUrl: String(fd.get('apiBaseUrl') || ''),
-                    adminKey: String(fd.get('adminKey') || ''),
+                    // w2: Remote-API in der UI weder zeigen noch aktivieren
+                    apiBaseUrl: '',
+                    adminKey: '',
                     expDays: Number(fd.get('expDays') || 45),
                     adminEmails: String(fd.get('adminEmails') || '')
                 });
@@ -1587,9 +1585,10 @@ export function mountApp(root) {
                     return;
                 }
                 loadDemoData({ email: acc.email, name: acc.name });
+                saveEinsammlerSettings({ apiBaseUrl: '', adminKey: '' });
                 setMessage(
                     'ok',
-                    'Demo geladen (local-first, ohne SPO-Push der Seeds). Echte Vorgänge bleiben.'
+                    'Demo geladen (local-first, ohne SPO-Push der Seeds, Remote-API aus). Echte Vorgänge bleiben.'
                 );
                 ui.view = 'uebersicht';
                 render();

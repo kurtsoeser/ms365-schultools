@@ -8,6 +8,10 @@ function base() {
     return loadKrankmeldungSettings().apiBaseUrl;
 }
 
+/**
+ * Remote bleibt in Demos/Default aus (w2). Explizit nur mit gesetzter Basis-URL.
+ * Query `?remoteApi=1` allein reicht nicht – Settings müssen die URL tragen.
+ */
 export function krankmeldungRemoteConfigured() {
     return !!base();
 }

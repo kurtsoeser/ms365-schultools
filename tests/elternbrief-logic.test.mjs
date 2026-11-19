@@ -14,8 +14,10 @@ import {
     LIST_TITLES
 } from '../src/tools/elternbrief/elternbrief-schema.js';
 import { VORLAGEN, draftFromVorlage, getVorlage } from '../src/tools/elternbrief/elternbrief-templates.js';
+import { toBase64Url } from '../src/shared/parent-link-token.js';
 import {
     buildPublicPayload,
+    buildPublicUrl,
     decodePublicToken,
     encodePublicToken,
     validatePublicPayload
@@ -68,7 +70,9 @@ describe('elternbrief-templates', () => {
 });
 
 describe('elternbrief-token', () => {
-    it('kodiert und dekodiert Public-Payload', () => {
+    const SECRET = 'elternbrief-unit-secret';
+
+    it('kodiert und dekodiert Public-Payload (signiert, Fragment)', () => {
         const payload = buildPublicPayload({
             brief: {
                 id: 'eb-1',
@@ -81,11 +85,22 @@ describe('elternbrief-token', () => {
             schoolName: 'Demo'
         });
         expect(validatePublicPayload(payload).ok).toBe(true);
-        const token = encodePublicToken(payload);
-        const decoded = decodePublicToken(token);
+        const token = encodePublicToken(payload, SECRET);
+        expect(token).toContain('.');
+        const decoded = decodePublicToken(token, { secret: SECRET, requireSignature: true });
         expect(decoded.ok).toBe(true);
         expect(decoded.payload.bid).toBe('eb-1');
         expect(decoded.payload.eid).toBe('el-1');
+        expect(buildPublicUrl('elternbrief-lesen.html', token)).toContain('#p=');
+    });
+
+    it('lehnt unsignierten Token ab', () => {
+        const payload = buildPublicPayload({
+            brief: { id: 'eb-1', betreff: 'Test', inhalt: 'Hallo', status: 'gesendet' },
+            empfaenger: { id: 'el-1', schuelerName: 'Anna' }
+        });
+        const forged = toBase64Url(payload);
+        expect(decodePublicToken(forged, { secret: SECRET, requireSignature: true }).ok).toBe(false);
     });
 });
 

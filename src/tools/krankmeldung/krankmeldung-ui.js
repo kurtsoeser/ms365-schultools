@@ -720,12 +720,9 @@ export function mountApp(root) {
             '<label>KV-Hinweis-E-Mail (optional)<input name="kvHintEmail" value="' +
             esc(settings.kvHintEmail) +
             '" placeholder="kv@schule.at"></label>' +
-            '<label>API-Basis-URL<input name="apiBaseUrl" value="' +
-            esc(settings.apiBaseUrl) +
-            '" placeholder="https://…/api"></label>' +
-            '<label>Admin-Key<input name="adminKey" value="' +
-            esc(settings.adminKey) +
-            '" autocomplete="off"></label>' +
+            '<p class="km-hint">Remote-API ist abgeschaltet (Sicherheit / Workshop). Öffentliche Meldungen bleiben lokal bzw. landen über Sekretariat in der Schul-SharePoint-Site.</p>' +
+            '<input type="hidden" name="apiBaseUrl" value="">' +
+            '<input type="hidden" name="adminKey" value="">' +
             '<div class="km-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>' +
             '</form>' +
             (() => {
@@ -1033,8 +1030,9 @@ export function mountApp(root) {
                     allowAnhang: !!fd.get('allowAnhang'),
                     anhangPflicht: !!fd.get('anhangPflicht'),
                     kvHintEmail: String(fd.get('kvHintEmail') || ''),
-                    apiBaseUrl: String(fd.get('apiBaseUrl') || ''),
-                    adminKey: String(fd.get('adminKey') || '')
+                    // w2: Remote-API weder zeigen noch aktivieren
+                    apiBaseUrl: '',
+                    adminKey: ''
                 });
                 setMessage(
                     'ok',
@@ -1114,7 +1112,8 @@ export function mountApp(root) {
                     return;
                 }
                 loadDemoData();
-                setMessage('ok', 'Demo geladen (local-first, ohne SPO-Push der Seeds).');
+                saveKrankmeldungSettings({ apiBaseUrl: '', adminKey: '' });
+                setMessage('ok', 'Demo geladen (local-first, ohne SPO-Push der Seeds, Remote-API aus).');
                 ui.view = 'inbox';
                 render();
             });

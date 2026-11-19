@@ -2,14 +2,15 @@
  * Optional: Remote-Gateway für Public-Antworten (wenn apiBaseUrl gesetzt).
  */
 
-import { loadEinsammlerSettings } from './einsammler-settings.js';
+import { loadEinsammlerSettings, remoteConfigured } from './einsammler-settings.js';
 
 function base() {
     return loadEinsammlerSettings().apiBaseUrl;
 }
 
+/** Remote nur mit apiBaseUrl + linkSecret (a5); Default/Demo: aus (w2). */
 export function einsammlerRemoteConfigured() {
-    return !!base();
+    return remoteConfigured();
 }
 
 /**

@@ -1,40 +1,40 @@
 /**
  * Magic-Link Payload für Eltern-Antwortseite (capability URL).
- * Lokal: base64url JSON (Link = Zugang). Remote: gleiche Payload + optional HMAC.
+ * Signiert mit HMAC (linkSecret); URL trägt Token im Fragment (#p=).
  */
 
-/**
- * @param {unknown} value
- * @returns {string}
- */
-export function toBase64Url(value) {
-    const json = typeof value === 'string' ? value : JSON.stringify(value);
-    if (typeof Buffer !== 'undefined') {
-        return Buffer.from(json, 'utf8').toString('base64url');
-    }
-    const bytes = new TextEncoder().encode(json);
-    let bin = '';
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
+import {
+    buildFragmentPublicUrl,
+    fromBase64Url,
+    generateLinkSecret,
+    readParentLinkToken,
+    signTokenBody,
+    toBase64Url,
+    verifySignedToken
+} from '../../shared/parent-link-token.js';
+import { loadEinsammlerSettings, saveEinsammlerSettings } from './einsammler-settings.js';
+
+export {
+    buildFragmentPublicUrl as buildPublicUrl,
+    fromBase64Url,
+    readParentLinkToken,
+    toBase64Url
+};
 
 /**
- * @param {string} raw
+ * Stellt sicher, dass ein Link-Geheimnis in den Einstellungen liegt.
  * @returns {string}
  */
-export function fromBase64Url(raw) {
-    const s = String(raw || '')
-        .trim()
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-    const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-    if (typeof Buffer !== 'undefined') {
-        return Buffer.from(s + pad, 'base64').toString('utf8');
+export function ensureEinsammlerLinkSecret() {
+    const cur = loadEinsammlerSettings();
+    if (cur.linkSecret) return cur.linkSecret;
+    const linkSecret = generateLinkSecret();
+    try {
+        saveEinsammlerSettings({ linkSecret });
+    } catch {
+        /* z. B. Node-Tests ohne localStorage */
     }
-    const bin = atob(s + pad);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
+    return linkSecret;
 }
 
 /**
@@ -92,18 +92,25 @@ export function validatePublicPayload(payload) {
 
 /**
  * @param {object} payload
+ * @param {string} [secret]
  */
-export function encodePublicToken(payload) {
-    return toBase64Url(payload);
+export function encodePublicToken(payload, secret) {
+    const sec = secret != null ? String(secret) : ensureEinsammlerLinkSecret();
+    return signTokenBody(payload, sec);
 }
 
 /**
  * @param {string} token
+ * @param {{ secret?: string, requireSignature?: boolean }} [opts]
  */
-export function decodePublicToken(token) {
+export function decodePublicToken(token, opts = {}) {
+    const requireSignature = opts.requireSignature === true;
+    const secret =
+        opts.secret != null ? String(opts.secret) : loadEinsammlerSettings().linkSecret || '';
+    const verified = verifySignedToken(token, secret, { requireSignature });
+    if (!verified.ok) return { ok: false, error: verified.error };
     try {
-        const raw = fromBase64Url(String(token || '').trim());
-        const data = JSON.parse(raw);
+        const data = JSON.parse(verified.payloadText || '');
         return validatePublicPayload(data);
     } catch {
         return { ok: false, error: 'Link konnte nicht gelesen werden.' };
@@ -152,14 +159,4 @@ export function decodeResponseSlip(raw) {
     } catch {
         return { ok: false, error: 'Antwortcode ungültig.' };
     }
-}
-
-/**
- * @param {string} [baseHref] absolute or relative path to antwort page
- * @param {string} token
- */
-export function buildPublicUrl(baseHref, token) {
-    const base = String(baseHref || 'einsammler-antwort.html').trim() || 'einsammler-antwort.html';
-    const join = base.includes('?') ? '&' : '?';
-    return base + join + 'p=' + encodeURIComponent(token);
 }

@@ -9,7 +9,14 @@ const KEY = 'ms365-einsammler-settings-v1';
 export const SP_SETTINGS_KEY = 'ms365-einsammler-sp-settings-v1';
 
 /**
- * @returns {{ schoolName: string, apiBaseUrl: string, adminKey: string, expDays: number, adminEmails: string }}
+ * @returns {{
+ *   schoolName: string,
+ *   apiBaseUrl: string,
+ *   adminKey: string,
+ *   linkSecret: string,
+ *   expDays: number,
+ *   adminEmails: string
+ * }}
  */
 export function loadEinsammlerSettings() {
     try {
@@ -17,13 +24,22 @@ export function loadEinsammlerSettings() {
         const o = raw ? JSON.parse(raw) : {};
         return {
             schoolName: String(o.schoolName || '').trim(),
+            // Remote-API bewusst leer halten (w2) – nur manuell / IT
             apiBaseUrl: String(o.apiBaseUrl || '').trim().replace(/\/+$/, ''),
             adminKey: String(o.adminKey || '').trim(),
+            linkSecret: String(o.linkSecret || '').trim(),
             expDays: Math.max(1, Number(o.expDays) || 45),
             adminEmails: String(o.adminEmails || '').trim()
         };
     } catch {
-        return { schoolName: '', apiBaseUrl: '', adminKey: '', expDays: 45, adminEmails: '' };
+        return {
+            schoolName: '',
+            apiBaseUrl: '',
+            adminKey: '',
+            linkSecret: '',
+            expDays: 45,
+            adminEmails: ''
+        };
     }
 }
 
@@ -36,8 +52,13 @@ export function saveEinsammlerSettings(partial) {
     return next;
 }
 
+/**
+ * Remote nur, wenn Basis-URL und Link-Geheimnis gesetzt sind (a5).
+ * Demo/Default: beides leer → API gilt als abgeschaltet (w2).
+ */
 export function remoteConfigured() {
-    return !!loadEinsammlerSettings().apiBaseUrl;
+    const s = loadEinsammlerSettings();
+    return !!(s.apiBaseUrl && s.linkSecret);
 }
 
 /**

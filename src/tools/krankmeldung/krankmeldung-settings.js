@@ -26,6 +26,7 @@ export function loadKrankmeldungSettings() {
         const o = raw ? JSON.parse(raw) : {};
         return {
             schoolName: String(o.schoolName || '').trim(),
+            // Remote-API bewusst leer halten (w2) – nicht in Demos aktivieren
             apiBaseUrl: String(o.apiBaseUrl || '')
                 .trim()
                 .replace(/\/+$/, ''),

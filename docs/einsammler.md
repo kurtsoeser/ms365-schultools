@@ -44,7 +44,7 @@ Digitale **Einwilligungen** und **Lesebestätigungen**: Vorgang anlegen, Empfän
 
 - Klassen-Chips aus Tenant-Stammdaten (+ optional Live-Hydrate über Tool-Site, local-first bei 403)  
 - Empfänger aus Klassen nachladen  
-- Eltern-Links je Empfänger (`einsammler-antwort.html?p=…`)  
+- Eltern-Links je Empfänger (`einsammler-antwort.html#p=…`, HMAC-signiert; Legacy-`?p=` wird noch gelesen)  
 - **Datei-/Bildabgabe:** Modus `abgabe` oder Checkbox „Upload erlaubt/Pflicht“ – Eltern laden Foto/PDF mit dem Magic-Link hoch (max. 4 MB). Speicherung lokal (IndexedDB) und optional in der Remote-API; SharePoint-Spalten `AnhangName` / `AnhangUrl` sind vorbereitet (URL-Sync folgt).  
 - Antwortcode / optional Remote-API  
 - SharePoint-Listen-Setup (Site über `resolveSchoolToolSiteUrl('einsammler')`)  
@@ -58,7 +58,7 @@ Digitale **Einwilligungen** und **Lesebestätigungen**: Vorgang anlegen, Empfän
 | Listen `Einsammler` + `EinsammlerAntworten` | System of Record |
 | Absender-App (angemeldet) | Pull/Push via Graph |
 | localStorage | Cache / Offline / Demo (`localDemoOnly`, `seedTag`) |
-| Public Magic-Link | **kein** Graph – Antwort via Remote-API, gleicher Browser (Inbox) oder Antwortcode; Absender übernimmt → Push nach SPO |
+| Public Magic-Link | **kein** Graph – Antwort via Inbox/Antwortcode (Remote-API standardmäßig **abgeschaltet**, nur mit `EINSAMMLER_LINK_SECRET` + signiertem Token); Absender übernimmt → Push nach SPO |
 
 Module: `src/tools/einsammler/einsammler-graph.js`, `einsammler-sync.js`.  
 IT: `sharepoint-liste-einsammler` legt Schema an.

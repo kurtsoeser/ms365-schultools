@@ -1,9 +1,111 @@
 # Freitag-Workshop – Playbook & Verkaufsbrief
 
-**Stand:** 2026-11-18 (Mi Abend)  
-**Ziel:** Alle Schulen: Basis + 3 Kern-Tools (Aktivitäten, Lehrerfreistellung, Matura/sRDP) · Individuell: Wahlfach / Stammdaten · Angebot klar  
-**Marke:** MS365-Schultools · Daten im Schul-Tenant  
+**Stand:** 2026-11-19 (Do – Tag-3-Durchführungsfassung)  
+**Zeit:** 09:30–16:15  
+**Kontext:** **3. Workshop-Tag** der Reihe – kennen sich, Feedback aus den letzten Wochen steckt schon in den Tools  
+**Ziel:** Mindestens **3 funktionsfähige Dinge mitnehmen** · Rollen-Wow (Direktion / Admin / IT) · Close mit 2-Wochen-Fenster  
+**Marke:** MS365-Schultools · Daten im Schul-Tenant · du = Übermittler, nicht „Produktverkäufer“  
 **Canvas:** `freitag-use-case-prep.canvas.tsx` (Readiness + Playbook + Sales)
+
+---
+
+## Durchführungs-Playbook (Freitag = Tag 3)
+
+### Haltung (wichtigster Rahmen)
+
+Kein Vorstellen, keine Vision-Folien, **keine reine Produktschulung**.
+
+> „Wir haben die letzten Wochen gemeinsam geschärft, was Schulen wirklich brauchen. Heute bauen wir das **in eurem Tenant** – und ihr geht mit mindestens **drei lauffähigen Dingen** raus.  
+> Ich bin der Übermittler: Das Prinzip könnt ihr auch ohne meine App nachbauen (SharePoint, Forms, Approvals, Teams). Die App macht denselben Weg **schneller und wiederholbar** – und euer Feedback steckt schon drin.“
+
+| Rolle im Raum | Was sie spüren soll |
+|---------------|---------------------|
+| **Direktion** | Genehmigen in Minuten statt Zettelchaos; Überblick Kalender/Status |
+| **Administration** | Listen, Kalender, ICS – Alltag ohne IT-Tickets |
+| **IT / Global Admin** | Consent einmal, Stammdaten/Site, Kursteams & Hygiene als Hebel – weniger Einzelanfragen |
+
+### Versprechen einlösen: 3 mitnehmbare Dinge
+
+| # | Mitnehmen (funktionsfähig) | Typ | Rolle die „Wow“ sagt |
+|---|----------------------------|-----|----------------------|
+| **1** | **Schulaktivitäten** – Antrag → Genehmigung → sichtbar in Liste/Kalender | **Hands-on live** | Direktion + Lehrkraft |
+| **2** | **Lehrerfreistellung** *oder* **Matura/sRDP** – voller Mini-Flow (je nach Schulform/Schmerz) | **Hands-on live** | Direktion / Admin |
+| **3** | **Kalender-Nutzen** (ICS/Feed oder Freistellungs-Kalender) **plus** kurzer **Kursteams-Demo** (IT-Hebel) | Hands-on + **Demo** | Admin + IT |
+
+**Regel:** Drei Dinge = drei greifbare Ergebnisse, nicht drei PowerPoint-Demos. Wenn die Zeit knappt: #1 und #2 live hart machen, #3 = Kalender aus #1/2 + 8-Minuten-Kursteams-Demo.
+
+**Alternativ-Slot für #2:** HAK → Matura/sRDP priorisieren; Schulen ohne Abschlussdruck → Lehrerfreistellung; wer beides will → Freistellung live, Matura als 15-Min-Demo.
+
+### Dealbreaker vorher klären
+
+| Check | Warum |
+|-------|--------|
+| **Global Admin / Application Administrator** im Raum (oder erreichbar) | Ohne **Administratorzustimmung** bleibt Login/Consent stecken |
+| Pro Schule: IT + Fachperson (Direktion/Admin/Lehrkraft) | IT richtet ein, Fachperson erlebt den Flow |
+| URL + WLAN + Demo-Fallback `?demoRole=1` | Login-Hilfe ohne Panik |
+
+### Consent in einfachen Worten (Script ~90 Sek – Tag 3, kein Vortrag)
+
+> „Kurzer Technik-Stopp, dann arbeiten wir: Die App speichert **nichts bei mir**. Sie schreibt in **euren** Tenant. Microsoft fragt einmal: Darf die App im Namen der angemeldeten Person SharePoint-Listen und Gruppen nutzen? Dafür braucht’s oft **Admin-Zustimmung**. Ohne die kommt niemand weiter – das ist Absicht von Microsoft, kein Haken an meinem Tool.“
+
+Alltagssprache nur bei Bedarf: Wer bin ich · Listen lesen/schreiben · Gruppen lesen. Rest später.
+
+**Falls Consent stockt:** Admin consentet → alle neu anmelden. Parallel Demo-Pfad – nicht 20 Min rätseln.
+
+### Strategie-Sätze (wiederholen)
+
+1. *„Ihr habt das mitentwickelt – heute wird’s konkret in eurem Tenant.“*  
+2. *„Prinzip geht auch ohne meine App; die App spart euch Wochen Bastelarbeit.“*  
+3. *„Wahrheit liegt in SharePoint/Kalender – Lehrkräfte müssen nicht dauernd meine Oberfläche öffnen.“*  
+4. *„Drei Dinge mitnehmen – danach zwei Wochen echt nutzen, dann entscheiden.“*
+
+### Uhrplan 09:30–16:15 (Tag 3)
+
+| Zeit | Phase | Was du tust | Fertig wenn … |
+|------|--------|-------------|----------------|
+| **09:30–09:40** | Ankommen & Versprechen | Kein Vorstellen. Brücke zu den letzten Terminen + **3 Mitnahmen** nennen. Rollen kurz ansprechen. | Alle wissen: heute bauen & mitnehmen, Close am Ende |
+| **09:40–10:10** | Login & Consent | Jeden reinhelfen. Admin zuerst. Zeit lassen. | Jede Schule ist in der App |
+| **10:10–11:20** | Stammdaten gemeinsam | Klassen + Lehrkräfte (WebUntis/Vorlagen). Site klären. **Co-Building-Ton:** wir füllen *eure* Basis. | Minimum für Tool 1 steht |
+| **11:20–12:15** | **Mitnahme 1: Schulaktivitäten** | Liste → Antrag → Genehmigung → Kalender/ICS zeigen → SharePoint-Form als Alltagspfad | **1 kompletter Flow live** |
+| **12:15–13:00** | Pause / Mittag | | |
+| **13:00–13:45** | **Mitnahme 2** | Primär **Lehrerfreistellung** (Direktion-Wow) *oder* **Matura/sRDP** (HAK/Termin nach Weihnachten). Zweite Variante nur Demo wenn Zeit. | Zweiter lauffähiger Mini-Flow |
+| **13:45–14:05** | **Mitnahme 3: Demo-Hebel** | **Kursteams** (oder Klassen/Teams-Hygiene) in 8–12 Min: „so einfach kann IT entlasten“ – bewusst Demo, nicht Deep-Dive. Optional Kalender-Abo nochmals festnageln. | IT nickt; Admin hat Kalender-Pfad |
+| **14:05–15:35** | Individuell / Vertiefung | Schulen an *ihrem* Use Case (Auhof Wahlfach, Linz/Schärding Stammdaten, …). Du wanderst. Wer fertig ist: zweiten Flow nachziehen oder echtes Antragsbeispiel. | Pro Schule: 3er-Liste abgehakt oder Follow-up |
+| **15:35–16:15** | Feedback & **Close** | Feedback-Würdigung → 3 Mitnahmen laut wiederholen → **2 Wochen Probe** → Bundle nennen → Owner + Termin. Kaufdruck niedrig, Entscheidungspfad klar. | Interesse + Termin + wer entscheidet |
+
+**Puffer-Regel:** Login/Stammdaten dürfen länger dauern. Lieber 2 harte Mitnahmen + starke Kurzteams-Demo als 4 halbe Tools. **Close (15:35) ist heilig** – Individuell kürzen, nicht den Abschluss.
+
+### Login-Hilfe (Checkliste)
+
+1. URL · 2. Schul-Konto · 3. MFA · 4. Admin-Consent „für Organisation“ · 5. Neu anmelden · 6. >3 Min stocken → Nachbar/Demo, später nachziehen  
+
+### Stammdaten-Minimum
+
+| Muss heute | Nice | Später |
+|------------|------|--------|
+| Klassen + Lehrer **mit E-Mail** | KV, Abschlussjahr für Matura | Voll-WebUntis, Schüler, SPO-Sync |
+| Site / Listen-Ort gewählt | IT-Bibliothek | Perfekte Hygiene |
+
+Keine Exports? 5–8 Klassen + 5 Lehrer manuell – Rest Follow-up. Import: `tools/webuntis-stammdaten-import.html`.
+
+### Scripts (kurz)
+
+**Schulaktivitäten:** Setup → Antrag → genehmigen → ablehnen/Nachforderung → Kalender/ICS → „liegt in eurem SharePoint“. Scope: keine Auto-Untis.
+
+**Lehrerfreistellung:** Antrag „frei haben“ → Direktion → Kalender/iCal. 1 Satz: Schüler-Freistellung = anderes Tool.
+
+**Matura/sRDP:** Demo oder Live-Liste Jahr → Testanmeldung → Lehrer-/Admin-Blick. Satz: „nach Weihnachten braucht ihr das.“
+
+**Kursteams-Demo (IT):** Ein Musterkurs / Vorlage zeigen – Anlage oder Sync-Idee in Minuten. Satz: „Das ist der IT-Hebel neben den Lehrer-Prozessen – nicht euer heutiges Pflichtprogramm.“
+
+### Close-Script (Tag 3 – wörtlich üben)
+
+> „Ihr geht heute mit **drei konkreten Dingen** raus – nicht mit Folien. Das habt ihr **mit** entwickelt; ich habe es gebündelt.  
+> Nehmt das Werkzeug **zwei Wochen** mit, arbeitet echt damit, sagt mir was hakt.  
+> Dann entscheiden wir ruhig: weiter mit **Schulalltag 890 €/Jahr** – oder schlanker Starter / Plus, je nach Bedarf. Daten bleiben in eurem Tenant. Setup einmalig 590–790 €, wenn ihr wollt, dass wir fertig einrichten.  
+> Wer ist Owner bei euch – und welchen Termin nehmen wir in ca. zwei Wochen?“
+
+**Close-Checkliste (Flipchart / Notiz):** Schule · 3 Mitnahmen · Owner Fach · Owner IT · Termin ±2 Wochen · Interesse Bundle (ja/vielleicht/nein)
 
 ### Readiness-Kurzurteil (Deep-Dive 18.11. Abend)
 
@@ -60,32 +162,24 @@ Admin: Schnellwahl unter **Lizenzen → Schildetail** und Referenz unter **Modul
 - ~1.500–1.800 €: mit Support-Story → Plus  
 - Marktanker: Teamsoft ~399 · Vis365 600–900 · Virtualschool ~2.200  
 
-### Abschluss-Satz (wörtlich üben)
+### Abschluss-Satz (wörtlich üben – Tag 3)
 
-> „Wir richten das gemeinsam ein. Wenn ihr damit weiterarbeiten wollt: **Schulalltag 890 € im Jahr** – oder Plus 1.690 € inkl. Elternkanal und Support. Daten bleiben in eurem Microsoft-365-Tenant.“
+> „Drei Dinge mitnehmen, zwei Wochen echt nutzen – dann: **Schulalltag 890 € im Jahr**, oder Starter/Plus je nach Bedarf. Daten bleiben in eurem Tenant. Setup 590–790 € einmalig, wenn ihr wollt, dass wir fertig einrichten.“
 
 ---
 
-## 2. Freitag-Playbook (Tagesstruktur)
+## 2. Freitag-Playbook (Referenz – Details/Scripts)
 
-**Kernurteil:** Tenant-Freischaltung ist schnell (Admin vorbereitet). Der Zeitfresser ist **Grunddaten + Verortung** (Intranet-Site / IT-Sicherungsbibliothek). Dafür ~2 Stunden einplanen – danach **drei gemeinsame Tools** für alle.
+**Maßgeblich für morgen:** Abschnitt **Durchführungs-Playbook (Freitag = Tag 3)** oben (Uhrzeiten, 3 Mitnahmen, Haltung, Close).
 
-| Phase | Dauer | Inhalt | Fertig wenn … |
-|-------|--------|--------|----------------|
-| **0 Warm-up** | 15 Min | Zielbild, Datenhoheit, Preise kurz, Tagesplan | Alle wissen: Setup → 3 Tools → Individuell |
-| **1 Basis-Setup** | **~2 Std** | Tenant aktiv · Bundle · Grunddaten · Site/Bibliothek · Listen-Ort | Jede Schule hat Verortung + minimale Stammdaten |
-| **2 Tool A** | 40–50 Min | **Schulaktivitäten** gemeinsam einrichten + Testfall | 1 vollständiger Antrag-Flow im Schul-Tenant |
-| **3 Tool B** | 40–50 Min | **Lehrerfreistellung** („ich möchte frei haben“) | Lehrkraft kann den Flow selbst noch einmal zeigen |
-| **4 Tool C** | 40–50 Min | **Matura / sRDP-Anmeldung** – Profil, Liste Jahr, Testanmeldung | Abschlussjahr-Liste steht; Einstieg klar |
-| **5 Individuell** | Rest | Auhof Wahlfach · Linz/Schärding Stammdaten | Extra-MVP oder Follow-up terminiert |
-| **6 Close** | 20–30 Min | Angebot, Setup-Preis, Owner, Follow-up Echtdaten | Mündliches Ja oder klarer nächster Termin |
+**Kernurteil:** Tenant-Freischaltung ist schnell. Zeitfresser = **Grunddaten + Verortung**. Danach Hands-on-Mitnahmen, nicht Katalog-Tour.
 
-### Die drei Kern-Tools (+ Setup), die „100 % sitzen“ müssen
+### Die drei Mitnahmen (+ Setup), die „100 % sitzen“ müssen
 
-0. **Basis-Setup** (Tenant schnell, Grunddaten/Site langsam)  
-1. **Schulaktivitäten-Antrag** – von allen gewünscht  
-2. **Lehrerfreistellung** – Lehrkräfte selbst im Prozess  
-3. **Matura / sRDP-Anmeldung** – nach Weihnachten schlagend, jetzt vorbereiten  
+0. **Basis-Setup** (Login/Consent, Grunddaten/Site)  
+1. **Schulaktivitäten** – Mitnahme 1 für alle  
+2. **Lehrerfreistellung *oder* Matura/sRDP** – Mitnahme 2 nach Schulschmerz  
+3. **Kalender-Nutzen + Kursteams-Demo** – Mitnahme 3 (Hands-on + IT-Wow) 
 
 ### Script Tool A – Schulaktivitäten
 
@@ -173,13 +267,13 @@ Der Block, der Freitag die ~2 Stunden frisst – vorher ideal schon klären:
 
 ---
 
-## 5. Verkaufssätze (auswendig)
+## 5. Verkaufssätze (auswendig – Tag 3)
 
-1. *„Untis plant den Unterricht – MS365-Schultools erledigt die Zettel.“*  
-2. *„IT richtet ein – Lehrkräfte erledigen den Alltag im gleichen Portal.“*  
-3. *„Daten bleiben in eurem Microsoft-365-Tenant – nicht bei uns.“*  
-4. *„Ihr zahlt nur, was ihr nutzt – Starter, Schulalltag oder Plus.“*  
-5. *„Drei Prozesse heute live: Schulaktivität, Lehrerfreistellung – und Matura-Anmeldung für nach Weihnachten.“*
+1. *„Ihr habt mitentwickelt – ich bündele und übermittle.“*  
+2. *„Prinzip geht auch ohne meine App; die App spart Wochen.“*  
+3. *„Untis plant Unterricht – wir erledigen die Zettel in eurem Tenant.“*  
+4. *„Direktion genehmigt, Admin hat Kalender, IT hat weniger Einzelanfragen.“*  
+5. *„Drei Mitnahmen heute – zwei Wochen Probe – dann ruhig entscheiden.“*
 
 ---
 

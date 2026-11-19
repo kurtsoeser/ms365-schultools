@@ -98,9 +98,69 @@ function loadLocalStammdatenBundle() {
     try {
         if (typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function') {
             const core = window.ms365TenantSettingsLoad();
-            const data = (core && core.data) || core || {};
+            // settings liegen top-level (students/classes); .data nur Legacy-Hülle
+            const data =
+                core && Array.isArray(core.students)
+                    ? core
+                    : (core && core.data) || core || {};
             (Array.isArray(data.classes) ? data.classes : []).forEach(pushClass);
             (Array.isArray(data.students) ? data.students : []).forEach(pushStudent);
+        }
+    } catch {
+        /* ignore */
+    }
+
+    // Kanonische Quelle: App-Daten v2 (Schuljahr-Buckets) – auch wenn Tenant-Load leer war
+    try {
+        const api =
+            typeof window !== 'undefined' && window.ms365AppDataV2 ? window.ms365AppDataV2 : null;
+        const c = api && typeof api.getContainer === 'function' ? api.getContainer() : null;
+        const by =
+            c && c.years && c.years.byLabel && typeof c.years.byLabel === 'object'
+                ? c.years.byLabel
+                : null;
+        if (by) {
+            const cur = String((c.years && c.years.current) || '');
+            const labels = cur
+                ? [cur].concat(Object.keys(by).filter((k) => k !== cur))
+                : Object.keys(by);
+            for (const lab of labels) {
+                const bucket = by[lab];
+                if (!bucket) continue;
+                (Array.isArray(bucket.classes) ? bucket.classes : []).forEach(pushClass);
+                const guardians = Array.isArray(bucket.guardians) ? bucket.guardians : [];
+                const gById = new Map(
+                    guardians.map((g) => [String((g && g.id) || ''), g]).filter((x) => x[0])
+                );
+                (Array.isArray(bucket.students) ? bucket.students : []).forEach((s) => {
+                    if (!s || typeof s !== 'object') return;
+                    const guardianIds = Array.isArray(s.guardianIds) ? s.guardianIds : [];
+                    const parentPairs = guardianIds
+                        .map((gid) => {
+                            const g = gById.get(String(gid || ''));
+                            return g
+                                ? {
+                                      name: String(g.name || '').trim(),
+                                      email: String(g.email || '')
+                                          .trim()
+                                          .toLowerCase()
+                                  }
+                                : null;
+                        })
+                        .filter((p) => p && p.email && p.email.includes('@'));
+                    pushStudent({
+                        name: s.name,
+                        klasse: s.klasse,
+                        email: s.email,
+                        parentPairs:
+                            parentPairs.length > 0
+                                ? parentPairs
+                                : Array.isArray(s.parentPairs)
+                                  ? s.parentPairs
+                                  : []
+                    });
+                });
+            }
         }
     } catch {
         /* ignore */

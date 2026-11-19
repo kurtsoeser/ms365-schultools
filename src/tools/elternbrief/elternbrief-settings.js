@@ -17,6 +17,7 @@ export const SP_SETTINGS_KEY = 'ms365-elternbrief-sp-settings-v1';
  *   zentralPostfach: string,
  *   zentralName: string,
  *   adminEmails: string,
+ *   linkSecret: string,
  *   expDays: number
  * }}
  */
@@ -33,6 +34,7 @@ export function loadElternbriefSettings() {
             zentralPostfach: resolveElternbriefZentralPostfach(o.zentralPostfach),
             zentralName: String(o.zentralName || 'Elternbrief Schule').trim(),
             adminEmails: String(o.adminEmails || '').trim(),
+            linkSecret: String(o.linkSecret || '').trim(),
             expDays: Math.max(1, Number(o.expDays) || 45)
         };
     } catch {
@@ -42,6 +44,7 @@ export function loadElternbriefSettings() {
             zentralPostfach: '',
             zentralName: 'Elternbrief Schule',
             adminEmails: '',
+            linkSecret: '',
             expDays: 45
         };
     }

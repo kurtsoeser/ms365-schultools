@@ -33,7 +33,7 @@ Eltern melden Kinder **krank** (Von/Bis, Kategorie). Sekretariat sieht eine **In
 - Manuelle Erfassung mit denselben Klassen-Chips
 - Sonderfälle: max. Zeitraum 30 Tage, Von nicht zu weit in Vergangenheit/Zukunft, Duplikat-Hinweis
 - Demo **opt-in** (Admin-Button oder `?demo=1` / `?demoRole=1`) – local-first, Seed-Tag, Reset nur Demo
-- Optional Remote-API (gleiche Function App wie Einsammler); API-Fehler soft (lokale Inbox bleibt)
+- Remote-API standardmäßig **abgeschaltet** (Workshop/Sicherheit); bei Freischaltung Rate-Limit auf anonymem Submit; API-Fehler soft (lokale Inbox bleibt)
 - **SPO Live Sync (SoR):** `krankmeldung-graph.js` + `krankmeldung-sync.js` – Admin Pull/Push, `spoItemId`, 403 wipe’t nicht, Demo-Seeds nicht pushen
 - Public-Formular: lokal + optional Remote; SPO-Push wenn Graph-Hilfen/Session (Kiosk); sonst Sekretariat nach API-Übernahme
 - SharePoint-Liste anlegen; Site über `school-tool-sites` (`krankmeldung`) / Prefill aus Planer-Default

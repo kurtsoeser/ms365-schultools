@@ -7,7 +7,8 @@ import { pushLeseSlip } from './elternbrief-inbox.js';
 import {
     buildLeseSlip,
     decodePublicToken,
-    encodeLeseSlip
+    encodeLeseSlip,
+    readParentLinkToken
 } from './elternbrief-token.js';
 
 function esc(s) {
@@ -19,8 +20,7 @@ function esc(s) {
 }
 
 function readTokenFromLocation() {
-    const q = new URLSearchParams(window.location.search);
-    return String(q.get('p') || q.get('token') || '').trim();
+    return readParentLinkToken(window.location);
 }
 
 /**
