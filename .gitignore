@@ -27,3 +27,6 @@ backend/stammdaten-portal-api/.admin-key.local.txt
 
 # Browser-Bibliotheken aus node_modules (scripts/vendor-libs.mjs erzeugt sie vor dev/build)
 vendor/
+
+# Lokal parametrisierte PA-Test-ZIPs (Multitenant: ZIP immer aus dem Setup erzeugen)
+assets/power-automate/**/_local/

@@ -6,6 +6,7 @@ import {
     resolveIsAblaufKvMember
 } from '../../shared/ablauf-admin-entra.js';
 import { getKrankmeldungAccount, resolveKvKlassenForEmail } from './krankmeldung-klassen.js';
+import { announceStaffAccess } from '../../shared/app-role-chrome.js';
 
 /** @type {{ email: string, isAdmin: boolean, isKv: boolean, sources: string[], demo: boolean, resolved: boolean }} */
 let cache = {
@@ -46,6 +47,12 @@ export async function resolveKrankmeldungRoles(email) {
         demo: !!admin.demo,
         resolved: true
     };
+    announceStaffAccess('krankmeldung', {
+        email: em,
+        isAdmin: cache.isAdmin,
+        isKv: cache.isKv,
+        sources: cache.sources
+    });
     return {
         isAdmin: cache.isAdmin,
         isKv: cache.isKv,

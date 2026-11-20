@@ -4,6 +4,8 @@
 import { resolveDashboardPersonas } from './dashboard-audience-resolve.js';
 import { clearGlobalAdministratorCache } from '../tools/schularbeiten-planer/schularbeiten-planer-entra-role.js';
 import { ensureSignedInMs365DemoPortalAccountInLocalStammdaten } from './demo-portal-teacher.js';
+import { ensureLiveSchoolStammdatenForBrowser } from './ensure-live-school-stammdaten.js';
+import { loadEffectiveTeachersForPersona } from './live-school-stammdaten-cache.js';
 
 const CACHE_KEY = 'ms365-dashboard-persona-cache-v2';
 const CACHE_TTL_MS = 20 * 60 * 1000;
@@ -130,6 +132,15 @@ export async function refreshDashboardPersonaSession(opts) {
             /* ignore */
         }
 
+        // Lehrer-Browser ohne IT-Lokalstand: Lehrerinnen von der Tool-Site nachziehen
+        try {
+            if (!loadEffectiveTeachersForPersona().length) {
+                await ensureLiveSchoolStammdatenForBrowser({ force: false });
+            }
+        } catch {
+            /* ignore */
+        }
+
         // Operator/License.Access oft erst nach License-Gate – kurz mitziehen, bevor IT verworfen wird
         try {
             const oa = window.ms365OperatorAccess;
@@ -150,6 +161,17 @@ export async function refreshDashboardPersonaSession(opts) {
         ) {
             clearGlobalAdministratorCache();
             personas = await resolveDashboardPersonas({ demoMode: false });
+        }
+        // Nach Live-Hydrate nochmals Persona, falls vorher „Noch nicht zugeordnet“
+        if (personas && personas.loggedIn && personas.unknownUser) {
+            try {
+                const ensured = await ensureLiveSchoolStammdatenForBrowser({ force: true });
+                if (ensured && ensured.teacherCount > 0) {
+                    personas = await resolveDashboardPersonas({ demoMode: false });
+                }
+            } catch {
+                /* ignore */
+            }
         }
 
         // Neuere Auflösung läuft – kein veralteter Cache / Event

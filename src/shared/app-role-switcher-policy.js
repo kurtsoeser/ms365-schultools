@@ -134,15 +134,15 @@ export function unknownPersonaHint(personas) {
         return 'Schul-Domain fehlt noch in diesem Browser. IT: Lizenz-ToolSiteUrl setzen, IT-Sicherung ablegen; dann neu anmelden.';
     }
     if (teacherCount <= 0) {
-        return 'Domain ist da, aber die Lehrerliste ist leer. IT: Stammdaten/Lehrerliste oder IT-Sicherung laden; dann Seite neu laden.';
+        return 'Domain ist da, aber die Lehrerliste ist leer in diesem Browser. Seite neu laden – die App liest „Lehrerinnen“ von der Tool-Site. Sonst IT: IT-Sicherung ablegen oder unter Schulaktivitäten „Klassen neu laden“.';
     }
     if (groupsConfigured && source === 'dashboard-entra-none' && !inTeacherList) {
-        return 'Nicht in der Lehrkräfte-Gruppe und E-Mail fehlt in der Lehrerliste. IT: Gruppenmitgliedschaft oder Lehrerlisten-Eintrag prüfen; dann neu anmelden.';
+        return 'Nicht in der Lehrkräfte-Gruppe und E-Mail fehlt in der Lehrerliste. IT: Gruppenmitgliedschaft oder Lehrerlisten-Eintrag prüfen; dann Seite neu laden.';
     }
     if (!inTeacherList) {
         return 'E-Mail steht nicht in der Lehrerliste (Domain allein reicht nicht). IT: Eintrag in der Lehrerliste oder Lehrkräfte-Gruppe; dann Seite neu laden.';
     }
-    return 'Lehrkraft noch nicht erkannt. IT: Lehrkräfte-Gruppe + Lehrerliste prüfen; dann neu anmelden.';
+    return 'Lehrkraft noch nicht erkannt. IT: Lehrkräfte-Gruppe + Lehrerliste prüfen; dann Seite neu laden.';
 }
 
 /**

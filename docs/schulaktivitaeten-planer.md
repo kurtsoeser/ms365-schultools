@@ -42,7 +42,7 @@ Lehrer / Direktion ──MSAL──► Schulaktivitäten-Planer
 | Outlook pro Aktivität | Bei Status `genehmigt`: ICS-Download, Eintrag in den persönlichen Outlook-Kalender, optional Einladung an Klassen-M365-Gruppe (`M365GroupMail` / Klassen-Teams) bzw. Fallback Schüler-E-Mails + Begleitung (`Calendars.ReadWrite`, `Group.Read.All`) |
 | Schultermine-Sync | optional später (Flag wie beim SA-Planer) |
 
-**Power Automate:** Setup-Assistent `tools/schulaktivitaeten-setup.html` erzeugt ein Legacy-ZIP (Microsoft Approvals → Direktion, Status-Mail an Lehrkraft). Vorlage: `assets/power-automate/schulaktivitaeten/` (Generator `scripts/build-akt-pa-template.mjs`).
+**Power Automate:** Setup-Assistent `tools/schulaktivitaeten-setup.html` erzeugt **pro Schule** ein Legacy-ZIP (Site-URL + SPO-Listen-GUID + Mails). Vor dem Download: Technik-/Import-Konto erhält `fullControl` auf den Paket-Listen (sonst GetTable **403** nach Vererbungsbruch). Import: als Technik-Konto, Connections **neu** (nicht Existing). Andere Schule → ZIP neu.
 
 **Phase 2:** Unterrichtseinheiten (`StartUe`/`EndUe`) mit Standard-Zeitraster → abgeleitete Uhrzeiten; View **Berichte** (Jahresliste + Statistik nach Typ/Status/Monat/Klasse). ICS nutzt bei eintägigen Terminen die abgeleiteten Uhrzeiten.
 

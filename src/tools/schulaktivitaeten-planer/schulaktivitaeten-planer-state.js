@@ -245,6 +245,8 @@ export function createInitialState() {
     return {
         role: resolveRole(),
         view: 'dashboard',
+        /** Systemadministration-Untertab: site | perms | kalender | wartung | danger */
+        systemTab: 'site',
         siteUrl: loadSavedSiteUrl(),
         loading: false,
         error: '',
@@ -298,6 +300,12 @@ export function createInitialState() {
             const n = new Date();
             return n.getMonth() + 1 >= 9 ? n.getFullYear() : n.getFullYear() - 1;
         })(),
+        /** Berichte: Aufschlüsselung typ | klasse | status | month */
+        reportBreakdown: 'typ',
+        /** Berichte: Filter für Jahresliste */
+        reportFilterTyp: '',
+        reportFilterStatus: '',
+        reportFilterKlasse: '',
         /** Nach paint: #aktUntisQueue anscrollen (legacy) */
         focusUntisQueue: false,
         /** Formular-Dirty für Regeln / Kostenschwellen */
@@ -452,11 +460,32 @@ export function loadStammdaten() {
     try {
         const core = window.ms365TenantSettingsLoad && window.ms365TenantSettingsLoad();
         const data = (core && core.data) || core || {};
-        return {
-            classes: Array.isArray(data.classes) ? data.classes : [],
-            teachers: Array.isArray(data.teachers) ? data.teachers : [],
-            students: Array.isArray(data.students) ? data.students : []
-        };
+        let teachers = Array.isArray(data.teachers) ? data.teachers : [];
+        let classes = Array.isArray(data.classes) ? data.classes : [];
+        let students = Array.isArray(data.students) ? data.students : [];
+        // Fallback: App-Data v2 Core (falls Tenant-Load leer / alt)
+        if ((!teachers.length || !classes.length) && window.ms365AppDataV2) {
+            try {
+                const v2 =
+                    typeof window.ms365AppDataV2.getCore === 'function'
+                        ? window.ms365AppDataV2.getCore() || {}
+                        : {};
+                const year =
+                    typeof window.ms365AppDataV2.getCurrentYear === 'function'
+                        ? window.ms365AppDataV2.getCurrentYear() || {}
+                        : {};
+                if (!teachers.length && Array.isArray(v2.teachers)) teachers = v2.teachers;
+                if (!classes.length && Array.isArray(year.classes) && year.classes.length) {
+                    classes = year.classes;
+                } else if (!classes.length && Array.isArray(v2.classes)) {
+                    classes = v2.classes;
+                }
+                if (!students.length && Array.isArray(year.students)) students = year.students;
+            } catch {
+                /* ignore */
+            }
+        }
+        return { classes, teachers, students };
     } catch {
         return { classes: [], teachers: [], students: [] };
     }

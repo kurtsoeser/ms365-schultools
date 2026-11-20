@@ -1,15 +1,15 @@
 /**
  * State / Rollen: Lehrkraft vs. Direktion.
  */
-import { toIsoDateOnly } from './lfr-logic.js';
+import { filterItems, toIsoDateOnly } from './lfr-logic.js';
 import { KATEGORIE_CHOICES } from './lfr-schema.js';
 import {
     loadLfrPermissions,
-    resolveLfrApproverEmail,
     accountIsLfrDirektionAccess,
     accountIsLfrLehrerAccess
 } from './lfr-permissions.js';
 import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
+import { loadEffectiveTeachersForPersona } from '../../shared/live-school-stammdaten-cache.js';
 
 const ROLE_KEY = 'ms365-lfr-planer-role-v1';
 const SITE_KEY = 'ms365-lfr-planer-site-v1';
@@ -25,18 +25,81 @@ export const VIEWS = [
     { id: 'meine', label: 'Meine Anträge', icon: 'bi-person', roles: ['lehrer', 'direktion'] },
     { id: 'antrag', label: 'Antrag stellen', icon: 'bi-plus-circle', roles: ['lehrer', 'direktion'] },
     { id: 'liste', label: 'Alle Anträge', icon: 'bi-list-ul', roles: ['direktion'] },
-    { id: 'freigabe', label: 'Freigabe', icon: 'bi-check2-square', roles: ['direktion'] },
+    { id: 'freigabe', label: 'Entscheidungen', icon: 'bi-check2-square', roles: ['direktion'] },
     { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', roles: ['lehrer', 'direktion'] },
     { id: 'export', label: 'Kalender-Export', icon: 'bi-download', roles: ['direktion'] },
-    { id: 'einrichtung', label: 'Administration', icon: 'bi-gear', roles: ['direktion'] }
+    { id: 'einrichtung', label: 'Systemadministration', icon: 'bi-gear', roles: ['direktion'] }
 ];
+
+function viewById(id) {
+    return VIEWS.find((v) => v.id === id) || null;
+}
+
+/**
+ * Gruppierte Navigation (approval-planer wie Schulaktivitäten / Schüler-FR).
+ * Lehrkraft: flach. Direktion: Arbeit · Auswertung · System.
+ * @param {LfrRole|string} role
+ * @returns {{ id: string, label: string, items: typeof VIEWS }[]}
+ */
+export function navSectionsForRole(role) {
+    const r = role === 'direktion' ? 'direktion' : 'lehrer';
+    if (r === 'direktion') {
+        return [
+            {
+                id: 'arbeit',
+                label: 'Arbeit',
+                items: [
+                    viewById('dashboard'),
+                    viewById('freigabe'),
+                    viewById('liste'),
+                    viewById('kalender'),
+                    viewById('antrag')
+                ].filter(Boolean)
+            },
+            {
+                id: 'auswertung',
+                label: 'Auswertung',
+                items: [viewById('export')].filter(Boolean)
+            },
+            {
+                id: 'system',
+                label: 'System',
+                items: [viewById('einrichtung')].filter(Boolean)
+            }
+        ].filter((s) => (s.items || []).length);
+    }
+    return [
+        {
+            id: 'arbeit',
+            label: '',
+            items: [
+                viewById('dashboard'),
+                viewById('meine'),
+                viewById('kalender'),
+                viewById('antrag')
+            ].filter(Boolean)
+        }
+    ];
+}
 
 /**
  * @param {LfrRole|string} role
  */
 export function viewsForRole(role) {
-    const r = role === 'direktion' ? 'direktion' : 'lehrer';
-    return VIEWS.filter((v) => v.roles.includes(r));
+    return navSectionsForRole(role).flatMap((s) => s.items || []);
+}
+
+/**
+ * Offene Direktions-Entscheidungen.
+ * @param {object[]} items
+ */
+export function countOpenAusstehend(items) {
+    return (Array.isArray(items) ? items : []).filter((i) => {
+        const s = String(i && i.status || '')
+            .trim()
+            .toLowerCase();
+        return s === 'ausstehend';
+    }).length;
 }
 
 export function createInitialState() {
@@ -60,6 +123,8 @@ export function createInitialState() {
         detailId: null,
         calYear: now.getFullYear(),
         calMonth: now.getMonth() + 1,
+        calMode: 'month',
+        calWeekAnchor: now.toISOString(),
         ctx: null,
         localDemoOnly: false,
         demoRoleOverride: false,
@@ -69,7 +134,8 @@ export function createInitialState() {
         planerAccessDenied: false,
         calendarExportOnlyApproved: true,
         outlookCalendarUser: loadSetupField('outlookCalendarUser'),
-        outlookCalendarId: loadSetupField('outlookCalendarId')
+        outlookCalendarId: loadSetupField('outlookCalendarId'),
+        systemTab: 'site'
     };
 }
 
@@ -208,20 +274,35 @@ export function persistSiteUrl(url) {
 }
 
 export function loadStammdaten() {
+    /** @type {{ code: string, name: string, email: string }[]} */
     const teachers = [];
+    const seen = new Set();
+    const pushRows = (rows) => {
+        (rows || []).forEach((t) => {
+            const email = String(t.email || t.mail || '')
+                .trim()
+                .toLowerCase();
+            const code = String(t.code || t.id || '').trim();
+            const name = String(t.name || t.displayName || '').trim();
+            const key = (email || code).toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            teachers.push({ code, name, email });
+        });
+    };
     try {
-        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getTeachers === 'function') {
-            const rows = window.ms365AppDataV2.getTeachers() || [];
-            rows.forEach((t) => {
-                teachers.push({
-                    code: String(t.code || t.id || '').trim(),
-                    name: String(t.name || t.displayName || '').trim(),
-                    email: String(t.email || t.mail || '').trim().toLowerCase()
-                });
-            });
-        }
+        pushRows(loadEffectiveTeachersForPersona());
     } catch {
         /* ignore */
+    }
+    if (!teachers.length) {
+        try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getTeachers === 'function') {
+                pushRows(window.ms365AppDataV2.getTeachers() || []);
+            }
+        } catch {
+            /* ignore */
+        }
     }
     return { teachers };
 }
@@ -237,14 +318,33 @@ export function matchTeacherByEmail(teachers, email) {
 }
 
 /**
+ * Sichtbarkeits-Scope für Listen/Kalender.
+ * Explizites `scopeAll: false` gewinnt immer (auch bei Rolle Direktion → „Meine Anträge“).
+ * Lehrkraft ohne Option: immer nur eigene Anträge.
  * @param {object} state
+ * @param {{ scopeAll?: boolean }} [opts]
  */
 export function scopeFromState(state, opts) {
     const o = opts || {};
-    if (state.role === 'direktion' || o.scopeAll) {
-        return { scopeAll: true, accountEmail: state.accountEmail };
+    const email = state && state.accountEmail;
+    const accountName = state && state.accountName;
+    if (Object.prototype.hasOwnProperty.call(o, 'scopeAll')) {
+        return { scopeAll: !!o.scopeAll, accountEmail: email, accountName };
     }
-    return { scopeAll: false, accountEmail: state.accountEmail };
+    if (state && state.role === 'direktion') {
+        return { scopeAll: true, accountEmail: email, accountName };
+    }
+    return { scopeAll: false, accountEmail: email, accountName };
+}
+
+/**
+ * Anträge für die aktuelle Rolle/Ansicht (Lehrkraft: nur eigene).
+ * @param {object} state
+ * @param {object} [filters]
+ * @param {{ scopeAll?: boolean }} [scopeOpts]
+ */
+export function visibleItemsForState(state, filters, scopeOpts) {
+    return filterItems(state && state.items, filters || {}, scopeFromState(state, scopeOpts));
 }
 
 export function canDecide(state) {
@@ -268,6 +368,14 @@ export function saveDemoItems(items) {
     }
 }
 
+export function clearDemoItems() {
+    try {
+        localStorage.removeItem(DEMO_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
 /**
  * Rollen-Hinweis aus Stammdaten / Direktions-Mail (ohne Graph-Gruppen-Check im MVP).
  * @param {object} state
@@ -275,7 +383,8 @@ export function saveDemoItems(items) {
 export function inferRoleHint(state) {
     const perms = loadLfrPermissions();
     const em = String(state.accountEmail || '').trim().toLowerCase();
-    if (accountIsLfrDirektionAccess(em, perms) || resolveLfrApproverEmail(perms) === em) {
+    // Nur LFR-Perms/Setup – Schüler-FR-Genehmiger-Mail darf hier keine Direktion setzen
+    if (accountIsLfrDirektionAccess(em, perms)) {
         return 'direktion';
     }
     if (accountIsLfrLehrerAccess(em, perms)) return 'lehrer';

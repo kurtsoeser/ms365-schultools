@@ -529,6 +529,14 @@ const STORAGE_KEY_LABELS = {
     'ms365-pa-projektwochen-mail-v1': 'PA Projektwochen-Mail',
     'ms365-sa-settings-v1': 'Schularbeiten-Planer Einstellungen',
     'ms365-schularbeiten-perms-v1': 'Schularbeiten-Planer Berechtigungen',
+    'ms365-schulaktivitaeten-perms-v1': 'Schulaktivitäten Berechtigungen',
+    'ms365-akt-setup-v1': 'Schulaktivitäten Setup',
+    'ms365-srdp-list-perms-v1': 'sRDP-Listen-Berechtigungen',
+    'ms365-srdp-anmeldung-v1': 'sRDP-Anmeldung Einrichtung',
+    'ms365-srdp-mail-setup-v1': 'sRDP-Mail-Setup',
+    'ms365-srdp-planer-site-v1': 'sRDP-Planer Site',
+    'ms365-lfr-perms-v1': 'Lehrer-Freistellung Berechtigungen',
+    'ms365-lfr-setup-v1': 'Lehrer-Freistellung Setup',
     'ms365-akt-planer-site-v1': 'Schulaktivitäten-Planer Site',
     'ms365-playbook-eltern-v1': 'Playbook Eltern',
     'ms365-playbook-elternsprechtag-v1': 'Playbook Elternsprechtag',
@@ -749,7 +757,12 @@ export const BACKUP_COVERAGE_SPOTLIGHT_KEYS = [
     'ms365-kalender-postfaecher-v1',
     'ms365-schueler-stammdaten-portal-v1',
     'ms365-akt-setup-v1',
-    'ms365-akt-planer-site-v1'
+    'ms365-akt-planer-site-v1',
+    'ms365-schulaktivitaeten-perms-v1',
+    'ms365-srdp-list-perms-v1',
+    'ms365-srdp-anmeldung-v1',
+    'ms365-srdp-mail-setup-v1',
+    'ms365-srdp-planer-site-v1'
 ];
 
 function localStorageSliceFromBackupPayload(payload) {

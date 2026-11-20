@@ -4,6 +4,15 @@
 import { createSchulaktivitaetenLists } from '../sharepoint/sharepoint-liste-schulaktivitaeten.js';
 import { LIST_TITLES } from '../schulaktivitaeten-planer/schulaktivitaeten-planer-schema.js';
 import { computeAktSetupGlance, effectiveAktFlowAccount } from './schulaktivitaeten-setup-status.js';
+import {
+    AKT_FLOW_ASSET_ID,
+    AKT_FLOW_SOURCE,
+    applyAktFlowParamsToDefinition,
+    assertAktFlowDefinitionMatchesSchool,
+    normalizeSharePointListGuid,
+    replaceAllLiteral
+} from './schulaktivitaeten-setup-package.js';
+import { SPO_ROLE } from '../../shared/stammdaten-sharepoint-sync-logic.js';
 
 const G = () => {
     const api = window.ms365SpoGraph;
@@ -21,16 +30,9 @@ const STEP_STORAGE_KEY = 'ms365-akt-setup-step-v1';
 const FLOW_DONE_KEY = 'ms365-pa-done-schulaktivitaeten';
 const SETUP_STEP_COUNT = 5;
 const TEMPLATE_BASE = '../assets/power-automate/schulaktivitaeten';
-const FLOW_ASSET_ID = 'a7f3c91e-2b4d-4e8a-9c1f-6d5e8b0a4f27';
-
-/** Platzhalter in der Flow-Vorlage – werden beim Paketbau ersetzt. */
-const SOURCE = {
-    siteUrl: 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools',
-    listId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-    emailDirektion: 'direktor@ms365.schule',
-    emailMailbox: 'automate@ms365.schule',
-    connectionOwner: 'kurt@kurtsoeser.at'
-};
+const FLOW_ASSET_ID = AKT_FLOW_ASSET_ID;
+/** Platzhalter in assets – nur für Prefill-Fallback / Manifest-Replace. */
+const SOURCE = AKT_FLOW_SOURCE;
 
 function $(id) {
     return document.getElementById(id);
@@ -116,11 +118,6 @@ function persistFromForm() {
     return cfg;
 }
 
-function replaceAll(haystack, needle, replacement) {
-    if (!needle) return haystack;
-    return String(haystack).split(needle).join(replacement);
-}
-
 function convertSharedMailboxToUserSend(definitionRoot, useUserMailboxSend) {
     if (!useUserMailboxSend || !definitionRoot) return;
     function patchAction(action) {
@@ -161,25 +158,19 @@ function cryptoRandomGuid() {
 }
 
 function applyParamsToDefinition(rawDef, cfg) {
-    let s = typeof rawDef === 'string' ? rawDef : JSON.stringify(rawDef);
-    s = replaceAll(s, SOURCE.siteUrl, cfg.siteUrl);
-    s = replaceAll(s, SOURCE.listId, cfg.listId);
-    s = replaceAll(s, SOURCE.emailDirektion, cfg.emailDirektion);
-    s = replaceAll(s, SOURCE.emailMailbox, cfg.emailMailbox);
-    const flowAccount = effectiveAktFlowAccount(cfg);
-    if (flowAccount) s = replaceAll(s, SOURCE.connectionOwner, flowAccount);
-
-    const obj = JSON.parse(s);
-    if (obj.properties) {
-        obj.properties.displayName = cfg.flowDisplayName;
-        const newId = cryptoRandomGuid();
-        obj.name = newId;
-        obj.id = '/providers/Microsoft.Flow/flows/' + newId;
-        if (obj.properties.definition) {
-            convertSharedMailboxToUserSend(obj.properties.definition, cfg.mailAsTechnikUser !== false);
+    return applyAktFlowParamsToDefinition(
+        rawDef,
+        {
+            ...cfg,
+            listId: String(cfg.listId || '').trim(),
+            listName: String(cfg.listName || '').trim() || LIST_TITLES.aktivitaeten
+        },
+        {
+            flowAccount: effectiveAktFlowAccount(cfg),
+            newFlowId: cryptoRandomGuid(),
+            convertSharedMailboxToUserSend
         }
-    }
-    return obj;
+    );
 }
 
 async function fetchText(path) {
@@ -201,8 +192,20 @@ function downloadBlob(blob, filename) {
 
 async function buildPackageZip(cfg) {
     if (typeof JSZip === 'undefined') throw new Error('JSZip fehlt – Seite neu laden.');
-    if (!cfg.listId) throw new Error('Listen-ID fehlt – zuerst Liste anlegen oder ID eintragen.');
     if (!cfg.siteUrl) throw new Error('SharePoint-Website fehlt.');
+    const siteUrl = String(cfg.siteUrl || '')
+        .trim()
+        .replace(/\/+$/, '');
+    if (!/\/sites\//i.test(siteUrl) && !/\/teams\//i.test(siteUrl)) {
+        throw new Error(
+            'Site-URL wirkt unvollständig (kein /sites/… beziehungsweise /teams/…). Erwartet z. B. https://….sharepoint.com/sites/MS365-Schultools'
+        );
+    }
+    if (!cfg.listId) {
+        throw new Error(
+            'Listen-ID fehlt – zuerst „Listen anlegen/prüfen“. Power Automate braucht die echte Listen-GUID (nicht nur den Namen).'
+        );
+    }
     const flowAccount = effectiveAktFlowAccount(cfg);
     if (!flowAccount) {
         throw new Error('Technik-Konto fehlt – in Schritt 2 eintragen.');
@@ -225,18 +228,25 @@ async function buildPackageZip(cfg) {
     ]);
 
     const definition = applyParamsToDefinition(defRaw, cfg);
+    assertAktFlowDefinitionMatchesSchool(definition, {
+        siteUrl,
+        listId: String(cfg.listId || '').trim()
+    });
     let rootManifest = JSON.parse(rootManifestRaw);
     rootManifest.details = rootManifest.details || {};
     rootManifest.details.displayName = cfg.flowDisplayName;
     rootManifest.details.description =
-        'Schulaktivitäten: Trigger Liste, Microsoft Approvals an die Direktion, Status-Mail an die Lehrkraft.';
+        'Schulaktivitäten: Trigger Liste, Microsoft Approvals an die Direktion, Status-Mail an die Lehrkraft. Multitenant: Site/Liste werden beim Download aus dem Setup eingesetzt.';
     rootManifest.details.createdTime = new Date().toISOString();
     rootManifest.details.sourceEnvironment = '';
 
     Object.keys(rootManifest.resources || {}).forEach((key) => {
         const r = rootManifest.resources[key];
         if (!r || !r.details) return;
+        // Connections wie Freistellung: Existing (New hängt PA bei „Zugehörige Ressourcen“)
         if (r.type === 'Microsoft.PowerApps/apis/connections') {
+            r.suggestedCreationType = 'Existing';
+            r.creationType = 'Existing';
             if (String(r.details.displayName || '').indexOf('@') !== -1) {
                 r.details.displayName = flowAccount;
             }
@@ -248,7 +258,7 @@ async function buildPackageZip(cfg) {
     });
 
     let rootStr = JSON.stringify(rootManifest);
-    rootStr = replaceAll(rootStr, SOURCE.connectionOwner, flowAccount);
+    rootStr = replaceAllLiteral(rootStr, SOURCE.connectionOwner, flowAccount);
     rootManifest = JSON.parse(rootStr);
 
     const zip = new JSZip();
@@ -265,12 +275,15 @@ async function buildPackageZip(cfg) {
     const filename = 'Schulaktivitaeten_' + stamp + '.zip';
     downloadBlob(blob, filename);
     log('Paket heruntergeladen: ' + filename);
-    log('Nächster Schritt: make.powerautomate.com → Meine Flows → Importieren → Package (Legacy).');
-    log(
-        'Wichtig: In Power Automate mit ' +
-            flowAccount +
-            ' anmelden und Connections (SharePoint, Approvals, Outlook) verbinden.'
-    );
+    log('Dieses ZIP gilt nur für die eingestellte Schule:');
+    log('  Site: ' + siteUrl);
+    log('  Liste: ' + (cfg.listName || LIST_TITLES.aktivitaeten) + ' (' + cfg.listId + ')');
+    log('Andere Schule / andere Site → Setup erneut öffnen und ZIP neu erzeugen.');
+    log('Import (wichtig – sonst GetTable 403):');
+    log('  1) Bei Power Automate als ' + flowAccount + ' anmelden.');
+    log('  2) Package (Legacy) → Flow „Als neu erstellen“.');
+    log('  3) Bei zugehörigen Ressourcen SharePoint/Approvals/Outlook auswählen bzw. Connection mit diesem Konto anlegen.');
+    log('  4) SharePoint-Connection muss das Konto sein, das fullControl auf der Liste hat.');
     log('Flow einschalten und mit Testantrag (Status beantragt) prüfen.');
     return filename;
 }
@@ -291,13 +304,180 @@ async function ensureList(cfg) {
     return { listId, webUrl: res.lists.aktivitaeten.webUrl || '' };
 }
 
+/**
+ * SPO-Token + Digest für Listenrechte / GUID-Auflösung.
+ * @param {string} siteWebUrl
+ */
+async function acquireSpoWriteContext(siteWebUrl) {
+    const api = G();
+    const url = String(siteWebUrl || '')
+        .trim()
+        .replace(/\/+$/, '');
+    let host = '';
+    try {
+        host = new URL(url).hostname;
+    } catch {
+        throw new Error('Site-URL ungültig.');
+    }
+    const scopes = ['https://' + host + '/AllSites.Write', 'https://' + host + '/AllSites.Read'];
+    let spoToken = '';
+    let lastErr = '';
+    for (let i = 0; i < scopes.length; i++) {
+        try {
+            if (typeof window.ms365AuthAcquireTokenSilent === 'function') {
+                try {
+                    spoToken = await window.ms365AuthAcquireTokenSilent([scopes[i]]);
+                } catch {
+                    spoToken = await api.getGraphToken([scopes[i]]);
+                }
+            } else {
+                spoToken = await api.getGraphToken([scopes[i]]);
+            }
+            if (spoToken) break;
+        } catch (e) {
+            lastErr = e && e.message ? String(e.message) : String(e);
+        }
+    }
+    if (!spoToken) throw new Error('SharePoint-Token fehlt (' + (lastErr || 'AllSites.Write') + ')');
+    const digest = await api.getSpoRequestDigest(url, spoToken);
+    return { api, siteWebUrl: url, spoToken, digest };
+}
+
+/**
+ * Listen-GUID wie Power Automate sie erwartet (SPO REST Id, nicht nur Graph).
+ * @param {string} siteWebUrl
+ * @param {string} listTitle
+ * @returns {Promise<string>}
+ */
+async function resolveListGuidViaSpoRest(siteWebUrl, listTitle) {
+    const title = String(listTitle || LIST_TITLES.aktivitaeten).trim() || LIST_TITLES.aktivitaeten;
+    const ctx = await acquireSpoWriteContext(siteWebUrl);
+    const esc = title.replace(/'/g, "''");
+    const res = await ctx.api.spoRestFetch(
+        ctx.siteWebUrl,
+        ctx.spoToken,
+        ctx.digest,
+        'GET',
+        "/_api/web/lists/getbytitle('" + esc + "')?$select=Id,Title"
+    );
+    if (!res.ok) {
+        throw new Error(
+            'Liste „' + title + '“ per SPO nicht lesbar (HTTP ' + res.status + '). Zuerst Listen anlegen/prüfen.'
+        );
+    }
+    const raw = (res.data && (res.data.Id || res.data.id)) || '';
+    const listId = normalizeSharePointListGuid(raw);
+    if (!listId) throw new Error('SPO lieferte keine Listen-GUID für „' + title + '“.');
+    return listId;
+}
+
+/**
+ * Nach Vererbungsbruch: Technik-/Import-Konto braucht Vollzugriff, sonst GetTable 403 beim ZIP-Import.
+ * @param {string} siteWebUrl
+ * @param {string[]} emails
+ * @param {string[]} listTitles
+ * @param {(m: string) => void} write
+ */
+async function grantFlowImportAccountsFullControl(siteWebUrl, emails, listTitles, write) {
+    const uniq = [];
+    const seen = new Set();
+    (emails || []).forEach((e) => {
+        const em = String(e || '')
+            .trim()
+            .toLowerCase();
+        if (!em || !em.includes('@') || seen.has(em)) return;
+        seen.add(em);
+        uniq.push(em);
+    });
+    if (!uniq.length) {
+        write('  ! Kein Flow-/Import-Konto – GetTable 403 beim Import möglich.');
+        return;
+    }
+    const ctx = await acquireSpoWriteContext(siteWebUrl);
+    const titles = (listTitles || []).map((t) => String(t || '').trim()).filter(Boolean);
+    for (let t = 0; t < titles.length; t++) {
+        const listTitle = titles[t];
+        for (let i = 0; i < uniq.length; i++) {
+            const em = uniq[i];
+            try {
+                const logon =
+                    typeof ctx.api.membershipLogonName === 'function'
+                        ? ctx.api.membershipLogonName(em)
+                        : 'i:0#.f|membership|' + em;
+                const principal = await ctx.api.spoEnsureUser(
+                    ctx.siteWebUrl,
+                    ctx.spoToken,
+                    ctx.digest,
+                    logon
+                );
+                await ctx.api.spoAddRoleAssignment(
+                    ctx.siteWebUrl,
+                    ctx.spoToken,
+                    ctx.digest,
+                    listTitle,
+                    principal.id,
+                    SPO_ROLE.fullControl
+                );
+                write('  + Import-Konto ' + em + ' → fullControl auf „' + listTitle + '“');
+            } catch (e) {
+                write(
+                    '  ! Konnte ' +
+                        em +
+                        ' auf „' +
+                        listTitle +
+                        '“ nicht berechtigen: ' +
+                        (e && e.message ? e.message : e)
+                );
+            }
+        }
+    }
+}
+
+async function currentSignedInEmail() {
+    try {
+        if (typeof window.ms365AuthGetAccount === 'function') {
+            const a = window.ms365AuthGetAccount();
+            const em = String((a && (a.username || a.mail || a.email)) || '')
+                .trim()
+                .toLowerCase();
+            if (em.includes('@')) return em;
+        }
+    } catch {
+        /* ignore */
+    }
+    try {
+        const tok = await G().getGraphToken(['https://graph.microsoft.com/User.Read']);
+        const me = await G().graphJson('GET', '/me?$select=mail,userPrincipalName', tok, undefined, 'v1.0');
+        const em = String((me && (me.mail || me.userPrincipalName)) || '')
+            .trim()
+            .toLowerCase();
+        if (em.includes('@')) return em;
+    } catch {
+        /* ignore */
+    }
+    return '';
+}
+
 async function resolveListIdIfNeeded(cfg) {
-    if (cfg.listId) return cfg;
+    const title = cfg.listName || LIST_TITLES.aktivitaeten;
+    // Bevorzugt SPO-REST-GUID (exakt wie Power Automate GetTable)
+    try {
+        const listId = await resolveListGuidViaSpoRest(cfg.siteUrl, title);
+        if ($('aktListId')) $('aktListId').value = listId;
+        const next = { ...cfg, listId, listName: title };
+        saveCfg(next);
+        return next;
+    } catch (spoErr) {
+        log(
+            'SPO-GUID-Auflösung: ' +
+                (spoErr && spoErr.message ? spoErr.message : spoErr) +
+                ' – versuche Graph …'
+        );
+    }
     const token = await G().getGraphToken(SCOPES);
     const site = await G().resolveSiteFromWebUrl(token, cfg.siteUrl);
     const siteId = site && site.id ? String(site.id) : '';
     if (!siteId) throw new Error('Site-ID fehlt.');
-    const title = cfg.listName || LIST_TITLES.aktivitaeten;
     const path =
         G().graphPathSite(siteId) +
         '/lists?$filter=' +
@@ -306,9 +486,9 @@ async function resolveListIdIfNeeded(cfg) {
     const data = await G().graphJson('GET', path, token, undefined, 'v1.0');
     const list = ((data && data.value) || [])[0];
     if (!list) throw new Error('Liste „' + title + '“ nicht gefunden – zuerst anlegen.');
-    const listId = String(list.id);
+    const listId = normalizeSharePointListGuid(list.id) || String(list.id);
     if ($('aktListId')) $('aktListId').value = listId;
-    const next = { ...cfg, listId };
+    const next = { ...cfg, listId, listName: title };
     saveCfg(next);
     return next;
 }
@@ -372,7 +552,10 @@ function refreshGlance() {
             ok = g.listOk;
             warn = !ok;
         } else if (key === 'roles') {
-            ok = !!String(readForm().emailDirektion || '').trim();
+            ok =
+                typeof window.ms365AktRolesConfigured === 'function'
+                    ? !!window.ms365AktRolesConfigured()
+                    : !!String(readForm().emailDirektion || '').trim();
             warn = !ok;
         } else if (key === 'flow') {
             ok = g.flowOk;
@@ -396,14 +579,17 @@ function updatePhaseHint(step) {
     else if (step === 2) {
         el.textContent = g.emailsOk
             ? 'Schritt 2: Konten gesetzt – weiter zur Liste.'
-            : 'Schritt 2: Technik-Konto, Direktion (Approver) und Absender eintragen.';
+            : 'Schritt 2: Technik-Konto, Direktion und Absender eintragen (Suchen-Button).';
     } else if (step === 3) {
         el.textContent = g.listOk
             ? 'Schritt 3: Liste bereit – Rollen kurz prüfen.'
             : 'Schritt 3: Website wählen und Listen anlegen / prüfen.';
     } else if (step === 4) {
-        el.textContent =
-            'Schritt 4: Genehmiger = Direktion aus Schritt 2; Planer-Rollen im Planer (Demo Lehrer/Admin).';
+        const rolesOk =
+            typeof window.ms365AktRolesConfigured === 'function' && window.ms365AktRolesConfigured();
+        el.textContent = rolesOk
+            ? 'Schritt 4: Genehmigung & Einreicher gesetzt – weiter zum Flow-Paket.'
+            : 'Schritt 4: Entra-Gruppen / Personen für Genehmigung und Einreicher suchen und speichern.';
     } else {
         el.textContent = g.flowOk
             ? 'Schritt 5: Flow markiert – im Planer testen.'
@@ -492,18 +678,38 @@ async function onEnsureList() {
 async function onBuildPackage() {
     try {
         let cfg = persistFromForm();
-        if (!cfg.listId) {
-            log('Keine Listen-ID – löse Liste auf bzw. lege an …');
-            try {
-                cfg = await resolveListIdIfNeeded(cfg);
-            } catch {
-                await ensureList(cfg);
-                cfg = readForm();
-            }
-        }
         log('— Flow-Paket —');
+        if (!cfg.siteUrl) throw new Error('Bitte SharePoint-Website eintragen.');
+        const flowAccount = effectiveAktFlowAccount(cfg);
+        if (!flowAccount) throw new Error('Technik-Konto fehlt – in Schritt 2 eintragen.');
+
+        // Immer frische SPO-Listen-GUID (GetTable)
+        try {
+            cfg = await resolveListIdIfNeeded({ ...cfg, listId: '' });
+        } catch (resolveErr) {
+            log(
+                'Liste nicht gefunden – lege an: ' +
+                    (resolveErr && resolveErr.message ? resolveErr.message : resolveErr)
+            );
+            await ensureList(cfg);
+            cfg = readForm();
+            cfg = await resolveListIdIfNeeded({ ...cfg, listId: '' });
+        }
+        if (!cfg.listId) throw new Error('Listen-ID fehlt nach Auflösung.');
+        log('Verwende SPO-Listen-GUID: ' + cfg.listId);
+
+        // Nach „breite Site-Rollen entfernt“: Import-Konto sonst GetTable 403
+        log('Berechtige Flow-/Import-Konto auf den Paket-Listen …');
+        const signedIn = await currentSignedInEmail();
+        await grantFlowImportAccountsFullControl(
+            cfg.siteUrl,
+            [flowAccount, signedIn],
+            [LIST_TITLES.aktivitaeten, LIST_TITLES.regelwerk],
+            log
+        );
+
         await buildPackageZip(cfg);
-        toast('Flow-Paket heruntergeladen.');
+        toast('Flow-Paket heruntergeladen – Import als ' + flowAccount + ' mit neuen Connections.');
     } catch (e) {
         log('Fehler: ' + (e && e.message ? e.message : e));
         toast(e && e.message ? e.message : String(e));
@@ -513,12 +719,10 @@ async function onBuildPackage() {
 function prefillSiteFromApp() {
     const input = $('aktSiteUrl');
     if (!input || String(input.value || '').trim()) return;
+    const candidates = [];
     try {
         const local = String(localStorage.getItem('ms365-akt-planer-site-v1') || '').trim();
-        if (local) {
-            input.value = local;
-            return;
-        }
+        if (local) candidates.push(local);
     } catch {
         /* ignore */
     }
@@ -527,9 +731,29 @@ function prefillSiteFromApp() {
             window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
                 ? window.ms365AppDataV2.getSetup()
                 : null;
-        if (setup && setup.intranetSiteUrl) input.value = String(setup.intranetSiteUrl).trim();
+        if (setup) {
+            const planerSites =
+                setup.planerSiteUrls && typeof setup.planerSiteUrls === 'object'
+                    ? setup.planerSiteUrls
+                    : {};
+            candidates.push(
+                planerSites.aktivitaeten,
+                setup.planerDefaultSiteUrl,
+                setup.intranetSiteUrl
+            );
+        }
     } catch {
         /* ignore */
+    }
+    candidates.push(SOURCE.siteUrl);
+    for (let i = 0; i < candidates.length; i++) {
+        const u = String(candidates[i] || '')
+            .trim()
+            .replace(/\/+$/, '');
+        if (u && (/\/sites\//i.test(u) || /\/teams\//i.test(u))) {
+            input.value = u;
+            return;
+        }
     }
 }
 

@@ -85,7 +85,12 @@
         },
         {
             label: 'Dashboard (Sitzung)',
-            keys: ['ms365-dashboard-persona-cache-v2', 'ms365-gaeste-verwalten-active-tab-v1']
+            keys: [
+                'ms365-dashboard-persona-cache-v2',
+                'ms365-gaeste-verwalten-active-tab-v1',
+                'ms365-live-school-stammdaten-v1',
+                'ms365-live-stammdaten-ensure-v1'
+            ]
         },
         {
             label: 'Schulstruktur (Legacy-Spiegel)',
@@ -157,9 +162,12 @@
                 'ms365-pa-done-schilf',
                 'ms365-pa-done-srdp-mail',
                 'ms365-srdp-anmeldung-v1',
+                'ms365-srdp-matura-termine-v1',
                 'ms365-srdp-anmeldung-role-v1',
+                'ms365-srdp-list-perms-v1',
                 'ms365-srdp-mail-setup-v1',
                 'ms365-srdp-planer-site-v1',
+                'ms365-srdp-wizard-step-v1',
                 'ms365-lfr-setup-v1',
                 'ms365-lfr-setup-step-v1',
                 'ms365-lfr-perms-v1',
@@ -182,6 +190,7 @@
                 'ms365-spakt-wizard-step-v1',
                 'ms365-stammdaten-it-library-v1',
                 'ms365-stammdaten-it-library-by-tenant-v2',
+                'ms365-it-library-meta-v1',
                 'ms365-stammdaten-spo-sync-v1',
                 'ms365-stammdaten-spo-sync-by-tenant-v2',
                 'ms365-stammdaten-listen-perms-v1',
@@ -328,6 +337,7 @@
             keys: [
                 'ms365-theme-v1',
                 'ms365-brand-v1',
+                'ms365-brand-custom-v1',
                 'ms365-ss-graph-collapsed-v1',
                 'ms365-schooltool-access-override-v1',
                 'ms365-schooltool-release-notes-v1',
@@ -777,7 +787,15 @@
         const schoolApps = [
             { id: 'schularbeiten', label: 'Schularbeiten', keys: ['ms365-sa-site-url', 'ms365-sa-settings-v1'] },
             { id: 'projektwochen', label: 'Projektwochen', keys: ['ms365-pw-site-url', 'ms365-projektwochen-demo-v1'] },
-            { id: 'schulaktivitaeten', label: 'Schulaktivitäten', keys: ['ms365-akt-planer-site-v1', 'ms365-akt-setup-v1'] },
+            {
+                id: 'schulaktivitaeten',
+                label: 'Schulaktivitäten',
+                keys: [
+                    'ms365-akt-planer-site-v1',
+                    'ms365-akt-setup-v1',
+                    'ms365-schulaktivitaeten-perms-v1'
+                ]
+            },
             { id: 'freistellung', label: 'Freistellung', keys: ['ms365-freistellung-setup-v1', 'ms365-freistellung-planer-site-v1'] },
             { id: 'lehrer-freistellung', label: 'Lehrer-Freistellung', keys: ['ms365-lfr-setup-v1', 'ms365-lfr-planer-site-v1'] },
             { id: 'einsammler', label: 'Einsammler', keys: ['ms365-einsammler-v1', 'ms365-einsammler-settings-v1', 'ms365-einsammler-sp-settings-v1'] },

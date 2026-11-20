@@ -20,7 +20,8 @@
     "release:screen-cache": "node scripts/bump-landing-screen-cache.mjs",
     "release:landing-stamp": "node scripts/write-landing-build-info.mjs",
     "migrate:nextcloud": "node scripts/nextcloud-teams-migrate/migrate.mjs",
-    "migrate:nextcloud-helper": "node scripts/nextcloud-teams-migrate/proxy-server.mjs"
+    "migrate:nextcloud-helper": "node scripts/nextcloud-teams-migrate/proxy-server.mjs",
+    "pack:akt-pa": "node scripts/pack-akt-pa-zip.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

@@ -52,6 +52,7 @@ import {
     pushAufgabe,
     pushAufgabeDelete
 } from './aufgaben-sync.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 import {
     AUFGABEN_VORLAGEN,
     draftFromAufgabeVorlage
@@ -72,7 +73,7 @@ const MELDER_VIEWS = [
 
 const ADMIN_EXTRA = [
     { id: 'alle', label: 'Alle offen', icon: 'bi-inboxes' },
-    { id: 'system', label: 'System', icon: 'bi-gear' }
+    { id: 'system', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 function esc(s) {
@@ -130,6 +131,7 @@ export function mountApp(root) {
      * }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         message: null,
         filters: { scope: 'mir', status: '', q: '' },
         meEmail: acc0.email || DEMO_ME_EMAIL,
@@ -696,45 +698,86 @@ export function mountApp(root) {
         const sync = getAufgabenSyncMeta();
         const site = resolveAufgabenSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
         const s = state();
-        return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">System</h2>' +
-            '<div class="af-system-panel">' +
-            '<h3>SharePoint (Live)</h3>' +
-            '<p><code>' +
-            esc(site) +
-            '</code></p>' +
-            '<p>Sync: <strong>' +
-            esc(sync.source) +
-            '</strong>' +
-            (sync.listTitle ? ' · Liste „' + esc(sync.listTitle) + '“' : '') +
-            (sync.lastPullAt ? ' · zuletzt ' + esc(formatDeDate(sync.lastPullAt)) : '') +
+        const syncLine =
+            'Sync: ' +
+            sync.source +
+            (sync.listTitle ? ' · Liste „' + sync.listTitle + '“' : '') +
+            (sync.lastPullAt ? ' · zuletzt ' + formatDeDate(sync.lastPullAt) : '') +
             (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
-            (sync.error ? ' · ' + esc(sync.error) : '') +
-            '</p>' +
-            '<p>Stammdaten: ' +
-            esc(meta.source) +
-            (meta.classCount || meta.teacherCount
-                ? ' · ' + meta.classCount + ' Klassen · ' + meta.teacherCount + ' Lehrkräfte'
-                : '') +
-            (meta.error ? ' · ' + esc(meta.error) : '') +
-            '</p>' +
-            '<p>Lokal: ' +
-            (s.aufgaben || []).length +
-            ' Aufgaben' +
-            (s.localDemoOnly ? ' · Demo local-first' : '') +
-            ' · mit spoItemId: ' +
-            (s.aufgaben || []).filter((a) => a.spoItemId).length +
-            '</p>' +
-            '<p class="ag-item__meta">Automatische Mails: Power-Automate-Rezept „Aufgaben Status-Mail“ (oder mailto im Formular).</p>' +
-            '<div class="ag-toolbar">' +
-            '<button type="button" class="btn btn-success" data-ag-pull>Von SharePoint laden</button>' +
-            '<button type="button" class="btn" data-ag-demo>Demo laden</button>' +
-            '<button type="button" class="btn" data-ag-clear-seed>Demo-Seed entfernen</button>' +
-            '<button type="button" class="btn" data-ag-clear>Lokal leeren</button>' +
-            '<a class="btn" href="sharepoint-liste-aufgaben.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
-            '<a class="btn" href="power-automate-rezepte.html"><i class="bi bi-lightning"></i> PA-Rezepte</a>' +
-            '</div></div>'
-        );
+            (sync.error ? ' · ' + sync.error : '');
+        return renderSystemAdminPage({
+            prefix: 'af',
+            activeTab: ui.systemTab,
+            dataAttr: 'data-af-sys-tab',
+            ariaLabel: 'Systemadministration Aufgaben',
+            panels: [
+                {
+                    id: 'site',
+                    step: '1',
+                    title: 'Datenquelle',
+                    leadHtml: 'SharePoint-Liste der Aufgaben.',
+                    body:
+                        '<p><code>' +
+                        esc(site) +
+                        '</code></p><p class="muted">' +
+                        esc(syncLine) +
+                        '</p><p class="muted">Stammdaten: ' +
+                        esc(meta.source || '–') +
+                        (meta.classCount || meta.teacherCount
+                            ? ' · ' + meta.classCount + ' Klassen · ' + meta.teacherCount + ' Lehrkräfte'
+                            : '') +
+                        (meta.error ? ' · ' + esc(meta.error) : '') +
+                        '</p><p class="muted">Lokal: ' +
+                        (s.aufgaben || []).length +
+                        ' Aufgaben' +
+                        (s.localDemoOnly ? ' · Demo local-first' : '') +
+                        ' · mit spoItemId: ' +
+                        (s.aufgaben || []).filter((a) => a.spoItemId).length +
+                        '</p><div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-primary" data-ag-pull>Von SharePoint laden</button>' +
+                        '<a class="btn ms-sys-btn-secondary" href="sharepoint-liste-aufgaben.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'perms',
+                    step: '2',
+                    title: 'Berechtigungen',
+                    leadHtml: 'Wer Aufgaben sieht, kommt aus Entra (Melder / Admin). Listenrechte im Assistenten.',
+                    body:
+                        '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-aufgaben.html"><i class="bi bi-shield-check"></i>Listen-Assistent</a></div>'
+                },
+                {
+                    id: 'kalender',
+                    step: '3',
+                    title: 'Kalender',
+                    leadHtml: 'Fristen stehen an der Aufgabe. Mails laufen über das Power-Automate-Rezept oder mailto.',
+                    body:
+                        '<div class="ms-sys-actions"><a class="btn ms-sys-btn-secondary" href="power-automate-rezepte.html"><i class="bi bi-lightning"></i> PA-Rezepte</a></div>'
+                },
+                {
+                    id: 'wartung',
+                    step: '4',
+                    title: 'Wartung',
+                    leadHtml: 'Demo bleibt lokal und wird nicht nach SharePoint geschrieben.',
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-secondary" data-ag-demo>Demo laden</button>' +
+                        '<a class="btn ms-sys-btn-ghost" href="../hilfe.html"><i class="bi bi-life-preserver"></i>Hilfe</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'danger',
+                    title: 'Danger Zone',
+                    danger: true,
+                    leadHtml: 'Nur der lokale Cache. SharePoint-Zeilen bleiben bestehen.',
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-ag-clear-seed>Demo-Seed entfernen</button>' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-ag-clear>Lokal leeren</button>' +
+                        '</div>'
+                }
+            ]
+        });
     }
 
     function opt(value, label, selected) {
@@ -849,6 +892,13 @@ export function mountApp(root) {
     }
 
     function bind() {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-af-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-ag-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = btn.getAttribute('data-ag-view') || 'uebersicht';

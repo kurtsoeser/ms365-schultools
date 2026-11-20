@@ -21,7 +21,7 @@ import {
     formatFreistellungPlannerPublishToast,
     initFreistellungSetupPermissions
 } from '../freistellung-planer/freistellung-permissions-ui.js';
-import { pickEntraUser } from '../../shared/entra-user-picker.js';
+import { wireFlowSetupEmailPickers } from '../../shared/flow-setup-email-pickers.js';
 
 window.ms365FreistellungSchema = {
     columns: FREISTELLUNG_COLUMNS,
@@ -99,31 +99,7 @@ const FLOW_EMAIL_PICKERS = [
 ];
 
 function wireFreistellungSetupEmailPickers() {
-    FLOW_EMAIL_PICKERS.forEach((spec) => {
-        const btn = document.getElementById(spec.btnId);
-        const input = document.getElementById(spec.inputId);
-        if (!btn || !input) return;
-        btn.addEventListener('click', () => {
-            pickEntraUser({ title: spec.title, hint: spec.hint })
-                .then((user) => {
-                    if (!user) return;
-                    const mail = String(user.mail || '').trim().toLowerCase();
-                    if (!mail.includes('@')) {
-                        if (typeof window.ms365ToastOrAlert === 'function') {
-                            window.ms365ToastOrAlert('Keine E-Mail-Adresse für dieses Konto gefunden.');
-                        }
-                        return;
-                    }
-                    input.value = mail;
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                })
-                .catch((e) => {
-                    const msg = e && e.message ? e.message : String(e);
-                    if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
-                });
-        });
-    });
+    wireFlowSetupEmailPickers(FLOW_EMAIL_PICKERS, { wiredFlag: 'frEmailPickerWired' });
 }
 
 if (document.readyState === 'loading') {

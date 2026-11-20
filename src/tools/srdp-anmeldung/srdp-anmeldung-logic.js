@@ -6,6 +6,7 @@ import {
     getProfile,
     PROFILE_HAK
 } from './srdp-anmeldung-schema.js';
+import { datumForExamPart } from './srdp-pruefungstermine.js';
 
 /**
  * @param {string|number|null|undefined} nachname
@@ -47,6 +48,68 @@ export function buildPruefplanKurz(variante, profileId) {
         ' · mündlich: ' +
         v.muendlich.join(', ')
     );
+}
+
+/**
+ * Gewählte Prüfungsteile getrennt nach schriftlich / mündlich, mit den Angaben aus der Anmeldung.
+ * @param {object} item
+ * @param {string} [profileId]
+ * @returns {{ schriftlich: { part: string, detail: string }[], muendlich: { part: string, detail: string }[] }}
+ */
+export function buildPruefplanDetail(item, profileId, opts) {
+    const it = item || {};
+    const jahr = (opts && opts.terminJahr) || it.terminJahr || '';
+    const v = resolveVariant(it.variante, profileId);
+    const detailFor = (part) => {
+        const p = String(part || '').trim().toLowerCase();
+        if (p === 'd' || p.startsWith('d ') || p.startsWith('d(')) {
+            return [it.titelDiplomarbeit || it.titelABA, it.betreuungslehrerDA || it.betreuungslehrerABA]
+                .map((x) => String(x || '').trim())
+                .filter(Boolean)
+                .join(' · ');
+        }
+        if (p.indexOf('lfs') !== -1) {
+            return [it.lfs, it.lehrerLFS]
+                .map((x) => String(x || '').trim())
+                .filter(Boolean)
+                .join(' · ');
+        }
+        if (p.indexOf('bko') !== -1) return String(it.lehrerBKO || '').trim();
+        if (p.indexOf('wahlfach') !== -1) {
+            const wf = String(it.wahlfachMuendlich || it.wahlfach || '').trim();
+            const sem = isSeminarWahlfach(wf) ? String(it.seminar || '').trim() : '';
+            return [wf, sem, it.lehrerWahlfach]
+                .map((x) => String(x || '').trim())
+                .filter(Boolean)
+                .join(' · ');
+        }
+        return '';
+    };
+    const mapParts = (parts) =>
+        (Array.isArray(parts) ? parts : []).map((part) => {
+            const name = String(part || '').trim();
+            const when = jahr
+                ? datumForExamPart(name, it.lfs, jahr, {
+                      bfkIso: (opts && (opts.bfkDatum || opts.bfkIso)) || ''
+                  })
+                : null;
+            return {
+                part: name,
+                detail: detailFor(part),
+                datum: when && when.label ? when.label : '',
+                datumHinweis: when && !when.label ? when.hinweis : '',
+                datumIso: when && when.iso ? when.iso : '',
+                fachKey: when && when.key ? when.key : '',
+                fach: when && when.fach ? when.fach : ''
+            };
+        });
+    if (!v) {
+        return { schriftlich: [], muendlich: [] };
+    }
+    return {
+        schriftlich: mapParts(v.schriftlich),
+        muendlich: mapParts(v.muendlich)
+    };
 }
 
 /**
@@ -101,21 +164,33 @@ export function validateAnmeldungDraft(draft) {
 }
 
 /**
+ * Abschlussklassen für den Termin – Jahr-Match bevorzugt, sonst Fallback
+ * (Klassen ohne Jahr / alle Codes), damit das Schüler-Dropdown nie leer bleibt.
  * @param {Array<{ code?: string, name?: string, year?: string|number }>} classes
  * @param {string|number} terminJahr
+ * @returns {string[]}
  */
 export function filterAbschlussklassen(classes, terminJahr) {
     const y = String(terminJahr || '').trim();
     const list = Array.isArray(classes) ? classes : [];
-    if (!/^\d{4}$/.test(y)) return [];
-    return list
-        .filter((c) => String((c && c.year) || '').trim() === y)
-        .map((c) => {
-            const code = String((c && c.code) || '').trim();
-            const name = String((c && c.name) || '').trim();
-            return code || name;
-        })
+    const codeOf = (c) => {
+        const code = String((c && c.code) || '').trim();
+        const name = String((c && c.name) || '').trim();
+        return code || name;
+    };
+    if (/^\d{4}$/.test(y)) {
+        const byYear = list
+            .filter((c) => String((c && c.year) || '').trim() === y)
+            .map(codeOf)
+            .filter(Boolean);
+        if (byYear.length) return [...new Set(byYear)];
+    }
+    const withoutYear = list
+        .filter((c) => !String((c && c.year) || '').trim())
+        .map(codeOf)
         .filter(Boolean);
+    if (withoutYear.length) return [...new Set(withoutYear)];
+    return [...new Set(list.map(codeOf).filter(Boolean))];
 }
 
 /**
@@ -182,6 +257,67 @@ export function parseChoiceLines(text) {
     return out;
 }
 
+const DEMO_LFS_CODES = ['en', 'enws', 'fr', 'frws', 'it', 'itws', 'sp', 'spws'];
+
+/** Unveränderte Vorschlagsliste EN / ENWS / FR … – nicht die Auswahl aus Schritt 3. */
+export function looksLikeDemoLfs(value) {
+    const list = (Array.isArray(value) ? value : parseChoiceLines(value))
+        .map((s) => String(s || '').trim().toLowerCase())
+        .filter(Boolean)
+        .sort();
+    if (list.length !== DEMO_LFS_CODES.length) return false;
+    return list.every((code, i) => code === DEMO_LFS_CODES[i]);
+}
+
+/**
+ * Was Schritt 3 zuletzt gespeichert hat.
+ * Das Formular schreibt `lfs` / `wahlfach` / `seminar`, die Anmeldung liest `lfsText`.
+ * @param {object} wiz
+ * @param {string} textKey
+ * @param {string} mirrorKey
+ */
+function looksLikeStockSeminare(value) {
+    const list = (Array.isArray(value) ? value : parseChoiceLines(value))
+        .map((s) => String(s || '').trim().toLowerCase())
+        .filter(Boolean)
+        .sort();
+    return list.length === 2 && list[0] === 'digbiz' && list[1] === 'wirtschaftsrecht';
+}
+
+function isStockChoiceCatalog(lines) {
+    return looksLikeDemoLfs(lines) || looksLikeStockSeminare(lines);
+}
+
+export function wizardConfiguredChoices(wiz, textKey, mirrorKey) {
+    const src = wiz || {};
+    const mirror = src[mirrorKey];
+    const fromMirror =
+        typeof mirror === 'string'
+            ? parseChoiceLines(mirror)
+            : Array.isArray(mirror)
+              ? mirror.map((s) => String(s || '').trim()).filter(Boolean)
+              : [];
+    const fromText = parseChoiceLines(src[textKey] || '');
+    if (
+        fromMirror.length &&
+        fromText.length &&
+        isStockChoiceCatalog(fromMirror) &&
+        !isStockChoiceCatalog(fromText)
+    ) {
+        return fromText;
+    }
+    if (
+        fromText.length &&
+        fromMirror.length &&
+        isStockChoiceCatalog(fromText) &&
+        !isStockChoiceCatalog(fromMirror)
+    ) {
+        return fromMirror;
+    }
+    if (fromMirror.length) return fromMirror;
+    return fromText;
+}
+
 /**
  * Lehrer-Rollen an einer Anmeldung (Anzeige-Label-Match, case-insensitive).
  * @param {object} item
@@ -224,6 +360,177 @@ export function filterItemsForTeacher(items, teacherLabel) {
     return list.filter((it) => teacherRolesOnItem(it, teacherLabel).length > 0);
 }
 
+/** Klasse vergleichbar machen: „5A“ und „5a“ sind dieselbe Klasse. */
+export function normalizeKlasseCode(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
+}
+
+function studentRowKlasse(row) {
+    return String((row && (row.klasse || row.klasseCode || row.classCode || row.class)) || '').trim();
+}
+
+function studentEmailHits(row, email) {
+    const em = String(email || '')
+        .trim()
+        .toLowerCase();
+    if (!row || !em) return false;
+    return [row.email, row.mail, row.upn, row.userPrincipalName].some(
+        (v) =>
+            String(v || '')
+                .trim()
+                .toLowerCase() === em
+    );
+}
+
+/** „DEMO Klasse 5A“ nennt die Klasse 5A, „15A“ und „5AHAK“ nicht. */
+export function groupNameNamesClass(displayName, code) {
+    const name = String(displayName || '').toLowerCase();
+    const c = normalizeKlasseCode(code);
+    if (!name || !c) return false;
+    const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('(^|[^a-z0-9])' + escaped + '([^a-z0-9]|$)').test(name);
+}
+
+/** „Jahrgangsgruppe DEMO Klasse 5A / Abschluss 2027“ → 5A. */
+export function klasseCodeFromGroupName(displayName) {
+    const name = String(displayName || '');
+    const m = name.match(/(?:klasse|class)\s+([0-9]{1,2}[a-zA-Z]{1,8})\b/i);
+    return m ? String(m[1]).trim() : '';
+}
+
+function classEmails(row) {
+    const raw = []
+        .concat((row && row.studentEmails) || [], (row && row.students) || [])
+        .map((entry) => {
+            if (entry && typeof entry === 'object') {
+                return entry.email || entry.mail || entry.upn || '';
+            }
+            return entry;
+        });
+    return raw
+        .map((v) =>
+            String(v || '')
+                .trim()
+                .toLowerCase()
+        )
+        .filter(Boolean);
+}
+
+/**
+ * Klasse des angemeldeten Schülers.
+ * Reihenfolge: Schülerliste (Zeile mit Klasse gewinnt, auch aus einem anderen Schuljahr),
+ * E-Mails an der Klasse, dann die Microsoft-365-Gruppe, in der das Konto Mitglied ist.
+ * @param {{ email?: string, students?: object[], classes?: object[], classLinks?: object[], memberGroups?: object[], preferredCodes?: string[] }} [input]
+ */
+export function resolveStudentAssignedKlasse(input) {
+    const ctx = input || {};
+    const em = String(ctx.email || '')
+        .trim()
+        .toLowerCase();
+    const students = Array.isArray(ctx.students) ? ctx.students : [];
+    if (em) {
+        let hit = '';
+        students.forEach((s) => {
+            if (hit || !studentEmailHits(s, em)) return;
+            const k = studentRowKlasse(s);
+            if (k) hit = k;
+        });
+        if (hit) return hit;
+    }
+    const classes = Array.isArray(ctx.classes) ? ctx.classes : [];
+    if (em) {
+        for (let i = 0; i < classes.length; i++) {
+            const c = classes[i];
+            if (!classEmails(c).includes(em)) continue;
+            const code = String((c && (c.code || c.name)) || '').trim();
+            if (code) return code;
+        }
+    }
+    const groups = Array.isArray(ctx.memberGroups) ? ctx.memberGroups : [];
+    const links = Array.isArray(ctx.classLinks) ? ctx.classLinks : [];
+    const preferred = (Array.isArray(ctx.preferredCodes) ? ctx.preferredCodes : [])
+        .map((c) => normalizeKlasseCode(c))
+        .filter(Boolean);
+    /** @type {string[]} */
+    const named = [];
+    const remember = (code) => {
+        const c = String(code || '').trim();
+        if (c) named.push(c);
+    };
+    groups.forEach((g) => {
+        const id = String((g && (g.id || g.groupId)) || '')
+            .trim()
+            .toLowerCase();
+        const mail = String((g && g.mail) || '')
+            .trim()
+            .toLowerCase();
+        const dn = String((g && (g.displayName || g.name)) || '').trim();
+        const pools = classes.concat(links);
+        for (let i = 0; i < pools.length; i++) {
+            const c = pools[i];
+            const gid = String((c && (c.m365GroupId || c.graphGroupId || c.groupId)) || '')
+                .trim()
+                .toLowerCase();
+            const gmail = String((c && (c.m365GroupMail || c.mail)) || '')
+                .trim()
+                .toLowerCase();
+            const gname = String((c && (c.m365GroupName || c.displayName)) || '')
+                .trim()
+                .toLowerCase();
+            const code = String((c && (c.code || c.classCode || c.name)) || '').trim();
+            if (!code) continue;
+            if ((gid && id && gid === id) || (gmail && mail && gmail === mail)) {
+                remember(code);
+                continue;
+            }
+            if (gname && dn && gname === dn.toLowerCase()) remember(code);
+            else if (groupNameNamesClass(dn, code)) remember(code);
+        }
+        remember(klasseCodeFromGroupName(dn));
+    });
+    if (!named.length) return '';
+    if (preferred.length) {
+        const pref = named.find((c) => preferred.includes(normalizeKlasseCode(c)));
+        if (pref) return pref;
+    }
+    return named[0];
+}
+
+/**
+ * Haupttermin, den die App öffnen soll.
+ * Gespeichertes Jahr gilt, außer es ist nur das laufende Kalenderjahr
+ * (das setzt der Browser als Default). Ab August ist der nächste Frühjahrs-Termin gemeint.
+ * @param {Date|string|number} [now]
+ * @param {string|number} [savedJahr]
+ */
+export function preferredSrdpTerminJahr(now, savedJahr) {
+    const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date(now || Date.now());
+    const cal = d.getFullYear();
+    const upcoming = d.getMonth() >= 7 ? cal + 1 : cal;
+    const saved = String(savedJahr || '').trim();
+    if (/^\d{4}$/.test(saved) && Number(saved) !== cal) return saved;
+    return String(upcoming);
+}
+
+/**
+ * Jahre, in denen eine Anmeldeliste liegen kann. Bevorzugtes Jahr zuerst.
+ * @param {Date|string|number} [now]
+ * @param {string|number} [savedJahr]
+ * @returns {string[]}
+ */
+export function srdpYearsToProbe(now, savedJahr) {
+    const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date(now || Date.now());
+    const cal = d.getFullYear();
+    const preferred = preferredSrdpTerminJahr(d, savedJahr);
+    const years = [preferred, String(cal + 1), String(cal), String(cal - 1)];
+    const saved = String(savedJahr || '').trim();
+    if (/^\d{4}$/.test(saved)) years.push(saved);
+    return [...new Set(years)];
+}
+
 /**
  * @param {object[]} items
  * @param {string[]} klasseCodes
@@ -231,11 +538,13 @@ export function filterItemsForTeacher(items, teacherLabel) {
 export function filterItemsForKlassen(items, klasseCodes) {
     const set = new Set(
         (Array.isArray(klasseCodes) ? klasseCodes : [])
-            .map((c) => String(c || '').trim())
+            .map((c) => normalizeKlasseCode(c))
             .filter(Boolean)
     );
     if (!set.size) return [];
-    return (Array.isArray(items) ? items : []).filter((it) => set.has(String(it.klasse || '').trim()));
+    return (Array.isArray(items) ? items : []).filter((it) =>
+        set.has(normalizeKlasseCode(it && it.klasse))
+    );
 }
 
 /**
@@ -271,6 +580,34 @@ export function computeAnmeldungStats(items) {
         byWahlfach: sortBag(byWahlfach),
         mitSeminar
     };
+}
+
+/**
+ * Gruppiert Anmeldungen für Liste und Auswertung.
+ * @param {object[]} items
+ * @param {'klasse'|'variante'|'wahlfach'|string} by
+ * @returns {{ key: string, items: object[] }[]}
+ */
+export function groupItemsBy(items, by) {
+    const mode = by === 'variante' || by === 'wahlfach' || by === 'klasse' ? by : '';
+    if (!mode) return [];
+    const keyOf = (it) => {
+        if (mode === 'variante') return String(it.variante || '').trim() || 'Ohne Variante';
+        if (mode === 'wahlfach') {
+            return String(it.wahlfachMuendlich || it.wahlfach || '').trim() || 'Ohne Wahlfach';
+        }
+        return String(it.klasse || '').trim() || 'Ohne Klasse';
+    };
+    /** @type {Map<string, object[]>} */
+    const map = new Map();
+    (Array.isArray(items) ? items : []).forEach((it) => {
+        const key = keyOf(it);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(it);
+    });
+    return [...map.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+        .map(([key, rows]) => ({ key, items: rows }));
 }
 
 /**
@@ -337,9 +674,32 @@ export function joinCodeList(value) {
 }
 
 /**
+ * Anzeigename → Vorname / Nachname (MSAL meist „Vorname Nachname“).
+ * @param {string} displayName
+ * @returns {{ vorname: string, nachname: string }}
+ */
+export function splitPersonName(displayName) {
+    const raw = String(displayName || '').trim();
+    if (!raw) return { vorname: '', nachname: '' };
+    if (raw.indexOf(',') >= 0) {
+        const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+        return {
+            nachname: parts[0] || '',
+            vorname: parts.slice(1).join(' ')
+        };
+    }
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return { vorname: '', nachname: parts[0] };
+    return {
+        vorname: parts[0],
+        nachname: parts.slice(1).join(' ')
+    };
+}
+
+/**
  * Ownership für Schüler-Anmeldung (E-Mail Pflicht, damit „Meine Anmeldung“ bleibt).
  * @param {object} draft
- * @param {{ accountEmail?: string, students?: object[] }} ctx
+ * @param {{ accountEmail?: string, accountName?: string, students?: object[] }} ctx
  */
 export function resolveSrdpOwnership(draft, ctx) {
     const d = draft && typeof draft === 'object' ? draft : {};
@@ -353,22 +713,33 @@ export function resolveSrdpOwnership(draft, ctx) {
         .toLowerCase();
     if (!schuelerEmail) schuelerEmail = account;
 
-    const byEmail =
-        schuelerEmail &&
-        students.find((s) => {
-            const em = String((s && s.email) || '')
-                .trim()
-                .toLowerCase();
-            const upn = String((s && s.upn) || '')
-                .trim()
-                .toLowerCase();
-            return em === schuelerEmail || upn === schuelerEmail;
-        });
+    const hits = schuelerEmail ? students.filter((s) => studentEmailHits(s, schuelerEmail)) : [];
+    const byEmail = hits.find((s) => studentRowKlasse(s)) || hits[0] || null;
 
-    const nachname = String(d.nachname || (byEmail && (byEmail.nachname || byEmail.lastName)) || '').trim();
-    const vorname = String(d.vorname || (byEmail && (byEmail.vorname || byEmail.firstName)) || '').trim();
+    const fromAccount = splitPersonName((ctx && ctx.accountName) || '');
+    const nachname = String(
+        d.nachname ||
+            (byEmail && (byEmail.nachname || byEmail.lastName)) ||
+            fromAccount.nachname ||
+            ''
+    ).trim();
+    const vorname = String(
+        d.vorname ||
+            (byEmail && (byEmail.vorname || byEmail.firstName)) ||
+            fromAccount.vorname ||
+            ''
+    ).trim();
     const klasse = String(
-        d.klasse || (byEmail && (byEmail.klasse || byEmail.klasseCode || byEmail.classCode)) || ''
+        d.klasse ||
+            studentRowKlasse(byEmail) ||
+            resolveStudentAssignedKlasse({
+                email: schuelerEmail,
+                students,
+                classes: (ctx && ctx.classes) || [],
+                classLinks: (ctx && ctx.classLinks) || [],
+                memberGroups: (ctx && ctx.memberGroups) || [],
+                preferredCodes: (ctx && ctx.preferredCodes) || []
+            })
     ).trim();
 
     return {

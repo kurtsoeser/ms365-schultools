@@ -29,6 +29,7 @@ export const CONFIG_BUNDLE_PARTS = [
             'ms365-schulstruktur-ad-flags-v1',
             'ms365-stammdaten-it-library-v1',
             'ms365-stammdaten-it-library-by-tenant-v2',
+            'ms365-it-library-meta-v1',
             'ms365-stammdaten-listen-perms-v1'
         ]
     },
@@ -90,6 +91,28 @@ export const CONFIG_BUNDLE_PARTS = [
         ]
     },
     {
+        id: 'permissions-schulaktivitaeten',
+        fileName: 'permissions-schulaktivitaeten.json',
+        keys: [
+            'ms365-schulaktivitaeten-perms-v1',
+            'ms365-akt-setup-v1',
+            'ms365-akt-setup-step-v1',
+            'ms365-akt-planer-site-v1',
+            'ms365-pa-done-schulaktivitaeten'
+        ]
+    },
+    {
+        id: 'permissions-srdp',
+        fileName: 'permissions-srdp.json',
+        keys: [
+            'ms365-srdp-list-perms-v1',
+            'ms365-srdp-anmeldung-v1',
+            'ms365-srdp-mail-setup-v1',
+            'ms365-srdp-planer-site-v1',
+            'ms365-srdp-wizard-step-v1'
+        ]
+    },
+    {
         id: 'school-apps-settings',
         fileName: 'school-apps-settings.json',
         keys: [
@@ -126,8 +149,6 @@ export const CONFIG_BUNDLE_PARTS = [
             'ms365-termine-hub-settings-v1',
             'ms365-kalender-postfaecher-v1',
             'ms365-schueler-stammdaten-portal-v1',
-            'ms365-akt-setup-v1',
-            'ms365-akt-planer-site-v1',
             'ms365-sa-site-url',
             'ms365-pw-site-url',
             'ms365-tenant-school-email-pattern-v1',

@@ -36,6 +36,7 @@ import {
     signedInEmail
 } from './termine-hub-outlook.js';
 import { getDashboardPersonas } from '../../shared/dashboard-persona-session.js';
+import { announceAppRole } from '../../shared/app-role-chrome.js';
 import { isToolVisibleForView } from '../../shared/dashboard-audience-catalog.js';
 import {
     getEffectiveToolRule,
@@ -184,26 +185,65 @@ export function mountApp(root) {
     }
 
     function audienceKey() {
-        if (!personasReady) return '';
-        return audienceKeyFromPersonas(personas);
+        if (!personasReady) {
+            // Vor Persona-Resolve: wenn Auth schon eingeloggt ist, Eigenkalender erlauben
+            if (isAuthLoggedIn()) return 'self';
+            return '';
+        }
+        const key = audienceKeyFromPersonas(personas);
+        if (key) return key;
+        if (personas && personas.loggedIn) return 'self';
+        if (isAuthLoggedIn()) return 'self';
+        return '';
+    }
+
+    function isAuthLoggedIn() {
+        try {
+            if (typeof window.ms365AuthIsLoggedIn === 'function') {
+                return !!window.ms365AuthIsLoggedIn();
+            }
+        } catch {
+            /* ignore */
+        }
+        return !!(personas && personas.loggedIn);
     }
 
     function settings() {
         return loadSettings();
     }
 
+    function ownCalendarSource() {
+        return {
+            id: SOURCE_IDS.ME,
+            label: SOURCE_LABEL.me,
+            kind: 'me',
+            upn: '',
+            groupId: '',
+            visible: true
+        };
+    }
+
     function sources() {
         const aud = audienceKey();
-        if (!aud) return [];
-        return resolveEnabledSources(settings(), { audience: aud });
+        if (!aud) return isAuthLoggedIn() ? [ownCalendarSource()] : [];
+        const list = resolveEnabledSources(settings(), { audience: aud });
+        if (list.some((s) => s.id === SOURCE_IDS.ME)) return list;
+        return [ownCalendarSource(), ...list];
     }
 
     function writableSources() {
-        return sources().filter((s) => sourceWritableForAudience(s.id, audienceKey()));
+        const aud = audienceKey() || (isAuthLoggedIn() ? 'self' : '');
+        const list = sources().filter((s) => sourceWritableForAudience(s.id, aud));
+        if (list.length) return list;
+        // Harter Fallback: angemeldet → zumindest eigener Outlook-Kalender
+        if (aud || isAuthLoggedIn()) return [ownCalendarSource()];
+        return [];
     }
 
     function canWriteSource(sourceId) {
-        return sourceWritableForAudience(sourceId, audienceKey());
+        const aud = audienceKey() || (isAuthLoggedIn() ? 'self' : '');
+        if (String(sourceId || '') === SOURCE_IDS.ME && (aud || isAuthLoggedIn())) return true;
+        return sourceWritableForAudience(sourceId, aud);
     }
 
     function visibleEvents() {
@@ -973,6 +1013,7 @@ export function mountApp(root) {
     function writeTargetChecks() {
         const s = settings();
         const opts = writableSources();
+        const aud = audienceKey();
         const preferred =
             opts.some((o) => o.id === s.defaultWriteTarget) && s.defaultWriteTarget
                 ? s.defaultWriteTarget
@@ -980,9 +1021,20 @@ export function mountApp(root) {
                   ? opts[0].id
                   : SOURCE_IDS.ME;
         if (!opts.length) {
-            return '<p class="ag-item__meta">Kein beschreibbarer Kalender für deine Rolle.</p>';
+            return (
+                '<p class="ag-item__meta">' +
+                (aud === 'self'
+                    ? 'Dein eigener Outlook-Kalender ist gerade nicht verfügbar – bitte Seite neu laden oder IT kontaktieren.'
+                    : 'Kein beschreibbarer Kalender für deine Rolle.') +
+                '</p>'
+            );
         }
+        const selfHint =
+            aud === 'self'
+                ? '<p class="ag-item__meta" style="margin:0 0 10px;">Portal-Rolle noch nicht zugeordnet – Termine speicherst du in deinen eigenen Outlook-Kalender. Shared-Kalender schaltet die IT frei (Lehrerliste / Stellvertreter).</p>'
+                : '';
         return (
+            selfHint +
             '<fieldset class="th-target">' +
             '<legend>Wo soll der Termin erscheinen?</legend>' +
             opts
@@ -1013,29 +1065,20 @@ export function mountApp(root) {
         const endDefault = toLocalInputValue(
             roundToTimeGrid(new Date(), { addHours: 1 }).toISOString()
         );
-        const dateOnly = toIsoDateOnly(new Date());
         return (
             '<h2 style="margin:0 0 8px;font-size:1.15rem;">Termin anlegen</h2>' +
             '<p class="ag-item__meta" style="margin-bottom:12px;">Wird direkt in Outlook gespeichert – das Schultool bleibt der Hub, Outlook die Kalenderplattform.</p>' +
             '<form class="ag-form" id="thNeuForm">' +
             writeTargetChecks() +
             '<label>Titel<input name="title" required maxlength="200" placeholder="z. B. Fachkonferenz"></label>' +
-            '<label class="ag-form__row th-allday">' +
+            '<label class="th-allday">' +
             '<input type="checkbox" name="allDay" id="thAllDay"> Ganztägig</label>' +
-            '<div class="ag-form__row th-times" id="thTimesRow">' +
-            '<label>Beginn<input type="datetime-local" name="start" required step="900" value="' +
+            '<div class="ag-form__row th-range" id="thRangeRow">' +
+            '<label>Beginn<input type="datetime-local" name="start" id="thStart" required step="900" value="' +
             esc(startDefault) +
             '"></label>' +
-            '<label>Ende<input type="datetime-local" name="end" required step="900" value="' +
+            '<label>Ende<input type="datetime-local" name="end" id="thEnd" required step="900" value="' +
             esc(endDefault) +
-            '"></label>' +
-            '</div>' +
-            '<div class="ag-form__row th-dates" id="thDatesRow" hidden>' +
-            '<label>Von<input type="date" name="startDate" value="' +
-            esc(dateOnly) +
-            '"></label>' +
-            '<label>Bis<input type="date" name="endDate" value="' +
-            esc(dateOnly) +
             '"></label>' +
             '</div>' +
             '<div class="ag-form__row">' +
@@ -1599,18 +1642,53 @@ export function mountApp(root) {
         });
 
         const allDay = root.querySelector('#thAllDay');
-        const timesRow = root.querySelector('#thTimesRow');
-        const datesRow = root.querySelector('#thDatesRow');
+        const startInput = root.querySelector('#thStart');
+        const endInput = root.querySelector('#thEnd');
+        /** Zwischenspeicher, damit Umschalten Ganztägig Uhrzeit nicht verliert. */
+        let timedStart = startInput ? String(startInput.value || '') : '';
+        let timedEnd = endInput ? String(endInput.value || '') : '';
         const syncAllDayUi = () => {
+            if (!startInput || !endInput) return;
             const on = !!(allDay && allDay.checked);
-            if (timesRow) timesRow.hidden = on;
-            if (datesRow) datesRow.hidden = !on;
-            timesRow?.querySelectorAll('input').forEach((el) => {
-                el.required = !on;
-            });
-            datesRow?.querySelectorAll('input').forEach((el) => {
-                el.required = on;
-            });
+            const wantType = on ? 'date' : 'datetime-local';
+            if (startInput.type === wantType && endInput.type === wantType) return;
+            if (on) {
+                if (startInput.type === 'datetime-local') {
+                    timedStart = String(startInput.value || timedStart);
+                    timedEnd = String(endInput.value || timedEnd);
+                }
+                const startDate = String(startInput.value || timedStart || '').slice(0, 10);
+                const endDate = String(endInput.value || timedEnd || startDate || '').slice(0, 10);
+                startInput.type = 'date';
+                endInput.type = 'date';
+                startInput.removeAttribute('step');
+                endInput.removeAttribute('step');
+                startInput.value = startDate;
+                endInput.value = endDate || startDate;
+            } else {
+                const startDate = String(startInput.value || '').slice(0, 10);
+                const endDate = String(endInput.value || startDate || '').slice(0, 10);
+                const fallbackStart =
+                    timedStart ||
+                    toLocalInputValue(roundToTimeGrid(new Date()).toISOString());
+                const fallbackEnd =
+                    timedEnd ||
+                    toLocalInputValue(roundToTimeGrid(new Date(), { addHours: 1 }).toISOString());
+                const startTime = (timedStart || fallbackStart).slice(11, 16) || '09:00';
+                const endTime = (timedEnd || fallbackEnd).slice(11, 16) || '10:00';
+                startInput.type = 'datetime-local';
+                endInput.type = 'datetime-local';
+                startInput.step = '900';
+                endInput.step = '900';
+                startInput.value = startDate
+                    ? startDate + 'T' + startTime
+                    : fallbackStart;
+                endInput.value = endDate ? endDate + 'T' + endTime : fallbackEnd;
+                timedStart = String(startInput.value || '');
+                timedEnd = String(endInput.value || '');
+            }
+            startInput.required = true;
+            endInput.required = true;
         };
         if (allDay) {
             allDay.addEventListener('change', syncAllDayUi);
@@ -1631,14 +1709,27 @@ export function mountApp(root) {
         root.querySelector('#thNeuForm')?.addEventListener('submit', (ev) => {
             ev.preventDefault();
             const fd = new FormData(ev.target);
-            const writeIds = fd
+            let writeIds = fd
                 .getAll('writeTarget')
                 .map((v) => String(v || '').trim())
                 .filter(Boolean);
+            // Kein Häkchen gesetzt (oder UI ohne Checkboxen): Eigenkalender als Default
             if (!writeIds.length) {
-                setMessage('err', 'Bitte mindestens einen Zielkalender ankreuzen.');
-                render();
-                return;
+                const fallback = writableSources();
+                if (fallback.some((s) => s.id === SOURCE_IDS.ME) || canWriteSource(SOURCE_IDS.ME)) {
+                    writeIds = [SOURCE_IDS.ME];
+                } else if (fallback[0]) {
+                    writeIds = [fallback[0].id];
+                } else {
+                    setMessage(
+                        'err',
+                        isAuthLoggedIn()
+                            ? 'Kein Zielkalender verfügbar – bitte neu anmelden oder IT kontaktieren.'
+                            : 'Bitte zuerst anmelden, dann Termin speichern.'
+                    );
+                    render();
+                    return;
+                }
             }
             for (const writeId of writeIds) {
                 if (!canWriteSource(writeId)) {
@@ -1668,14 +1759,14 @@ export function mountApp(root) {
                 }
             }
             const allDayOn = !!ev.target.querySelector('[name="allDay"]')?.checked;
+            const startRaw = String(fd.get('start') || '');
+            const endRaw = String(fd.get('end') || startRaw || '');
             const draft = {
                 title: String(fd.get('title') || ''),
-                start: allDayOn
-                    ? String(fd.get('startDate') || '')
-                    : fromLocalInputValue(String(fd.get('start') || '')),
+                start: allDayOn ? startRaw.slice(0, 10) : fromLocalInputValue(startRaw),
                 end: allDayOn
-                    ? String(fd.get('endDate') || fd.get('startDate') || '')
-                    : fromLocalInputValue(String(fd.get('end') || '')),
+                    ? (endRaw || startRaw).slice(0, 10)
+                    : fromLocalInputValue(endRaw),
                 allDay: allDayOn,
                 ort: String(fd.get('ort') || ''),
                 beschreibung: String(fd.get('beschreibung') || ''),
@@ -1725,18 +1816,39 @@ export function mountApp(root) {
         });
     }
 
+    function publishTermineRole() {
+        let email = '';
+        try {
+            if (typeof window.ms365AuthGetAccountInfo === 'function') {
+                const a = window.ms365AuthGetAccountInfo();
+                email = String((a && (a.username || a.upn)) || '')
+                    .trim()
+                    .toLowerCase();
+            }
+        } catch {
+            /* ignore */
+        }
+        let role = 'self';
+        if (personas && personas.isIt) role = 'it';
+        else if (personas && personas.isLehrer) role = 'lehrer';
+        else if (personas && personas.isSchueler) role = 'schueler';
+        announceAppRole({ appId: 'termine', role, source: 'portal', email });
+    }
+
     render();
 
     void getDashboardPersonas()
         .then((p) => {
             if (p) personas = p;
             personasReady = true;
+            publishTermineRole();
             if (!canManageQuellen() && ui.view === 'quellen') ui.view = 'kalender';
             render();
             void refreshOutlook({ silent: true });
         })
         .catch(() => {
             personasReady = true;
+            publishTermineRole();
             render();
         });
 }

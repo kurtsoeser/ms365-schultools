@@ -1,11 +1,13 @@
 # Freitag-Workshop – Playbook & Verkaufsbrief
 
-**Stand:** 2026-11-19 (Do – Tag-3-Durchführungsfassung)  
+**Stand:** 2026-11-20 (Nacht – Durchführung für den 21.11.)  
 **Zeit:** 09:30–16:15  
 **Kontext:** **3. Workshop-Tag** der Reihe – kennen sich, Feedback aus den letzten Wochen steckt schon in den Tools  
-**Ziel:** Mindestens **3 funktionsfähige Dinge mitnehmen** · Rollen-Wow (Direktion / Admin / IT) · Close mit 2-Wochen-Fenster  
+**Ziel:** Drei Tools **im Tenant eingerichtet** · Rollen-Wow (Direktion / Admin / IT) · Close mit 2-Wochen-Fenster  
 **Marke:** MS365-Schultools · Daten im Schul-Tenant · du = Übermittler, nicht „Produktverkäufer“  
-**Canvas:** `freitag-use-case-prep.canvas.tsx` (Readiness + Playbook + Sales)
+**Arbeitsblatt:** [`freitag-use-case-prep.html`](./freitag-use-case-prep.html) (zum Weiterbearbeiten) · Canvas `freitag-use-case-prep.canvas.tsx`
+
+**Entscheidung 20.11.:** Mitnahme 1–3 sind **Schulaktivitäten, Lehrerfreistellung und sRDP-Anmeldung**, alle live. Kalender und Kursteams sind kein Block. Das SharePoint-Formular ist bei jedem Tool eine Minute Kontrast, keine zweite Einrichtung.
 
 ---
 
@@ -28,13 +30,13 @@ Kein Vorstellen, keine Vision-Folien, **keine reine Produktschulung**.
 
 | # | Mitnehmen (funktionsfähig) | Typ | Rolle die „Wow“ sagt |
 |---|----------------------------|-----|----------------------|
-| **1** | **Schulaktivitäten** – Antrag → Genehmigung → sichtbar in Liste/Kalender | **Hands-on live** | Direktion + Lehrkraft |
-| **2** | **Lehrerfreistellung** *oder* **Matura/sRDP** – voller Mini-Flow (je nach Schulform/Schmerz) | **Hands-on live** | Direktion / Admin |
-| **3** | **Kalender-Nutzen** (ICS/Feed oder Freistellungs-Kalender) **plus** kurzer **Kursteams-Demo** (IT-Hebel) | Hands-on + **Demo** | Admin + IT |
+| **1** | **Schulaktivitäten** – ein echter Antrag, Direktion genehmigt, Zeile in der Liste | **Hands-on live** | Direktion + Lehrkraft |
+| **2** | **Lehrerfreistellung** – Lehrkraft stellt selbst, Direktion gibt frei | **Hands-on live** | Direktion + Lehrkraft |
+| **3** | **sRDP-Anmeldung** – eine Testanmeldung, Lehrerblick, Auswertung | **Hands-on live** (HAK am Beamer) | Admin + Lehrkraft |
 
-**Regel:** Drei Dinge = drei greifbare Ergebnisse, nicht drei PowerPoint-Demos. Wenn die Zeit knappt: #1 und #2 live hart machen, #3 = Kalender aus #1/2 + 8-Minuten-Kursteams-Demo.
+**Regel:** Drei Dinge = drei eingerichtete Fälle im Tenant, nicht drei Folien. Wenn die Zeit knappt: #1 vollständig, #2 vollständig, #3 nur eine HAK am Beamer. Kalender, Kursteams, Wahlfach und Stammdaten-Portal wandern in die zwei Wochen danach.
 
-**Alternativ-Slot für #2:** HAK → Matura/sRDP priorisieren; Schulen ohne Abschlussdruck → Lehrerfreistellung; wer beides will → Freistellung live, Matura als 15-Min-Demo.
+**Formular-Bonus, bei jedem Tool eine Minute:** Liste öffnen, dieselbe Zeile zeigen, Neu-Formular auf- und zuklappen, nichts eintragen. Satz: „Die Zeile liegt bei euch. Das Formular kennt keine Rolle und keine Genehmigung. Deshalb die App.“ Bei sRDP einen Satz mehr, weil „Anmeldung“ nach Formular klingt.
 
 ### Dealbreaker vorher klären
 
@@ -56,7 +58,7 @@ Alltagssprache nur bei Bedarf: Wer bin ich · Listen lesen/schreiben · Gruppen 
 
 1. *„Ihr habt das mitentwickelt – heute wird’s konkret in eurem Tenant.“*  
 2. *„Prinzip geht auch ohne meine App; die App spart euch Wochen Bastelarbeit.“*  
-3. *„Wahrheit liegt in SharePoint/Kalender – Lehrkräfte müssen nicht dauernd meine Oberfläche öffnen.“*  
+3. *„Die Zeile liegt in eurer SharePoint-Liste. Die Führung – Rolle, Status, Genehmigung – liegt in der App.“*  
 4. *„Drei Dinge mitnehmen – danach zwei Wochen echt nutzen, dann entscheiden.“*
 
 ### Uhrplan 09:30–16:15 (Tag 3)
@@ -64,16 +66,16 @@ Alltagssprache nur bei Bedarf: Wer bin ich · Listen lesen/schreiben · Gruppen 
 | Zeit | Phase | Was du tust | Fertig wenn … |
 |------|--------|-------------|----------------|
 | **09:30–09:40** | Ankommen & Versprechen | Kein Vorstellen. Brücke zu den letzten Terminen + **3 Mitnahmen** nennen. Rollen kurz ansprechen. | Alle wissen: heute bauen & mitnehmen, Close am Ende |
-| **09:40–10:10** | Login & Consent | Jeden reinhelfen. Admin zuerst. Zeit lassen. | Jede Schule ist in der App |
-| **10:10–11:20** | Stammdaten gemeinsam | Klassen + Lehrkräfte (WebUntis/Vorlagen). Site klären. **Co-Building-Ton:** wir füllen *eure* Basis. | Minimum für Tool 1 steht |
-| **11:20–12:15** | **Mitnahme 1: Schulaktivitäten** | Liste → Antrag → Genehmigung → Kalender/ICS zeigen → SharePoint-Form als Alltagspfad | **1 kompletter Flow live** |
+| **09:40–10:05** | Login & Consent | Jeden reinhelfen. Admin zuerst. Zeit lassen. | Jede Schule ist in der App |
+| **10:05–11:00** | Stammdaten gemeinsam | Klassen + Lehrkräfte (WebUntis/Vorlagen). Site klären. **Co-Building-Ton:** wir füllen *eure* Basis. | Minimum für Tool 1 steht |
+| **11:00–12:15** | **Mitnahme 1: Schulaktivitäten** | Liste prüfen → ein Antrag → genehmigen → eine Minute SharePoint-Formular → jede Schule wiederholt | **1 echter Antrag liegt** |
 | **12:15–13:00** | Pause / Mittag | | |
-| **13:00–13:45** | **Mitnahme 2** | Primär **Lehrerfreistellung** (Direktion-Wow) *oder* **Matura/sRDP** (HAK/Termin nach Weihnachten). Zweite Variante nur Demo wenn Zeit. | Zweiter lauffähiger Mini-Flow |
-| **13:45–14:05** | **Mitnahme 3: Demo-Hebel** | **Kursteams** (oder Klassen/Teams-Hygiene) in 8–12 Min: „so einfach kann IT entlasten“ – bewusst Demo, nicht Deep-Dive. Optional Kalender-Abo nochmals festnageln. | IT nickt; Admin hat Kalender-Pfad |
-| **14:05–15:35** | Individuell / Vertiefung | Schulen an *ihrem* Use Case (Auhof Wahlfach, Linz/Schärding Stammdaten, …). Du wanderst. Wer fertig ist: zweiten Flow nachziehen oder echtes Antragsbeispiel. | Pro Schule: 3er-Liste abgehakt oder Follow-up |
+| **13:00–14:10** | **Mitnahme 2: Lehrerfreistellung** | Genehmiger prüfen → „frei haben“ → Direktion gibt frei → eine Minute Formular | **1 echte Freigabe** |
+| **14:10–15:20** | **Mitnahme 3: sRDP-Anmeldung** | Jahr/Liste → eine Testanmeldung → Lehrerblick → Admin → Formular etwas länger | **1 Anmeldung, HAK führt** |
+| **15:20–15:35** | Puffer | Hängende Schule nachziehen. Kein neues Tool. | 3er-Liste oder klarer Rest |
 | **15:35–16:15** | Feedback & **Close** | Feedback-Würdigung → 3 Mitnahmen laut wiederholen → **2 Wochen Probe** → Bundle nennen → Owner + Termin. Kaufdruck niedrig, Entscheidungspfad klar. | Interesse + Termin + wer entscheidet |
 
-**Puffer-Regel:** Login/Stammdaten dürfen länger dauern. Lieber 2 harte Mitnahmen + starke Kurzteams-Demo als 4 halbe Tools. **Close (15:35) ist heilig** – Individuell kürzen, nicht den Abschluss.
+**Puffer-Regel:** Login/Stammdaten dürfen länger dauern. Dann sRDP auf eine HAK am Beamer kürzen. **Close (15:35) ist heilig.** Wahlfach, Stammdaten-Portal und Kursteams nicht mehr im Plenum öffnen.
 
 ### Login-Hilfe (Checkliste)
 
@@ -90,18 +92,18 @@ Keine Exports? 5–8 Klassen + 5 Lehrer manuell – Rest Follow-up. Import: `too
 
 ### Scripts (kurz)
 
-**Schulaktivitäten:** Setup → Antrag → genehmigen → ablehnen/Nachforderung → Kalender/ICS → „liegt in eurem SharePoint“. Scope: keine Auto-Untis.
+**Schulaktivitäten:** Liste prüfen → ein Antrag → Direktion genehmigt → eine Minute SharePoint-Formular → jede Schule wiederholt. Ablehnen, Nachforderung und Kalender nur, wenn der erste Fall schon liegt. Scope: keine Auto-Untis.
 
-**Lehrerfreistellung:** Antrag „frei haben“ → Direktion → Kalender/iCal. 1 Satz: Schüler-Freistellung = anderes Tool.
+**Lehrerfreistellung:** Genehmiger prüfen → „frei haben“ → Direktion gibt frei → eine Minute Formular. 1 Satz: Schüler-Freistellung ist ein anderes Tool. Kalender nur auf Nachfrage, ein Klick.
 
-**Matura/sRDP:** Demo oder Live-Liste Jahr → Testanmeldung → Lehrer-/Admin-Blick. Satz: „nach Weihnachten braucht ihr das.“
+**sRDP:** Jahr und Liste → eine Testanmeldung → Lehrerblick → Admin → Formular etwas länger stehen lassen. Satz: „Nach Weihnachten braucht ihr das. Das Formular speichert die Zeile, die App führt.“ HAK am Beamer. Keine Klausurplanung, kein srdp.at, Mail-ZIP nur auf Nachfrage.
 
-**Kursteams-Demo (IT):** Ein Musterkurs / Vorlage zeigen – Anlage oder Sync-Idee in Minuten. Satz: „Das ist der IT-Hebel neben den Lehrer-Prozessen – nicht euer heutiges Pflichtprogramm.“
+**Nicht im Plenum:** Kursteams, Wahlfach, Stammdaten-Portal, Termine-Hub. Wenn jemand fragt: „In den zwei Wochen, Owner notieren.“
 
 ### Close-Script (Tag 3 – wörtlich üben)
 
-> „Ihr geht heute mit **drei konkreten Dingen** raus – nicht mit Folien. Das habt ihr **mit** entwickelt; ich habe es gebündelt.  
-> Nehmt das Werkzeug **zwei Wochen** mit, arbeitet echt damit, sagt mir was hakt.  
+> „Ihr geht mit drei Dingen raus: eine Schulaktivität, eine Lehrerfreistellung, eine sRDP-Anmeldung. Jede Zeile liegt in eurer SharePoint-Liste. Die Führung liegt in der App.  
+> Nehmt das zwei Wochen mit, arbeitet mit einem echten Fall, sagt mir was hakt.  
 > Dann entscheiden wir ruhig: weiter mit **Schulalltag 890 €/Jahr** – oder schlanker Starter / Plus, je nach Bedarf. Daten bleiben in eurem Tenant. Setup einmalig 590–790 €, wenn ihr wollt, dass wir fertig einrichten.  
 > Wer ist Owner bei euch – und welchen Termin nehmen wir in ca. zwei Wochen?“
 

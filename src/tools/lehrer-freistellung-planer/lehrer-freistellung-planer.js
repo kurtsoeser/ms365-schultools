@@ -14,6 +14,7 @@ import {
     prefillLehrerFormIdentity,
     loadDemoItems,
     saveDemoItems,
+    clearDemoItems,
     viewsForRole
 } from './lfr-state.js';
 import { validateAntrag, normalizeStatus, toIsoDateOnly } from './lfr-logic.js';
@@ -30,15 +31,22 @@ import {
     renderApp,
     readFormFromDom,
     readFiltersFromDom,
-    readSetupFromDom
+    readSetupFromDom,
+    readCalendarSetupFromDom
 } from './lfr-ui.js';
+import { persistLfrApproverEmail } from './lfr-permissions.js';
+import { applyLfrListPermissions } from './lfr-list-permissions.js';
+import { normalizeSystemTab } from '../../shared/system-admin-shell.js';
 import { buildIcs, downloadIcs } from './lfr-export.js';
 import { syncLfrItemsToOutlookCalendar, loadCalendarTargetFromSetup } from './lfr-calendar-sync.js';
 import {
     applyLfrRoleFromEntra,
     isLfrDemoRoleUiEnabled,
-    readDemoRoleOverrideFromUrl
+    readDemoRoleOverrideFromUrl,
+    shellPreferredLfrRole
 } from './lfr-entra-role.js';
+import { startOfWeekMonday } from '../../shared/ms365-calendar-shell.js';
+import { announcePlannerState } from '../../shared/app-role-chrome.js';
 
 const state = createInitialState();
 let root = null;
@@ -50,6 +58,7 @@ function toast(msg) {
 
 function paint() {
     if (!root) return;
+    announcePlannerState('lehrer-freistellung', state);
     renderApp(state, root);
     bindStatic();
     import('../../shared/frontend-planner-chrome-policy.js')
@@ -95,11 +104,89 @@ function syncAccount() {
     prefillLehrerFormIdentity(state);
 }
 
-async function syncAccountAndRole() {
-    syncAccount();
+/**
+ * MSAL steht oft erst nach dem ersten Paint. Vorher ist das Konto leer
+ * und die App speichert fälschlich „Lehrkraft“.
+ * @returns {Promise<{ email: string, name: string }>}
+ */
+async function waitForAuthAccount() {
+    try {
+        if (typeof window.ms365AuthEnsureInitialized === 'function') {
+            await window.ms365AuthEnsureInitialized();
+        }
+    } catch {
+        /* ignore */
+    }
+    const immediate = currentAccount();
+    if (immediate.email) return immediate;
+    const started = Date.now();
+    while (Date.now() - started < 4500) {
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        const next = currentAccount();
+        if (next.email) return next;
+    }
+    return currentAccount();
+}
+
+/** @type {Promise<void>} */
+let accountSyncQueue = Promise.resolve();
+
+/**
+ * @param {{ preferShellDefault?: boolean, preferredActiveRole?: string|null }} [opts]
+ */
+function enqueueAccountSync(opts) {
+    const job = accountSyncQueue.then(() => syncAccountAndRole(opts));
+    accountSyncQueue = job.then(
+        () => {},
+        () => {}
+    );
+    return job;
+}
+
+/**
+ * @param {{ preferShellDefault?: boolean, preferredActiveRole?: string|null }} [opts]
+ */
+async function syncAccountAndRole(opts) {
+    const account = await waitForAuthAccount();
+    state.accountEmail = String(account.email || '').trim().toLowerCase();
+    state.accountName = String(account.name || '').trim();
+    state.stammdaten = loadStammdaten();
+    prefillLehrerFormIdentity(state);
+    // Demo-Direktor → Stammdaten Schulleitung, bevor Rollen aus Stammdaten gelesen werden
+    try {
+        const { ensureSignedInMs365DemoPortalAccountInLocalStammdaten } = await import(
+            '../../shared/demo-portal-teacher.js'
+        );
+        ensureSignedInMs365DemoPortalAccountInLocalStammdaten();
+        state.stammdaten = loadStammdaten();
+    } catch {
+        /* ignore */
+    }
+    // Lehrer-Browser: leere lokale Liste von der Tool-Site nachziehen
+    try {
+        const { ensureLiveSchoolStammdatenForBrowser } = await import(
+            '../../shared/ensure-live-school-stammdaten.js'
+        );
+        const { loadEffectiveTeachersForPersona } = await import(
+            '../../shared/live-school-stammdaten-cache.js'
+        );
+        if (!loadEffectiveTeachersForPersona().length) {
+            await ensureLiveSchoolStammdatenForBrowser({ force: false });
+            state.stammdaten = loadStammdaten();
+        }
+    } catch {
+        /* ignore */
+    }
+    const preferShellDefault = !!(opts && opts.preferShellDefault);
+    const hasPreferred = opts && Object.prototype.hasOwnProperty.call(opts, 'preferredActiveRole');
     await applyLfrRoleFromEntra(state, {
         demoRoleOverride: state.demoRoleOverride,
-        preferredActiveRole: state.role
+        preferShellDefault,
+        ...(hasPreferred
+            ? { preferredActiveRole: opts.preferredActiveRole }
+            : preferShellDefault
+              ? { preferredActiveRole: null }
+              : { preferredActiveRole: state.role })
     });
     if (!viewsForRole(state.role).some((v) => v.id === state.view)) {
         state.view = viewsForRole(state.role)[0]?.id || 'dashboard';
@@ -107,16 +194,29 @@ async function syncAccountAndRole() {
     prefillLehrerFormIdentity(state);
 }
 
+async function onItShellChanged() {
+    const shellRole = shellPreferredLfrRole(state.planerRoles || []);
+    await enqueueAccountSync({
+        preferShellDefault: true,
+        preferredActiveRole: shellRole
+    });
+    paint();
+}
+
 function findItem(key) {
     const k = String(key || '');
     return state.items.find((it) => it.antragId === k || it.itemId === k) || null;
 }
 
+let loadGen = 0;
+
 async function refreshData() {
+    const gen = ++loadGen;
     state.loading = true;
     state.error = '';
     paint();
-    await syncAccountAndRole();
+    await enqueueAccountSync({ preferShellDefault: true });
+    if (gen !== loadGen) return;
     try {
         if (!state.siteUrl) {
             state.items = loadDemoItems().length
@@ -136,10 +236,12 @@ async function refreshData() {
         state.listId = ctx.list.id;
         persistSetupCfg({ listId: ctx.list.id, listName: ctx.list.title, siteUrl: state.siteUrl });
         state.items = await loadAllItems(ctx);
+        if (gen !== loadGen) return;
         state.localDemoOnly = false;
         state.loading = false;
         paint();
     } catch (e) {
+        if (gen !== loadGen) return;
         state.loading = false;
         const msg = e && e.message ? e.message : String(e);
         state.error = msg;
@@ -228,6 +330,7 @@ async function decideItem(key, approved) {
             await updateItem(state.ctx, it.itemId, next);
             state.items = state.items.map((x) => (x.itemId === it.itemId ? { ...x, ...next } : x));
         }
+        state.detailId = null;
         state.loading = false;
         toast(approved ? 'Genehmigt.' : 'Abgelehnt.');
         paint();
@@ -238,14 +341,23 @@ async function decideItem(key, approved) {
     }
 }
 
+function alignCalendarToToday() {
+    const now = new Date();
+    state.calYear = now.getFullYear();
+    state.calMonth = now.getMonth() + 1;
+    state.calWeekAnchor = startOfWeekMonday(now).toISOString();
+}
+
 function bindStatic() {
     if (!root) return;
     root.querySelectorAll('[data-lfr-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-lfr-view') || 'dashboard';
+            state.detailId = null;
             if (!viewsForRole(state.role).some((v) => v.id === state.view)) {
                 state.view = viewsForRole(state.role)[0]?.id || 'dashboard';
             }
+            if (state.view === 'einrichtung' && !state.systemTab) state.systemTab = 'site';
             if (state.view === 'antrag') syncAccount();
             paint();
         });
@@ -253,7 +365,14 @@ function bindStatic() {
     root.querySelectorAll('[data-lfr-view-jump]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-lfr-view-jump') || 'dashboard';
+            state.detailId = null;
             if (state.view === 'antrag') syncAccount();
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-lfr-sys-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            state.systemTab = normalizeSystemTab(btn.getAttribute('data-lfr-sys-tab'));
             paint();
         });
     });
@@ -263,12 +382,10 @@ function bindStatic() {
                 state.entraGroupsConfigured,
                 state.demoRoleOverride
             );
-            if (!demoUi && !(state.planerRoles || []).includes(btn.getAttribute('data-lfr-role') || '')) {
-                return;
-            }
+            if (!demoUi) return;
             const r = btn.getAttribute('data-lfr-role');
             state.role = r === 'direktion' ? 'direktion' : 'lehrer';
-            if (demoUi) state.demoRoleOverride = true;
+            state.demoRoleOverride = true;
             persistRole(state.role);
             if (!viewsForRole(state.role).some((v) => v.id === state.view)) {
                 state.view = viewsForRole(state.role)[0]?.id || 'dashboard';
@@ -276,6 +393,33 @@ function bindStatic() {
             paint();
         });
     });
+    root.querySelectorAll('[data-lfr-detail]').forEach((el) => {
+        const open = () => {
+            state.detailId = el.getAttribute('data-lfr-detail');
+            paint();
+        };
+        el.addEventListener('click', (ev) => {
+            if (el.tagName === 'TR' && ev.target instanceof Element && ev.target.closest('button, a, input, select, textarea')) {
+                return;
+            }
+            open();
+        });
+        if (el.tagName === 'TR') {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Enter' && ev.key !== ' ') return;
+                ev.preventDefault();
+                open();
+            });
+        }
+    });
+    root.querySelectorAll('[data-lfr-close-detail]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            state.detailId = null;
+            paint();
+        });
+    });
+    const antragForm = document.getElementById('lfrAntragForm');
+    if (antragForm) antragForm.addEventListener('submit', (ev) => ev.preventDefault());
     const submit = document.getElementById('lfrFormSubmit');
     if (submit) submit.addEventListener('click', () => submitAntrag());
     const reset = document.getElementById('lfrFormReset');
@@ -297,34 +441,56 @@ function bindStatic() {
                 state.filters = readFiltersFromDom(state);
                 paint();
             });
-            if (id === 'lfrFilterQ') el.addEventListener('input', () => {
-                state.filters = readFiltersFromDom(state);
-                paint();
-            });
+            if (id === 'lfrFilterQ') {
+                el.addEventListener('input', () => {
+                    const start = el instanceof HTMLInputElement ? el.selectionStart : null;
+                    state.filters = readFiltersFromDom(state);
+                    paint();
+                    const next = document.getElementById('lfrFilterQ');
+                    if (next instanceof HTMLInputElement) {
+                        next.focus();
+                        if (typeof start === 'number') next.setSelectionRange(start, start);
+                    }
+                });
+            }
         }
     });
-    const prev = document.getElementById('lfrCalPrev');
-    const next = document.getElementById('lfrCalNext');
-    if (prev) {
-        prev.addEventListener('click', () => {
-            state.calMonth -= 1;
-            if (state.calMonth < 1) {
-                state.calMonth = 12;
-                state.calYear -= 1;
+    root.querySelectorAll('[data-lfr-cal-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const mode = String(btn.getAttribute('data-lfr-cal-mode') || 'month');
+            state.calMode = mode === 'agenda' || mode === 'week' || mode === 'month' ? mode : 'month';
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-lfr-cal-nav]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const delta = Number(btn.getAttribute('data-lfr-cal-nav') || '0');
+            const mode = String(state.calMode || 'month');
+            if (mode === 'week' || mode === 'agenda') {
+                if (delta === 0) {
+                    alignCalendarToToday();
+                } else {
+                    const anchor = startOfWeekMonday(new Date(state.calWeekAnchor || Date.now()));
+                    anchor.setDate(anchor.getDate() + delta * 7);
+                    state.calWeekAnchor = startOfWeekMonday(anchor).toISOString();
+                    state.calYear = anchor.getFullYear();
+                    state.calMonth = anchor.getMonth() + 1;
+                }
+            } else if (delta === 0) {
+                alignCalendarToToday();
+            } else {
+                state.calMonth += delta;
+                if (state.calMonth < 1) {
+                    state.calMonth = 12;
+                    state.calYear -= 1;
+                } else if (state.calMonth > 12) {
+                    state.calMonth = 1;
+                    state.calYear += 1;
+                }
             }
             paint();
         });
-    }
-    if (next) {
-        next.addEventListener('click', () => {
-            state.calMonth += 1;
-            if (state.calMonth > 12) {
-                state.calMonth = 1;
-                state.calYear += 1;
-            }
-            paint();
-        });
-    }
+    });
     root.querySelectorAll('[data-lfr-approve]').forEach((btn) => {
         btn.addEventListener('click', () => decideItem(btn.getAttribute('data-lfr-approve'), true));
     });
@@ -435,7 +601,95 @@ function bindStatic() {
         });
     }
     const reload = document.getElementById('lfrBtnReload');
-    if (reload) reload.addEventListener('click', () => refreshData());
+    if (reload) {
+        reload.addEventListener('click', () => {
+            const s = readSetupFromDom(state);
+            if (s.siteUrl) {
+                state.siteUrl = s.siteUrl;
+                state.listName = s.listName || state.listName;
+                state.listId = s.listId;
+                persistSiteUrl(s.siteUrl);
+                persistSetupCfg(s);
+            }
+            refreshData();
+        });
+    }
+    const saveApprover = document.getElementById('lfrBtnSaveApprover');
+    if (saveApprover) {
+        saveApprover.addEventListener('click', () => {
+            const el = document.getElementById('lfrSysApproverEmail');
+            const mail = el ? String(el.value || '').trim() : '';
+            persistLfrApproverEmail(mail);
+            toast(mail ? 'Genehmiger gespeichert.' : 'Genehmiger geleert.');
+            paint();
+        });
+    }
+    const applyPerms = document.getElementById('lfrBtnApplyListPerms');
+    if (applyPerms && !applyPerms.dataset.lfrWired) {
+        applyPerms.dataset.lfrWired = '1';
+        applyPerms.addEventListener('click', () => {
+            const site = String(state.siteUrl || '').trim();
+            if (!site) {
+                toast('Zuerst SharePoint-URL setzen.');
+                return;
+            }
+            const logEl = document.getElementById('lfrPermsApplyLog');
+            const lines = [];
+            const write = (m) => {
+                lines.push(String(m || ''));
+                if (logEl) {
+                    logEl.hidden = false;
+                    logEl.textContent = lines.join('\n');
+                }
+            };
+            applyPerms.disabled = true;
+            write('Listenrechte werden geschrieben …');
+            applyLfrListPermissions(site, state.listName || 'Lehrer-Freistellungen', {
+                listId: state.listId,
+                flowServiceAccount: ''
+            }, write)
+                .then(() => {
+                    toast('Listenrechte angewendet – Anträge neu laden.');
+                    return refreshData();
+                })
+                .catch((e) => {
+                    const msg = e && e.message ? e.message : String(e);
+                    write('Fehler: ' + msg);
+                    toast(msg);
+                })
+                .finally(() => {
+                    applyPerms.disabled = false;
+                });
+        });
+    }
+    const saveCal = document.getElementById('lfrBtnSaveCalendar');
+    if (saveCal) {
+        saveCal.addEventListener('click', () => {
+            const c = readCalendarSetupFromDom(state);
+            state.outlookCalendarUser = c.outlookCalendarUser;
+            state.outlookCalendarId = c.outlookCalendarId;
+            persistSetupCfg(c);
+            toast('Kalender-Ziel gespeichert.');
+            paint();
+        });
+    }
+    const demoReset = document.getElementById('lfrBtnDemoReset');
+    if (demoReset) {
+        demoReset.addEventListener('click', () => {
+            if (
+                !window.confirm(
+                    'Lokale Demo-Daten wirklich löschen? SharePoint-Daten bleiben unverändert.'
+                )
+            ) {
+                return;
+            }
+            clearDemoItems();
+            state.items = [];
+            state.localDemoOnly = false;
+            toast('Lokale Demo-Daten zurückgesetzt.');
+            void refreshData();
+        });
+    }
     const refreshTop = document.getElementById('lfrBtnRefresh');
     if (refreshTop) refreshTop.addEventListener('click', () => refreshData());
 }
@@ -447,7 +701,16 @@ function boot() {
     state.role = resolveRole();
     state.form = emptyForm();
     window.addEventListener('ms365-auth-state-changed', () => {
-        void syncAccountAndRole().then(() => paint());
+        void refreshData();
+    });
+    window.addEventListener('ms365-it-shell-changed', () => {
+        void onItShellChanged();
+    });
+    window.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && state.detailId) {
+            state.detailId = null;
+            paint();
+        }
     });
     void refreshData();
 }

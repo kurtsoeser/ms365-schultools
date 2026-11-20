@@ -4,7 +4,12 @@ import {
     viewsForRole,
     filterItemsForView,
     applyFilterJump,
-    isSrdpStaffRole
+    isSrdpStaffRole,
+    looksLikeDemoKlassen,
+    looksLikeDemoSeminare,
+    resolveFormOptions,
+    roleLabel,
+    terminJahrFromListTitle
 } from '../src/tools/srdp-anmeldung/srdp-anmeldung-state.js';
 import {
     resolveSrdpOwnership,
@@ -14,7 +19,7 @@ import {
     countNacharbeitPending,
     klassenOhneAnmeldung
 } from '../src/tools/srdp-anmeldung/srdp-anmeldung-logic.js';
-import { isSrdpDemoRoleUiEnabled } from '../src/tools/srdp-anmeldung/srdp-anmeldung-entra-role.js';
+import { isSrdpDemoRoleUiEnabled, canUseSrdpRoleSwitcher, roleFromFlags, shellPreferredSrdpRole } from '../src/tools/srdp-anmeldung/srdp-anmeldung-entra-role.js';
 import {
     DEMO_SEED_TAG,
     DEMO_STUDENT_PERSONA,
@@ -54,6 +59,21 @@ describe('srdp nav / staff', () => {
         expect(isSrdpDemoRoleUiEnabled(false, false)).toBe(false);
         expect(isSrdpDemoRoleUiEnabled(true, false)).toBe(false);
         expect(isSrdpDemoRoleUiEnabled(false, true)).toBe(true);
+        expect(canUseSrdpRoleSwitcher(['lehrer', 'admin'], false)).toBe(false);
+        expect(canUseSrdpRoleSwitcher(['lehrer', 'admin'], true)).toBe(true);
+    });
+
+    it('Persona: IT und Direktion sehen Verwaltung, Lehrkraft bleibt Lehrkraft', () => {
+        expect(roleFromFlags({ isIt: true })).toBe('admin');
+        expect(roleFromFlags({ isDirektion: true, isLehrer: true })).toBe('admin');
+        expect(roleFromFlags({ isLehrer: true })).toBe('lehrer');
+        expect(roleFromFlags({})).toBe('schueler');
+        expect(shellPreferredSrdpRole(['lehrer', 'admin'], 'lehrer')).toBe('admin');
+        expect(shellPreferredSrdpRole(['lehrer', 'admin'], 'lehrer', { allowSaved: true })).toBe('lehrer');
+        expect(roleLabel('admin', 'designated-it')).toBe('Schul-IT');
+        expect(roleLabel('admin', 'stammdaten-direktion')).toBe('Direktion');
+        expect(roleLabel('lehrer')).toBe('Lehrkraft');
+        expect(terminJahrFromListTitle('sRDP-Anmeldungen HAK 2027')).toBe('2027');
     });
 });
 
@@ -96,6 +116,104 @@ describe('srdp filter / ownership', () => {
         ];
         expect(countNacharbeitPending(items)).toBe(1);
         expect(klassenOhneAnmeldung([{ klasse: '5AHAK' }], ['5AHAK', '5BHAK'])).toEqual(['5BHAK']);
+    });
+});
+
+describe('srdp form options / demo scrub', () => {
+    it('erkennt Demo-Klassen 5AHAK und bevorzugt Live-Stammdaten', () => {
+        expect(looksLikeDemoKlassen(['5AHAK', '5BHAK'])).toBe(true);
+        expect(looksLikeDemoKlassen(['5A', '5B'])).toBe(false);
+        const opts = resolveFormOptions(
+            { profileId: 'hak', jahr: '2027', klassen: ['5AHAK', '5BHAK'] },
+            {
+                classes: [
+                    { code: '5A', year: 2027 },
+                    { code: '5B', year: 2027 },
+                    { code: '4A', year: 2028 }
+                ]
+            },
+            'hak'
+        );
+        expect(opts.klassen).toEqual(['5A', '5B']);
+    });
+
+    it('nimmt Listen-Choices wenn Wizard nur Demo hat', () => {
+        const opts = resolveFormOptions(
+            {
+                profileId: 'hak',
+                jahr: '2027',
+                klassen: ['5AHAK'],
+                listKlassen: ['5A', '5B']
+            },
+            { classes: [] },
+            'hak'
+        );
+        expect(opts.klassen).toEqual(['5A', '5B']);
+    });
+
+    it('blendet Demo-Klassen im Live-Betrieb aus', () => {
+        const opts = resolveFormOptions(
+            { profileId: 'hak', jahr: '2027', klassen: ['5AHAK', '5BHAK', '5CHAK'] },
+            { classes: [] },
+            'hak'
+        );
+        expect(opts.klassen).toEqual([]);
+        const demo = resolveFormOptions(
+            { profileId: 'hak', jahr: '2027', klassen: ['5AHAK', '5BHAK', '5CHAK'] },
+            { classes: [] },
+            'hak',
+            { allowDemoKlassen: true }
+        );
+        expect(demo.klassen).toEqual(['5AHAK', '5BHAK', '5CHAK']);
+    });
+
+    it('ersetzt Demo-Seminare durch die Listen-Auswahl', () => {
+        expect(looksLikeDemoSeminare('DIGBIZ\nWirtschaftsrecht')).toBe(true);
+        const opts = resolveFormOptions(
+            {
+                profileId: 'hak',
+                jahr: '2027',
+                seminarText: 'DIGBIZ\nWirtschaftsrecht',
+                listSeminare: ['Unternehmensrechnung', 'Volkswirtschaft']
+            },
+            { classes: [] },
+            'hak'
+        );
+        expect(opts.seminare).toEqual(['Unternehmensrechnung', 'Volkswirtschaft']);
+    });
+
+    it('nimmt die Optionen aus Schritt 3, nicht die alte EN/ENWS-Liste', () => {
+        const opts = resolveFormOptions(
+            {
+                profileId: 'hak',
+                jahr: '2027',
+                lfs: 'ENWS\nFRWS\nITWS\nSPWS',
+                lfsText: 'EN\nENWS\nFR\nFRWS\nIT\nITWS\nSP\nSPWS',
+                wahlfach: 'Religion / Ethik\nKultur',
+                seminar: 'Rockology',
+                listLfs: ['EN', 'Englisch'],
+                listSeminare: ['DIGBIZ']
+            },
+            { classes: [] },
+            'hak'
+        );
+        expect(opts.lfs).toEqual(['ENWS', 'FRWS', 'ITWS', 'SPWS']);
+        expect(opts.wahlfaecher).toEqual(['Religion / Ethik', 'Kultur']);
+        expect(opts.seminare).toEqual(['Rockology']);
+    });
+
+    it('ignoriert die Demo-LFS-Liste und nimmt die Listen-Auswahl', () => {
+        const opts = resolveFormOptions(
+            {
+                profileId: 'hak',
+                jahr: '2027',
+                lfsText: 'EN\nENWS\nFR\nFRWS\nIT\nITWS\nSP\nSPWS',
+                listLfs: ['ENWS', 'FRWS']
+            },
+            { classes: [] },
+            'hak'
+        );
+        expect(opts.lfs).toEqual(['ENWS', 'FRWS']);
     });
 });
 

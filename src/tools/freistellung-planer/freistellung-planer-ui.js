@@ -18,6 +18,8 @@ import { renderFreistellungAccessDebugEntry } from './freistellung-planer-access
 import { renderFreistellungDrawer } from './freistellung-planer-detail-ui.js';
 import { buildFrCalendarEvents, renderFrCalendarShell } from './freistellung-planer-calendar.js';
 import { startOfWeekMonday } from '../../shared/ms365-calendar-shell.js';
+import { renderSystemAdminPage } from '../../shared/system-admin-shell.js';
+import { loadEffectivePermissionsConfig } from './freistellung-planer-permissions.js';
 import * as FrState from './freistellung-planer-state.js';
 import {
     viewsForRole,
@@ -42,7 +44,6 @@ import {
     isPlanerDemoRoleUiEnabled,
     canUsePlanerRoleSwitcher,
     sortPlanerRoles,
-    roleSourceLabel,
     PLANER_ROLE_ORDER
 } from './freistellung-planer-entra-role.js';
 import { mergeKategorieChoices, loadExtraKategorien } from './freistellung-planer-kategorien.js';
@@ -113,9 +114,6 @@ function renderNavSession(state) {
     const demoRoleUi = isPlanerDemoRoleUiEnabled(state.entraGroupsConfigured, state.demoRoleOverride);
     const switchable = demoRoleUi ? PLANER_ROLE_ORDER : sortPlanerRoles(state.planerRoles || []);
     const showRoleSwitcher = canUsePlanerRoleSwitcher(state.planerRoles || [], demoRoleUi);
-    const activeSource = roleSourceLabel(
-        (state.planerRoleSources && state.planerRoleSources[state.role]) || state.roleSource
-    );
     const isSchueler = state.role === 'schueler';
     const klasseCode = resolveStudentKlasseCode(state);
     const klasseHit = findClassInStammdaten(state.stammdaten.classes, klasseCode);
@@ -133,15 +131,7 @@ function renderNavSession(state) {
                 )
                 .join('')}
           </div>`
-        : switchable.length === 1
-          ? `<p class="fr-nav__role-fixed"><span class="fr-badge fr-badge--info">${esc(roleLabel(state.role))}</span>${
-                activeSource ? ` <small class="fr-nav__account-src">(${esc(activeSource)})</small>` : ''
-            }</p>`
-          : state.accountEmail && !studentChrome
-            ? `<p class="fr-nav__hint">Keine Planer-Rolle zugewiesen.</p>`
-            : studentChrome && state.accountEmail
-              ? ''
-              : '';
+        : '';
 
     const kvChrome = useKvPlanerChrome(state);
     if (studentChrome || kvChrome) {
@@ -186,10 +176,13 @@ function renderNavSession(state) {
               ${roleBlock}
             </div>`
                   : kvChrome
-                    ? `<p class="fr-nav__role-fixed" style="margin-top:8px;"><span class="fr-badge fr-badge--info">${esc(
-                          roleLabel('kv')
-                      )}</span></p>`
-                    : ''
+                    ? ''
+                    : showRoleSwitcher
+                      ? `<div class="fr-nav__session-role" style="margin-top:10px;">
+              <span class="fr-nav__session-role-label">Ansicht</span>
+              ${roleBlock}
+            </div>`
+                      : ''
           }
           ${
               kvChrome
@@ -262,239 +255,205 @@ function showPlanerDevTools(state) {
     return state.role === 'direktion';
 }
 
-function renderKvTop(state) {
+function viewTitle(state) {
+    const id = state.view;
+    if (id === 'administration') return 'Systemadministration';
+    if (id === 'freigabe') return 'Entscheidungen';
+    if (id === 'bericht') return 'Berichte';
+    if (id === 'antrag') return 'Antrag stellen';
+    if (id === 'meine') return 'Meine Anträge';
+    if (id === 'liste') return state.role === 'direktion' ? 'Alle Anträge' : 'Klassenliste';
+    if (id === 'kalender') return 'Kalender';
+    if (id === 'dashboard') return state.role === 'kv' ? 'Meine Klasse' : 'Übersicht';
+    return 'Freistellungen';
+}
+
+function viewLead(state) {
+    const id = state.view;
+    if (id === 'administration') {
+        return 'Datenquelle, Berechtigungen, Kalender und Wartung. Das IT-Setup bleibt eine eigene Seite.';
+    }
+    if (state.role === 'schueler' || (state.role !== 'kv' && state.role !== 'direktion')) {
+        if (id === 'antrag') return 'Zeitraum und Grund angeben. Die Freigabe läuft über Microsoft Approvals.';
+        if (id === 'kalender') return 'Eigene Freistellungen im Kalender.';
+        return 'Eingereichte Freistellungen und aktueller Status.';
+    }
+    if (state.role === 'kv') return 'Anträge Ihrer Klasse – Status und Übersicht.';
+    if (id === 'freigabe') return 'Offene Anträge. Die Freigabe läuft in Microsoft Approvals.';
+    if (id === 'kalender') return 'Genehmigte und offene Freistellungen.';
+    return 'Übersicht, Anträge und Genehmigungen. Technik liegt unter Systemadministration.';
+}
+
+function renderWorkTop(state) {
     const denied = state.planerAccessDenied;
     const hint = state.roleHintPublic || state.roleHintStaff || state.roleHint || '';
-    const kvClasses = (state.stammdaten.classes || []).filter((c) => {
-        const em = String(c.headEmail || c.klassenvorstandEmail || c.kvEmail || '')
-            .trim()
-            .toLowerCase();
-        return em && em === String(state.accountEmail || '').toLowerCase();
-    });
+    const onAdmin = state.view === 'administration';
+    const onAntrag = state.view === 'antrag';
+    const student = useStudentPlanerChrome(state);
+    const kv = useKvPlanerChrome(state);
+    const kvClasses = kv
+        ? (state.stammdaten.classes || []).filter((c) => {
+              const em = String(c.headEmail || c.klassenvorstandEmail || c.kvEmail || '')
+                  .trim()
+                  .toLowerCase();
+              return em && em === String(state.accountEmail || '').toLowerCase();
+          })
+        : [];
     const classLabels = kvClasses.map((c) => c.name || c.code).filter(Boolean);
+    const deniedFallback = student
+        ? 'Derzeit kein Zugriff auf Ihre Freistellungsanträge.'
+        : kv
+          ? 'Derzeit kein Zugriff auf die Freistellungsanträge Ihrer Klasse.'
+          : 'Kein Zugriff auf den Freistellungs-Planer für dieses Konto.';
     return `
         <header class="fr-top fr-top--student">
-          <div>
-            <h2 class="fr-top__student-title">Freistellungen meiner Klasse</h2>
-            <p class="fr-nav__hint">Anträge Ihrer Klasse – Status und Übersicht.</p>
+          <div class="fr-top__copy">
+            <h2 class="fr-top__student-title">${esc(viewTitle(state))}</h2>
+            <p class="fr-top__lead">${esc(viewLead(state))}</p>
             ${
                 classLabels.length
-                    ? `<p class="fr-nav__hint">Klassen: <span class="fr-badge fr-nav__account-klasse">${esc(
+                    ? `<p class="fr-top__lead">Klassen: <span class="fr-badge fr-nav__account-klasse">${esc(
                           classLabels.join(', ')
                       )}</span></p>`
                     : ''
             }
           </div>
-          ${
-              state.accountEmail
-                  ? `<button type="button" class="btn" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
-                  : ''
-          }
-        </header>
-        ${
-            denied
-                ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(
-                      hint || 'Derzeit kein Zugriff auf die Freistellungsanträge Ihrer Klasse.'
-                  )}</div>`
-                : ''
-        }`;
-}
-
-function renderStudentTop(state) {
-    const denied = state.planerAccessDenied;
-    const hint = state.roleHintPublic || '';
-    const onAntrag = state.view === 'antrag';
-    const title = onAntrag ? 'Antrag stellen' : 'Meine Anträge';
-    const lead = onAntrag
-        ? 'Zeitraum und Grund angeben – Freigabe über Microsoft Approvals.'
-        : 'Eingereichte Freistellungen und aktueller Status.';
-    return `
-        <header class="fr-top fr-top--student">
-          <div>
-            <h2 class="fr-top__student-title">${esc(title)}</h2>
-            <p class="fr-nav__hint">${esc(lead)}</p>
-          </div>
-          <div class="fr-top__student-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-          ${
-              state.accountEmail && !denied && !onAntrag
-                  ? `<button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>`
-                  : ''
-          }
-          ${
-              state.accountEmail
-                  ? `<button type="button" class="btn" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
-                  : ''
-          }
-          </div>
-        </header>
-        ${
-            denied
-                ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(
-                      hint || 'Derzeit kein Zugriff auf Ihre Freistellungsanträge.'
-                  )}</div>`
-                : ''
-        }`;
-}
-
-function htmlAdminSiteControls(state, opts) {
-    const o = opts || {};
-    const devTools = showPlanerDevTools(state);
-    const setupLinks = o.includeSetupLinks
-        ? `<a class="btn btn-sm" href="freistellung-konzept.html" style="text-decoration:none" title="Ablauf und Genehmigungslogik"><i class="bi bi-diagram-3"></i>Ablauf</a>
-              <a class="btn btn-sm" href="freistellung-setup.html" style="text-decoration:none"><i class="bi bi-gear"></i>Setup</a>`
-        : '';
-    const devBlock = devTools
-        ? `<button type="button" class="btn btn-sm" id="frBtnDemo" title="SJ 2026/27 Demo laden"><i class="bi bi-database"></i>Demo</button>
-              <button type="button" class="btn btn-sm" id="frBtnJsonImport" title="JSON-Testpaket"><i class="bi bi-filetype-json"></i>JSON</button>
-              <input type="file" id="frJsonImportFile" accept="application/json,.json" hidden>
-              <button type="button" class="btn btn-sm alt" id="frBtnDemoReset" title="Demo zurücksetzen"><i class="bi bi-trash"></i>Reset</button>`
-        : '';
-    return `
-            <div class="fr-site-controls">
-              <label class="fr-site-controls__label" for="frSiteUrl">SharePoint-Site</label>
-              <input type="url" class="fr-site-controls__input" id="frSiteUrl" value="${esc(state.siteUrl)}" placeholder="https://ihre-schule.sharepoint.com/sites/Administration" spellcheck="false" autocomplete="off">
-              <div class="fr-site-controls__actions">
-                <button type="button" class="btn btn-sm btn-success" id="frBtnLoad"><i class="bi bi-arrow-repeat"></i>Laden</button>
-                ${setupLinks}
-                <button type="button" class="btn btn-sm" id="frBtnCsv"><i class="bi bi-download"></i>CSV</button>
-                ${devBlock}
-              </div>
-            </div>`;
-}
-
-function renderAdminSitePanel(state) {
-    const roleBadge =
-        state.role === 'kv' || state.role === 'direktion' || state.role === 'schueler'
-            ? roleLabel(state.role)
-            : '–';
-    return `
-        <section class="fr-panel">
-          <h2>SharePoint-Verbindung</h2>
-          <p class="muted" style="margin:0 0 10px;font-size:0.9em;">Liste „${esc(state.listName || 'Freistellungen')}“ auf der gewählten Site.</p>
-          ${htmlAdminSiteControls(state, { includeSetupLinks: false })}
-          <p class="muted" style="margin:10px 0 0;font-size:0.88em;">
-            Rolle <span class="fr-badge fr-badge--info">${esc(roleBadge)}</span>
-            ${state.localDemoOnly ? ' <span class="fr-badge fr-badge--warn">Demo lokal</span>' : ''}
+          <div class="fr-top__user">
             ${
-                state.roleHintStaff || state.roleHint
-                    ? '<br><span>' + esc(state.roleHintStaff || state.roleHint) + '</span>'
+                student && state.accountEmail && !denied && !onAntrag && !onAdmin
+                    ? `<button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>`
                     : ''
             }
-          </p>
-        </section>`;
+            ${
+                state.accountEmail && !onAdmin
+                    ? `<button type="button" class="btn" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
+                    : ''
+            }
+          </div>
+        </header>
+        ${
+            denied
+                ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(hint || deniedFallback)}</div>`
+                : ''
+        }`;
 }
 
 function renderAdministration(state) {
     if (state.role !== 'direktion') {
         return '<p class="muted">Nur für Direktion / Admin.</p>';
     }
-    return `
-    <section class="fr-panel fr-panel--compact">
-      <h2>Administration</h2>
-      <p class="muted fr-panel__lead">Einrichtung, Dokumentation und Technik – nicht für den täglichen Genehmigungsablauf.</p>
-      <nav class="fr-admin-nav" aria-label="Weitere Seiten">
-        <a class="fr-admin-nav__item" href="freistellung-konzept.html"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Ablauf</span></a>
-        <a class="fr-admin-nav__item" href="freistellung-setup.html"><i class="bi bi-wrench" aria-hidden="true"></i><span>Setup</span></a>
-        <a class="fr-admin-nav__item" href="../tenant.html"><i class="bi bi-gear" aria-hidden="true"></i><span>Stammdaten</span></a>
-        <a class="fr-admin-nav__item" href="lehrer-freistellung-planer.html"><i class="bi bi-briefcase" aria-hidden="true"></i><span>Lehrkräfte-Freistellungen</span></a>
-        <a class="fr-admin-nav__item" href="../hilfe.html#tool-freistellung-planer"><i class="bi bi-question-circle" aria-hidden="true"></i><span>Hilfe</span></a>
-        <a class="fr-admin-nav__item" href="../index.html"><i class="bi bi-arrow-left" aria-hidden="true"></i><span>Dashboard</span></a>
-      </nav>
-    </section>
-    ${renderAdminSitePanel(state)}
-    ${
-        state.stammdatenLive
-            ? `<p class="muted" style="margin:0 0 12px;font-size:0.88em;">Stammdaten live: ${
-                  state.stammdatenLive.ok
-                      ? esc(String(state.stammdatenLive.classCount || 0)) +
-                        ' Klassen / ' +
-                        esc(String(state.stammdatenLive.teacherCount || 0)) +
-                        ' Lehrkräfte (' +
-                        esc(state.stammdatenLive.source || '') +
-                        ')'
-                      : esc(state.stammdatenLive.error || 'nicht geladen') +
-                        ' · lokal ' +
-                        esc(String((state.stammdaten.classes || []).length)) +
-                        ' Klassen'
-              }</p>`
-            : ''
-    }
-    ${htmlFreistellungKlassenPanel({
-        mountId: 'frPlanerKlassenList',
-        syncBtnId: 'frPlanerKlassenSyncSp',
-        reloadBtnId: 'frPlanerKlassenReload',
-        cleanBtnId: 'frPlanerKlassenClean'
-    })}
-    ${htmlFreistellungKategorienPanel({
-        listId: 'frPlanerKatExtraList',
-        newInputId: 'frPlanerKatExtraNew',
-        addId: 'frPlanerKatExtraAdd',
-        syncListBtnId: 'frPlanerKatSyncSp'
-    })}`;
-}
-
-function renderDirektionTop(state) {
-    const denied = state.planerAccessDenied;
-    const hint = state.roleHintStaff || state.roleHint || '';
-    const onAdmin = state.view === 'administration';
-    return `
-        <header class="fr-top fr-top--student">
-          <div>
-            <h2 class="fr-top__student-title">${onAdmin ? 'Administration' : 'Freistellungen – Verwaltung'}</h2>
-            <p class="fr-nav__hint">${
-                onAdmin
-                    ? 'SharePoint, Klassen aus Stammdaten, Kategorien und Links zur Einrichtung.'
-                    : 'Übersicht, Anträge und Genehmigungen. Technik: Menü „Administration“.'
-            }</p>
+    const perms = loadEffectivePermissionsConfig();
+    const live = state.stammdatenLive || {};
+    const liveLine = live.ok
+        ? `${Number(live.classCount) || 0} Klassen / ${Number(live.teacherCount) || 0} Lehrkräfte (${live.source || 'live'})`
+        : live.error
+          ? String(live.error)
+          : `${(state.stammdaten.classes || []).length} Klassen lokal`;
+    const connected = !!(state.siteUrl && !state.error && !state.localDemoOnly);
+    const devTools = showPlanerDevTools(state);
+    const groupLine = (name, id) => esc(name || id || '–');
+    return renderSystemAdminPage({
+        prefix: 'fr',
+        activeTab: state.systemTab,
+        dataAttr: 'data-fr-sys-tab',
+        ariaLabel: 'Systemadministration Freistellungen',
+        panels: [
+            {
+                id: 'site',
+                step: '1',
+                title: 'Datenquelle',
+                leadHtml: 'Liste „' + esc(state.listName || 'Freistellungen') + '“ auf der Schul-Site.',
+                body: `
+        <div class="ms-sys-health" role="status">
+          <span class="ms-sys-status ms-sys-status--${state.error ? 'bad' : connected ? 'ok' : 'warn'}"><span class="ms-sys-status__dot" aria-hidden="true"></span>${
+              state.error ? 'Fehler' : connected ? 'Verbunden' : state.siteUrl ? 'URL gesetzt' : 'Nicht verbunden'
+          }</span>
+          <span class="ms-sys-status ms-sys-status--${live.ok ? 'ok' : 'warn'}"><span class="ms-sys-status__dot" aria-hidden="true"></span>${esc(
+              liveLine
+          )}</span>
+          ${state.localDemoOnly ? '<span class="ms-sys-status ms-sys-status--warn"><span class="ms-sys-status__dot" aria-hidden="true"></span>Demo lokal</span>' : ''}
+        </div>
+        <div class="ms-sys-field">
+          <label for="frSiteUrl">SharePoint-URL</label>
+          <div class="ms-sys-field__row">
+            <input type="url" id="frSiteUrl" class="ms-sys-input" value="${esc(
+                state.siteUrl
+            )}" placeholder="https://…sharepoint.com/sites/…" spellcheck="false" autocomplete="off">
+            <button type="button" class="btn ms-sys-btn-primary" id="frBtnLoad"><i class="bi bi-arrow-repeat"></i>Verbindung prüfen</button>
           </div>
-          ${
-              state.accountEmail && !onAdmin
-                  ? `<button type="button" class="btn" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
-                  : ''
-          }
-        </header>
-        ${
-            denied
-                ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(
-                      hint || 'Kein Zugriff auf den Freistellungs-Planer für dieses Konto.'
-                  )}</div>`
-                : ''
-        }`;
-}
-
-function renderStaffTop(state) {
-    const roleBadge =
-        state.role === 'kv' || state.role === 'direktion' || state.role === 'schueler'
-            ? roleLabel(state.role)
-            : '–';
-    const demoBadge =
-        state.localDemoOnly && state.view === 'administration'
-            ? '<span class="fr-badge fr-badge--warn">Demo lokal</span>'
-            : '';
-    return `
-        <header class="fr-top">
-          <div class="fr-top__site">
-            ${htmlAdminSiteControls(state, { includeSetupLinks: true })}
-          </div>
-          <div class="fr-top__user">
-            <span>Rolle <span class="fr-badge fr-badge--info">${esc(roleBadge)}</span></span>
-            ${demoBadge}
-            ${
-                state.roleHintStaff || state.roleHint
-                    ? `<small class="muted" style="display:block;max-width:22rem;margin-top:4px;">${esc(
-                          state.roleHintStaff || state.roleHint
-                      )}</small>`
-                    : ''
+        </div>
+        <div class="ms-sys-links">
+          <a class="btn ms-sys-btn-secondary" href="freistellung-setup.html"><i class="bi bi-wrench"></i>IT-Setup</a>
+        </div>`
+            },
+            {
+                id: 'perms',
+                step: '2',
+                title: 'Berechtigungen',
+                leadHtml: 'Überblick der gespeicherten Entra-Gruppen. Listenrechte setzt das IT-Setup.',
+                body: `
+        <dl class="ms-sys-dl">
+          <dt>Direktion</dt><dd>${groupLine(perms.groupDirektion, perms.groupDirektionId)}</dd>
+          <dt>Klassenvorstand</dt><dd>${groupLine(perms.groupKv, perms.groupKvId)}</dd>
+          <dt>Schüler/innen</dt><dd>${groupLine(perms.groupSchueler, perms.groupSchuelerId)}</dd>
+          <dt>Direktion-Mail (Flow)</dt><dd>${esc(state.emailDirektion || '–')}</dd>
+        </dl>
+        <div class="ms-sys-links">
+          <a class="btn ms-sys-btn-secondary" href="freistellung-setup.html"><i class="bi bi-shield-check"></i>IT-Setup · Berechtigungen</a>
+        </div>`
+            },
+            {
+                id: 'kalender',
+                step: '3',
+                title: 'Kalender',
+                leadHtml: 'Der Arbeitskalender bleibt die Ansicht „Kalender“. Hier nur der Export.',
+                body: `
+        <div class="ms-sys-actions">
+          <button type="button" class="btn ms-sys-btn-secondary" data-fr-view-jump="kalender"><i class="bi bi-calendar3"></i>Kalender öffnen</button>
+          <button type="button" class="btn ms-sys-btn-ghost" id="frBtnCsv"><i class="bi bi-download"></i>CSV</button>
+        </div>`
+            },
+            {
+                id: 'wartung',
+                step: '4',
+                title: 'Wartung',
+                leadHtml: 'Klassen, Kategorien, Stammdaten und Hilfe – getrennt vom Genehmigungsalltag.',
+                body: `
+        <div class="ms-sys-links" style="margin-bottom:14px">
+          <a class="btn ms-sys-btn-secondary" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+          <a class="btn ms-sys-btn-ghost" href="freistellung-konzept.html"><i class="bi bi-diagram-3"></i>Ablauf</a>
+          <a class="btn ms-sys-btn-ghost" href="lehrer-freistellung-planer.html"><i class="bi bi-briefcase"></i>Lehrkräfte</a>
+          <a class="btn ms-sys-btn-ghost" href="../hilfe.html#tool-freistellung-planer"><i class="bi bi-life-preserver"></i>Hilfe</a>
+        </div>
+        ${htmlFreistellungKlassenPanel({
+            mountId: 'frPlanerKlassenList',
+            syncBtnId: 'frPlanerKlassenSyncSp',
+            reloadBtnId: 'frPlanerKlassenReload',
+            cleanBtnId: 'frPlanerKlassenClean'
+        })}
+        ${htmlFreistellungKategorienPanel({
+            listId: 'frPlanerKatExtraList',
+            newInputId: 'frPlanerKatExtraNew',
+            addId: 'frPlanerKatExtraAdd',
+            syncListBtnId: 'frPlanerKatSyncSp'
+        })}`
+            },
+            {
+                id: 'danger',
+                title: 'Danger Zone',
+                danger: true,
+                leadHtml: 'Lokale Demo verwerfen. SharePoint-Einträge bleiben, bis sie bewusst gelöscht werden.',
+                body: devTools
+                    ? `<div class="ms-sys-actions">
+          <button type="button" class="btn ms-sys-btn-secondary" id="frBtnDemo"><i class="bi bi-database"></i>Demo laden</button>
+          <button type="button" class="btn ms-sys-btn-ghost" id="frBtnJsonImport"><i class="bi bi-filetype-json"></i>JSON</button>
+          <input type="file" id="frJsonImportFile" accept="application/json,.json" hidden>
+          <button type="button" class="btn ms-sys-btn-danger" id="frBtnDemoReset"><i class="bi bi-trash"></i>Demo zurücksetzen</button>
+        </div>`
+                    : '<p class="muted">Keine Demo-Aktionen in dieser Sitzung.</p>'
             }
-          </div>
-        </header>
-        ${
-            state.planerAccessDenied
-                ? `<div class="fr-alert fr-alert--bad" role="alert">Kein Zugriff auf den Freistellungs-Planer für dieses Konto. ${esc(
-                      state.roleHintStaff || state.roleHint || ''
-                  )}</div>`
-                : ''
-        }`;
+        ]
+    });
 }
 
 export function renderApp(state, root) {
@@ -515,39 +474,42 @@ export function renderApp(state, root) {
               state.accountName || state.accountEmail || 'IT'
           )}.</div>`
         : '';
+    const openCount = (state.items || []).filter(
+        (it) => String((it && it.status) || '').trim().toLowerCase() === 'ausstehend'
+    ).length;
     const navHtml = sections
         .map((sec) => {
             const label = sec.label
                 ? `<span class="fr-nav__section-label">${esc(sec.label)}</span>`
                 : '';
             const btns = (sec.items || [])
-                .map(
-                    (v) => `
-            <button type="button" class="fr-nav__btn${state.view === v.id ? ' is-active' : ''}" data-fr-view="${esc(
-                        v.id
-                    )}">
-              <i class="bi ${v.icon}" aria-hidden="true"></i>${esc(v.label)}
-            </button>`
-                )
+                .map((v) => {
+                    const badge =
+                        v.id === 'freigabe' && openCount > 0
+                            ? `<span class="fr-nav__badge">${openCount}</span>`
+                            : '';
+                    return `
+            <button type="button" class="fr-nav__btn${state.view === v.id ? ' is-active' : ''}${
+                v.id === 'antrag' ? ' fr-nav__btn--cta' : ''
+            }" data-fr-view="${esc(v.id)}">
+              <i class="bi ${v.icon}" aria-hidden="true"></i><span class="fr-nav__btn-label">${esc(
+                  v.label
+              )}</span>${badge}
+            </button>`;
+                })
                 .join('');
             return `<div class="fr-nav__section">${label}${btns}</div>`;
         })
         .join('');
     root.innerHTML = `
-    <div class="fr-shell${minimalChrome ? ' fr-shell--student' : ''}">
+    <div class="fr-shell fr-shell--student">
       <aside class="fr-nav" aria-label="Navigation">
         <div class="fr-nav__brand">
           <i class="bi bi-calendar2-check" aria-hidden="true"></i>
           <div>
             <strong>Freistellungen</strong>
             <span>${
-                studentChrome
-                    ? 'Schüler'
-                    : kvChrome
-                      ? 'Klassenübersicht'
-                      : direktionChrome
-                        ? 'Verwaltung'
-                        : 'Antrag &amp; Genehmigung'
+                studentChrome ? 'Schüler/innen' : kvChrome ? 'Klassenübersicht' : 'Verwaltung'
             }</span>
           </div>
         </div>
@@ -557,15 +519,7 @@ export function renderApp(state, root) {
         ${renderNavSession(state)}
       </aside>
       <div class="fr-main">
-        ${
-            studentChrome
-                ? renderStudentTop(state)
-                : kvChrome
-                  ? renderKvTop(state)
-                  : direktionChrome
-                    ? renderDirektionTop(state)
-                    : renderStaffTop(state)
-        }
+        ${renderWorkTop(state)}
         ${personaBanner}
         ${showAccessDebug ? renderFreistellungAccessDebugEntry(state) : ''}
         ${
@@ -576,7 +530,7 @@ export function renderApp(state, root) {
                 : ''
         }
         ${
-            !minimalChrome && state.info
+            state.info
                 ? `<div class="fr-alert fr-alert--info" role="status">${esc(state.info)}</div>`
                 : ''
         }
@@ -943,8 +897,8 @@ function renderListe(state) {
     const scope = scopeFromState(state, { scopeAll: state.role === 'direktion' });
     const items = filterItems(state.items, state.filters, scope);
     return `
-    <section class="fr-panel fr-panel--calm">
-      <h2>Liste</h2>
+    <section class="fr-panel fr-panel--calm fr-panel--list">
+      <h2 class="fr-sr-only">Liste</h2>
       ${filterBar(state)}
       ${
           items.length
@@ -1007,8 +961,8 @@ function renderMeine(state) {
       }</span>
     </p>`;
     return `
-    <section class="fr-panel fr-panel--calm${studentChrome ? ' fr-panel--student-meine' : ''}">
-      ${studentChrome ? '' : '<h2>Meine Anträge</h2>'}
+    <section class="fr-panel fr-panel--calm fr-panel--list${studentChrome ? ' fr-panel--student-meine' : ''}">
+      <h2 class="fr-sr-only">Meine Anträge</h2>
       ${studentChrome ? '' : filterBar(state)}
       ${items.length ? renderTable(items, state) : empty}
       ${
@@ -1032,8 +986,8 @@ function renderFreigabe(state) {
             : { onlyKv: true, accountEmail: email };
     const items = filterItems(state.items, { status: 'Ausstehend' }, scope);
     return `
-    <section class="fr-panel fr-panel--calm">
-      <h2>Offene Genehmigungen</h2>
+    <section class="fr-panel fr-panel--calm fr-panel--list">
+      <h2 class="fr-sr-only">Offene Genehmigungen</h2>
       <p class="muted">Freigabe in <strong>Microsoft Approvals</strong> (Teams/Handy). Manuelles ✓/✗ nur Fallback ohne Flow.</p>
       ${
           items.length
@@ -1309,7 +1263,7 @@ function renderAntrag(state) {
           studentChrome
               ? `<p class="fr-antrag-lead">In wenigen Schritten absenden. Die Genehmigung läuft danach automatisch über Microsoft Approvals.</p>`
               : `<header class="fr-antrag-head">
-          <h2>Neuer Freistellungsantrag</h2>
+          <h2 class="fr-sr-only">Neuer Freistellungsantrag</h2>
           <p class="muted">Schritt für Schritt – Speichern schreibt in SharePoint und startet den Genehmigungsflow.</p>
         </header>`
       }
@@ -1356,8 +1310,11 @@ function renderTable(items, state, opts) {
                       it.itemId
                   )}" title="Antrag löschen" aria-label="Antrag löschen"><i class="bi bi-trash"></i></button>`
                 : '';
-            return `<tr>
-          <td><button type="button" class="fr-link" data-fr-detail="${esc(it.itemId)}">${esc(it.schuelerName || it.titel)}</button></td>
+            const id = it.itemId || it.antragId;
+            return `<tr class="fr-table__row" tabindex="0" role="link" data-fr-detail="${esc(
+                id
+            )}" aria-label="${esc((it.schuelerName || it.titel || 'Antrag') + ' öffnen')}">
+          <td><strong>${esc(it.schuelerName || it.titel)}</strong></td>
           <td>${esc(it.klasse)}</td>
           <td>${esc(formatDeDateTime(it.beginn))}${
                 it.ende && it.ende !== it.beginn ? ' – ' + esc(formatDeDateTime(it.ende)) : ''
@@ -1366,20 +1323,19 @@ function renderTable(items, state, opts) {
           <td>${statusBadge(it.status)}</td>
           <td>${esc(it.kategorie)}</td>
           <td>${esc(it.kvName || it.kvEmail || '–')}</td>
-          <td class="fr-td-actions">${decide}
-            <button type="button" class="btn btn-sm" data-fr-detail="${esc(it.itemId)}" title="Details"><i class="bi bi-eye"></i></button>
-            ${del}
-          </td>
+          <td class="fr-td-actions">${decide}${del}</td>
+          <td class="fr-table__chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></td>
         </tr>`;
         })
         .join('');
     return `
     <div class="fr-table-wrap">
-      <table class="fr-table">
+      <table class="fr-table fr-table--rows">
         <thead>
           <tr>
             <th>Schüler/in</th><th>Klasse</th><th>Zeitraum</th><th>Tage</th>
             <th>Status</th><th>Kategorie</th><th>KV</th><th></th>
+            <th class="fr-table__chevron"><span class="fr-sr-only">Öffnen</span></th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>

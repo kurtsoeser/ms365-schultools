@@ -314,6 +314,11 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
+    margin: 0 0 10px;
+}
+
+.th-range {
+    margin-bottom: 4px;
 }
 
 .th-success {

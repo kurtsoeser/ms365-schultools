@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js"></script>
+    <script src="../src/shared/theme-boot.js?v=4"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Schulaktivitäten Setup</title>
-    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../app.css?v=14">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/it-setup-shell.css">
+    <link rel="stylesheet" href="../src/shared/planner-entra-perms.css">
     <link rel="stylesheet" href="../src/tools/power-automate/freistellung-setup.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
 </head>
@@ -21,7 +23,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-bus-front"></i>Schulaktivitäten Setup</span>
             </div>
-            <p>Fünf Schritte: vorbereiten → Konten → Liste → Rollen → Flow-Paket.
+            <p>Fünf Schritte: vorbereiten → Konten → Liste → Berechtigungen → Flow-Paket.
                 Anträge: <a href="schulaktivitaeten-planer.html">Schulaktivitäten-Planer</a>.
                 Listen: <a href="sharepoint-liste-schulaktivitaeten.html">Listen-Tool</a>.</p>
             <p class="header-help-row"><a href="../hilfe.html" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
@@ -40,7 +42,7 @@
                 <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites.ReadWrite.All</span>
             </div>
 
-            <section class="tm-glance tm-glance--compact fr-setup-glance fr-setup-glance--nav" id="aktSetupGlance" role="tablist" aria-label="Setup-Schritte">
+            <section class="tm-glance tm-glance--compact fr-setup-glance fr-setup-glance--nav it-setup-glance it-setup-glance--nav it-setup-glance--cols-5" id="aktSetupGlance" role="tablist" aria-label="Setup-Schritte">
                 <button type="button" role="tab" class="tm-glance__card is-active" data-akt-setup-step="1" data-akt-glance="prep" aria-selected="true" aria-controls="aktSetupStep1">
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
                     <span class="tm-glance__label">1 · Vorbereitung</span>
@@ -58,7 +60,7 @@
                 </button>
                 <button type="button" role="tab" class="tm-glance__card is-warn" data-akt-setup-step="4" data-akt-glance="roles" aria-controls="aktSetupStep4">
                     <i class="bi bi-people" aria-hidden="true"></i>
-                    <span class="tm-glance__label">4 · Rollen</span>
+                    <span class="tm-glance__label">4 · Berechtigungen</span>
                     <span class="tm-glance__value" data-akt-glance-value>Offen</span>
                 </button>
                 <button type="button" role="tab" class="tm-glance__card is-warn" data-akt-setup-step="5" data-akt-glance="flow" aria-controls="aktSetupStep5">
@@ -78,23 +80,30 @@
 
             <div id="aktSetupStep2" class="tm-wizard__pane" role="tabpanel" hidden>
                 <h3 class="tm-wizard__pane-title">Konten &amp; Genehmiger</h3>
-                <p class="tm-wizard__pane-lead">Technik-Konto, <strong>eine Direktion als Microsoft-Approvals-Genehmiger</strong> und Absender der Status-Mails. Einfacher als Schüler-Freistellungen (kein Klassenvorstand).</p>
+                <p class="tm-wizard__pane-lead">Technik-Konto, <strong>Direktion als Power-Automate-Genehmiger</strong> (eine Person) und Absender der Status-Mails. Listen-/Planer-Zugriff (Gruppen und Personen) folgt in Schritt 4 – Microsoft-Suche über „Suchen“.</p>
                 <section class="tm-panel fr-setup-panel">
                     <div class="tm-field fr-flow-account-field">
                         <label for="aktFlowServiceAccount">Technik-Konto für Power Automate</label>
                         <div class="fr-setup-egp fr-setup-egp--tight">
                             <input type="email" id="aktFlowServiceAccount" placeholder="automate@schule.at" autocomplete="off">
+                            <button type="button" class="btn btn-sm alt" id="aktFlowServiceAccountPick"><i class="bi bi-person-bounding-box"></i>Suchen</button>
                             <button type="button" class="btn btn-sm alt" id="aktFlowAccountUseMailbox"><i class="bi bi-arrow-down-up"></i>Wie Absender</button>
                         </div>
                     </div>
                     <div class="tm-field">
                         <label for="aktEmailDirektion">Direktion (Genehmiger für Approvals)</label>
-                        <input type="email" id="aktEmailDirektion" placeholder="direktion@schule.at" autocomplete="off">
-                        <p class="muted" style="font-size:0.85em;margin-top:6px;">Diese Adresse wird in den Flow als einziger Approver geschrieben.</p>
+                        <div class="fr-setup-egp fr-setup-egp--tight">
+                            <input type="email" id="aktEmailDirektion" placeholder="direktion@schule.at" autocomplete="off">
+                            <button type="button" class="btn btn-sm alt" id="aktEmailDirektionPick"><i class="bi bi-person-bounding-box"></i>Suchen</button>
+                        </div>
+                        <p class="muted" style="font-size:0.85em;margin-top:6px;">Diese Adresse wird in den Flow als einziger Approver geschrieben. Zusätzliche Planer-Rechte in Schritt 4.</p>
                     </div>
                     <div class="tm-field">
                         <label for="aktEmailMailbox">Absender für Status-Mails</label>
-                        <input type="email" id="aktEmailMailbox" placeholder="automate@schule.at" autocomplete="off">
+                        <div class="fr-setup-egp fr-setup-egp--tight">
+                            <input type="email" id="aktEmailMailbox" placeholder="automate@schule.at" autocomplete="off">
+                            <button type="button" class="btn btn-sm alt" id="aktEmailMailboxPick"><i class="bi bi-person-bounding-box"></i>Suchen</button>
+                        </div>
                         <label class="checkbox-label" style="display:block;margin-top:8px;font-size:0.9em;">
                             <input type="checkbox" id="aktMailAsTechnikUser" checked>
                             E-Mail als angemeldetes Technik-Konto senden (empfohlen)
@@ -138,26 +147,30 @@
             </div>
 
             <div id="aktSetupStep4" class="tm-wizard__pane" role="tabpanel" hidden>
-                <h3 class="tm-wizard__pane-title">Rollen &amp; Ablauf</h3>
-                <p class="tm-wizard__pane-lead">Wer genehmigt im Flow, wer arbeitet im Planer.</p>
-                <section class="tm-panel fr-setup-panel">
-                    <ul style="margin:0;padding-left:1.2em;line-height:1.55;">
-                        <li><strong>Approvals:</strong> nur die Direktion aus Schritt 2 (eine Person, Basic Approval).</li>
-                        <li><strong>Lehrkräfte:</strong> stellen Anträge im <a href="schulaktivitaeten-planer.html">Planer</a>; Status-Mail geht an <code>LehrerEmail</code>.</li>
-                        <li><strong>Administration:</strong> markiert nach Genehmigung „In Untis verarbeitet“ im Planer (nicht im Flow).</li>
-                        <li><strong>Nachforderung / Revision:</strong> im Planer; der Flow startet bei <em>neuen</em> Anträgen mit Status <code>beantragt</code>.</li>
-                    </ul>
-                </section>
+                <h3 class="tm-wizard__pane-title">Wer genehmigt &amp; wer darf einreichen?</h3>
+                <p class="tm-wizard__pane-lead">Wie im Listen-Tool: Genehmigung/Direktion und Einreicher per Microsoft-365-Gruppe oder Einzelpersonen suchen. Approvals-E-Mail bleibt Schritt 2.</p>
+                <div class="it-setup-stack">
+                    <div id="aktFlowEntraPermAdmin" class="fr-setup-perm-grid-host"></div>
+                    <div id="aktFlowEntraPermEinreicher" class="fr-setup-perm-grid-host"></div>
+                    <div class="tm-actions">
+                        <button type="button" class="btn btn-success" id="aktBtnSavePerms"><i class="bi bi-check2"></i>Rollen speichern</button>
+                        <a class="btn" href="sharepoint-liste-schulaktivitaeten.html" style="text-decoration:none;"><i class="bi bi-box-arrow-up-right"></i>Listen-Tool</a>
+                    </div>
+                    <p class="muted" style="font-size:0.85em;margin:0;line-height:1.45;">
+                        Dieselben Einstellungen nutzt das Listen-Paket. Approvals im Flow: Direktion aus Schritt 2.
+                    </p>
+                </div>
             </div>
 
             <div id="aktSetupStep5" class="tm-wizard__pane" role="tabpanel" hidden>
                 <h3 class="tm-wizard__pane-title">Flow-Paket &amp; Import</h3>
-                <p class="tm-wizard__pane-lead">Parametrierte ZIP herunterladen und mit dem Technik-Konto als <strong>Package (Legacy)</strong> importieren – wie bei Freistellungen.</p>
+                <p class="tm-wizard__pane-lead">ZIP wird mit Site + Listen-GUID aus Schritt 3 neu erzeugt. Vor dem Download erhält das Technik-Konto Vollzugriff auf die Listen (sonst <strong>GetTable 403</strong>).</p>
                 <div class="tm-actions" style="margin-bottom:14px;">
                     <button type="button" class="btn btn-success" id="aktBtnPackage"><i class="bi bi-download"></i>Flow-Paket herunterladen</button>
                     <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate</a>
                 </div>
-                <p class="muted">Technik-Konto: <strong id="aktImportAccountHint">…</strong></p>
+                <p class="muted">Import-Konto (Power Automate damit anmelden): <strong id="aktImportAccountHint">…</strong></p>
+                <p class="muted" style="margin-top:8px;font-size:0.88em;">Beim Import zugehörige Ressourcen konfigurieren: SharePoint-/Approvals-/Outlook-Connection mit dem Technik-Konto wählen oder anlegen.</p>
                 <label class="checkbox-label" style="display:block;margin-top:14px;">
                     <input type="checkbox" id="aktDone"> Flow in unserer Schule aktiv / importiert
                 </label>
@@ -183,11 +196,13 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../vendor/jszip/jszip.min.js"></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/shared/browser-backup.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/tools/power-automate/schulaktivitaeten-setup-bridge.js"></script>
     <script src="../src/tools/power-automate/pa-school-onboarding.js"></script>
     <script type="module" src="../src/tools/power-automate/schulaktivitaeten-setup.js"></script>
     <script src="../src/pages/schulaktivitaeten-setup.js"></script>

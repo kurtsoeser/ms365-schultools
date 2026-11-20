@@ -20,8 +20,9 @@ function walkHtml(dir, out = []) {
  * erlaubt nur script-src 'self'). admin.html hat eine eigene Variante.
  */
 function foucScript(isAdmin, prefix) {
-    const file = isAdmin ? 'src/pages/admin-boot.js' : 'src/shared/theme-boot.js';
-    return '<script src="' + prefix + file + '"></script>';
+    const theme = '<script src="' + prefix + 'src/shared/theme-boot.js?v=4"></script>';
+    if (!isAdmin) return theme;
+    return theme + '\n    <script src="' + prefix + 'src/pages/admin-boot.js"></script>';
 }
 
 const oldFoucRe =
@@ -50,12 +51,12 @@ for (const full of files) {
         }
     }
 
-    const src = prefix + 'src/shared/theme-toggle.js?v=2';
-    if (html.includes('theme-toggle.js?v=1')) {
-        html = html.replace(/theme-toggle\.js\?v=1/g, 'theme-toggle.js?v=2');
+    const src = prefix + 'src/shared/theme-toggle.js?v=4';
+    if (/theme-toggle\.js\?v=[123]/.test(html)) {
+        html = html.replace(/theme-toggle\.js\?v=[123]/g, 'theme-toggle.js?v=4');
         changed = true;
     } else if (html.includes('src/shared/theme-toggle.js"') && !html.includes('theme-toggle.js?v=')) {
-        html = html.replace(/src\/shared\/theme-toggle\.js/g, 'src/shared/theme-toggle.js?v=2');
+        html = html.replace(/src\/shared\/theme-toggle\.js/g, 'src/shared/theme-toggle.js?v=4');
         changed = true;
     }
     if (html.includes('app.css?v=12')) {

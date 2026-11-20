@@ -148,6 +148,7 @@ describe('Hilfe-Seite', () => {
             'schulstruktur-sync': 'tool-schulstruktur',
             datenhygiene: 'tool-datenhygiene',
             'stammdaten-uebergabe': 'tool-stammdaten-uebergabe',
+            'it-berechtigungen': 'tool-it-berechtigungen',
             'stammdaten-backup-abgleich': 'tool-stammdaten-uebergabe',
             'webuntis-stammdaten-import': 'tool-schulregister',
             'cleanup-playbook': 'tool-cleanup-playbook',

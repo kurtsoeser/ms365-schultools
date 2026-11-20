@@ -117,14 +117,14 @@ export async function resolvePwContext(webUrl) {
     const angebote = await findListByTitle(tok, siteId, LIST_TITLES.angebote);
     if (!aktionen || !angebote) {
         throw new Error(
-            'Listen unvollständig. Bitte zuerst unter Einstellungen die Projektwochen-Listen anlegen (PW-Aktionen, PW-Angebote).'
+            'Listen unvollständig. Bitte zuerst unter Systemadministration die Projektwochen-Listen anlegen (PW-Aktionen, PW-Angebote).'
         );
     }
     const angebotCols = await listColumnNames(tok, siteId, angebote.id);
     const weekdayField = resolveWeekdayFieldName(angebotCols);
     if (!angebotCols.has('Wochentag') && !angebotCols.has('Tag')) {
         throw new Error(
-            'In PW-Angebote fehlt die Spalte Wochentag (bzw. Legacy „Tag“). Bitte unter Einstellungen „Listen anlegen / aktualisieren“ ausführen.'
+            'In PW-Angebote fehlt die Spalte Wochentag (bzw. Legacy „Tag“). Bitte unter Systemadministration „Listen anlegen / aktualisieren“ ausführen.'
         );
     }
     return {

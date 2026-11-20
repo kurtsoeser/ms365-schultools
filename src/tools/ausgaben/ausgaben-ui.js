@@ -47,6 +47,7 @@ import {
     isAusgabenAdmin,
     resolveAusgabenAdmin
 } from './ausgaben-entra-role.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 const VIEWS = [
     { id: 'uebersicht', label: 'Übersicht', icon: 'bi-speedometer2' },
@@ -54,7 +55,7 @@ const VIEWS = [
     { id: 'ausgeben', label: 'Ausgeben', icon: 'bi-box-arrow-right' },
     { id: 'offen', label: 'Offen / Retour', icon: 'bi-arrow-left-right' },
     { id: 'typen', label: 'Typen & Vorlagen', icon: 'bi-tags' },
-    { id: 'einstellungen', label: 'Einstellungen', icon: 'bi-gear' }
+    { id: 'einstellungen', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 const ADMIN_ONLY_VIEWS = new Set(['inventar', 'ausgeben', 'typen', 'einstellungen']);
@@ -83,6 +84,7 @@ export function mountApp(root) {
     /** @type {{ view: string, message: {type:string,text:string}|null, filters: object, editId: string, showAll: boolean }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         message: null,
         filters: { typ: '', q: '', status: 'ausgegeben', ueberfaellig: false },
         editId: '',
@@ -652,60 +654,102 @@ export function mountApp(root) {
         const sync = getAusgabenSyncMeta();
         const site = resolveAusgabenSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
         const s = state();
-        return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">Einstellungen</h2>' +
-            '<p class="ag-item__meta" style="margin:0 0 12px;">Admin aus Entra (Schulleitung/Verwaltung/IT)' +
-            (role.demo ? ' · Demo' : role.sources.length ? ' · ' + esc(role.sources.join(', ')) : '') +
-            '. Legacy-Mails optional.</p>' +
-            renderSyncHint() +
-            '<div class="tm-system-panel" style="margin-bottom:16px;">' +
-            '<h3>SharePoint (Live)</h3>' +
-            '<p><code>' +
-            esc(site) +
-            '</code></p>' +
-            '<p>Sync: <strong>' +
-            esc(sync.source) +
-            '</strong>' +
-            (sync.listTitle ? ' · ' + esc(sync.listTitle) : '') +
-            (sync.lastPullAt ? ' · zuletzt ' + esc(formatDeDate(sync.lastPullAt)) : '') +
+        const syncLine =
+            'Sync: ' +
+            sync.source +
+            (sync.listTitle ? ' · ' + sync.listTitle : '') +
+            (sync.lastPullAt ? ' · zuletzt ' + formatDeDate(sync.lastPullAt) : '') +
             (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
-            (sync.error ? ' · ' + esc(sync.error) : '') +
-            '</p>' +
-            '<p>Lokal: ' +
-            (s.gegenstaende || []).length +
-            ' Gegenstände · ' +
-            (s.vorgaenge || []).length +
-            ' Vorgänge' +
-            (s.localDemoOnly ? ' · Demo local-first' : '') +
-            ' · spoItemId Inventar: ' +
-            (s.gegenstaende || []).filter((g) => g.spoItemId).length +
-            ' · Vorgänge: ' +
-            (s.vorgaenge || []).filter((v) => v.spoItemId).length +
-            '</p>' +
-            '<div class="ag-toolbar">' +
-            '<button type="button" class="btn btn-success" data-ag-pull>Von SharePoint laden</button>' +
-            '<button type="button" class="btn" data-ag-demo>Demo laden</button>' +
-            '<button type="button" class="btn" data-ag-clear-seed>Demo-Seed entfernen</button>' +
-            '<button type="button" class="btn" data-ag-clear>Lokal leeren</button>' +
-            '<a class="btn" href="sharepoint-liste-ausgaben.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
-            '</div></div>' +
-            '<form class="ag-form" id="agSettingsForm">' +
-            '<label>Schulname<input name="schoolName" value="' +
-            esc(set.schoolName) +
-            '"></label>' +
-            '<label>Standard „Ausgegeben von“<input name="defaultAusgegebenVon" value="' +
-            esc(set.defaultAusgegebenVon) +
-            '"></label>' +
-            '<label>Zusätzliche Admin-E-Mails (Legacy)<textarea name="adminEmails" rows="2" placeholder="verwaltung@schule.at">' +
-            esc(set.adminEmails) +
-            '</textarea></label>' +
-            '<div class="ag-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>' +
-            '</form>' +
-            '<h3 style="font-size:1rem;margin:18px 0 8px;">CSV-Import Inventar</h3>' +
-            '<form class="ag-form" id="agImportForm">' +
-            '<label>Zeilen: Typ;Kennung;Bezeichnung;OrtZone<textarea name="csv" rows="5" placeholder="schluessel;S-01;Raum 01;Trakt A"></textarea></label>' +
-            '<div class="ag-form__actions"><button type="submit" class="btn">Importieren</button></div>' +
-            '</form>'
+            (sync.error ? ' · ' + sync.error : '');
+        const who =
+            'Admin aus Entra (Schulleitung/Verwaltung/IT)' +
+            (role.demo ? ' · Demo' : role.sources.length ? ' · ' + role.sources.join(', ') : '') +
+            '. Legacy-Mails optional.';
+        return (
+            renderSyncHint() +
+            renderSystemAdminPage({
+                prefix: 'ag',
+                activeTab: ui.systemTab,
+                dataAttr: 'data-ag-sys-tab',
+                ariaLabel: 'Systemadministration Ausgaben',
+                panels: [
+                    {
+                        id: 'site',
+                        step: '1',
+                        title: 'Datenquelle',
+                        leadHtml: 'Inventar und Vorgänge in SharePoint.',
+                        body:
+                            '<p><code>' +
+                            esc(site) +
+                            '</code></p><p class="muted">' +
+                            esc(syncLine) +
+                            '</p><p class="muted">Lokal: ' +
+                            (s.gegenstaende || []).length +
+                            ' Gegenstände · ' +
+                            (s.vorgaenge || []).length +
+                            ' Vorgänge' +
+                            (s.localDemoOnly ? ' · Demo local-first' : '') +
+                            ' · spoItemId Inventar: ' +
+                            (s.gegenstaende || []).filter((g) => g.spoItemId).length +
+                            ' · Vorgänge: ' +
+                            (s.vorgaenge || []).filter((v) => v.spoItemId).length +
+                            '</p><div class="ms-sys-actions">' +
+                            '<button type="button" class="btn ms-sys-btn-primary" data-ag-pull>Von SharePoint laden</button>' +
+                            '<a class="btn ms-sys-btn-secondary" href="sharepoint-liste-ausgaben.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
+                            '</div>'
+                    },
+                    {
+                        id: 'perms',
+                        step: '2',
+                        title: 'Berechtigungen',
+                        leadHtml: esc(who),
+                        body:
+                            '<p class="muted">Zusätzliche Admin-Mails speicherst du unter Wartung. Listenrechte setzt der Assistent.</p>' +
+                            '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-ausgaben.html"><i class="bi bi-shield-check"></i>Listen-Assistent</a></div>'
+                    },
+                    {
+                        id: 'kalender',
+                        step: '3',
+                        title: 'Kalender',
+                        leadHtml: 'Rückgaben siehst du unter Offen / Retour. Es gibt keinen Outlook-Feed.',
+                        body:
+                            '<div class="ms-sys-actions"><button type="button" class="btn ms-sys-btn-secondary" data-ag-go="offen"><i class="bi bi-arrow-left-right"></i>Offen / Retour</button></div>'
+                    },
+                    {
+                        id: 'wartung',
+                        step: '4',
+                        title: 'Wartung',
+                        leadHtml: 'Schulname, Standard-Ausgeber und CSV-Import.',
+                        body:
+                            '<form class="ag-form" id="agSettingsForm">' +
+                            '<label>Schulname<input name="schoolName" value="' +
+                            esc(set.schoolName) +
+                            '"></label>' +
+                            '<label>Standard „Ausgegeben von“<input name="defaultAusgegebenVon" value="' +
+                            esc(set.defaultAusgegebenVon) +
+                            '"></label>' +
+                            '<label>Zusätzliche Admin-E-Mails (Legacy)<textarea name="adminEmails" rows="2" placeholder="verwaltung@schule.at">' +
+                            esc(set.adminEmails) +
+                            '</textarea></label>' +
+                            '<div class="ag-form__actions"><button type="submit" class="btn btn-success">Speichern</button>' +
+                            '<button type="button" class="btn" data-ag-demo>Demo laden</button></div></form>' +
+                            '<form class="ag-form" id="agImportForm" style="margin-top:14px">' +
+                            '<label>Zeilen: Typ;Kennung;Bezeichnung;OrtZone<textarea name="csv" rows="5" placeholder="schluessel;S-01;Raum 01;Trakt A"></textarea></label>' +
+                            '<div class="ag-form__actions"><button type="submit" class="btn">Importieren</button></div></form>'
+                    },
+                    {
+                        id: 'danger',
+                        title: 'Danger Zone',
+                        danger: true,
+                        leadHtml: 'Lokal leeren lässt SharePoint unangetastet.',
+                        body:
+                            '<div class="ms-sys-actions">' +
+                            '<button type="button" class="btn ms-sys-btn-danger" data-ag-clear-seed>Demo-Seed entfernen</button>' +
+                            '<button type="button" class="btn ms-sys-btn-danger" data-ag-clear>Lokal leeren</button>' +
+                            '</div>'
+                    }
+                ]
+            })
         );
     }
 
@@ -719,6 +763,13 @@ export function mountApp(root) {
     }
 
     function bind() {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-ag-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-ag-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = btn.getAttribute('data-ag-view') || 'uebersicht';

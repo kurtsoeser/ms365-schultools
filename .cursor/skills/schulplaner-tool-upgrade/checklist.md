@@ -36,6 +36,14 @@ Vorbild-UI: `src/tools/schulaktivitaeten-planer/`
 - [ ] Action-Banner und/oder Quiet Empty wo Alltag  
 - [ ] Dashed Panels nur IT/System  
 - [ ] Fach-Labels; Demo-Rollen nur `?demoRole=1`  
+- [ ] **Systemadministration:** Nav-Label + Tabs Datenquelle/Berechtigungen/Kalender/Wartung + Danger Zone (`system-admin-shell`) – IT-Setup bleibt Geschwister  
+
+### Systemadministration – Feld-Mapping (kurz)
+- [ ] Datenquelle: Site-URL + Verbindung + Listen-Status  
+- [ ] Berechtigungen: Überblick/Genehmiger; Detail → Assistent  
+- [ ] Kalender: tool-spezifisch (Feed/Outlook/Fristen)  
+- [ ] Wartung: Diagnose/Demo/Hilfe  
+- [ ] Danger Zone: Reset getrennt  
 
 ### approval-planer
 - [ ] Nav: Lehrer flach; Staff sektioniert  

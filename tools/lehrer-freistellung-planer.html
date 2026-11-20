@@ -1,34 +1,33 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js"></script>
+    <script src="../src/shared/theme-boot.js?v=4"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Freistellungen Lehrkräfte</title>
-    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../app.css?v=14">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/ms365-calendar-shell.css">
+    <link rel="stylesheet" href="../src/shared/system-admin-shell.css">
     <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-planer.css">
     <link rel="stylesheet" href="../src/tools/lehrer-freistellung-planer/lfr.css">
+    <link rel="stylesheet" href="../src/shared/planner-apps-theme.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
 </head>
 <body>
     <div class="container page-card tm-page fr-page lfr-page">
-        <div class="header">
+        <div class="header lfr-page-header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-briefcase"></i>Freistellungen Lehrkräfte</span>
             </div>
-            <p class="fr-page-header-staff">Freistellungen Lehrkräfte: Antrag, Genehmigung durch die Direktion (ein Approvals-Schritt), Übersicht und Kalender – Daten in der SharePoint-Liste aus dem <a href="lehrer-freistellung-setup.html">Lehrer-Setup</a>.</p>
             <p class="header-help-row"><a href="../hilfe.html" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="freistellung-planer.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-mortarboard"></i>Schüler-Freistellungen</a>
-                <a class="btn" href="../tenant.html" data-ms365-frontend-it-only style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
-                <a class="btn" href="lehrer-freistellung-setup.html" data-ms365-frontend-it-only style="text-decoration:none;display:inline-block;"><i class="bi bi-wrench"></i>Liste &amp; Flow einrichten</a>
             </div>
         </div>
         <div class="content">
@@ -38,7 +37,7 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>

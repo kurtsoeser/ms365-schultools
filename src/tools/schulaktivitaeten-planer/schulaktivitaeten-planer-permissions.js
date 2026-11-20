@@ -15,6 +15,10 @@ import {
     applyEntraGroupListPermissions,
     acquireSpoContext
 } from '../schularbeiten-planer/schularbeiten-planer-permissions.js';
+import {
+    resolveFlowServiceAccount,
+    grantFlowServiceAccountsFullControlOnLists
+} from '../../shared/flow-service-account-list-access.js';
 
 export const AKT_PERMS_STORAGE_KEY = 'ms365-schulaktivitaeten-perms-v1';
 
@@ -145,27 +149,59 @@ async function findListByTitle(token, siteId, listTitle) {
  * @param {object} [configPatch]
  * @param {(msg: string) => void} [logFn]
  */
+/**
+ * Technik-Konto aus Flow-Setup – nach Rechte-Schreiben nicht verlieren.
+ * @param {string} siteWebUrl
+ * @param {(msg: string) => void} write
+ * @param {string} [explicitEmail]
+ */
+async function ensureAktFlowServiceAccountAccess(siteWebUrl, write, explicitEmail) {
+    const patchMail =
+        explicitEmail != null
+            ? String(explicitEmail || '')
+                  .trim()
+                  .toLowerCase()
+            : '';
+    const mail = resolveFlowServiceAccount('akt', patchMail);
+    const titles = aktPackageListTargets().map((t) => t.title);
+    if (!titles.includes(LIST_TITLES.aktivitaeten)) titles.unshift(LIST_TITLES.aktivitaeten);
+    if (!titles.includes(LIST_TITLES.regelwerk)) titles.push(LIST_TITLES.regelwerk);
+    return grantFlowServiceAccountsFullControlOnLists(siteWebUrl, mail, titles, write);
+}
+
 export async function applySchulaktivitaetenPackagePermissions(siteWebUrl, configPatch, logFn) {
     const write = typeof logFn === 'function' ? logFn : () => {};
+    const patch = configPatch && typeof configPatch === 'object' ? configPatch : {};
+    const flowFromPatch = String(patch.flowServiceAccount || '').trim();
+    // Effective inkl. Stammdaten-Lehrergruppe – sonst bleiben Einreicher nach
+    // „nur Genehmiger speichern“ ohne Contribute und sehen „Liste fehlt“.
     const config = normalizeAktPermissionsConfig({
-        ...loadAktPermissionsConfig(),
-        ...(configPatch || {})
+        ...loadEffectiveAktPermissionsConfig(),
+        ...patch
     });
     if (config.skipPerms) {
-        write('Berechtigungen übersprungen (skipPerms).');
+        write('Berechtigungen übersprungen (skipPerms) – Technik-Konto trotzdem absichern.');
+        await ensureAktFlowServiceAccountAccess(siteWebUrl, write, flowFromPatch);
         return { skipped: true };
     }
     if (!aktEntraGroupsConfigured(config)) {
         write(
-            'Berechtigungen: keine Verwaltung/Lehrer-Gruppe oder Einzelperson gewählt – Listen bleiben bei Site-Standardrechten.'
+            'Berechtigungen: keine Verwaltung/Lehrer-Gruppe oder Einzelperson gewählt – Listen bleiben bei Site-Standardrechten; Technik-Konto wird gesetzt.'
         );
+        await ensureAktFlowServiceAccountAccess(siteWebUrl, write, flowFromPatch);
         return { skipped: true, reason: 'no-principals' };
     }
+    if (!(config.groupLehrerId || config.groupLehrer || (config.lehrerUsers && config.lehrerUsers.length))) {
+        write(
+            '  ! Keine Einreicher-/Lehrer-Gruppe gesetzt – nach Vererbungsbruch sehen Lehrkräfte die Liste „Schulaktivitaeten“ nicht. Stammdaten-Lehrkräftegruppe oder Einreicher hier setzen.'
+        );
+    }
+    // Persistiert die effektive Config (inkl. Overlay), damit Folge-Läufe stabil bleiben
     saveAktPermissionsConfig(config);
 
     write('Berechtigungen (Verwaltung / Lehrkräfte) …');
     write(
-        'Profil: Einreicher → Anträge schreiben, Klassen/Lehrer lesen; Genehmigung → Regeln & Anträge voll.'
+        'Profil: Einreicher → Anträge schreiben + alle Aktivitäten lesen (Schulkalender); Klassen/Lehrer lesen; Genehmigung → Regeln & Anträge voll.'
     );
     const ctx = await acquireSpoContext(siteWebUrl);
     const site = await G().resolveSiteFromWebUrl(ctx.graphToken, ctx.url);
@@ -202,6 +238,8 @@ export async function applySchulaktivitaetenPackagePermissions(siteWebUrl, confi
         if (typeof G().sleep === 'function') await G().sleep(200);
         else await new Promise((r) => setTimeout(r, 200));
     }
+    // Nach „breite Site-Rollen entfernt“: Automate-/Technik-Konto sonst kein Listen-Zugriff
+    await ensureAktFlowServiceAccountAccess(siteWebUrl, write, flowFromPatch);
     write('Berechtigungen fertig.');
     return { skipped: false, config };
 }

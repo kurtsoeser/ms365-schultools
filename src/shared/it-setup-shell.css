@@ -1,0 +1,256 @@
+/**
+ * IT-Setup-Assistent: gemeinsamer Glance-Stepper + Summary.
+ * Nutzt Tokens aus app.css / tool-modern.css.
+ */
+
+.it-setup-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Wie sRDP: volle Breite, Designfarbe leicht, zweizeilig (Icon + Label) */
+.it-setup-glance.it-setup-glance--nav,
+.tm-glance.it-setup-glance--nav {
+    width: 100%;
+    display: grid;
+    gap: 8px;
+}
+
+.it-setup-glance--nav .tm-glance__card {
+    appearance: none;
+    position: relative;
+    margin: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    min-height: 0;
+    padding: 12px 14px;
+    background: color-mix(in srgb, var(--brand1) 9%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--brand1) 20%, var(--border));
+    border-radius: 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.it-setup-glance--nav .tm-glance__card i {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 1.15rem;
+    color: var(--brand1);
+}
+
+.it-setup-glance--nav .tm-glance__label {
+    margin-bottom: 0;
+    color: var(--heading);
+}
+
+/* Status (Erledigt/Offen) nur für Screenreader – keine dritte Zeile wie bei sRDP */
+.it-setup-glance--nav .tm-glance__value {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Keine Ampel-Pastelltöne (grün/gelb) – einheitlich Designfarbe */
+.it-setup-glance--nav .tm-glance__card.is-ok,
+.it-setup-glance--nav .tm-glance__card.is-warn,
+.it-setup-glance--nav .tm-glance__card.is-danger {
+    background: color-mix(in srgb, var(--brand1) 9%, var(--card));
+    border-color: color-mix(in srgb, var(--brand1) 20%, var(--border));
+}
+
+.it-setup-glance--nav .tm-glance__card:hover {
+    border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+}
+
+.it-setup-glance--nav .tm-glance__card.is-active {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 16%, var(--card));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 28%, transparent);
+}
+
+.it-setup-glance--nav .tm-glance__card.is-active .tm-glance__label {
+    color: var(--brand1);
+}
+
+.it-setup-glance--nav .tm-glance__card.is-active i {
+    color: var(--brand1);
+}
+
+.it-setup-glance--cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.it-setup-glance--cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.it-setup-glance--cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+.it-setup-glance--cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+.it-setup-glance--cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 900px) {
+    .it-setup-glance--cols-4,
+    .it-setup-glance--cols-5,
+    .it-setup-glance--cols-6 {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+@media (max-width: 520px) {
+    .it-setup-glance--cols-3,
+    .it-setup-glance--cols-4,
+    .it-setup-glance--cols-5,
+    .it-setup-glance--cols-6 {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Aliase: bestehende Tool-Klassen → gleiche Optik */
+.spakt-wizard-glance--nav .tm-glance__card,
+.srs-wizard-glance--nav .tm-glance__card,
+.fr-setup-glance--nav .tm-glance__card,
+.su-wizard-glance--nav .tm-glance__card {
+    appearance: none;
+    margin: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.spakt-wizard-glance--nav .tm-glance__card.is-active,
+.srs-wizard-glance--nav .tm-glance__card.is-active,
+.fr-setup-glance--nav.it-setup-glance--nav .tm-glance__card.is-active,
+.fr-setup-glance--nav .tm-glance__card.is-active {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 16%, var(--card));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 28%, transparent);
+}
+
+.spakt-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label,
+.srs-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label,
+.fr-setup-glance--nav .tm-glance__card.is-active .tm-glance__label,
+.spakt-wizard-glance--nav .tm-glance__card.is-active i,
+.srs-wizard-glance--nav .tm-glance__card.is-active i,
+.fr-setup-glance--nav .tm-glance__card.is-active i {
+    color: var(--brand1);
+}
+
+.spakt-wizard-glance:not([class*='it-setup-glance--cols-']) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.srs-wizard-glance:not([class*='it-setup-glance--cols-']) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+    .spakt-wizard-glance:not([class*='it-setup-glance--cols-']),
+    .srs-wizard-glance:not([class*='it-setup-glance--cols-']) {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.it-setup-summary-list,
+.spakt-summary-list,
+.srs-summary-list {
+    margin: 0;
+    padding-left: 1.15em;
+    line-height: 1.55;
+}
+
+.it-setup-summary-list li,
+.spakt-summary-list li,
+.srs-summary-list li {
+    margin-bottom: 8px;
+}
+
+.srs-class-block__title {
+    margin: 0 0 4px;
+    font-size: 1rem;
+}
+
+.srs-class-block__lead {
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+}
+
+.srs-class-list {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+
+.srs-class-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card, #fff);
+    cursor: pointer;
+}
+
+.srs-class-card input {
+    margin-top: 4px;
+}
+
+.srs-class-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.srs-class-card__code {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.srs-class-card__meta {
+    font-size: 0.86rem;
+    color: var(--text-secondary, var(--muted));
+}
+
+.srs-class-card-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.srs-class-card-row .srs-class-card {
+    flex: 1;
+}
+
+.srs-summary-list li {
+    margin-bottom: 8px;
+}
+
+.it-setup-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.it-setup-stack > .tm-panel {
+    margin: 0;
+}
+
+/* Breite steuert planner-entra-perms.css – hier keine max-width-Drossel */

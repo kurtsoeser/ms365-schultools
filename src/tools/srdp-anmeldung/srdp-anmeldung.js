@@ -9,11 +9,15 @@ import {
     matchTeacherByEmail,
     teacherDisplayLabel,
     matchStudentByEmail,
+    classGroupLinksFromAppData,
     kvKlasseCodesForEmail,
     persistRole,
     persistSiteUrl,
     loadSavedSiteUrl,
     resolveFormOptions,
+    looksLikeDemoKlassen,
+    looksLikeDemoSeminare,
+    terminJahrFromListTitle,
     emptyForm,
     viewsForRole,
     applyFilterJump,
@@ -22,27 +26,41 @@ import {
 } from './srdp-anmeldung-state.js';
 import {
     resolveSrdpContext,
+    loadSrdpListChoiceOptions,
+    loadSrdpKlasseChoicesViaSpo,
+    loadSrdpLehrerChoicesViaSpo,
     loadAllAnmeldungen,
     createAnmeldungItem,
-    updateAnmeldungNacharbeit
+    updateAnmeldungNacharbeit,
+    fetchMyMemberGroups
 } from './srdp-anmeldung-graph.js';
 import {
     validateAnmeldungDraft,
     buildPruefplanKurz,
+    buildPruefplanDetail,
     isSeminarWahlfach,
     resolveSrdpOwnership,
     assertSrdpOwnership,
     isSrdpAnmeldeFensterOffen,
-    findAnmeldungBySchuelerEmail
+    findAnmeldungBySchuelerEmail,
+    splitPersonName,
+    filterAbschlussklassen,
+    resolveStudentAssignedKlasse,
+    looksLikeDemoLfs,
+    wizardConfiguredChoices
 } from './srdp-anmeldung-logic.js';
+import { refreshPruefungstermineFromWeb } from './srdp-pruefungstermine.js';
 import {
     readDemoRoleOverrideFromUrl,
     inferSrdpRolesFromStammdaten,
-    shellPreferredSrdpRole
+    shellPreferredSrdpRole,
+    resolveSrdpRolesForAccount
 } from './srdp-anmeldung-entra-role.js';
-import { renderApp, readFormFromDom, syncSrdpPageChrome } from './srdp-anmeldung-ui.js';
+import { renderApp, readFormFromDom, syncSrdpPageChrome, firstCalendarExamDate } from './srdp-anmeldung-ui.js';
 import {
     buildLocalDemoState,
+    buildDemoWizard,
+    buildDemoStammdaten,
     DEMO_TEACHER_PERSONA,
     DEMO_STUDENT_PERSONA,
     DEMO_SEED_TAG,
@@ -50,6 +68,7 @@ import {
     isDemoSeedItem
 } from './srdp-anmeldung-demo.js';
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import { announcePlannerState } from '../../shared/app-role-chrome.js';
 import { toIsoDateOnly, startOfWeekMonday } from '../../shared/ms365-calendar-shell.js';
 
 const state = createInitialState();
@@ -61,6 +80,7 @@ function toast(m) {
 }
 
 function paint() {
+    announcePlannerState('srdp', state);
     renderApp(state, root);
 }
 
@@ -106,18 +126,235 @@ function refreshDerived() {
     if (kv.length) state.kvKlassen = kv;
 }
 
+/**
+ * Konto robust lesen (MSAL kann beim ersten Paint noch nicht fertig sein).
+ */
 async function readAccount() {
+    let email = '';
+    let name = '';
     try {
-        if (typeof window.ms365MsalGetAccount === 'function') {
-            const acc = await window.ms365MsalGetAccount();
-            if (acc) {
-                state.accountEmail = String(acc.username || acc.mail || '').trim();
-                state.accountName = String(acc.name || '').trim();
+        if (typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            if (info) {
+                email = String(
+                    info.upn || info.username || info.mail || info.email || ''
+                ).trim();
+                name = String(info.name || '').trim();
             }
         }
     } catch {
         /* ignore */
     }
+    if (!email) {
+        try {
+            if (typeof window.ms365AuthGetUserPrincipalName === 'function') {
+                email = String(window.ms365AuthGetUserPrincipalName() || '').trim();
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+    if (!email) {
+        try {
+            if (typeof window.ms365MsalGetAccount === 'function') {
+                const acc = await window.ms365MsalGetAccount();
+                if (acc) {
+                    email = String(acc.username || acc.mail || '').trim();
+                    if (!name) name = String(acc.name || '').trim();
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+    state.accountEmail = email.toLowerCase();
+    if (name) state.accountName = name;
+}
+
+/**
+ * Demo-Schüler/Lehrer in Stammdaten + Rollen neu ableiten (nach Auth-Ready).
+ */
+async function syncAccountAndRole() {
+    await readAccount();
+    try {
+        const { ensureSignedInMs365DemoPortalAccountInLocalStammdaten } = await import(
+            '../../shared/demo-portal-teacher.js'
+        );
+        ensureSignedInMs365DemoPortalAccountInLocalStammdaten();
+    } catch {
+        /* ignore */
+    }
+    refreshDerived();
+    ensureKlassenOptions();
+    if (state.demoRoleOverride) {
+        state.planerRoles = ['schueler', 'lehrer', 'admin'];
+        state.planerRoleSources = { schueler: 'demo', lehrer: 'demo', admin: 'demo' };
+        state.role = shellPreferredSrdpRole(state.planerRoles, state.role, { allowSaved: true });
+    } else {
+        let resolved = null;
+        try {
+            const liveSd = loadStammdaten();
+            const probe = state.localDemoOnly
+                ? Object.assign({}, state, {
+                      stammdaten: {
+                          teachers: liveSd.teachers || [],
+                          classes: liveSd.classes || [],
+                          students: liveSd.students || []
+                      }
+                  })
+                : state;
+            resolved = await resolveSrdpRolesForAccount(probe);
+        } catch {
+            resolved = null;
+        }
+        const fallback = inferSrdpRolesFromStammdaten(state);
+        const active = (resolved && resolved.active) || fallback[0] || 'schueler';
+        state.planerRoles = [active];
+        state.planerRoleSources = (resolved && resolved.sources) || {};
+        state.role = active;
+    }
+    if (state.accountEmail || state.demoRoleOverride) persistRole(state.role);
+    if (state.role === 'schueler') prefillStudentForm();
+    ensureViewForRole();
+}
+
+/**
+ * Leeres Klassen-Dropdown verhindern.
+ * Demo-Klassen nur im lokalen Demo-Modus – nie in Live-Wizard-Storage schreiben.
+ */
+/** Demo-Klassen und Demo-Fristen aus dem Live-Wizard entfernen (alter Browser-Stand). */
+function purgeStickyDemoWizard() {
+    if (state.localDemoOnly) return;
+    const wiz = state.wizard || {};
+    const patch = {};
+    if (looksLikeDemoKlassen(wiz.klassen)) {
+        patch.klassen = [];
+        patch.anmeldeFrist = '';
+        patch.haupttermin = '';
+    }
+    if (looksLikeDemoSeminare(wiz.seminarText) || looksLikeDemoSeminare(wiz.seminar)) {
+        patch.seminarText = '';
+        patch.seminar = '';
+    }
+    if (looksLikeDemoLfs(wiz.lfsText) || looksLikeDemoLfs(wiz.lfs)) {
+        patch.lfsText = '';
+        patch.lfs = '';
+    }
+    if (!Object.keys(patch).length) return;
+    state.wizard = Object.assign({}, wiz, patch);
+    persistWizardConfig(patch);
+    state.options = resolveFormOptions(state.wizard, state.stammdaten, state.wizard.profileId);
+}
+
+function ensureKlassenOptions() {
+    const cur = state.options || resolveFormOptions(state.wizard, state.stammdaten, state.wizard.profileId);
+    if (Array.isArray(cur.klassen) && cur.klassen.length) {
+        state.options = cur;
+        return;
+    }
+    let wiz = state.wizard || {};
+    if (state.localDemoOnly && (!Array.isArray(wiz.klassen) || !wiz.klassen.length)) {
+        try {
+            const demo = buildDemoWizard();
+            wiz = Object.assign({}, wiz, {
+                klassen: demo.klassen.slice(),
+                jahr: wiz.jahr || wiz.terminJahr || demo.jahr,
+                terminJahr: wiz.terminJahr || wiz.jahr || demo.terminJahr,
+                lfsText: wiz.lfsText || demo.lfsText,
+                wahlfachText: wiz.wahlfachText || demo.wahlfachText,
+                seminarText: wiz.seminarText || demo.seminarText,
+                anmeldeFrist: wiz.anmeldeFrist || demo.anmeldeFrist,
+                haupttermin: wiz.haupttermin || demo.haupttermin,
+                profileId: wiz.profileId || demo.profileId
+            });
+            state.wizard = wiz;
+            // absichtlich nicht persistieren – Demo bleibt session-lokal
+        } catch {
+            /* ignore */
+        }
+    }
+    if (
+        state.localDemoOnly &&
+        (!state.stammdaten || !(state.stammdaten.classes || []).length)
+    ) {
+        try {
+            const sd = buildDemoStammdaten();
+            state.stammdaten = Object.assign({}, state.stammdaten || {}, sd);
+        } catch {
+            /* ignore */
+        }
+    }
+    state.options = resolveFormOptions(state.wizard, state.stammdaten, state.wizard.profileId, {
+        allowDemoKlassen: !!state.localDemoOnly
+    });
+}
+
+/**
+ * Nach erfolgreichem SharePoint-Load: Demo-Pollution aus Wizard entfernen,
+ * Klassen aus Stammdaten bzw. Listen-Choices übernehmen.
+ */
+function scrubDemoWizardPollution(listChoices) {
+    const choices = listChoices || {};
+    const jahr = String(
+        (state.options && state.options.jahr) ||
+            state.wizard.jahr ||
+            state.wizard.terminJahr ||
+            ''
+    ).trim();
+    const fromSd = filterAbschlussklassen((state.stammdaten && state.stammdaten.classes) || [], jahr);
+    const fromList = Array.isArray(choices.klassen) ? choices.klassen : [];
+    const patch = {};
+    if (fromSd.length) patch.klassen = fromSd.slice();
+    else if (fromList.length) patch.klassen = fromList.slice();
+    else if (looksLikeDemoKlassen(state.wizard && state.wizard.klassen)) patch.klassen = [];
+
+    if (Array.isArray(choices.lfs) && choices.lfs.length) {
+        patch.listLfs = choices.lfs.slice();
+        const configured = wizardConfiguredChoices(state.wizard, 'lfsText', 'lfs');
+        if (!configured.length || looksLikeDemoLfs(configured)) {
+            patch.lfsText = choices.lfs.join('\n');
+            patch.lfs = patch.lfsText;
+        }
+    }
+    if (Array.isArray(choices.wahlfaecher) && choices.wahlfaecher.length) {
+        patch.listWahlfaecher = choices.wahlfaecher.slice();
+        const configured = wizardConfiguredChoices(state.wizard, 'wahlfachText', 'wahlfach');
+        if (!configured.length) {
+            patch.wahlfachText = choices.wahlfaecher.join('\n');
+            patch.wahlfach = patch.wahlfachText;
+        }
+    }
+    if (Array.isArray(choices.seminare) && choices.seminare.length) {
+        patch.listSeminare = choices.seminare.slice();
+        const configured = wizardConfiguredChoices(state.wizard, 'seminarText', 'seminar');
+        if (!configured.length || looksLikeDemoSeminare(configured)) {
+            patch.seminarText = choices.seminare.join('\n');
+            patch.seminar = patch.seminarText;
+        }
+    }
+    if (fromList.length) patch.listKlassen = fromList.slice();
+    if (Array.isArray(choices.lehrer) && choices.lehrer.length) {
+        patch.listLehrer = choices.lehrer.slice();
+    }
+    if (choices.bfkKnown) patch.bfkDatum = choices.bfkDatum || '';
+
+    // Demo-Fristen (relativ zu „heute“) nicht als Live-Frist behalten
+    if (looksLikeDemoKlassen((state.wizard && state.wizard.klassen) || []) || patch.klassen) {
+        const demo = (() => {
+            try {
+                return buildDemoWizard();
+            } catch {
+                return null;
+            }
+        })();
+        if (demo && state.wizard.anmeldeFrist === demo.anmeldeFrist) patch.anmeldeFrist = '';
+        if (demo && state.wizard.haupttermin === demo.haupttermin) patch.haupttermin = '';
+    }
+
+    if (!Object.keys(patch).length) return;
+    state.wizard = Object.assign({}, state.wizard, patch);
+    persistWizardConfig(patch);
+    state.options = resolveFormOptions(state.wizard, state.stammdaten, state.wizard.profileId);
 }
 
 function ensureViewForRole() {
@@ -130,21 +367,79 @@ function ensureViewForRole() {
 
 function prefillStudentForm() {
     if (state.role !== 'schueler') return;
-    const st = matchStudentByEmail(state.stammdaten.students, effectiveAccountEmail(state));
+    const email = effectiveAccountEmail(state);
+    const students = (state.stammdaten && state.stammdaten.students) || [];
+    const classes = (state.stammdaten && state.stammdaten.classes) || [];
+    const st = matchStudentByEmail(students, email);
     const seed = { wizardStep: state.form && state.form.wizardStep };
     if (st) {
-        seed.nachname = st.nachname || st.lastName || '';
-        seed.vorname = st.vorname || st.firstName || '';
-        seed.klasse = st.klasse || st.klasseCode || st.classCode || '';
-    } else if (state.accountName || state.demoPersonaName) {
-        const parts = String(state.demoPersonaName || state.accountName)
-            .split(/\s+/);
-        if (parts.length >= 2) {
-            seed.vorname = parts[0];
-            seed.nachname = parts.slice(1).join(' ');
-        }
+        const fullName = String(st.name || st.displayName || '').trim();
+        const splitFromName = fullName ? splitPersonName(fullName) : { vorname: '', nachname: '' };
+        seed.nachname = st.nachname || st.lastName || splitFromName.nachname || '';
+        seed.vorname = st.vorname || st.firstName || splitFromName.vorname || '';
+    } else if (state.demoPersonaName || state.accountName) {
+        const split = splitPersonName(state.demoPersonaName || state.accountName);
+        seed.vorname = split.vorname;
+        seed.nachname = split.nachname;
     }
-    state.form = emptyForm(Object.assign({}, state.form, seed));
+    seed.klasse = resolveStudentAssignedKlasse({
+        email,
+        students,
+        classes,
+        classLinks: classGroupLinksFromAppData(),
+        memberGroups: state.memberGroups || [],
+        preferredCodes: (state.options && state.options.klassen) || []
+    });
+    const cur = state.form || emptyForm();
+    state.form = emptyForm({
+        ...cur,
+        // Konto/Stammdaten haben Vorrang; sonst bisherige Eingabe behalten.
+        nachname: seed.nachname || cur.nachname || '',
+        vorname: seed.vorname || cur.vorname || '',
+        klasse: seed.klasse || cur.klasse || '',
+        wizardStep: cur.wizardStep || seed.wizardStep || 1
+    });
+}
+
+let memberGroupFlight = null;
+
+/** Gruppenmitgliedschaft neu lesen und die Klasse daraus setzen. Kein Abmelden. */
+function refreshStudentClassFromGroups() {
+    if (state.role !== 'schueler' || state.localDemoOnly) return Promise.resolve();
+    if (state.memberGroupsLoaded) {
+        prefillStudentForm();
+        return Promise.resolve();
+    }
+    if (memberGroupFlight) return memberGroupFlight;
+    memberGroupFlight = fetchMyMemberGroups()
+        .then((groups) => {
+            state.memberGroupTries = (state.memberGroupTries || 0) + 1;
+            if (groups.length) state.memberGroups = groups;
+            if (groups.length || state.memberGroupTries >= 2) state.memberGroupsLoaded = true;
+            const before = String((state.form && state.form.klasse) || '');
+            prefillStudentForm();
+            const after = String((state.form && state.form.klasse) || '');
+            if (after && after !== before) paint();
+        })
+        .catch(() => {
+            state.memberGroupTries = (state.memberGroupTries || 0) + 1;
+            if (state.memberGroupTries >= 2) state.memberGroupsLoaded = true;
+        })
+        .finally(() => {
+            memberGroupFlight = null;
+        });
+    return memberGroupFlight;
+}
+
+function focusCalendarOnExams() {
+    if (state.calAnchored) return;
+    const iso = firstCalendarExamDate(state);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+    const parts = iso.split('-').map((n) => Number(n));
+    state.calYear = parts[0];
+    state.calMonth = parts[1];
+    state.calWeekAnchor = iso;
+    state.calMode = 'month';
 }
 
 function alignCalendarToToday() {
@@ -191,6 +486,7 @@ async function hydrateLiveStammdaten(siteId) {
         const result = await hydrateStammdatenFromLiveSite({
             token: tok,
             siteId: String(siteId),
+            siteWebUrl: String(state.siteUrl || '').trim(),
             graph: api,
             local: loadStammdaten()
         });
@@ -238,16 +534,66 @@ async function loadFromSharePoint() {
     state.softError = '';
     paint();
     try {
+        const wiz = loadWizardConfig();
         const ctx = await resolveSrdpContext(siteUrl, {
-            profileId: state.options.profileId,
-            jahr: state.options.jahr
+            profileId: state.options.profileId || wiz.profileId || 'hak',
+            jahr: state.options.jahr || wiz.jahr || wiz.terminJahr,
+            listId: state.listId || wiz.listId || ''
         });
         state.siteId = ctx.siteId;
         state.listId = ctx.list.id;
         state.listWebUrl = ctx.list.webUrl || '';
         state.localDemoOnly = false;
         state.ctx = ctx;
+        const titleYear = terminJahrFromListTitle(ctx.list && ctx.list.title);
+        if (titleYear) {
+            state.wizard = Object.assign({}, state.wizard, { jahr: titleYear, terminJahr: titleYear });
+            state.options = resolveFormOptions(state.wizard, state.stammdaten, state.wizard.profileId);
+        }
+        persistWizardConfig({
+            listId: ctx.list.id,
+            siteUrl,
+            jahr: state.options.jahr || wiz.jahr || wiz.terminJahr,
+            terminJahr: state.options.jahr || wiz.terminJahr || wiz.jahr,
+            profileId: state.options.profileId || wiz.profileId || 'hak'
+        });
+
         await hydrateLiveStammdaten(ctx.siteId);
+
+        let listChoices = {};
+        try {
+            const api = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
+            const tok =
+                api && typeof api.getGraphToken === 'function'
+                    ? await api.getGraphToken([
+                          'https://graph.microsoft.com/User.Read',
+                          'https://graph.microsoft.com/Sites.ReadWrite.All'
+                      ])
+                    : null;
+            if (tok) {
+                listChoices = await loadSrdpListChoiceOptions(tok, ctx.siteId, ctx.list.id);
+            }
+        } catch {
+            listChoices = {};
+        }
+        if (!listChoices.klassen || !listChoices.klassen.length) {
+            try {
+                const viaSpo = await loadSrdpKlasseChoicesViaSpo(siteUrl, ctx.list.id);
+                if (viaSpo.length) listChoices = Object.assign({}, listChoices, { klassen: viaSpo });
+            } catch {
+                /* Stammdaten bleiben die Quelle */
+            }
+        }
+        if (!listChoices.lehrer || !listChoices.lehrer.length) {
+            try {
+                const lehrerSpo = await loadSrdpLehrerChoicesViaSpo(siteUrl, ctx.list.id);
+                if (lehrerSpo.length) listChoices = Object.assign({}, listChoices, { lehrer: lehrerSpo });
+            } catch {
+                /* unten Stammdaten oder leere Auswahl */
+            }
+        }
+        scrubDemoWizardPollution(listChoices);
+
         state.items = await loadAllAnmeldungen(ctx);
         state.syncMeta = {
             source: 'sharepoint',
@@ -255,6 +601,7 @@ async function loadFromSharePoint() {
             listTitle: (ctx.list && ctx.list.title) || '',
             connected: true
         };
+        if (state.role === 'schueler') prefillStudentForm();
     } catch (e) {
         if (state.localDemoOnly || (state.items || []).some(isDemoSeedItem)) {
             state.localDemoOnly = true;
@@ -287,8 +634,19 @@ async function loadFromSharePoint() {
 
 function enableDemo(opts) {
     const o = opts || {};
+    const keepDemoRole = !!state.demoRoleOverride;
+    const liveRole = state.role === 'admin' || state.role === 'lehrer' ? state.role : 'schueler';
     const demo = buildLocalDemoState(state);
     Object.assign(state, demo);
+    if (keepDemoRole) {
+        state.demoRoleOverride = true;
+        state.planerRoles = ['schueler', 'lehrer', 'admin'];
+        state.role = shellPreferredSrdpRole(state.planerRoles, liveRole, { allowSaved: true });
+    } else {
+        state.demoRoleOverride = false;
+        state.planerRoles = [liveRole];
+        state.role = liveRole;
+    }
     state.syncMeta = {
         source: 'demo',
         lastPullAt: '',
@@ -299,10 +657,13 @@ function enableDemo(opts) {
         state.demoPersonaEmail = DEMO_TEACHER_PERSONA.email;
         state.demoPersonaName = DEMO_TEACHER_PERSONA.name;
         state.role = 'lehrer';
+        if (!keepDemoRole) state.planerRoles = ['lehrer'];
         state.teacherLabel = DEMO_TEACHER_PERSONA.label;
         state.kvKlassen = kvKlasseCodesForEmail(state.stammdaten, DEMO_TEACHER_PERSONA.email);
     } else {
-        state.role = shellPreferredSrdpRole(state.planerRoles, state.role);
+        state.role = keepDemoRole
+            ? shellPreferredSrdpRole(state.planerRoles, state.role, { allowSaved: true })
+            : liveRole;
         if (state.role === 'lehrer') {
             state.demoPersonaEmail = DEMO_TEACHER_PERSONA.email;
             state.demoPersonaName = DEMO_TEACHER_PERSONA.name;
@@ -322,7 +683,7 @@ function enableDemo(opts) {
         wizard: demo.wizard,
         stammdaten: demo.stammdaten,
         items: demo.items,
-        options: resolveFormOptions(demo.wizard, demo.stammdaten, 'hak')
+        options: resolveFormOptions(demo.wizard, demo.stammdaten, 'hak', { allowDemoKlassen: true })
     });
     if (state.role === 'schueler') prefillStudentForm();
     alignCalendarToToday();
@@ -339,7 +700,7 @@ function resetDemoSeed() {
     state.localDemoOnly = true;
     state.wizard = demo.wizard;
     state.stammdaten = demo.stammdaten;
-    state.options = resolveFormOptions(demo.wizard, demo.stammdaten, 'hak');
+    state.options = resolveFormOptions(demo.wizard, demo.stammdaten, 'hak', { allowDemoKlassen: true });
     state.stammdatenLive = demo.stammdatenLive;
     alignCalendarToToday();
     toast('Demo-Seed zurückgesetzt.');
@@ -387,10 +748,21 @@ async function toggleNacharbeit(id) {
 }
 
 async function submitAnmeldung() {
-    const draft = readFormFromDom();
+    await syncAccountAndRole();
+    const draft = readFormFromDom(state.form);
+    // Name aus Konto/Stammdaten nachziehen, falls Formular nur Klasse zeigt.
+    const seeded = resolveSrdpOwnership(draft, {
+        accountEmail: effectiveAccountEmail(state),
+        accountName: state.demoPersonaName || state.accountName,
+        students: (state.stammdaten && state.stammdaten.students) || []
+    });
+    draft.nachname = draft.nachname || seeded.nachname;
+    draft.vorname = draft.vorname || seeded.vorname;
+    draft.klasse = draft.klasse || seeded.klasse;
     state.form = draft;
     const ownership = resolveSrdpOwnership(draft, {
         accountEmail: effectiveAccountEmail(state),
+        accountName: state.demoPersonaName || state.accountName,
         students: (state.stammdaten && state.stammdaten.students) || []
     });
     try {
@@ -464,6 +836,7 @@ async function submitAnmeldung() {
                 profileId: state.options.profileId,
                 jahr: state.options.jahr,
                 accountEmail: ownership.schuelerEmail,
+                accountName: state.demoPersonaName || state.accountName,
                 students: (state.stammdaten && state.stammdaten.students) || []
             });
             state.items = [saved].concat(state.items || []);
@@ -521,14 +894,36 @@ function onClick(ev) {
             } else if (state.role === 'schueler') {
                 state.demoPersonaEmail = DEMO_STUDENT_PERSONA.email;
                 state.demoPersonaName = DEMO_STUDENT_PERSONA.name;
-                prefillStudentForm();
             } else {
                 state.demoPersonaEmail = '';
                 state.demoPersonaName = '';
             }
+        } else if (state.role !== 'schueler') {
+            state.demoPersonaEmail = '';
+            state.demoPersonaName = '';
         }
+        if (state.role === 'schueler') prefillStudentForm();
         ensureViewForRole();
         refreshChrome();
+        paint();
+        return;
+    }
+
+    const groupBtn = t.closest('[data-srdp-group]');
+    if (groupBtn) {
+        const g = String(groupBtn.getAttribute('data-srdp-group') || '');
+        state.groupBy = g === 'variante' || g === 'wahlfach' || g === 'klasse' ? g : '';
+        paint();
+        return;
+    }
+
+    const sysTab = t.closest('[data-srdp-sys-tab]');
+    if (sysTab) {
+        const raw = String(sysTab.getAttribute('data-srdp-sys-tab') || 'site').toLowerCase();
+        state.systemTab =
+            raw === 'perms' || raw === 'kalender' || raw === 'wartung' || raw === 'danger'
+                ? raw
+                : 'site';
         paint();
         return;
     }
@@ -538,6 +933,8 @@ function onClick(ev) {
         let view = viewBtn.getAttribute('data-srdp-view') || state.view;
         if (view === 'einrichtung') view = 'system';
         state.view = view;
+        if (state.view === 'system' && !state.systemTab) state.systemTab = 'site';
+        if (state.view === 'kalender') focusCalendarOnExams();
         state.submitSuccess = null;
         paint();
         return;
@@ -565,6 +962,7 @@ function onClick(ev) {
             });
         }
         state.view = view;
+        if (state.view === 'kalender') focusCalendarOnExams();
         state.submitSuccess = null;
         paint();
         return;
@@ -597,26 +995,56 @@ function onClick(ev) {
     }
 
     if (t.closest('[data-srdp-wizard-next]')) {
-        state.form = readFormFromDom();
-        const step = Number(state.form.wizardStep) || 1;
-        if (step === 1 && (!state.form.klasse || !state.form.nachname || !state.form.vorname)) {
-            state.formErrors = ['Bitte Klasse, Nachname und Vorname ausfüllen.'];
+        void (async () => {
+            state.form = readFormFromDom(state.form);
+            if (!effectiveAccountEmail(state)) await syncAccountAndRole();
+            const step = Number(state.form.wizardStep) || 1;
+            if (!effectiveAccountEmail(state)) {
+                state.formErrors = [
+                    'Bitte oben rechts anmelden – ohne Schul-Konto kann die Anmeldung nicht gespeichert werden.'
+                ];
+                paint();
+                return;
+            }
+            if (step === 1) {
+                const owned = resolveSrdpOwnership(state.form, {
+                    accountEmail: effectiveAccountEmail(state),
+                    accountName: state.demoPersonaName || state.accountName,
+                    students: (state.stammdaten && state.stammdaten.students) || []
+                });
+                state.form = emptyForm({
+                    ...state.form,
+                    nachname: state.form.nachname || owned.nachname,
+                    vorname: state.form.vorname || owned.vorname,
+                    klasse: state.form.klasse || owned.klasse || ''
+                });
+                if (!String(state.form.nachname || '').trim() || !String(state.form.vorname || '').trim()) {
+                    state.formErrors = [
+                        'Name aus dem Konto fehlt – bitte anmelden oder Name ergänzen.'
+                    ];
+                    paint();
+                    return;
+                }
+                if (!String(state.form.klasse || '').trim()) {
+                    state.formErrors = ['Bitte die Klasse wählen.'];
+                    paint();
+                    return;
+                }
+            }
+            if (step === 2 && !state.form.variante) {
+                state.formErrors = ['Bitte eine Variante wählen.'];
+                paint();
+                return;
+            }
+            state.formErrors = [];
+            state.form.wizardStep = Math.min(4, step + 1);
             paint();
-            return;
-        }
-        if (step === 2 && !state.form.variante) {
-            state.formErrors = ['Bitte eine Variante wählen.'];
-            paint();
-            return;
-        }
-        state.formErrors = [];
-        state.form.wizardStep = Math.min(4, step + 1);
-        paint();
+        })();
         return;
     }
 
     if (t.closest('[data-srdp-wizard-prev]')) {
-        state.form = readFormFromDom();
+        state.form = readFormFromDom(state.form);
         state.form.wizardStep = Math.max(1, (Number(state.form.wizardStep) || 1) - 1);
         state.formErrors = [];
         paint();
@@ -703,6 +1131,7 @@ function onClick(ev) {
 
     const calNav = t.closest('[data-srdp-cal-nav]');
     if (calNav) {
+        state.calAnchored = true;
         const delta = Number(calNav.getAttribute('data-srdp-cal-nav') || '0');
         const mode = String(state.calMode || 'month');
         if (mode === 'week') {
@@ -757,22 +1186,40 @@ function onChange(ev) {
         return;
     }
 
-    if (t.id === 'srdpWahlfach' || t.id === 'srdpVariante') {
-        state.form = readFormFromDom();
+    if (
+        t.id === 'srdpWahlfach' ||
+        t.id === 'srdpVariante' ||
+        t.id === 'srdpLfs' ||
+        t.id === 'srdpSeminar' ||
+        t.id === 'srdpSeminarText'
+    ) {
+        state.form = readFormFromDom(state.form);
         const wrap = document.getElementById('srdpSeminarWrap');
         if (wrap && t.id === 'srdpWahlfach') {
             wrap.hidden = !isSeminarWahlfach(state.form.wahlfachMuendlich);
         }
+        if (t.id === 'srdpSeminar') {
+            const text = document.getElementById('srdpSeminarText');
+            if (text) text.value = String(t.value || '');
+            state.form.seminar = String(t.value || '').trim();
+        }
         const live = document.getElementById('srdpLivePlan');
-        if (live && t.id === 'srdpVariante') {
-            const plan = buildPruefplanKurz(state.form.variante, state.options.profileId);
-            if (plan) {
+        if (live && (t.id === 'srdpVariante' || t.id === 'srdpLfs')) {
+            const plan = buildPruefplanDetail(state.form, state.options.profileId, {
+                terminJahr: state.options.jahr,
+                bfkDatum: state.options.bfkDatum || ''
+            });
+            const bits = plan.schriftlich
+                .map((row) => row.part + (row.datum ? ' · ' + row.datum : row.datumHinweis ? ' · ' + row.datumHinweis : ''))
+                .filter(Boolean);
+            if (bits.length) {
                 live.hidden = false;
-                live.innerHTML = '<strong>Prüfplan:</strong> ' + plan;
+                live.textContent = 'Schriftlich: ' + bits.join(', ');
             } else {
                 live.hidden = true;
             }
         }
+        if (t.id === 'srdpVariante' || t.id === 'srdpLfs') paint();
     }
 }
 
@@ -796,45 +1243,54 @@ async function resolveSiteFromEvents() {
     }
 }
 
+async function onAuthReadyOrChanged() {
+    await syncAccountAndRole();
+    refreshChrome();
+    await resolveSiteFromEvents();
+    paint();
+    void refreshStudentClassFromGroups();
+}
+
 async function boot() {
     root = document.getElementById('srdpApp');
     if (!root) return;
 
-    state.demoRoleOverride = readDemoRoleOverrideFromUrl();
-    state.siteUrl = loadSavedSiteUrl() || state.siteUrl;
-    await readAccount();
-    refreshDerived();
-
-    const inferred = inferSrdpRolesFromStammdaten(state);
-    state.planerRoles = state.demoRoleOverride
-        ? ['schueler', 'lehrer', 'admin']
-        : inferred;
-    state.role = shellPreferredSrdpRole(state.planerRoles, state.role);
-    persistRole(state.role);
-
-    const params = new URLSearchParams(window.location.search || '');
-    if (params.get('demo') === '1' || state.demoRoleOverride) {
-        enableDemo({ withPersona: state.demoRoleOverride && params.get('demo') !== '1' });
-    } else if (state.siteUrl) {
-        ensureViewForRole();
-        paint();
-        await loadFromSharePoint();
-        if (state.error && /fehlt|Liste/i.test(state.error) && !(state.items || []).length) {
-            state.softError =
-                state.error + ' – Tipp: „Demo lokal“ unter Systemadministration oder Liste anlegen.';
-            state.error = '';
+    // Auth-Listener früh – sonst verpassen wir den ersten ms365-auth-state-changed
+    window.addEventListener('ms365-auth-state-changed', () => {
+        void onAuthReadyOrChanged();
+    });
+    window.addEventListener('ms365-auth-widget-ready', () => {
+        void onAuthReadyOrChanged();
+    });
+    window.addEventListener('ms365-license-changed', () => {
+        void syncAccountAndRole().then(() => {
             paint();
-        }
-    } else {
-        enableDemo();
-    }
-
-    if (state.role === 'schueler') prefillStudentForm();
-    ensureViewForRole();
-    refreshChrome();
-    paint();
+            return resolveSiteFromEvents();
+        });
+    });
+    window.addEventListener('ms365-it-shell-changed', () => {
+        void syncAccountAndRole().then(() => {
+            refreshChrome();
+            paint();
+        });
+    });
 
     root.addEventListener('click', onClick);
+    root.addEventListener('keydown', (ev) => {
+        const t = ev.target;
+        if (!(t instanceof Element)) return;
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        const row = t.closest('tr[data-srdp-open-detail]');
+        if (!row || t.closest('button, a, input, select, textarea')) return;
+        ev.preventDefault();
+        state.detailItemId = row.getAttribute('data-srdp-open-detail') || '';
+        paint();
+    });
+    document.body.addEventListener('click', (ev) => {
+        const t = ev.target;
+        if (!(t instanceof Element) || !t.closest('#srdpDrawerHost')) return;
+        onClick(ev);
+    });
     root.addEventListener('change', onChange);
     root.addEventListener('toggle', onToggle, true);
     root.addEventListener('input', (ev) => {
@@ -842,6 +1298,14 @@ async function boot() {
         if (!(el instanceof Element)) return;
         if (el.getAttribute('data-srdp-filter') === 'query') {
             state.filterQuery = el.value;
+            const start = el instanceof HTMLInputElement ? el.selectionStart : null;
+            paint();
+            const next = document.querySelector('[data-srdp-filter="query"]');
+            if (next instanceof HTMLInputElement) {
+                next.focus();
+                if (typeof start === 'number') next.setSelectionRange(start, start);
+            }
+            return;
         }
         const qKey = el.getAttribute('data-srdp-filter-multi-q');
         if (qKey) {
@@ -853,20 +1317,43 @@ async function boot() {
         }
     });
 
-    window.addEventListener('ms365-auth-state-changed', () => {
-        void (async () => {
-            await readAccount();
-            refreshDerived();
-            ensureViewForRole();
-            refreshChrome();
-            await resolveSiteFromEvents();
-            paint();
-        })();
+    state.demoRoleOverride = readDemoRoleOverrideFromUrl();
+    state.siteUrl = loadSavedSiteUrl() || state.siteUrl;
+    await syncAccountAndRole();
+
+    const params = new URLSearchParams(window.location.search || '');
+    if (params.get('demo') === '1' || state.demoRoleOverride) {
+        enableDemo({ withPersona: state.demoRoleOverride && params.get('demo') !== '1' });
+    } else if (state.siteUrl) {
+        purgeStickyDemoWizard();
+        ensureKlassenOptions();
+        ensureViewForRole();
+        paint();
+        await loadFromSharePoint();
+        ensureKlassenOptions();
+        if (state.role === 'schueler') prefillStudentForm();
+        void refreshStudentClassFromGroups();
+        if (state.error && !(state.items || []).length) {
+            const hidden = /nicht sichtbar/i.test(state.error);
+            state.softError = hidden
+                ? state.error
+                : state.error + ' – Tipp: „Demo lokal“ unter Systemadministration oder Liste anlegen.';
+            state.error = '';
+        }
+        paint();
+    } else {
+        enableDemo();
+    }
+
+    // Nochmal nachziehen – MSAL oft erst jetzt fertig
+    await syncAccountAndRole();
+    refreshChrome();
+    paint();
+    void refreshPruefungstermineFromWeb({ terminJahr: state.options && state.options.jahr }).then((result) => {
+        state.termineSource = (result && result.source) || 'snapshot';
+        state.termineFetchedAt = (result && result.fetchedAt) || '';
+        paint();
     });
-    window.addEventListener('ms365-license-changed', () => {
-        void resolveSiteFromEvents();
-    });
-    window.addEventListener('ms365-it-shell-changed', () => refreshChrome());
 }
 
 if (document.readyState === 'loading') {

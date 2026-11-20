@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { isToolVisibleForView, DASHBOARD_LEHRER_SCHUELER_APPS } from '../src/shared/dashboard-audience-catalog.js';
 import { LICENSE_PACKAGES } from '../src/shared/license-feature-catalog.js';
-import { classifyKostenAmpel, suggestTeachersForKlassen } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-logic.js';
+import {
+    classifyKostenAmpel,
+    parseEuroFromText,
+    kostenAmpelLabel,
+    resolveKostenLimits,
+    suggestTeachersForKlassen
+} from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-logic.js';
+import { TYP_CHOICES } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-schema.js';
 
 describe('Lehrer-Portal P1–P5 Wiring', () => {
     it('Whitelist enthält neue Betrieb-Tools', () => {
@@ -35,9 +42,34 @@ describe('Lehrer-Portal P1–P5 Wiring', () => {
 
 describe('Schulaktivitäten P2 Helpers', () => {
     it('classifyKostenAmpel', () => {
-        expect(classifyKostenAmpel('Skikurs', 250)).toBe('ok');
-        expect(classifyKostenAmpel('Skikurs', 350)).toBe('warn');
-        expect(classifyKostenAmpel('Skikurs', 450)).toBe('teuer');
+        expect(classifyKostenAmpel('Exkursion', 40)).toBe('ok');
+        expect(classifyKostenAmpel('Exkursion', 75)).toBe('warn');
+        expect(classifyKostenAmpel('Exkursion', 150)).toBe('teuer');
+        expect(classifyKostenAmpel('Veranstaltung', 100)).toBe('ok');
+        expect(classifyKostenAmpel('Skikurs', 250)).toBe('unknown');
+        expect(kostenAmpelLabel('teuer')).toMatch(/Prüfung/);
+    });
+
+    it('resolveKostenLimits folgt Antrags-Arten', () => {
+        const rows = resolveKostenLimits({
+            kostenLimits: [
+                { typ: 'Exkursion', okBis: 40, warnBis: 80 },
+                { typ: 'Projekttage', okBis: 999, warnBis: 999 }
+            ]
+        });
+        expect(rows.map((r) => r.typ)).toEqual([...TYP_CHOICES]);
+        expect(rows.find((r) => r.typ === 'Exkursion')).toEqual({
+            typ: 'Exkursion',
+            okBis: 40,
+            warnBis: 80
+        });
+        expect(rows.some((r) => r.typ === 'Projekttage')).toBe(false);
+    });
+
+    it('parseEuroFromText', () => {
+        expect(parseEuroFromText('ca. 12 € / Schüler:in')).toBe(12);
+        expect(parseEuroFromText('kostenlos')).toBe(0);
+        expect(Number.isNaN(parseEuroFromText('Fahrkarte'))).toBe(true);
     });
 
     it('suggestTeachersForKlassen', () => {

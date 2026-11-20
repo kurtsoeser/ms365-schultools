@@ -95,6 +95,7 @@ describe('dashboard-audience-resolve persona', () => {
         expect(isTeacherDashboardRole([], ['kv'], null)).toBe(true);
         expect(isTeacherDashboardRole([], [], { teacherMatch: { email: 'a@b.c' } })).toBe(true);
         expect(isTeacherDashboardRole([], [], { kvMatch: true, kvKlassen: ['4A'] })).toBe(true);
+        expect(isTeacherDashboardRole([], [], { schulleitungMatch: true })).toBe(true);
         expect(isTeacherDashboardRole(['schueler'], [], { studentMatch: {} })).toBe(false);
     });
 

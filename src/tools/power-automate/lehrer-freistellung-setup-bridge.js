@@ -13,7 +13,7 @@ import {
     resolveLfrApproverEmail,
     lfrPermsStepConfigured
 } from '../lehrer-freistellung-planer/lfr-permissions.js';
-import { pickEntraUser } from '../../shared/entra-user-picker.js';
+import { wireFlowSetupEmailPickers } from '../../shared/flow-setup-email-pickers.js';
 import { wireEntraGroupPickerFields, readGroupPickerField, fillGroupPickerField } from '../../shared/entra-group-picker.js';
 import { createPlannerExtraUsersController } from '../../shared/planner-extra-users-ui.js';
 
@@ -33,31 +33,29 @@ window.ms365LfrListPerms = {
 };
 
 const FLOW_EMAIL_PICKERS = [
-    { inputId: 'frEmailDirektion', title: 'Direktion (Genehmiger)' },
+    {
+        inputId: 'frEmailDirektion',
+        title: 'Direktion (Genehmiger)',
+        onPicked: function (mail) {
+            syncApproverInputs(mail);
+            persistLfrApproverEmail(mail);
+        }
+    },
     { inputId: 'frEmailMailbox', title: 'Absender / Technik-Postfach' },
     { inputId: 'frFlowServiceAccount', title: 'Technik-Konto für Power Automate' },
     { inputId: 'lfrOutlookCalUser', title: 'Kalender-Besitzer (UPN)' },
-    { inputId: 'lfrPermEmailDirektion', title: 'Direktion (Genehmiger)' }
+    {
+        inputId: 'lfrPermEmailDirektion',
+        title: 'Direktion (Genehmiger)',
+        onPicked: function (mail) {
+            syncApproverInputs(mail);
+            persistLfrApproverEmail(mail);
+        }
+    }
 ];
 
 function wireFlowEmailPickers() {
-    FLOW_EMAIL_PICKERS.forEach(function (spec) {
-        const input = document.getElementById(spec.inputId);
-        const btn = document.getElementById(spec.inputId + 'Pick');
-        if (!input || !btn || btn.dataset.lfrPickerWired === '1') return;
-        btn.dataset.lfrPickerWired = '1';
-        btn.addEventListener('click', async function () {
-            const u = await pickEntraUser({ title: spec.title });
-            if (!u || !u.mail) return;
-            const mail = String(u.mail).trim().toLowerCase();
-            input.value = mail;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            if (spec.inputId === 'frEmailDirektion' || spec.inputId === 'lfrPermEmailDirektion') {
-                syncApproverInputs(mail);
-                persistLfrApproverEmail(mail);
-            }
-        });
-    });
+    wireFlowSetupEmailPickers(FLOW_EMAIL_PICKERS, { wiredFlag: 'lfrPickerWired' });
 }
 
 function syncApproverInputs(mail) {
@@ -168,6 +166,57 @@ function wireApproverMirror() {
     });
 }
 
+function permsLog(msg) {
+    const el = document.getElementById('frPermsLog') || document.getElementById('frLog');
+    if (!el) return;
+    const line = document.createElement('div');
+    line.textContent = String(msg || '');
+    el.appendChild(line);
+    const panel = el.closest('details');
+    if (panel) panel.open = true;
+}
+
+async function applySavedPermsToSharePoint() {
+    const siteEl = document.getElementById('frSiteUrl');
+    const nameEl = document.getElementById('frListName');
+    const idEl = document.getElementById('frListId');
+    const siteUrl = String((siteEl && siteEl.value) || '').trim();
+    const listName = String((nameEl && nameEl.value) || '').trim() || 'Lehrer-Freistellungen';
+    const listId = String((idEl && idEl.value) || '').trim();
+    if (!siteUrl) {
+        throw new Error('SharePoint-Website fehlt (Schritt 3).');
+    }
+    if (!window.ms365LfrListPerms || typeof window.ms365LfrListPerms.apply !== 'function') {
+        throw new Error('Listenrechte-Modul nicht geladen.');
+    }
+    let flowAccount = '';
+    try {
+        if (window.ms365LfrSetupStatus && typeof window.ms365LfrSetupStatus.effectiveLfrFlowAccount === 'function') {
+            const cfg = {
+                flowServiceAccount: String(
+                    (document.getElementById('frFlowServiceAccount') &&
+                        document.getElementById('frFlowServiceAccount').value) ||
+                        ''
+                ),
+                emailMailbox: String(
+                    (document.getElementById('frEmailMailbox') && document.getElementById('frEmailMailbox').value) ||
+                        ''
+                )
+            };
+            flowAccount = window.ms365LfrSetupStatus.effectiveLfrFlowAccount(cfg);
+        }
+    } catch {
+        /* ignore */
+    }
+    permsLog('Listenrechte für „' + listName + '“ …');
+    await window.ms365LfrListPerms.apply(
+        siteUrl,
+        listName,
+        { listId: listId, flowServiceAccount: flowAccount },
+        permsLog
+    );
+}
+
 export function initLfrSetupPermissions() {
     wireEntraGroupPickerFields({ fields: GROUP_FIELDS });
     wireFlowEmailPickers();
@@ -177,15 +226,31 @@ export function initLfrSetupPermissions() {
     const saveBtn = document.getElementById('lfrBtnSavePerms');
     if (saveBtn && !saveBtn.dataset.lfrWired) {
         saveBtn.dataset.lfrWired = '1';
-        saveBtn.addEventListener('click', function () {
+        saveBtn.addEventListener('click', async function () {
             const next = saveLfrPermissions(readPermsFromForm());
             persistLfrApproverEmail(next.emailDirektion);
             fillPermsForm(next);
             if (window.ms365LfrSetup && typeof window.ms365LfrSetup.refreshGlance === 'function') {
                 window.ms365LfrSetup.refreshGlance();
             }
-            if (typeof window.ms365ToastOrAlert === 'function') {
-                window.ms365ToastOrAlert('Zugriff und Genehmiger für Lehrer-Freistellungen gespeichert.');
+            saveBtn.disabled = true;
+            try {
+                await applySavedPermsToSharePoint();
+                if (typeof window.ms365ToastOrAlert === 'function') {
+                    window.ms365ToastOrAlert(
+                        'Rollen gespeichert und Listenrechte auf SharePoint gesetzt.'
+                    );
+                }
+            } catch (e) {
+                const msg = e && e.message ? e.message : String(e);
+                permsLog('Fehler: ' + msg);
+                if (typeof window.ms365ToastOrAlert === 'function') {
+                    window.ms365ToastOrAlert(
+                        'Rollen lokal gespeichert, Listenrechte fehlgeschlagen: ' + msg
+                    );
+                }
+            } finally {
+                saveBtn.disabled = false;
             }
         });
     }

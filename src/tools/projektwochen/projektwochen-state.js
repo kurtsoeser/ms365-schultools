@@ -21,7 +21,7 @@ export const VIEWS = [
     { id: 'bookings', label: 'Bookings-Sync', icon: 'bi-box-arrow-up-right', adminOnly: true, staffOnly: true },
     { id: 'teilnehmer', label: 'Teilnehmer', icon: 'bi-people', adminOnly: false, staffOnly: true },
     { id: 'export', label: 'Export', icon: 'bi-download', adminOnly: false, staffOnly: false },
-    { id: 'einstellungen', label: 'System', icon: 'bi-gear-wide-connected', adminOnly: true, staffOnly: true }
+    { id: 'einstellungen', label: 'Systemadministration', icon: 'bi-gear-wide-connected', adminOnly: true, staffOnly: true }
 ];
 
 /** @param {string} id */
@@ -115,6 +115,7 @@ export function createInitialState() {
         siteUrl: '',
         ctx: null,
         view: 'dashboard',
+        systemTab: 'site',
         role: loadRole(),
         filters: { status: '', kategorie: '', tag: '', lehrer: '', klasse: '', q: '', buchung: '' },
         stammdaten: { classes: [], teachers: [], students: [] },

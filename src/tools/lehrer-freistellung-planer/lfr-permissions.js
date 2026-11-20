@@ -105,6 +105,20 @@ export function persistLfrApproverEmail(email) {
 }
 
 /**
+ * Genehmiger-Mail nur aus LFR (Perms/Setup) – ohne Schüler-Freistellung-Fallback.
+ * Sonst kann eine Schüler-FR-Mail fälschlich LFR-Direktion auslösen.
+ * @param {ReturnType<typeof normalizeLfrPermissions>} [perms]
+ */
+export function resolveLfrDirektionAccessEmail(perms) {
+    const p = perms || loadLfrPermissions();
+    return (
+        String(p.emailDirektion || '')
+            .trim()
+            .toLowerCase() || direktionEmailFromLfrSetup()
+    );
+}
+
+/**
  * @param {string} accountEmail
  * @param {ReturnType<typeof normalizeLfrPermissions>} [perms]
  */
@@ -114,7 +128,7 @@ export function accountIsLfrDirektionAccess(accountEmail, perms) {
         .trim()
         .toLowerCase();
     if (!em) return false;
-    const approver = resolveLfrApproverEmail(p);
+    const approver = resolveLfrDirektionAccessEmail(p);
     if (approver && approver === em) return true;
     return accountIsPlannerUserInList(em, p.direktionUsers);
 }

@@ -61,12 +61,10 @@ function viewById(id) {
  * @param {{ planerAdminAccess?: boolean, kvKlassen?: string[] }|null} [opts]
  * @returns {{ id: string, label: string, items: typeof VIEWS }[]}
  */
-export function navSectionsForRole(role, availableRoles, opts) {
+export function navSectionsForRole(role, _availableRoles, _opts) {
     const r = role === 'direktion' ? 'direktion' : role === 'kv' ? 'kv' : 'schueler';
-    const o = opts || {};
 
     if (r === 'direktion') {
-        const showAdmin = o.planerAdminAccess !== false;
         return [
             {
                 id: 'arbeit',
@@ -86,7 +84,7 @@ export function navSectionsForRole(role, availableRoles, opts) {
             {
                 id: 'system',
                 label: 'System',
-                items: showAdmin ? [viewById('administration')].filter(Boolean) : []
+                items: [viewById('administration')].filter(Boolean)
             }
         ].filter((s) => (s.items || []).length);
     }
@@ -170,47 +168,27 @@ export function isLikelyFreistellungStaffAccount(state) {
 }
 
 /**
- * Schüler-UI ohne IT-Leiste (nur echte Schüler, nicht KV/Direktion/Lehrkraft).
+ * Schüler-Arbeitsansicht. Folgt der aktiven App-Rolle.
+ * Lehrkraft- oder Direktionskonten in der Vorschau „Schüler/in“ sehen dieselbe Oberfläche,
+ * nicht die alte SharePoint-Leiste.
  */
 export function useStudentPlanerChrome(state) {
-    if (!state || state.demoRoleOverride) return false;
-    if (state.role === 'kv' || state.role === 'direktion') return false;
-    const roles = state.planerRoles || [];
-    if (roles.includes('kv') || roles.includes('direktion')) return false;
-    if (isLikelyFreistellungStaffAccount(state)) return false;
-    return true;
+    if (!state) return false;
+    return state.role !== 'kv' && state.role !== 'direktion';
 }
 
 /**
- * Klassenvorstand ohne IT-Leiste (SharePoint-URL, Setup, CSV).
- * Navigation bleibt vollständig (Capability) – nur Chrome/IT ausgeblendet.
+ * Klassenvorstand ohne IT-Leiste. Navigation bleibt die KV-Arbeit.
  */
 export function useKvPlanerChrome(state) {
-    if (!state || state.demoRoleOverride) return false;
-    if (state.demoPersonaEmail) return true;
-    if (state.role !== 'kv') return false;
-    try {
-        const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search || '' : '');
-        if (p.get('demoRole') === '1') return false;
-    } catch {
-        /* ignore */
-    }
-    return true;
+    return !!(state && state.role === 'kv');
 }
 
 /**
- * Direktion ohne IT-Leiste in Übersicht/Liste – Technik nur unter „Administration“.
+ * Direktion ohne IT-Leiste im Alltag. Technik nur unter Systemadministration.
  */
 export function useDirektionPlanerChrome(state) {
-    if (!state || state.demoRoleOverride) return false;
-    if (state.role !== 'direktion') return false;
-    try {
-        const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search || '' : '');
-        if (p.get('demoRole') === '1') return false;
-    } catch {
-        /* ignore */
-    }
-    return true;
+    return !!(state && state.role === 'direktion');
 }
 
 /** Schüler-, KV- oder Direktion-Arbeitsansicht ohne Technik-Chrome oben. */
@@ -233,6 +211,8 @@ export function createInitialState() {
     return {
         role: resolveRole(),
         view: 'meine',
+        /** Systemadministration: site | perms | kalender | wartung | danger */
+        systemTab: 'site',
         siteUrl: loadSavedSiteUrl(setup),
         listName: (setup && setup.listName) || LIST_TITLE_DEFAULT,
         listId: (setup && setup.listId) || '',

@@ -17,7 +17,8 @@ describe('schulaktivitaeten flow template', () => {
     it('enthält Direktion-Approval und Status-Patches ohne KV', () => {
         const raw = fs.readFileSync(defPath, 'utf8');
         const wrap = JSON.parse(raw);
-        const s = JSON.stringify(wrap.properties?.definition || wrap);
+        const def = wrap.properties?.definition || wrap;
+        const s = JSON.stringify(def);
         expect(s).toContain('StartAndWaitForAnApproval');
         expect(s).toContain('PatchItem');
         expect(s).toContain('GetOnNewItems');
@@ -28,11 +29,17 @@ describe('schulaktivitaeten flow template', () => {
         expect(s).toContain('AblehnungsGrund');
         expect(s).toContain('GenehmigtVon');
         // PatchItem verlangt Title – sonst scheitert der Legacy-Import.
-        expect(s).toContain("item/Title");
+        expect(s).toContain('item/Title');
         expect(s).toMatch(/Patch_Genehmigt[\s\S]*item\/Title/);
         expect(s).toMatch(/Patch_Abgelehnt[\s\S]*item\/Title/);
         expect(s).not.toContain('GenehmigtVonKV');
         expect(s).not.toContain('KvEmail');
+        // table in der Vorlage = Platzhalter-GUID (Setup ersetzt durch echte Listen-GUID)
+        const table = def.triggers?.Item_Is_Created?.inputs?.parameters?.table;
+        expect(String(table)).toMatch(/^aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$/i);
+        expect(def.triggers?.Item_Is_Created?.inputs?.parameters?.dataset).toContain(
+            '/sites/MS365-Schultools'
+        );
     });
 
     it('InitializeVariable liegt Top-Level (nicht in If/Scope)', () => {

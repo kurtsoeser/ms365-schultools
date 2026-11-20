@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freitag Use Case Prep – Morgen im Raum</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f5f7;
+      --paper: #fff;
+      --ink: #1c2430;
+      --muted: #5c6775;
+      --line: #d8dee6;
+      --accent: #1f4e79;
+      --ok: #e7f4ec;
+      --ok-ink: #146c43;
+      --warn: #fff6e8;
+      --warn-ink: #8a5a00;
+      --info: #e8f1f8;
+      --info-ink: #1f4e79;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+    }
+    header, main { width: min(980px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 8px; }
+    h1 { margin: 0 0 6px; font-size: 1.7rem; letter-spacing: -0.02em; }
+    h2 { margin: 28px 0 8px; font-size: 1.2rem; }
+    h3 { margin: 22px 0 6px; font-size: 1.02rem; }
+    p { margin: 8px 0; }
+    .meta { color: var(--muted); margin: 0; }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg);
+      padding: 10px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    nav a {
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.92rem;
+    }
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 22px 22px;
+      margin: 14px 0 22px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .stat b { display: block; font-size: 1.25rem; }
+    .stat span { color: var(--muted); font-size: 0.88rem; }
+    .callout {
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+    .callout.info { background: var(--info); }
+    .callout.warn { background: var(--warn); }
+    .callout.ok { background: var(--ok); }
+    .callout strong { display: block; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    th { font-size: 0.82rem; color: var(--muted); font-weight: 650; }
+    tr.ok td:first-child { box-shadow: inset 3px 0 var(--ok-ink); }
+    tr.warn td:first-child { box-shadow: inset 3px 0 var(--warn-ink); }
+    blockquote {
+      margin: 10px 0;
+      padding: 10px 14px;
+      border-left: 3px solid var(--accent);
+      background: #f7f9fb;
+    }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .box h3 { margin-top: 0; }
+    ol { margin: 8px 0; padding-left: 1.2rem; }
+    pre {
+      white-space: pre-wrap;
+      background: #f7f9fb;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font: 0.86rem/1.45 ui-monospace, Consolas, monospace;
+    }
+    footer { width: min(980px, calc(100% - 32px)); margin: 0 auto 28px; color: var(--muted); font-size: 0.85rem; }
+    @media (max-width: 800px) {
+      .stats, .two { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { background: #fff; }
+      nav { display: none; }
+      section { break-inside: avoid; border: 0; padding: 0; }
+      pre { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Morgen im Raum</h1>
+    <p class="meta">21. November · 09:30–16:15 · Tag 3 · Drei Tools im Tenant der Schule einrichten. Stand 20.11., nachts.</p>
+  </header>
+  <nav>
+    <a href="#ablauf">Ablauf</a>
+    <a href="#tools">Im Tool</a>
+    <a href="#formular">Formular-Bonus</a>
+    <a href="#folien">Folien</a>
+    <a href="#close">Close</a>
+    <a href="#prompts">Prompts</a>
+  </nav>
+  <main>
+    <section id="ablauf">
+      <div class="callout info">
+        <strong>Die drei Mitnahmen, alle live</strong>
+        Schulaktivitäten, Lehrerfreistellung und sRDP-Anmeldung werden eingerichtet. Kalender und Kursteams sind kein Block. Das SharePoint-Formular ist bei jedem Tool ein kurzer Kontrast: dieselbe Zeile, ohne Rolle und ohne Genehmigung.
+      </div>
+      <div class="stats">
+        <div class="stat"><b>3</b><span>Tools, alle eingerichtet</span></div>
+        <div class="stat"><b>70 Min</b><span>Je Tool, inkl. Formular</span></div>
+        <div class="stat"><b>4 Min</b><span>SharePoint-Formular</span></div>
+        <div class="stat"><b>15:35</b><span>Close, nicht verschieben</span></div>
+      </div>
+
+      <h2>Uhrplan</h2>
+      <table>
+        <thead><tr><th>Zeit</th><th>Block</th><th>Fertig wenn</th></tr></thead>
+        <tbody>
+          <tr><td>09:30–09:40</td><td>Ankommen. Drei Mitnahmen nennen.</td><td>Niemand erwartet einen Vortrag</td></tr>
+          <tr class="warn"><td>09:40–10:05</td><td>Login und Consent. Admin zuerst.</td><td>Jede Schule ist in der App</td></tr>
+          <tr class="warn"><td>10:05–11:00</td><td>Stammdaten: Klassen, Lehrkräfte mit E-Mail, Site.</td><td>Tool 1 kann starten</td></tr>
+          <tr class="ok"><td>11:00–12:15</td><td>Schulaktivitäten, ein echter Antrag.</td><td>Ein Fall liegt in der Liste</td></tr>
+          <tr><td>12:15–13:00</td><td>Pause</td><td></td></tr>
+          <tr class="ok"><td>13:00–14:10</td><td>Lehrerfreistellung, ein echter Antrag.</td><td>Direktion hat freigegeben</td></tr>
+          <tr class="ok"><td>14:10–15:20</td><td>sRDP-Anmeldung, eine Testanmeldung.</td><td>Lehrer- und Adminblick gesehen</td></tr>
+          <tr><td>15:20–15:35</td><td>Puffer. Hängende Schule nachziehen.</td><td>Kein neues Tool</td></tr>
+          <tr><td>15:35–16:15</td><td>Feedback, zwei Wochen, Owner, Termin.</td><td>Close-Zettel voll</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <strong>Wenn der Vormittag überzieht</strong>
+        Close um 15:35 bleibt. Schulaktivitäten bleibt vollständig. Wird es nach dem Mittag eng, läuft sRDP nur an einer HAK am Beamer, die anderen legen höchstens die Liste an. Wahlfach, Stammdaten-Portal und Kursteams wandern in die zwei Wochen danach.
+      </div>
+
+      <h2>Gleicher Rhythmus, drei Mal</h2>
+      <p>Schmerz in einem Satz. Ein Fall in der App. Die zweite Rolle sieht denselben Fall. Eine Minute die SharePoint-Liste, dann zurück. Satz: „Das nehmt ihr mit.“</p>
+
+      <h3>Heute nicht öffnen</h3>
+      <table>
+        <thead><tr><th>Thema</th><th>Wenn jemand fragt</th></tr></thead>
+        <tbody>
+          <tr><td>Kalender / Termine-Hub</td><td>In der App einen Klick auf die Ansicht, dann zurück zum Fall</td></tr>
+          <tr><td>Kursteams</td><td>Nächster Hebel für die IT, nicht dieser Tag</td></tr>
+          <tr><td>Wahlfach, Stammdaten-Portal</td><td>In den zwei Wochen, Owner notieren</td></tr>
+          <tr><td>Power Automate, Outlook, Untis, srdp.at</td><td>Liegt in der Liste. Automatik ist nicht Teil von heute</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="tools">
+      <h2>Was du im Browser tust</h2>
+      <p class="meta">Eine Schule am Beamer, die anderen machen denselben einen Fall. Kein zweiter Sonderfall, solange der erste nicht in der Liste liegt.</p>
+
+      <h3>Schulaktivitäten · 11:00–12:15</h3>
+      <table>
+        <thead><tr><th>Min</th><th>Handgriff</th></tr></thead>
+        <tbody>
+          <tr><td>0–10</td><td>Tool öffnen. Site und Liste prüfen. Fehlt die Liste: anlegen, nicht diskutieren.</td></tr>
+          <tr><td>10–25</td><td>Lehrkraft: ein Antrag. Echte Klasse, Datum nächste Woche, kurzer Titel.</td></tr>
+          <tr><td>25–35</td><td>Direktion: denselben Antrag genehmigen. Status laut vorlesen.</td></tr>
+          <tr><td>35–40</td><td>SharePoint-Liste: dieselbe Zeile zeigen. Neu-Formular auf, zuklappen.</td></tr>
+          <tr><td>40–75</td><td>Jede Schule wiederholt diesen einen Antrag bei sich.</td></tr>
+        </tbody>
+      </table>
+      <blockquote>Eine Exkursion ist heute ein Zettel. Wir legen sie jetzt als Antrag ab, die Direktion entscheidet, die Zeile bleibt in eurer Liste.</blockquote>
+
+      <h3>Lehrerfreistellung · 13:00–14:10</h3>
+      <table>
+        <thead><tr><th>Min</th><th>Handgriff</th></tr></thead>
+        <tbody>
+          <tr><td>0–10</td><td>Liste prüfen. Direktion ist Genehmiger.</td></tr>
+          <tr><td>10–25</td><td>Lehrkraft: „frei haben“, ein Vormittag.</td></tr>
+          <tr><td>25–35</td><td>Direktion gibt frei. Übersicht in der App.</td></tr>
+          <tr><td>35–40</td><td>Dieselbe Zeile in der SharePoint-Liste. Formular nur zeigen.</td></tr>
+          <tr><td>40–70</td><td>Jede Schule macht einen eigenen Antrag.</td></tr>
+        </tbody>
+      </table>
+      <blockquote>Die Lehrkraft stellt den Antrag selbst. Die Direktion entscheidet in der App. Schüler-Freistellung ist ein anderes Werkzeug, das machen wir heute nicht.</blockquote>
+
+      <h3>sRDP-Anmeldung · 14:10–15:20</h3>
+      <table>
+        <thead><tr><th>Min</th><th>Handgriff</th></tr></thead>
+        <tbody>
+          <tr><td>0–15</td><td>Jahr wählen. Liste sRDP-Anmeldungen anlegen oder öffnen. HAK am Beamer.</td></tr>
+          <tr><td>15–30</td><td>Eine Testanmeldung. Schüler oder Verwaltung trägt ein.</td></tr>
+          <tr><td>30–40</td><td>Lehrerblick, dann Admin. Dieselbe Anmeldung, andere Navigation.</td></tr>
+          <tr><td>40–48</td><td>Liste öffnen. Formular länger stehen lassen als bei den anderen beiden.</td></tr>
+          <tr><td>48–70</td><td>HAK-Schulen wiederholen. Andere schauen mit oder legen nur die Liste an.</td></tr>
+        </tbody>
+      </table>
+      <blockquote>Nach Weihnachten braucht ihr die Anmeldung. Formular, Lehrerblick, Auswertung. Die Zeile liegt in eurer Liste, die Führung liegt in der App.</blockquote>
+
+      <div class="callout">
+        <strong>Demo, falls der Tenant stockt</strong>
+        Schulaktivitäten und Freistellung mit <code>?demoRole=1</code>. sRDP mit <code>?demo=1&amp;demoRole=1</code>, nur das HAK-Formular. Zurück in den Tenant, sobald Consent steht.
+      </div>
+    </section>
+
+    <section id="formular">
+      <h2>Formular-Bonus</h2>
+      <div class="callout info">
+        <strong>Angebot neben der App</strong>
+        Die App braucht das SharePoint-Formular nicht. Die Zeile entsteht in der App und liegt in der Liste der Schule. Das Formular zeigst du, damit sichtbar wird: die Daten sind nicht eingesperrt, und die nackte Liste führt niemanden.
+      </div>
+      <div class="two">
+        <div class="box">
+          <h3>Dieselbe Geste, drei Mal</h3>
+          <ol>
+            <li>Fall in der App ist gespeichert.</li>
+            <li>Zweiter Tab: die SharePoint-Liste dieser Schule.</li>
+            <li>Dieselbe Zeile antippen. Titel laut lesen.</li>
+            <li>Neu öffnen, Felder zeigen, zuklappen. Nichts eintragen.</li>
+            <li>Zurück in die App. Ein Satz, weiter.</li>
+          </ol>
+        </div>
+        <div class="box">
+          <h3>Was du dabei sagst</h3>
+          <p>„Die Zeile liegt bei euch, nicht bei mir. Microsoft kann daraus auch ein Formular machen: Felder, Speichern, fertig. Das Formular kennt keine Rolle, keinen Status, keine Genehmigung. Deshalb richten wir heute die Oberfläche ein. Das Formular ist das Angebot daneben.“</p>
+        </div>
+      </div>
+      <h3>Bei sRDP einen Satz mehr</h3>
+      <blockquote>Eine Anmeldung klingt nach Formular. Das hier ist das Formular der Liste. Es speichert dieselbe Zeile. Es sagt niemandem, welche Prüfung dran ist, wer Lehrer ist und was die Direktion auswertet. Das macht die App.</blockquote>
+      <h3>Finger weg</h3>
+      <table>
+        <thead><tr><th>Falle</th><th>Stattdessen</th></tr></thead>
+        <tbody>
+          <tr><td>Zweiten Fall im Formular anlegen</td><td>Leeres Formular zeigen und schließen</td></tr>
+          <tr><td>Formularfelder umbauen</td><td>So lassen, wie die Liste sie hat</td></tr>
+          <tr><td>Microsoft Forms für Eltern versprechen</td><td>Nur die Liste der Schule, eine Minute</td></tr>
+          <tr><td>Bei jedem Tool eine neue Rede</td><td>Derselbe Satz, beim dritten Mal der Zusatz</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="folien">
+      <h2>Bestehendes Deck, nur diese Stellen</h2>
+      <p class="meta">Prompts stehen unten auf dieser Seite und in docs/verkauf-freitag-folien-prompts.md. Datum prüfen: 21. November 2026 ist ein Samstag.</p>
+      <table>
+        <thead><tr><th>Folie</th><th>Neue Aussage</th></tr></thead>
+        <tbody>
+          <tr><td>Agenda</td><td>11:00 Schulaktivitäten · 13:00 Freistellung · 14:10 sRDP · 15:35 Close</td></tr>
+          <tr class="ok"><td>3 Mitnahmen</td><td>Alle drei Tools, live im Tenant.</td></tr>
+          <tr><td>Block 3 und 4</td><td>Je ein Kasten: Daten in der Liste, Formular nur als Kontrast.</td></tr>
+          <tr class="warn"><td>Ziffer 5, bisher Kalender</td><td>Wird Block sRDP-Anmeldung. Kalenderfolien raus.</td></tr>
+          <tr><td>Individuell</td><td>Wird Puffer: hängenden Fall nachziehen, kein neues Werkzeug.</td></tr>
+          <tr><td>Close</td><td>Drei Namen wiederholen. Preise bleiben mündlich.</td></tr>
+        </tbody>
+      </table>
+      <h3>Ziffer 5, neuer Inhalt</h3>
+      <p>Abschnittsfolie 14:10–15:20, Titel „Mitnahme 3 – sRDP-Anmeldung“, Ergebnis „eine Testanmeldung im Tenant“. Darunter eine Folie mit den Schritten Anmeldung, Lehrerblick, Auswertung, Liste. Eine Folie „Dieselbe Zeile, zwei Oberflächen“: links die App, rechts das SharePoint-Formular.</p>
+    </section>
+
+    <section id="close">
+      <h2>15:35, wörtlich</h2>
+      <blockquote>Ihr geht mit drei Dingen raus: eine Schulaktivität, eine Lehrerfreistellung, eine sRDP-Anmeldung. Jede Zeile liegt in eurer SharePoint-Liste. Die Führung liegt in der App. Nehmt das zwei Wochen mit, arbeitet mit einem echten Fall, sagt mir was hakt. Dann entscheiden wir ruhig: Schulalltag 890 € im Jahr, oder schlanker, je nach Bedarf. Wer ist Owner, und welchen Termin nehmen wir in etwa zwei Wochen?</blockquote>
+      <h3>Zettel pro Schule</h3>
+      <table>
+        <thead><tr><th>Feld</th><th>Eintrag</th></tr></thead>
+        <tbody>
+          <tr><td>Schule</td><td>Name</td></tr>
+          <tr><td>Aktivität</td><td>Antrag liegt / hängt an</td></tr>
+          <tr><td>Freistellung</td><td>Antrag liegt / hängt an</td></tr>
+          <tr><td>sRDP</td><td>Anmeldung liegt / nur Liste / nicht HAK</td></tr>
+          <tr><td>Owner Fach</td><td>Name</td></tr>
+          <tr><td>Owner IT</td><td>Name</td></tr>
+          <tr><td>Termin</td><td>Datum in etwa zwei Wochen</td></tr>
+          <tr><td>Interesse</td><td>ja / vielleicht / nein</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <strong>Preise nur wenn gefragt, dann genau so</strong>
+        Schulalltag 890 € pro Schuljahr. Setup einmalig 590–790 €, wenn ihr wollt, dass wir fertig einrichten. Starter 390 € nur für reine IT. Plus 1.690 € nur bei der Support-Story. Daten bleiben im Tenant.
+      </div>
+    </section>
+
+    <section id="prompts">
+      <h2>Prompts für das bestehende Deck</h2>
+      <p class="meta">Nicht neu erzeugen. In Copilot nacheinander auf die vorhandenen Folien.</p>
+
+      <h3>Agenda und die drei Mitnahmen</h3>
+      <pre>Überarbeite die bestehenden Folien „Agenda“ und „Eure 3 Mitnahmen“. Kalender und Kursteams entfernen.
+
+Agenda, sieben Stationen:
+09:30 Ankommen und Versprechen
+09:40 Login und Consent
+10:05 Stammdaten
+11:00 Mitnahme 1 Schulaktivitäten
+13:00 Mitnahme 2 Lehrerfreistellung
+14:10 Mitnahme 3 sRDP-Anmeldung
+15:20 Puffer · 15:35 Feedback und Close
+„15:35 Close“ optisch hervorheben.
+
+Mitnahmen, große Ziffern:
+01 Schulaktivitäten – ein Antrag, genehmigt, Zeile in der Liste
+02 Lehrerfreistellung – Lehrkraft stellt, Direktion gibt frei
+03 sRDP-Anmeldung – eine Testanmeldung, Lehrerblick, Auswertung
+Kasten ERGEBNIS: Drei eingerichtete Fälle im Tenant. Keine Folien-Demos.
+Untertitel: Das SharePoint-Formular zeigen wir kurz daneben. Eingerichtet wird die App.</pre>
+
+      <h3>Kasten auf Schulaktivitäten und Freistellung</h3>
+      <pre>Ergänze auf den bestehenden Folien zu Schulaktivitäten und zu Lehrerfreistellung je einen schmalen Kasten, kein neuer Abschnitt:
+
+Titel des Kastens: Dieselbe Zeile
+Text: Liegt in eurer SharePoint-Liste. Ein Formular kann sie auch anzeigen. Rolle, Status und Genehmigung macht die App.
+
+Auf der Freistellungsfolie den Hinweis behalten: Schüler-Freistellung ist ein anderes Werkzeug.
+Die Wahlfolie „Freistellung oder Matura“ entfernen. Mitnahme 2 ist nur Lehrerfreistellung. sRDP ist Mitnahme 3.</pre>
+
+      <h3>Ziffer 5, bisher Kalender</h3>
+      <pre>Ersetze den bestehenden Block „Mitnahme 3 – Kalender und Kursteams“ (Ziffer 5, etwa 13:45–14:05) durch drei Folien. Kalenderfolien und Kursteams-Folie löschen.
+
+1) Abschnittsfolie
+Große Ziffer: 5
+Zeit: 14:10–15:20
+Format: Live im Tenant · HAK am Beamer, andere machen mit
+Titel: Mitnahme 3 – sRDP-Anmeldung
+ERGEBNIS: Eine Testanmeldung liegt in der Liste
+
+2) Ablauf
+Titel: Anmeldung, die nach Weihnachten trägt
+01 Jahr und Liste
+02 Eine Testanmeldung
+03 Lehrerblick
+04 Admin und Auswertung
+Seitenkasten: Keine Klausurplanung. Keine Anbindung an srdp.at.
+
+3) Zwei Oberflächen
+Titel: Dieselbe Zeile, zwei Oberflächen
+Links, groß: App – Rolle, Prüfung, Auswertung
+Rechts, kleiner: SharePoint-Formular – Felder und Speichern
+Satz darunter: Die Daten bleiben in eurer Liste. Die Führung bleibt in der App. Das Formular ist das Angebot daneben.</pre>
+
+      <h3>Puffer und Schlusszeile</h3>
+      <pre>Überarbeite die Folien „Jetzt euer Fall“ / Individuell (bisher 14:05–15:35).
+
+Neuer Titel: Puffer – den Fall fertigmachen
+Zeit: 15:20–15:35
+ERGEBNIS: Jede Schule hat ihre drei Fälle oder einen klaren Rest
+Punkte:
+01 Hängenden Antrag oder hängende Anmeldung zu Ende bringen
+02 Owner Fach und Owner IT notieren
+03 Kein neues Werkzeug öffnen
+Seitenkasten: Wahlfach und Stammdaten kommen in den zwei Wochen, nicht jetzt.</pre>
+      <pre>Ergänze auf der Folie „3 Dinge mitnehmen“ diese eine Zeile, ohne Preise:
+Schulaktivität. Lehrerfreistellung. sRDP-Anmeldung. Zwei Wochen echt nutzen. Dann entscheiden.
+Preise nicht auf die Folie setzen.</pre>
+    </section>
+  </main>
+  <footer>Moderatorenblatt, nicht für Teilnehmende. Quelle: Canvas freitag-use-case-prep, 20.11.</footer>
+</body>
+</html>

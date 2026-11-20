@@ -4,6 +4,8 @@
     /** Ein gemeinsamer Wert für alle Module (Kursteams, Jahrgang, ARGE). */
     const STORAGE_KEY = 'ms365-school-email-domain-v1';
     const TENANT_KEY = 'ms365-tenant-settings-v1';
+    /** Kanonische Stammdaten (core.domain). v1 wird nicht mehr geschrieben. */
+    const DATA_V2_KEY = 'ms365-schooltool-data-v2';
     const DEFAULT_DOMAIN_NO_AT = 'ms365.schule';
 
     // Nebenstates (Domain-Fallback) – kanonische Domain: core.domain in v2
@@ -29,7 +31,35 @@
         return document.getElementById('schoolEmailDomain');
     }
 
-    /** Domain aus den Schul-Grundeinstellungen (kanonisch), sonst null wenn nicht gesetzt. */
+    function domainFromCore(core) {
+        if (!core || typeof core !== 'object') return null;
+        const d = normalizeNoAt(core.domain);
+        return d || null;
+    }
+
+    /** Domain aus den kanonischen Stammdaten (v2 core.domain), sonst null. */
+    function getDomainFromDataV2() {
+        try {
+            const api = window.ms365AppDataV2;
+            if (api && typeof api.getContainer === 'function') {
+                const c = api.getContainer();
+                const d = domainFromCore(c && c.core);
+                if (d) return d;
+            }
+        } catch {
+            // ignore
+        }
+        try {
+            const raw = localStorage.getItem(DATA_V2_KEY);
+            if (!raw) return null;
+            const o = safeJsonParse(raw);
+            return domainFromCore(o && o.core);
+        } catch {
+            return null;
+        }
+    }
+
+    /** Legacy-Spiegel ms365-tenant-settings-v1 (wird nicht mehr geschrieben). */
     function getDomainFromTenantJson() {
         try {
             const raw = localStorage.getItem(TENANT_KEY);
@@ -41,6 +71,14 @@
         } catch {
             return null;
         }
+    }
+
+    /**
+     * In den Stammdaten gespeicherte Schul-Domain.
+     * Zuerst v2, danach der alte v1-Spiegel. Der Platzhalter im Nebenstate zählt nicht.
+     */
+    function getDomainSavedInStammdaten() {
+        return getDomainFromDataV2() || getDomainFromTenantJson();
     }
 
     function migrateLegacyOnce() {
@@ -88,8 +126,8 @@
     }
 
     function resolveInitialDomain() {
-        const fromTenant = getDomainFromTenantJson();
-        if (fromTenant) return fromTenant;
+        const saved = getDomainSavedInStammdaten();
+        if (saved) return saved;
         return migrateLegacyOnce();
     }
 
@@ -146,6 +184,8 @@
     function getSchoolDomainNoAt() {
         const el = getInputEl();
         if (el && normalizeNoAt(el.value)) return normalizeNoAt(el.value);
+        const saved = getDomainSavedInStammdaten();
+        if (saved) return saved;
         try {
             const v = localStorage.getItem(STORAGE_KEY);
             if (v !== null && v !== '') return normalizeNoAt(v);
@@ -174,7 +214,7 @@
     }
 
     function isTenantSchoolDomainConfigured() {
-        return !!getDomainFromTenantJson();
+        return !!getDomainSavedInStammdaten();
     }
 
     function tenantSettingsPageHref() {

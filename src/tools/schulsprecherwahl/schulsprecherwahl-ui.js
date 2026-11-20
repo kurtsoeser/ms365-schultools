@@ -4,6 +4,7 @@
  */
 
 import { mountResults } from './schulsprecherwahl-results-ui.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 import { statusLabel, newId } from './schulsprecherwahl-model.js';
 import {
     ELECTION_KIND_SCHULSPRECHER,
@@ -226,6 +227,7 @@ function quietEmpty(html) {
 export function mountSchulsprecherwahlAdmin(host) {
     /** @type {'list'|'edit'|'results'} */
     let view = 'list';
+    let systemTab = 'site';
     /** @type {string|null} */
     let editId = null;
     let candidateQuery = '';
@@ -497,28 +499,67 @@ export function mountSchulsprecherwahlAdmin(host) {
       <div class="ssw-toolbar">
         <button type="button" class="btn btn-primary" data-new-kind="${ELECTION_KIND_SCHULSPRECHER}"><i class="bi bi-plus-lg"></i> Schulsprecher:innenwahl</button>
         <button type="button" class="btn btn-primary" data-new-kind="${ELECTION_KIND_SGA_LEHRER}"><i class="bi bi-plus-lg"></i> SGA Lehrervertretung</button>
-        <button type="button" class="btn" id="sswDemo"><i class="bi bi-stars"></i> Demo-Auswertung</button>
       </div>
       <section class="ssw-panel">
         <h3>Wahlen</h3>
         <div class="ssw-list">${rows || emptyBlock}</div>
       </section>
-      <section class="ssw-panel ssw-panel--system">
-        <h3>Setup &amp; Speicher</h3>
-        <p class="ssw-meta">Stimmen liegen <strong>nicht</strong> im Schul-SharePoint (Anonymität). Meta/Voters/Ballots: Azure Tables bzw. Demo localStorage.</p>
-        <p class="ssw-meta">Personenpools: ${esc(String(stamm.studentCount))} Schüler:innen · ${esc(
-            String(stamm.teacherCount)
-        )} Lehrer:innen · Quelle ${esc(stamm.source)}${
-            stamm.error ? ' – ' + esc(stamm.error) : ''
-        }</p>
-        <p class="ssw-foot-note">${
-            isRemoteMode()
-                ? 'Produktion: election-api (MS365_ELECTION_API.baseUrl). Site-URL nur für Stammdaten-Hydrate, nie für Stimmzettel.'
-                : isLocalDemoOnly()
-                  ? 'Demo lokal aktiv (?demo=1 oder Button). Remote-API bleibt unangetastet.'
-                  : 'Kein Remote-Backend – lokaler Browser-Store. Für schulweite Anonymität MS365_ELECTION_API.baseUrl setzen.'
-        }</p>
-      </section>
+      ${renderSystemAdminPage({
+          prefix: 'ssw',
+          activeTab: systemTab,
+          dataAttr: 'data-ssw-sys-tab',
+          ariaLabel: 'Systemadministration Schulwahlen',
+          panels: [
+              {
+                  id: 'site',
+                  step: '1',
+                  title: 'Datenquelle',
+                  leadHtml:
+                      'Stimmen liegen nicht im Schul-SharePoint (Anonymität). Meta, Voters und Ballots: Azure Tables bzw. Demo im Browser.',
+                  body: `<p class="ssw-meta">${
+                      isRemoteMode()
+                          ? 'Produktion: election-api (MS365_ELECTION_API.baseUrl). Site-URL nur für Stammdaten, nie für Stimmzettel.'
+                          : isLocalDemoOnly()
+                            ? 'Demo lokal aktiv (?demo=1 oder Button). Remote-API bleibt unangetastet.'
+                            : 'Kein Remote-Backend – lokaler Browser-Store. Für schulweite Anonymität MS365_ELECTION_API.baseUrl setzen.'
+                  }</p>`
+              },
+              {
+                  id: 'perms',
+                  step: '2',
+                  title: 'Berechtigungen',
+                  leadHtml: 'Wahlleitung sieht diese Übersicht. Stimmzettel sind an das Schulkonto gebunden, nicht an eine SharePoint-Liste.',
+                  body: '<p class="ssw-meta">Wer eine Wahl bearbeiten darf, steht an der Wahl selbst (Entwurf / Admin).</p>'
+              },
+              {
+                  id: 'kalender',
+                  step: '3',
+                  title: 'Kalender',
+                  leadHtml: 'Wahlbeginn und Wahlende setzt du je Wahl im Entwurf. Es gibt keinen Outlook-Feed.',
+                  body: '<p class="ssw-meta">Phasen (Entwurf, offen, geschlossen, ausgezählt) bleiben an der einzelnen Wahl.</p>'
+              },
+              {
+                  id: 'wartung',
+                  step: '4',
+                  title: 'Wartung',
+                  leadHtml: 'Personenpools aus den Stammdaten. Demo-Auswertung bleibt lokal.',
+                  body: `<p class="ssw-meta">Personenpools: ${esc(String(stamm.studentCount))} Schüler:innen · ${esc(
+                      String(stamm.teacherCount)
+                  )} Lehrer:innen · Quelle ${esc(stamm.source)}${stamm.error ? ' – ' + esc(stamm.error) : ''}</p>
+                  <div class="ms-sys-actions">
+                    <button type="button" class="btn ms-sys-btn-secondary" id="sswDemo"><i class="bi bi-stars"></i> Demo-Auswertung</button>
+                    <a class="btn ms-sys-btn-ghost" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+                  </div>`
+              },
+              {
+                  id: 'danger',
+                  title: 'Danger Zone',
+                  danger: true,
+                  leadHtml: 'Eine Wahl löschst du in der Wahl selbst. Dieser Tab leert nicht alle Wahlen auf einmal.',
+                  body: '<p class="ssw-meta">Stimmzettel werden nicht in SharePoint gespiegelt und hier nicht gesammelt gelöscht.</p>'
+              }
+          ]
+      })}
     </div>`;
 
         setFlash('', '');
@@ -527,6 +568,13 @@ export function mountSchulsprecherwahlAdmin(host) {
                 const kind = btn.getAttribute('data-new-kind') || ELECTION_KIND_SCHULSPRECHER;
                 createNewElection(kind);
             });
+        });
+        bindSystemTabClicks(host, {
+            dataAttr: 'data-ssw-sys-tab',
+            onSelect: (tab) => {
+                systemTab = tab;
+                paint();
+            }
         });
         host.querySelector('#sswDemo')?.addEventListener('click', async () => {
             enableLocalDemoMode();

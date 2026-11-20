@@ -7,7 +7,11 @@ import {
     joinCodeList,
     klasseCodesOf,
     vorlaufStatusForDraft,
-    mapValidationIssueToStep
+    mapValidationIssueToStep,
+    parseEuroFromText,
+    kostenLimitForTyp,
+    classifyKostenAmpel,
+    kostenAmpelLabel
 } from './schulaktivitaeten-planer-logic.js';
 import {
     ueChoices,
@@ -53,6 +57,43 @@ function typChoices() {
         { code: 'Klassenabwesenheit', name: 'Klassenabwesenheit' },
         { code: 'Sonstiges', name: 'Sonstiges' }
     ];
+}
+
+/**
+ * Orientierung aus Kostenschwellen – keine Zahlung, keine Sperre.
+ * @param {{ typ?: string, kostenHinweis?: string }} f
+ * @param {object|null|undefined} rules
+ */
+function renderKostenAmpelHint(f, rules) {
+    const limit = kostenLimitForTyp(f && f.typ, rules);
+    const amount = parseEuroFromText(f && f.kostenHinweis);
+    const level = Number.isFinite(amount)
+        ? classifyKostenAmpel(f && f.typ, amount, rules)
+        : 'unknown';
+    const label = kostenAmpelLabel(level);
+    if (!limit) {
+        return `<span class="akt-kosten-hint muted">Wähle zuerst eine Antrags-Art – dann erscheint die Kostenschwelle.</span>`;
+    }
+    const scale = `<span class="akt-kosten-scale" aria-hidden="true">
+      <span class="akt-kosten-scale__ok" style="flex:${Math.max(limit.okBis, 1)}"></span>
+      <span class="akt-kosten-scale__warn" style="flex:${Math.max(limit.warnBis - limit.okBis, 1)}"></span>
+      <span class="akt-kosten-scale__teuer" style="flex:${Math.max(limit.warnBis * 0.35, 1)}"></span>
+    </span>
+    <span class="akt-kosten-scale__labels muted">
+      <span>bis ${esc(limit.okBis)} €</span>
+      <span>bis ${esc(limit.warnBis)} €</span>
+      <span>darüber</span>
+    </span>`;
+    if (label) {
+        return `<span class="akt-kosten-hint">
+      <span class="akt-kosten-ampel akt-kosten-ampel--${level}">${esc(label)}</span>
+      ${scale}
+    </span>`;
+    }
+    return `<span class="akt-kosten-hint">
+      <span class="muted">Schwelle ${esc(limit.typ)}: Orientierung für die Direktion.</span>
+      ${scale}
+    </span>`;
 }
 
 function fieldHintsFromPreview(preview) {
@@ -108,6 +149,89 @@ function fieldMsg(state, hints, name) {
     return '';
 }
 
+function fieldMsgHtml(state, hints, name) {
+    return fieldMsg(state, hints, name);
+}
+
+/**
+ * Hinweise im Wizard aktualisieren – ohne komplettes Re-Render (kein Einfrieren beim Tippen).
+ * @param {object} state
+ */
+export function refreshAntragWizardHints(state) {
+    const form = typeof document !== 'undefined' ? document.getElementById('aktForm') : null;
+    if (!form || !state || state.view !== 'antrag') return;
+    const f = state.form || emptyForm();
+    const rules = state.rules || DEFAULT_RULES;
+    const preview = validateAktivitaet({
+        draft: f,
+        existing: state.items || [],
+        rules: {
+            minVorlaufTage: rules.minVorlaufTage,
+            maxGleichzeitigProKlasse: rules.maxGleichzeitigProKlasse,
+            vorlaufModus: rules.vorlaufModus,
+            genehmigungPfad: rules.genehmigungPfad
+        }
+    });
+    const hints = fieldHintsFromPreview(preview);
+    const fields = [
+        'titel',
+        'ort',
+        'typ',
+        'startdatum',
+        'klasseCodes',
+        'startUe',
+        'gruppenText',
+        'teilnehmendeText'
+    ];
+    fields.forEach((name) => {
+        const control = form.querySelector('[name="' + name + '"]');
+        if (!control) return;
+        const host =
+            control.closest('.akt-field') ||
+            control.closest('.akt-date-block') ||
+            control.parentElement;
+        if (!host) return;
+        host.querySelectorAll(':scope > .akt-field-msg').forEach((n) => n.remove());
+        // auch nach dem Control (z. B. in Labels)
+        let sib = control.nextElementSibling;
+        while (sib && sib.classList && sib.classList.contains('akt-field-msg')) {
+            const rm = sib;
+            sib = sib.nextElementSibling;
+            rm.remove();
+        }
+        const html = fieldMsgHtml(state, hints, name);
+        if (!html) return;
+        const wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        const node = wrap.firstElementChild;
+        if (!node) return;
+        if (control.parentElement === host) {
+            control.insertAdjacentElement('afterend', node);
+        } else {
+            host.appendChild(node);
+        }
+    });
+
+    const dateBlock = form.querySelector('.akt-date-block');
+    if (dateBlock) {
+        dateBlock.querySelectorAll('.akt-inline-ok, .akt-inline-warn').forEach((n) => n.remove());
+        const vorlaufHtml = renderVorlaufHint(state, f, rules);
+        if (vorlaufHtml) {
+            const check = dateBlock.querySelector('.akt-check');
+            const wrap = document.createElement('div');
+            wrap.innerHTML = vorlaufHtml;
+            const node = wrap.firstElementChild;
+            if (node) {
+                if (check && check.parentNode === dateBlock) {
+                    check.insertAdjacentElement('afterend', node);
+                } else {
+                    dateBlock.appendChild(node);
+                }
+            }
+        }
+    }
+}
+
 function hiddenCodes(name, raw) {
     return String(raw || '')
         .split(/[;,]/)
@@ -137,6 +261,11 @@ function renderBegleitungChips(state, sd) {
         .map((c) => c.trim())
         .filter(Boolean);
     const labels = labelMaps(sd).lehrer;
+    const teacherOpts = (sd.teachers || []).filter((t) => {
+        if (!t) return false;
+        const code = String(t.code || t.email || '').trim();
+        return code && !codes.includes(code);
+    });
     const chips = codes
         .map(
             (c) => `<span class="akt-person-chip">
@@ -145,14 +274,26 @@ function renderBegleitungChips(state, sd) {
       </span>`
         )
         .join('');
+    const liveErr =
+        state.stammdatenLive && state.stammdatenLive.error
+            ? String(state.stammdatenLive.error)
+            : '';
+    const emptyTeachersHint =
+        !(sd.teachers || []).length
+            ? `<p class="akt-field-msg akt-field-msg--warn" role="status">Keine Lehrkräfte geladen${
+                  liveErr ? ': ' + esc(liveErr) : ''
+              }. Bitte „Klassen neu laden“ – die Liste „Lehrerinnen“ auf der Tool-Site muss für Einreicher lesbar sein (IT: Systemadministration → Nur Berechtigungen).</p>`
+            : '';
     const picker = state.begleitungPickerOpen
         ? `<div class="akt-begleitung-picker">
         <label class="akt-sr-only" for="aktBegleitungPick">Begleitperson suchen</label>
         <select id="aktBegleitungPick" data-akt-begleitung-pick>
-          <option value="">Person suchen …</option>
-          ${(sd.teachers || [])
-              .filter((t) => t && t.code && !codes.includes(String(t.code)))
-              .map((t) => `<option value="${esc(t.code)}">${esc(t.name || t.code)}</option>`)
+          <option value="">${teacherOpts.length ? 'Person suchen …' : 'Keine Lehrkräfte verfügbar'}</option>
+          ${teacherOpts
+              .map((t) => {
+                  const code = String(t.code || t.email || '').trim();
+                  return `<option value="${esc(code)}">${esc(t.name || code)}</option>`;
+              })
               .join('')}
         </select>
       </div>`
@@ -160,6 +301,7 @@ function renderBegleitungChips(state, sd) {
     return `
       <div class="akt-begleitung">
         <div class="akt-person-chips">${chips || '<span class="muted">Noch keine Begleitung</span>'}</div>
+        ${emptyTeachersHint}
         ${picker}
         <button type="button" class="btn akt-btn-ghost" data-akt-toggle-begleitung>
           <i class="bi bi-plus-lg" aria-hidden="true"></i>Begleitperson hinzufügen
@@ -274,10 +416,9 @@ export function renderAntragWizard(state, helpers) {
     const step = Math.min(4, Math.max(1, Number(state.formStep) || 1));
     const modus = String(f.teilnahmeModus || 'klasse').toLowerCase();
     const timeMode = state.timeMode === 'clock' ? 'clock' : 'ue';
-    const multiDay = !!(
-        state.multiDay ||
-        (f.enddatum && f.startdatum && f.enddatum !== f.startdatum)
-    );
+    // Nur expliziter Wizard-Schalter – nicht aus Datumsdifferenz ableiten
+    // (sonst „Mehrtägig“ + heutiges Enddatum nach Schrittwechsel)
+    const multiDay = !!state.multiDay;
     const preview = validateAktivitaet({
         draft: f,
         existing: state.items,
@@ -488,7 +629,10 @@ export function renderAntragWizard(state, helpers) {
             <input name="verkehrsmittel" class="akt-control akt-control--md" value="${esc(f.verkehrsmittel)}">
           </label>
           <label class="akt-field">Kosten
-            <input name="kostenHinweis" class="akt-control akt-control--md" value="${esc(f.kostenHinweis)}" placeholder="z. B. 12 € pro Schüler:in">
+            <input name="kostenHinweis" class="akt-control akt-control--md" value="${esc(
+                f.kostenHinweis
+            )}" placeholder="z. B. 12 € pro Schüler:in" data-akt-kosten-live>
+            ${renderKostenAmpelHint(f, state.rules)}
           </label>
           <label class="akt-field akt-field--wide">Ablauf
             <textarea name="ablauf" class="akt-control" rows="2" placeholder="Kurzer Ablauf">${esc(f.ablauf)}</textarea>
@@ -533,7 +677,12 @@ export function renderAntragWizard(state, helpers) {
         if (zeitLine) orgLines.push(`<p>${esc(zeitLine)}</p>`);
         if (begleitungLabel) orgLines.push(`<p><strong>Begleitung</strong><br>${esc(begleitungLabel)}</p>`);
         if (f.verkehrsmittel) orgLines.push(`<p><strong>Verkehrsmittel</strong><br>${esc(f.verkehrsmittel)}</p>`);
-        if (f.kostenHinweis) orgLines.push(`<p><strong>Kosten</strong><br>${esc(f.kostenHinweis)}</p>`);
+        if (f.kostenHinweis) {
+            const ampel = renderKostenAmpelHint(f, state.rules);
+            orgLines.push(
+                `<p><strong>Kosten</strong><br>${esc(f.kostenHinweis)}</p>${ampel}`
+            );
+        }
         if (f.ablauf) orgLines.push(`<p><strong>Ablauf</strong><br>${esc(f.ablauf)}</p>`);
         if (f.externeVortragende)
             orgLines.push(`<p><strong>Externe</strong><br>${esc(f.externeVortragende)}</p>`);

@@ -203,7 +203,7 @@ export function formatGroupOptionLabel(g) {
 }
 
 /**
- * @param {{ title?: string, hint?: string }} [opts]
+ * @param {{ title?: string, hint?: string, initialQuery?: string }} [opts]
  * @returns {Promise<{ id: string, displayName: string, label: string }|null>}
  */
 export function pickEntraGroup(opts) {
@@ -211,6 +211,7 @@ export function pickEntraGroup(opts) {
     const hint =
         (opts && opts.hint) ||
         'Name, Mail, Alias oder Objekt-ID. Es werden Entra-Gruppen und Sicherheitsgruppen angezeigt.';
+    const initialQuery = String((opts && opts.initialQuery) || '').trim();
 
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
@@ -243,7 +244,7 @@ export function pickEntraGroup(opts) {
         document.body.appendChild(overlay);
         overlay.classList.add('open');
 
-        const searchEl = overlay.querySelector('.ms365-egp-search');
+        const searchEl = /** @type {HTMLInputElement|null} */ (overlay.querySelector('.ms365-egp-search'));
         const statusEl = overlay.querySelector('.ms365-egp-status');
         const listEl = overlay.querySelector('.ms365-egp-results');
 
@@ -317,25 +318,35 @@ export function pickEntraGroup(opts) {
             if (ev.target === overlay) close(null);
         });
 
-        searchEl.addEventListener('input', () => {
-            const q = String(searchEl.value || '').trim();
-            clearTimeout(debounce);
-            if (q.length < 2) {
-                statusEl.textContent = 'Mindestens 2 Zeichen eingeben.';
-                listEl.replaceChildren();
-                return;
-            }
-            debounce = setTimeout(() => runSearch(q), 280);
-        });
-        searchEl.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') {
-                ev.preventDefault();
+        if (searchEl) {
+            searchEl.addEventListener('input', () => {
                 const q = String(searchEl.value || '').trim();
-                if (q.length >= 2) runSearch(q);
+                clearTimeout(debounce);
+                if (q.length < 2) {
+                    statusEl.textContent = 'Mindestens 2 Zeichen eingeben.';
+                    listEl.replaceChildren();
+                    return;
+                }
+                debounce = setTimeout(() => runSearch(q), 280);
+            });
+            searchEl.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    const q = String(searchEl.value || '').trim();
+                    if (q.length >= 2) runSearch(q);
+                }
+            });
+            if (initialQuery) {
+                searchEl.value = initialQuery;
+                if (initialQuery.length >= 2) {
+                    statusEl.textContent = 'Suche …';
+                    void runSearch(initialQuery);
+                } else {
+                    statusEl.textContent = 'Mindestens 2 Zeichen eingeben.';
+                }
             }
-        });
-
-        setTimeout(() => searchEl.focus(), 50);
+            setTimeout(() => searchEl.focus(), 50);
+        }
     });
 }
 
@@ -355,6 +366,9 @@ export function pickEntraGroupsMulti(opts) {
     const hint =
         (opts && opts.hint) ||
         'Gruppen suchen und auswählen. Standard-Suche: arge, fg, ag – Sie können den Suchbegriff anpassen.';
+    const prefixFilter = !(opts && opts.prefixFilter === false);
+    const searchPlaceholder =
+        (opts && opts.searchPlaceholder) || 'z. B. arge, fg-deutsch, ag-sport …';
     const initialQueries = Array.isArray(opts && opts.initialQueries) ? opts.initialQueries : ['arge', 'fg', 'ag'];
     const filterFn = opts && typeof opts.filterFn === 'function' ? opts.filterFn : null;
     const searchFn =
@@ -376,9 +390,13 @@ export function pickEntraGroupsMulti(opts) {
             escapeHtml(hint) +
             '</p>' +
             '<div class="tm-field"><label>Suche</label>' +
-            '<input type="search" class="ms365-egp-search" autocomplete="off" placeholder="z. B. arge, fg-deutsch, ag-sport …"></div>' +
-            '<label class="cp-check" style="display:flex;align-items:center;gap:8px;margin:10px 0 6px;font-size:0.9em;">' +
-            '<input type="checkbox" class="ms365-egp-prefix-only" checked> Nur Gruppen mit Alias/Name arge-, fg- oder ag-</label>' +
+            '<input type="search" class="ms365-egp-search" autocomplete="off" placeholder="' +
+            escapeHtml(searchPlaceholder) +
+            '"></div>' +
+            (prefixFilter
+                ? '<label class="cp-check" style="display:flex;align-items:center;gap:8px;margin:10px 0 6px;font-size:0.9em;">' +
+                  '<input type="checkbox" class="ms365-egp-prefix-only" checked> Nur Gruppen mit Alias/Name arge-, fg- oder ag-</label>'
+                : '') +
             '<p class="ms365-egp-status muted" style="min-height:1.2em;margin:8px 0;font-size:0.88em;"></p>' +
             '<ul class="ms365-egp-results" style="list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;border:1px solid var(--border,#ddd);border-radius:8px;"></ul>' +
             '<div class="modal-box__actions" style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">' +
@@ -563,14 +581,22 @@ export function wireEntraGroupPickerFields(spec) {
     fields.forEach((f) => {
         const pickBtn = document.getElementById(f.pickBtnId);
         const clearBtn = f.clearBtnId ? document.getElementById(f.clearBtnId) : null;
-        const labelInput = document.getElementById(f.labelInputId);
-        const idInput = document.getElementById(f.idInputId);
+        const labelInput = /** @type {HTMLInputElement|null} */ (
+            document.getElementById(f.labelInputId)
+        );
+        const idInput = /** @type {HTMLInputElement|null} */ (document.getElementById(f.idInputId));
         if (!pickBtn || !labelInput || !idInput) return;
         if (pickBtn.dataset.frEgpWired === '1') return;
         pickBtn.dataset.frEgpWired = '1';
 
-        pickBtn.addEventListener('click', () => {
-            pickEntraGroup({ title: f.dialogTitle || 'Gruppe wählen' })
+        /**
+         * @param {string} [initialQuery]
+         */
+        function openPicker(initialQuery) {
+            pickEntraGroup({
+                title: f.dialogTitle || 'Gruppe wählen',
+                initialQuery: initialQuery || ''
+            })
                 .then((sel) => {
                     if (!sel) return;
                     idInput.value = sel.id;
@@ -582,7 +608,35 @@ export function wireEntraGroupPickerFields(spec) {
                     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
                     else window.alert(msg);
                 });
-        });
+        }
+
+        pickBtn.addEventListener('click', () => openPicker());
+
+        // Readonly-Feld wirkt wie Suche – Klick/Tippen öffnet den Dialog (dort tippen)
+        labelInput.readOnly = true;
+        labelInput.setAttribute('role', 'combobox');
+        labelInput.setAttribute('aria-haspopup', 'dialog');
+        labelInput.setAttribute('aria-autocomplete', 'list');
+        labelInput.title = 'Klicken oder tippen – Suche in Microsoft 365 öffnen';
+        labelInput.style.cursor = 'pointer';
+        if (labelInput.dataset.frEgpInputWired !== '1') {
+            labelInput.dataset.frEgpInputWired = '1';
+            labelInput.addEventListener('click', () => openPicker());
+            labelInput.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Tab' || ev.key === 'Escape') return;
+                if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+                if (ev.key === 'Shift') return;
+                if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'ArrowDown') {
+                    ev.preventDefault();
+                    openPicker();
+                    return;
+                }
+                if (ev.key.length === 1) {
+                    ev.preventDefault();
+                    openPicker(ev.key);
+                }
+            });
+        }
 
         if (clearBtn && clearBtn.dataset.frEgpWired !== '1') {
             clearBtn.dataset.frEgpWired = '1';

@@ -11,6 +11,7 @@ import {
     canUseAppRoleSwitcher,
     readDemoRoleOverrideFromUrl
 } from '../../shared/app-role-switcher-policy.js';
+import { announceStaffAccess } from '../../shared/app-role-chrome.js';
 
 const cache = createBetriebAdminCache();
 
@@ -53,6 +54,12 @@ export async function resolveTechnikAdmin(email) {
         isAdmin: !!result.isAdmin,
         sources: result.sources || [],
         demo: !!result.demo
+    });
+    announceStaffAccess('technik', {
+        email: em,
+        isAdmin: !!result.isAdmin,
+        role: result.isAdmin ? 'leitung' : 'melder',
+        sources: result.sources || []
     });
     return result;
 }

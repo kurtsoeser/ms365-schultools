@@ -3,6 +3,7 @@
  */
 
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 import {
     countBelegung,
     countUeberbuchung,
@@ -765,58 +766,100 @@ export function mountApp(root) {
                 ? ' · Sync ' + String(ui.spoSyncedAt).slice(0, 19).replace('T', ' ')
                 : '');
         return (
-            '<section class="wz-panel wz-panel--system">' +
-            '<h2 class="wz-panel__title">System</h2>' +
-            '<p class="wz-panel__lead">Site, Listen und Demo – nur IT / bewusste System-Shell. SharePoint ist System of Record (Pull + Push).</p>' +
-            '<form class="wz-form" id="wzSettingsForm" style="max-width:640px">' +
-            '<div class="wz-field"><label for="wzSiteUrl">SharePoint-Site-URL (kind wahlfach)</label>' +
-            '<input type="url" id="wzSiteUrl" name="siteUrl" value="' +
-            esc(cfg.siteUrl || ui.siteUrl || '') +
-            '" placeholder="https://schule.sharepoint.com/sites/Intranet"></div>' +
-            '<div class="wz-form wz-form--inline" style="margin:0">' +
-            '<div class="wz-field"><label for="wzListRunden">Liste Runden</label>' +
-            '<input id="wzListRunden" name="listRunden" value="' +
-            esc(cfg.listRunden) +
-            '"></div>' +
-            '<div class="wz-field"><label for="wzListAngebote">Liste Angebote</label>' +
-            '<input id="wzListAngebote" name="listAngebote" value="' +
-            esc(cfg.listAngebote) +
-            '"></div></div>' +
-            '<div class="wz-form wz-form--inline" style="margin:0">' +
-            '<div class="wz-field"><label for="wzListAnmeldungen">Liste Anmeldungen</label>' +
-            '<input id="wzListAnmeldungen" name="listAnmeldungen" value="' +
-            esc(cfg.listAnmeldungen) +
-            '"></div>' +
-            '<div class="wz-field"><label for="wzListZuteilungen">Liste Zuteilungen</label>' +
-            '<input id="wzListZuteilungen" name="listZuteilungen" value="' +
-            esc(cfg.listZuteilungen) +
-            '"></div></div>' +
-            '<div class="wz-field"><label for="wzAccessHinweis">Hinweis Access / Schülerakte</label>' +
-            '<textarea id="wzAccessHinweis" name="accessHinweis" rows="3">' +
-            esc(cfg.accessHinweis) +
-            '</textarea></div>' +
-            '<div class="wz-actions">' +
-            '<button type="submit" class="btn btn-success">Einstellungen speichern</button>' +
-            '<button type="button" class="btn" id="wzBtnSpoSync"><i class="bi bi-cloud-download"></i>Von SharePoint laden</button>' +
-            '<a class="btn" href="sharepoint-liste-wahlfach.html"><i class="bi bi-list-ul"></i>Listen anlegen</a>' +
-            '</div></form>' +
-            '<div class="wz-settings-note">' +
-            '<strong>SPO Live Sync:</strong> ' +
-            esc(syncNote) +
-            '</div>' +
-            '<div class="wz-settings-note">' +
-            '<strong>Stammdaten:</strong> ' +
-            esc(String(live.classCount || 0)) +
-            ' Klassen · ' +
-            esc(String(live.teacherCount || 0)) +
-            ' Lehrkräfte · Quelle ' +
-            esc(live.source || 'cache') +
-            (live.error ? ' · ' + esc(live.error) : '') +
-            '</div>' +
-            '<div class="wz-actions" style="margin-top:14px">' +
-            '<button type="button" class="btn" id="wzBtnDemoLoad"><i class="bi bi-database"></i>Demo lokal laden</button>' +
-            '<span class="wz-nav__hint">Oder URL: ?demo=1 – Demo wird nicht nach SharePoint gepusht</span>' +
-            '</div></section>'
+            '<form class="wz-form" id="wzSettingsForm">' +
+            renderSystemAdminPage({
+                prefix: 'wz',
+                activeTab: ui.systemTab,
+                dataAttr: 'data-wz-sys-tab',
+                ariaLabel: 'Systemadministration Wahlfach',
+                panels: [
+                    {
+                        id: 'site',
+                        step: '1',
+                        title: 'Datenquelle',
+                        leadHtml: 'SharePoint ist System of Record (Pull + Push). Demo wird nicht gepusht.',
+                        body:
+                            '<div class="wz-field"><label for="wzSiteUrl">SharePoint-Site-URL (kind wahlfach)</label>' +
+                            '<input type="url" id="wzSiteUrl" name="siteUrl" value="' +
+                            esc(cfg.siteUrl || ui.siteUrl || '') +
+                            '" placeholder="https://schule.sharepoint.com/sites/Intranet"></div>' +
+                            '<div class="wz-form wz-form--inline" style="margin:0">' +
+                            '<div class="wz-field"><label for="wzListRunden">Liste Runden</label>' +
+                            '<input id="wzListRunden" name="listRunden" value="' +
+                            esc(cfg.listRunden) +
+                            '"></div>' +
+                            '<div class="wz-field"><label for="wzListAngebote">Liste Angebote</label>' +
+                            '<input id="wzListAngebote" name="listAngebote" value="' +
+                            esc(cfg.listAngebote) +
+                            '"></div></div>' +
+                            '<div class="wz-form wz-form--inline" style="margin:0">' +
+                            '<div class="wz-field"><label for="wzListAnmeldungen">Liste Anmeldungen</label>' +
+                            '<input id="wzListAnmeldungen" name="listAnmeldungen" value="' +
+                            esc(cfg.listAnmeldungen) +
+                            '"></div>' +
+                            '<div class="wz-field"><label for="wzListZuteilungen">Liste Zuteilungen</label>' +
+                            '<input id="wzListZuteilungen" name="listZuteilungen" value="' +
+                            esc(cfg.listZuteilungen) +
+                            '"></div></div>' +
+                            '<div class="wz-settings-note"><strong>SPO Live Sync:</strong> ' +
+                            esc(syncNote) +
+                            '</div>' +
+                            '<div class="wz-actions">' +
+                            '<button type="submit" class="btn btn-success">Einstellungen speichern</button>' +
+                            '<button type="button" class="btn" id="wzBtnSpoSync"><i class="bi bi-cloud-download"></i>Von SharePoint laden</button>' +
+                            '<a class="btn" href="sharepoint-liste-wahlfach.html"><i class="bi bi-list-ul"></i>Listen anlegen</a>' +
+                            '</div>'
+                    },
+                    {
+                        id: 'perms',
+                        step: '2',
+                        title: 'Berechtigungen',
+                        leadHtml: 'Listenrechte setzt der Assistent. Diese Ansicht speichert nur die Listennamen.',
+                        body:
+                            '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-wahlfach.html"><i class="bi bi-shield-check"></i>Listen-Assistent</a></div>'
+                    },
+                    {
+                        id: 'kalender',
+                        step: '3',
+                        title: 'Kalender',
+                        leadHtml: 'Anmeldefrist und Rundenstatus pflegst du an der Runde, nicht als Outlook-Feed.',
+                        body:
+                            '<div class="ms-sys-actions"><button type="button" class="btn ms-sys-btn-secondary" data-wz-view="uebersicht"><i class="bi bi-calendar3"></i>Zur Runde</button></div>'
+                    },
+                    {
+                        id: 'wartung',
+                        step: '4',
+                        title: 'Wartung',
+                        leadHtml: 'Stammdaten-Diagnose, Access-Hinweis und lokale Demo.',
+                        body:
+                            '<div class="wz-settings-note"><strong>Stammdaten:</strong> ' +
+                            esc(String(live.classCount || 0)) +
+                            ' Klassen · ' +
+                            esc(String(live.teacherCount || 0)) +
+                            ' Lehrkräfte · Quelle ' +
+                            esc(live.source || 'cache') +
+                            (live.error ? ' · ' + esc(live.error) : '') +
+                            '</div>' +
+                            '<div class="wz-field"><label for="wzAccessHinweis">Hinweis Access / Schülerakte</label>' +
+                            '<textarea id="wzAccessHinweis" name="accessHinweis" rows="3">' +
+                            esc(cfg.accessHinweis) +
+                            '</textarea></div>' +
+                            '<div class="wz-actions">' +
+                            '<button type="submit" class="btn btn-success">Einstellungen speichern</button>' +
+                            '<button type="button" class="btn" id="wzBtnDemoLoad"><i class="bi bi-database"></i>Demo lokal laden</button>' +
+                            '</div>' +
+                            '<p class="wz-nav__hint">Oder URL: ?demo=1 – Demo wird nicht nach SharePoint gepusht</p>'
+                    },
+                    {
+                        id: 'danger',
+                        title: 'Danger Zone',
+                        danger: true,
+                        leadHtml: 'Es gibt hier kein Listen-Leeren. Demo bleibt lokal.',
+                        body: '<p class="muted">Produktive Zuteilungen löschst du in der Arbeitsansicht, nicht in diesem Tab.</p>'
+                    }
+                ]
+            }) +
+            '</form>'
         );
     }
 
@@ -831,6 +874,13 @@ export function mountApp(root) {
     }
 
     function bind(s) {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-wz-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-wz-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = ensureWzView(btn.getAttribute('data-wz-view') || 'uebersicht', {

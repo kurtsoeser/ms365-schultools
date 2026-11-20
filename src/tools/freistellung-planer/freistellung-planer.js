@@ -37,6 +37,7 @@ import {
     effectiveAccountEmail
 } from './freistellung-planer-state.js';
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import { announcePlannerState } from '../../shared/app-role-chrome.js';
 import {
     toolSiteUrlFromLicenseResult,
     applyToolSiteUrlLocally,
@@ -181,6 +182,7 @@ async function afterStudentAntragViewOpen() {
 
 function paint() {
     if (!root) return;
+    announcePlannerState('freistellung', state);
     if (state.role === 'schueler') prefillStudentFreistellungForm(state);
     syncPageHeader();
     renderApp(state, root);
@@ -254,6 +256,9 @@ function friendlySpoError(e) {
     const msg = String((e && e.message) || e || '');
     if (useMinimalPlanerChrome(state)) {
         if (/access denied|403|forbidden/i.test(msg)) {
+            if (useDirektionPlanerChrome(state)) {
+                return 'Die Freistellungsliste ist für dieses Konto noch nicht erreichbar. Site und Berechtigungen liegen unter Systemadministration.';
+            }
             return useKvPlanerChrome(state)
                 ? 'Die Freistellungsliste ist für Ihr Konto noch nicht erreichbar. Bitte die Schulleitung oder IT informieren.'
                 : 'Die Freistellungsliste ist für Ihr Konto noch nicht erreichbar. Bitte Klassenvorstand oder Sekretariat informieren.';
@@ -739,6 +744,7 @@ async function refreshData() {
         }
         state.localDemoOnly = false;
         state.items = await loadAllFreistellungenForPlaner(ctx, state);
+        state.info = '';
         const scopeEmail = effectiveAccountEmail(state) || state.accountEmail;
         if (state.role === 'kv' || state.demoPersonaEmail) {
             state.kvClassCodesFromItems = deriveKvClassCodesFromFreistellungItems(
@@ -747,14 +753,6 @@ async function refreshData() {
                 state.demoPersonaName || state.accountName
             );
             state.kvMatch = matchKvByClassHeadEmail(scopeEmail, classRowsForKvScope(state));
-        }
-        if (!useMinimalPlanerChrome(state)) {
-            state.info =
-                'Liste „' +
-                (ctx.list.name || state.listName) +
-                '“ · ' +
-                state.items.length +
-                ' Einträge';
         }
     } catch (e) {
         state.loading = false;
@@ -1117,6 +1115,14 @@ function bindStatic() {
                     return;
                 }
             }
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-fr-sys-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const id = String(btn.getAttribute('data-fr-sys-tab') || 'site');
+            state.systemTab =
+                id === 'perms' || id === 'kalender' || id === 'wartung' || id === 'danger' ? id : 'site';
             paint();
         });
     });
@@ -1495,11 +1501,28 @@ function bindStatic() {
         });
     }
 
-    root.querySelectorAll('[data-fr-detail]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            state.detailId = btn.getAttribute('data-fr-detail');
+    root.querySelectorAll('[data-fr-detail]').forEach((el) => {
+        const open = () => {
+            state.detailId = el.getAttribute('data-fr-detail');
             paint();
+        };
+        el.addEventListener('click', (ev) => {
+            if (
+                el.tagName === 'TR' &&
+                ev.target instanceof Element &&
+                ev.target.closest('button, a, input, select, textarea')
+            ) {
+                return;
+            }
+            open();
         });
+        if (el.tagName === 'TR') {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Enter' && ev.key !== ' ') return;
+                ev.preventDefault();
+                open();
+            });
+        }
     });
     root.querySelectorAll('[data-fr-close-detail]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -1568,7 +1591,7 @@ function boot() {
                 else paint();
             } catch (e) {
                 if (!(state.localDemoOnly && (state.items || []).length)) {
-                    state.error = String((e && e.message) || e);
+                    state.error = friendlySpoError(e) || 'Laden fehlgeschlagen';
                 }
                 paint();
             }

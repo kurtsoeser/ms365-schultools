@@ -3,7 +3,8 @@
     max-width: none;
 }
 
-.fr-setup-glance {
+/* Standard Schüler-FR (7 Schritte). IT-Shell mit cols-N überschreibt das. */
+.fr-setup-glance:not([class*='it-setup-glance--cols-']) {
     grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
@@ -35,19 +36,19 @@
 }
 
 @media (max-width: 1100px) {
-    .fr-setup-glance {
+    .fr-setup-glance:not([class*='it-setup-glance--cols-']) {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 960px) {
-    .fr-setup-glance {
+    .fr-setup-glance:not([class*='it-setup-glance--cols-']) {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 560px) {
-    .fr-setup-glance {
+    .fr-setup-glance:not([class*='it-setup-glance--cols-']) {
         grid-template-columns: 1fr 1fr;
     }
 }

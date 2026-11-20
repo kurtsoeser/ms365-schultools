@@ -10,7 +10,10 @@ import {
     scheduleStatusLabel,
     navSectionsForRole
 } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-state.js';
-import { sanitizeFachNotiz } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-detail-ui.js';
+import {
+    sanitizeFachNotiz,
+    parseVerlauf
+} from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-detail-ui.js';
 
 describe('Leitung UX – Schuljahr & Status', () => {
     it('schoolYearStartFromDate uses Sept–Aug', () => {
@@ -48,6 +51,16 @@ describe('Leitung UX – Schuljahr & Status', () => {
     it('sanitizeFachNotiz strips demo seed tags', () => {
         expect(sanitizeFachNotiz('Bitte Bus · akt-demo-2026-27 · SJ 2026/27')).toBe('Bitte Bus');
         expect(sanitizeFachNotiz('akt-demo-gro-own')).toBe('');
+    });
+
+    it('parseVerlauf fasst Power-Automate-Kommentare als Block', () => {
+        const entries = parseVerlauf(
+            '---\nDatum: 2026-11-19T18:43:25Z\nFreu mich!\nKommentar:\nPasst, legendär!\n| Approval genehmigt\n.\nGenehmiger:\nDirektor'
+        );
+        expect(entries.length).toBe(1);
+        expect(entries[0].when).toMatch(/19\.11\.2026/);
+        expect(entries[0].text).toContain('Kommentar:');
+        expect(entries[0].text).toContain('Direktor');
     });
 
     it('Admin-Nav enthält Systemadministration, nicht Neue Aktivität', () => {

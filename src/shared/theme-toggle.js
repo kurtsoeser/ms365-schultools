@@ -1,8 +1,9 @@
 /**
- * Light/Dark + Brand-Theme (teal | classic | wine) für die gesamte App.
- * Standard: Hellmodus + Brand teal (Landing).
- * Speichert: ms365-theme-v1, ms365-brand-v1.
- * Hell/Dunkel-Schalter: Fußzeile. Brand: Konto-Menü oben rechts.
+ * Light/Dark + Markenfarbe für die gesamte App.
+ * Standard: Hellmodus + Blau-Grün (teal).
+ * Speichert: ms365-theme-v1, ms365-brand-v1, eigene Farbe in ms365-brand-custom-v1.
+ * Hell/Dunkel-Schalter: Fußzeile. Marke: Konto-Menü oben rechts.
+ * Erlaubte Marken: dieselbe Liste wie in theme-boot.js und msal-auth-ui.js.
  */
 (function () {
     'use strict';
@@ -10,9 +11,16 @@
     const STORAGE_KEY = 'ms365-theme-v1';
     const BRAND_KEY = 'ms365-brand-v1';
     const THEMES = { light: 'light', dark: 'dark' };
-    const BRANDS = { teal: 'teal', classic: 'classic', wine: 'wine' };
-
-    const VALID_BRAND_LIST = [BRANDS.teal, BRANDS.classic, BRANDS.wine];
+    const VALID_BRAND_LIST = ['teal', 'classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
+    const BRANDS = {
+        teal: 'teal',
+        classic: 'classic',
+        wine: 'wine',
+        azure: 'azure',
+        forest: 'forest',
+        amber: 'amber',
+        custom: 'custom'
+    };
 
     function isValidBrand(brand) {
         return VALID_BRAND_LIST.indexOf(brand) !== -1;
@@ -108,8 +116,13 @@
     }
 
     function applyBrand(brand) {
-        const next = normalizeBrand(brand);
-        document.documentElement.setAttribute('data-brand', next);
+        let next = normalizeBrand(brand);
+        const root = document.documentElement;
+        if (window.ms365BrandBoot && typeof window.ms365BrandBoot.syncCustom === 'function') {
+            const resolved = window.ms365BrandBoot.syncCustom(root, next);
+            if (resolved && resolved !== next) next = normalizeBrand(resolved);
+        }
+        root.setAttribute('data-brand', next);
         try {
             localStorage.setItem(BRAND_KEY, next);
         } catch {

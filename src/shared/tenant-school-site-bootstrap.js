@@ -190,6 +190,28 @@ export async function bootstrapSchoolSiteFromLicense(licenseResult, opts) {
     }
 
     if (!isReady()) {
+        // Keine IT-Bibliothek: trotzdem Lehrerinnen/Klassen von der Tool-Site versuchen
+        try {
+            const { ensureLiveSchoolStammdatenForBrowser } = await import(
+                './ensure-live-school-stammdaten.js'
+            );
+            const live = await ensureLiveSchoolStammdatenForBrowser({ force: true });
+            markBootstrapDone();
+            if (live && live.ok) {
+                try {
+                    window.dispatchEvent(
+                        new CustomEvent('ms365-tenant-settings-changed', {
+                            detail: { source: 'license-bootstrap-live-spo' }
+                        })
+                    );
+                } catch {
+                    /* ignore */
+                }
+                return { ok: true, url: url, source: 'live-spo', teacherCount: live.teacherCount };
+            }
+        } catch {
+            /* ignore */
+        }
         markBootstrapDone();
         return { skipped: true, reason: 'it-library-not-ready', url: url };
     }
@@ -212,6 +234,27 @@ export async function bootstrapSchoolSiteFromLicense(licenseResult, opts) {
         }
         return { ok: true, url: url };
     } catch (e) {
+        try {
+            const { ensureLiveSchoolStammdatenForBrowser } = await import(
+                './ensure-live-school-stammdaten.js'
+            );
+            const live = await ensureLiveSchoolStammdatenForBrowser({ force: true });
+            markBootstrapDone();
+            if (live && live.ok) {
+                try {
+                    window.dispatchEvent(
+                        new CustomEvent('ms365-tenant-settings-changed', {
+                            detail: { source: 'license-bootstrap-live-spo' }
+                        })
+                    );
+                } catch {
+                    /* ignore */
+                }
+                return { ok: true, url: url, source: 'live-spo', teacherCount: live.teacherCount };
+            }
+        } catch {
+            /* ignore */
+        }
         markBootstrapDone();
         return {
             skipped: true,

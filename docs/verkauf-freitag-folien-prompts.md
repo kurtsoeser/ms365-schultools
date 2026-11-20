@@ -19,6 +19,99 @@
 
 ---
 
+## Bestehendes Deck anpassen (20.11., nach dem ersten Aufbau)
+
+Das Deck ist schon da. Nicht neu erzeugen. In Copilot die folgenden Prompts **auf die bestehenden Folien** anwenden. Kalender und Kursteams sind kein Block mehr. Die drei Mitnahmen sind Schulaktivitäten, Lehrerfreistellung, sRDP-Anmeldung. Das SharePoint-Formular ist ein Kontrast, keine zweite Einrichtung.
+
+Datum prüfen: Im Deck steht „Freitag, 21. November“. Der 21.11.2026 ist ein Samstag. Wochentag auf der Zeitfolie an das echte Datum anpassen.
+
+### Agenda und Versprechen
+
+```text
+Überarbeite die bestehenden Folien „Agenda“ und „Eure 3 Mitnahmen“. Kalender und Kursteams entfernen.
+
+Agenda, sieben Stationen:
+09:30 Ankommen und Versprechen
+09:40 Login und Consent
+10:05 Stammdaten
+11:00 Mitnahme 1 Schulaktivitäten
+13:00 Mitnahme 2 Lehrerfreistellung
+14:10 Mitnahme 3 sRDP-Anmeldung
+15:20 Puffer · 15:35 Feedback und Close
+„15:35 Close“ optisch hervorheben.
+
+Mitnahmen, große Ziffern:
+01 Schulaktivitäten – ein Antrag, genehmigt, Zeile in der Liste
+02 Lehrerfreistellung – Lehrkraft stellt, Direktion gibt frei
+03 sRDP-Anmeldung – eine Testanmeldung, Lehrerblick, Auswertung
+Kasten ERGEBNIS: Drei eingerichtete Fälle im Tenant. Keine Folien-Demos.
+Untertitel: Das SharePoint-Formular zeigen wir kurz daneben. Eingerichtet wird die App.
+```
+
+### Blöcke 3 und 4, Formular-Kasten
+
+```text
+Ergänze auf den bestehenden Folien zu Schulaktivitäten und zu Lehrerfreistellung je einen schmalen Kasten, kein neuer Abschnitt:
+
+Titel des Kastens: Dieselbe Zeile
+Text: Liegt in eurer SharePoint-Liste. Ein Formular kann sie auch anzeigen. Rolle, Status und Genehmigung macht die App.
+
+Auf der Freistellungsfolie den Hinweis behalten: Schüler-Freistellung ist ein anderes Werkzeug.
+Die Wahlfolie „Freistellung oder Matura“ entfernen. Mitnahme 2 ist nur Lehrerfreistellung. sRDP ist Mitnahme 3.
+```
+
+### Ziffer 5 ersetzen (bisher Kalender und Kursteams)
+
+```text
+Ersetze den bestehenden Block „Mitnahme 3 – Kalender und Kursteams“ (Ziffer 5, etwa 13:45–14:05) durch drei Folien. Kalenderfolien und Kursteams-Folie löschen.
+
+1) Abschnittsfolie
+Große Ziffer: 5
+Zeit: 14:10–15:20
+Format: Live im Tenant · HAK am Beamer, andere machen mit
+Titel: Mitnahme 3 – sRDP-Anmeldung
+ERGEBNIS: Eine Testanmeldung liegt in der Liste
+
+2) Ablauf
+Titel: Anmeldung, die nach Weihnachten trägt
+01 Jahr und Liste
+02 Eine Testanmeldung
+03 Lehrerblick
+04 Admin und Auswertung
+Seitenkasten: Keine Klausurplanung. Keine Anbindung an srdp.at.
+
+3) Zwei Oberflächen
+Titel: Dieselbe Zeile, zwei Oberflächen
+Links, groß: App – Rolle, Prüfung, Auswertung
+Rechts, kleiner: SharePoint-Formular – Felder und Speichern
+Satz darunter: Die Daten bleiben in eurer Liste. Die Führung bleibt in der App. Das Formular ist das Angebot daneben.
+```
+
+### Puffer statt Individuell
+
+```text
+Überarbeite die Folien „Jetzt euer Fall“ / Individuell (bisher 14:05–15:35).
+
+Neuer Titel: Puffer – den Fall fertigmachen
+Zeit: 15:20–15:35
+ERGEBNIS: Jede Schule hat ihre drei Fälle oder einen klaren Rest
+Punkte:
+01 Hängenden Antrag oder hängende Anmeldung zu Ende bringen
+02 Owner Fach und Owner IT notieren
+03 Kein neues Werkzeug öffnen
+Seitenkasten: Wahlfach und Stammdaten kommen in den zwei Wochen, nicht jetzt.
+```
+
+### Close-Satz auf der Feedback-Folie
+
+```text
+Ergänze auf der Folie „3 Dinge mitnehmen“ diese eine Zeile, ohne Preise:
+Schulaktivität. Lehrerfreistellung. sRDP-Anmeldung. Zwei Wochen echt nutzen. Dann entscheiden.
+Preise nicht auf die Folie setzen.
+```
+
+---
+
 ## 0) Master-Prompt – Stil & Regeln (immer zuerst)
 
 ```text

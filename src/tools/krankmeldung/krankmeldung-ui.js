@@ -61,11 +61,12 @@ import {
     isKrankmeldungAdminCached,
     resolveKrankmeldungRoles
 } from './krankmeldung-entra-role.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 const VIEWS = [
     { id: 'inbox', label: 'Inbox', icon: 'bi-inbox' },
     { id: 'neu', label: 'Manuell melden', icon: 'bi-plus-circle' },
-    { id: 'einstellungen', label: 'Einstellungen', icon: 'bi-gear' }
+    { id: 'einstellungen', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 function esc(s) {
@@ -157,6 +158,7 @@ export function mountApp(root) {
     /** @type {{ view: string, message: {type:string,text:string}|null, filters: object, nurMeineKlassen: boolean }} */
     const ui = {
         view: 'inbox',
+        systemTab: 'site',
         message: null,
         filters: { day: today, klasse: '', status: '', kategorie: '', q: '', mode: 'tag' },
         nurMeineKlassen: false
@@ -682,90 +684,137 @@ export function mountApp(root) {
                 return buildPublicFormUrl();
             }
         })();
+        const sync = getKrankmeldungSyncMeta();
+        const site = resolveKrankmeldungSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
+        const syncLine =
+            'Sync: ' +
+            sync.source +
+            (sync.listTitle ? ' · Liste „' + sync.listTitle + '“' : '') +
+            (sync.lastPullAt ? ' · zuletzt ' + formatDeDateTime(sync.lastPullAt) : '') +
+            (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
+            (sync.error ? ' · ' + sync.error : '');
         return (
-            '<div class="km-head"><div><h2>Einstellungen</h2><p>Klassen für Elternformular, Schulname, optional API. Rolle: Sekretariat/Admin' +
-            (role.demo ? ' (Demo)' : '') +
-            '.</p></div></div>' +
             '<form class="km-form" id="kmSettingsForm">' +
-            '<label>Schulname (auf dem Formular)<input name="schoolName" value="' +
-            esc(settings.schoolName) +
-            '"></label>' +
-            '<label>Klassen für öffentliches Formular (Semikolon)<textarea name="publicKlassen" id="kmPublicKlassen" rows="3" placeholder="1A;1B;2A;3AHW">' +
-            esc(settings.publicKlassen) +
-            '</textarea></label>' +
-            '<p class="km-hint">' +
-            esc(stammdatenSourceHint()) +
-            ' · ' +
-            sdCount +
-            ' sichtbar. Eltern sehen Klassen nur, wenn sie hier gespeichert und der Link geteilt wird (oder über <code>?klassen=</code>).</p>' +
-            '<div class="km-form__actions" style="margin-top:-4px;">' +
-            '<button type="button" class="btn" id="kmSyncKlassen">Aus Stammdaten übernehmen</button>' +
-            '<button type="button" class="btn" id="kmCopyFormLink">Formular-Link kopieren</button>' +
-            '</div>' +
-            '<label class="km-hint" style="display:flex;gap:8px;align-items:center;font-weight:500;">' +
-            '<input type="checkbox" name="allowFreeKlasse"' +
-            (settings.allowFreeKlasse !== false ? ' checked' : '') +
-            '> Eltern dürfen abweichende Klasse eintippen</label>' +
-            '<label class="km-hint" style="display:flex;gap:8px;align-items:center;font-weight:500;">' +
-            '<input type="checkbox" name="allowAnhang"' +
-            (settings.allowAnhang !== false ? ' checked' : '') +
-            '> Anhang-Upload auf dem Formular erlauben</label>' +
-            '<label class="km-hint" style="display:flex;gap:8px;align-items:center;font-weight:500;">' +
-            '<input type="checkbox" name="anhangPflicht"' +
-            (settings.anhangPflicht ? ' checked' : '') +
-            '> Anhang ist Pflicht (z. B. ärztliche Bestätigung)</label>' +
-            '<label>Öffentlicher Link (Vorschau)<input readonly value="' +
-            esc(publicUrl) +
-            '"></label>' +
-            '<label>KV-Hinweis-E-Mail (optional)<input name="kvHintEmail" value="' +
-            esc(settings.kvHintEmail) +
-            '" placeholder="kv@schule.at"></label>' +
-            '<p class="km-hint">Remote-API ist abgeschaltet (Sicherheit / Workshop). Öffentliche Meldungen bleiben lokal bzw. landen über Sekretariat in der Schul-SharePoint-Site.</p>' +
             '<input type="hidden" name="apiBaseUrl" value="">' +
             '<input type="hidden" name="adminKey" value="">' +
-            '<div class="km-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>' +
-            '</form>' +
-            (() => {
-                const sync = getKrankmeldungSyncMeta();
-                const site = resolveKrankmeldungSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
-                return (
-                    '<div class="km-form km-system-panel" style="margin-top:14px;">' +
-                    '<h3 style="margin:0 0 8px;font-size:1rem;">SharePoint (Live)</h3>' +
-                    '<p class="km-hint"><code>' +
-                    esc(site) +
-                    '</code></p>' +
-                    '<p class="km-settings-summary">Sync: <strong>' +
-                    esc(sync.source) +
-                    '</strong>' +
-                    (sync.listTitle ? ' · Liste „' + esc(sync.listTitle) + '“' : '') +
-                    (sync.lastPullAt ? ' · zuletzt ' + esc(formatDeDateTime(sync.lastPullAt)) : '') +
-                    (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
-                    (sync.error ? ' · ' + esc(sync.error) : '') +
-                    '</p>' +
-                    '<p class="km-settings-summary">Lokal: <strong>' +
-                    (s.meldungen || []).length +
-                    '</strong> Meldungen' +
-                    (s.localDemoOnly ? ' · Demo local-first' : '') +
-                    ' · mit spoItemId: ' +
-                    (s.meldungen || []).filter((m) => m.spoItemId).length +
-                    (krankmeldungRemoteConfigured() ? ' · Remote konfiguriert' : '') +
-                    '</p>' +
-                    '<p class="km-hint" style="margin-top:10px;">SoR = SharePoint. Demo nur Admin oder <code>?demo=1</code> / <code>?demoRole=1</code> – Seeds werden nicht gepusht. Public ohne Login: lokal/Remote; Sekretariat pusht.</p>' +
-                    '<div class="km-form__actions">' +
-                    '<button type="button" class="btn btn-success" data-km-pull-spo>Von SharePoint laden</button>' +
-                    (canUseDemoActions()
-                        ? '<button type="button" class="btn" data-km-demo>Demo laden</button>' +
-                          '<button type="button" class="btn" data-km-clear-demo>Demo entfernen</button>'
-                        : '') +
-                    '<button type="button" class="btn" data-km-clear>Alles löschen</button>' +
-                    '<a class="btn" href="sharepoint-liste-krankmeldung.html" data-ms365-frontend-it-only>Liste einrichten</a>' +
-                    '</div></div>'
-                );
-            })()
+            renderSystemAdminPage({
+                prefix: 'km',
+                activeTab: ui.systemTab,
+                dataAttr: 'data-km-sys-tab',
+                ariaLabel: 'Systemadministration Krankmeldung',
+                panels: [
+                    {
+                        id: 'site',
+                        step: '1',
+                        title: 'Datenquelle',
+                        leadHtml:
+                            'SoR = SharePoint. Öffentliche Meldungen ohne Login bleiben lokal, bis das Sekretariat pusht. Rolle: Sekretariat/Admin' +
+                            (role.demo ? ' (Demo)' : '') +
+                            '.',
+                        body:
+                            '<p class="km-hint"><code>' +
+                            esc(site) +
+                            '</code></p><p class="km-settings-summary">' +
+                            esc(syncLine) +
+                            '</p><p class="km-settings-summary">Lokal: <strong>' +
+                            (s.meldungen || []).length +
+                            '</strong> Meldungen' +
+                            (s.localDemoOnly ? ' · Demo local-first' : '') +
+                            ' · mit spoItemId: ' +
+                            (s.meldungen || []).filter((m) => m.spoItemId).length +
+                            (krankmeldungRemoteConfigured() ? ' · Remote konfiguriert' : '') +
+                            '</p><div class="km-form__actions">' +
+                            '<button type="button" class="btn btn-success" data-km-pull-spo>Von SharePoint laden</button>' +
+                            '<a class="btn" href="sharepoint-liste-krankmeldung.html" data-ms365-frontend-it-only>Liste einrichten</a>' +
+                            '</div>'
+                    },
+                    {
+                        id: 'perms',
+                        step: '2',
+                        title: 'Berechtigungen',
+                        leadHtml: 'Sekretariat und Schulleitung sehen die Inbox. Die KV-Mail ist nur ein Hinweis.',
+                        body:
+                            '<label>KV-Hinweis-E-Mail (optional)<input name="kvHintEmail" value="' +
+                            esc(settings.kvHintEmail) +
+                            '" placeholder="kv@schule.at"></label>' +
+                            '<div class="km-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>'
+                    },
+                    {
+                        id: 'kalender',
+                        step: '3',
+                        title: 'Kalender',
+                        leadHtml: 'Kein Outlook-Feed. Die Inbox filtert nach Tag. Hier der öffentliche Formular-Link.',
+                        body:
+                            '<label>Öffentlicher Link (Vorschau)<input readonly value="' +
+                            esc(publicUrl) +
+                            '"></label><div class="km-form__actions"><button type="button" class="btn" id="kmCopyFormLink">Formular-Link kopieren</button></div>'
+                    },
+                    {
+                        id: 'wartung',
+                        step: '4',
+                        title: 'Wartung',
+                        leadHtml:
+                            'Klassen für das Elternformular. Eltern sehen sie nur, wenn sie hier gespeichert und der Link geteilt wird.',
+                        body:
+                            '<label>Schulname (auf dem Formular)<input name="schoolName" value="' +
+                            esc(settings.schoolName) +
+                            '"></label>' +
+                            '<label>Klassen für öffentliches Formular (Semikolon)<textarea name="publicKlassen" id="kmPublicKlassen" rows="3" placeholder="1A;1B;2A;3AHW">' +
+                            esc(settings.publicKlassen) +
+                            '</textarea></label>' +
+                            '<p class="km-hint">' +
+                            esc(stammdatenSourceHint()) +
+                            ' · ' +
+                            sdCount +
+                            ' sichtbar.</p>' +
+                            '<label class="km-hint" style="display:flex;gap:8px;align-items:center;font-weight:500;">' +
+                            '<input type="checkbox" name="allowFreeKlasse"' +
+                            (settings.allowFreeKlasse !== false ? ' checked' : '') +
+                            '> Eltern dürfen abweichende Klasse eintippen</label>' +
+                            '<label class="km-hint" style="display:flex;gap:8px;align-items:center;font-weight:500;">' +
+                            '<input type="checkbox" name="allowAnhang"' +
+                            (settings.allowAnhang !== false ? ' checked' : '') +
+                            '> Anhang-Upload auf dem Formular erlauben</label>' +
+                            '<label class="km-hint" style="display:flex;gap:8px;align-items:center;font-weight:500;">' +
+                            '<input type="checkbox" name="anhangPflicht"' +
+                            (settings.anhangPflicht ? ' checked' : '') +
+                            '> Anhang ist Pflicht (z. B. ärztliche Bestätigung)</label>' +
+                            '<p class="km-hint">Remote-API ist abgeschaltet. Demo nur Admin oder ?demo=1 – Seeds werden nicht gepusht.</p>' +
+                            '<div class="km-form__actions">' +
+                            '<button type="submit" class="btn btn-success">Speichern</button>' +
+                            '<button type="button" class="btn" id="kmSyncKlassen">Aus Stammdaten übernehmen</button>' +
+                            (canUseDemoActions()
+                                ? '<button type="button" class="btn" data-km-demo>Demo laden</button>'
+                                : '') +
+                            '</div>'
+                    },
+                    {
+                        id: 'danger',
+                        title: 'Danger Zone',
+                        danger: true,
+                        leadHtml: 'Lokal leeren. SharePoint-Zeilen bleiben, bis sie dort gelöscht werden.',
+                        body:
+                            '<div class="ms-sys-actions">' +
+                            (canUseDemoActions()
+                                ? '<button type="button" class="btn ms-sys-btn-danger" data-km-clear-demo>Demo entfernen</button>'
+                                : '') +
+                            '<button type="button" class="btn ms-sys-btn-danger" data-km-clear>Alles löschen</button>' +
+                            '</div>'
+                    }
+                ]
+            }) +
+            '</form>'
         );
     }
 
     function bind() {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-km-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-km-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = btn.getAttribute('data-km-view') || 'inbox';

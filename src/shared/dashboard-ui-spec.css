@@ -120,8 +120,8 @@ html[data-theme='dark'] {
 .dash-greeting-band {
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--brand1, #0d9f8a) 92%, #064e3b) 0%,
-        color-mix(in srgb, var(--brand2, #12b59c) 88%, #064e3b) 100%
+        color-mix(in srgb, var(--brand1, #0d9f8a) 92%, #0c1222) 0%,
+        color-mix(in srgb, var(--brand2, #12b59c) 88%, #0c1222) 100%
     ) !important;
     color: rgba(255, 255, 255, 0.92) !important;
     text-align: center;
@@ -130,6 +130,14 @@ html[data-theme='dark'] {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     min-height: 36px;
     box-sizing: border-box;
+}
+
+html[data-theme="dark"] .dash-greeting-band {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--brand1, #14c4ab) 78%, #070b12) 0%,
+        color-mix(in srgb, var(--brand2, #0d9f8a) 70%, #070b12) 100%
+    ) !important;
 }
 
 .dash-greeting-band__text {

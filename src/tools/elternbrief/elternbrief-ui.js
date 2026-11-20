@@ -61,6 +61,7 @@ import {
     buildPublicUrl,
     encodePublicToken
 } from './elternbrief-token.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 import {
     buildEmpfaengerLinesForKlassen,
     getEinsammlerStammdatenMeta,
@@ -75,7 +76,7 @@ const VIEWS = [
     { id: 'neu', label: 'Neu / Editor', icon: 'bi-pencil-square' },
     { id: 'detail', label: 'Empfänger', icon: 'bi-people' },
     { id: 'links', label: 'Eltern-Links', icon: 'bi-link-45deg' },
-    { id: 'einstellungen', label: 'Einstellungen', icon: 'bi-gear' }
+    { id: 'einstellungen', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 function esc(s) {
@@ -111,6 +112,7 @@ export function mountApp(root) {
     /** @type {{ view: string, selectedId: string, message: { type: string, text: string }|null, form: object, showAll: boolean, pendingFile: File|null }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         selectedId: '',
         message: null,
         form: emptyForm(),
@@ -986,59 +988,108 @@ export function mountApp(root) {
                 '</div>'
             );
         }
+        const ebRole = getElternbriefAdminAccessCache();
         return (
-            '<div class="eb-head"><div><h2>Einstellungen</h2><p>Absender, Schule, Admin-Mails – zentral für alle Elternbriefe.</p></div></div>' +
-            syncPanel +
             '<form class="eb-form" id="ebSettingsForm">' +
-            '<label>Schulname<input name="schoolName" value="' +
-            esc(settings.schoolName) +
-            '"></label>' +
-            '<label>Standard-Absender<select name="absenderDefault">' +
-            option(
-                ABSENDER_MODUS.EIGEN,
-                ABSENDER_MODUS_LABEL.eigenes_konto,
-                settings.absenderDefault
-            ) +
-            option(
-                ABSENDER_MODUS.ZENTRAL,
-                ABSENDER_MODUS_LABEL.zentrales_postfach,
-                settings.absenderDefault
-            ) +
-            '</select></label>' +
-            '<div class="eb-form__row">' +
-            '<label>Zentrales Postfach<input name="zentralPostfach" type="email" value="' +
-            esc(settings.zentralPostfach) +
-            '" placeholder="elternbrief@schule.at"></label>' +
-            '<label>Name zentrales Postfach<input name="zentralName" value="' +
-            esc(settings.zentralName) +
-            '"></label></div>' +
-            '<p class="eb-hint">Admin „Alle sehen“ aus Schulleitung/Verwaltung (Entra) bzw. Schul-IT. Legacy-Mails optional.</p>' +
-            '<label>Zusätzliche Admin-E-Mails (Legacy)<textarea name="adminEmails">' +
-            esc(settings.adminEmails) +
-            '</textarea></label>' +
-            (getElternbriefAdminAccessCache().sources.length
-                ? '<p class="eb-hint">Ihre Admin-Quellen: ' +
-                  esc(getElternbriefAdminAccessCache().sources.join(', ')) +
-                  (getElternbriefAdminAccessCache().demo ? ' (IT-Vorschau)' : '') +
-                  '</p>'
-                : '') +
-            '<label>Link gültig (Tage)<input name="expDays" type="number" min="1" value="' +
-            esc(String(settings.expDays)) +
-            '"></label>' +
-            '<p class="eb-hint">Elternlinks sind HMAC-signiert und stehen im Fragment (<code>#p=</code>). Lesebestätigungen landen in der Schul-SharePoint-Site.</p>' +
-            '<p class="eb-hint">' +
-            esc(stammdatenSourceHint()) +
-            '</p>' +
-            '<div class="eb-form__actions">' +
-            '<button type="submit" class="btn btn-success">Speichern</button>' +
-            demoBtns +
-            '<button type="button" class="btn" id="ebImportCode">Bestätigungscode einlesen</button>' +
-            '<button type="button" class="btn" id="ebClearAll">Store leeren</button>' +
-            '</div></form>'
+            renderSystemAdminPage({
+                prefix: 'eb',
+                activeTab: ui.systemTab,
+                dataAttr: 'data-eb-sys-tab',
+                ariaLabel: 'Systemadministration Elternbrief',
+                panels: [
+                    {
+                        id: 'site',
+                        step: '1',
+                        title: 'Datenquelle',
+                        leadHtml: 'Lesebestätigungen landen in der Schul-SharePoint-Site.',
+                        body: syncPanel
+                    },
+                    {
+                        id: 'perms',
+                        step: '2',
+                        title: 'Berechtigungen',
+                        leadHtml:
+                            'Admin „Alle sehen“ aus Schulleitung/Verwaltung (Entra) bzw. Schul-IT. Legacy-Mails optional.',
+                        body:
+                            '<label>Zusätzliche Admin-E-Mails (Legacy)<textarea name="adminEmails">' +
+                            esc(settings.adminEmails) +
+                            '</textarea></label>' +
+                            (ebRole.sources.length
+                                ? '<p class="eb-hint">Ihre Admin-Quellen: ' +
+                                  esc(ebRole.sources.join(', ')) +
+                                  (ebRole.demo ? ' (IT-Vorschau)' : '') +
+                                  '</p>'
+                                : '') +
+                            '<div class="eb-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>'
+                    },
+                    {
+                        id: 'kalender',
+                        step: '3',
+                        title: 'Kalender',
+                        leadHtml: 'Kein Terminkalender. Die Link-Frist gilt für den Eltern-Leselink.',
+                        body:
+                            '<label>Link gültig (Tage)<input name="expDays" type="number" min="1" value="' +
+                            esc(String(settings.expDays)) +
+                            '"></label>' +
+                            '<p class="eb-hint">Elternlinks sind HMAC-signiert und stehen im Fragment (<code>#p=</code>).</p>' +
+                            '<div class="eb-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>'
+                    },
+                    {
+                        id: 'wartung',
+                        step: '4',
+                        title: 'Wartung',
+                        leadHtml: 'Absender und Schulname für alle Elternbriefe.',
+                        body:
+                            '<label>Schulname<input name="schoolName" value="' +
+                            esc(settings.schoolName) +
+                            '"></label>' +
+                            '<label>Standard-Absender<select name="absenderDefault">' +
+                            option(
+                                ABSENDER_MODUS.EIGEN,
+                                ABSENDER_MODUS_LABEL.eigenes_konto,
+                                settings.absenderDefault
+                            ) +
+                            option(
+                                ABSENDER_MODUS.ZENTRAL,
+                                ABSENDER_MODUS_LABEL.zentrales_postfach,
+                                settings.absenderDefault
+                            ) +
+                            '</select></label>' +
+                            '<div class="eb-form__row">' +
+                            '<label>Zentrales Postfach<input name="zentralPostfach" type="email" value="' +
+                            esc(settings.zentralPostfach) +
+                            '" placeholder="elternbrief@schule.at"></label>' +
+                            '<label>Name zentrales Postfach<input name="zentralName" value="' +
+                            esc(settings.zentralName) +
+                            '"></label></div>' +
+                            '<p class="eb-hint">' +
+                            esc(stammdatenSourceHint()) +
+                            '</p>' +
+                            '<div class="eb-form__actions"><button type="submit" class="btn btn-success">Speichern</button>' +
+                            demoBtns +
+                            '<button type="button" class="btn" id="ebImportCode">Bestätigungscode einlesen</button></div>'
+                    },
+                    {
+                        id: 'danger',
+                        title: 'Danger Zone',
+                        danger: true,
+                        leadHtml: 'Leert den lokalen Store. SharePoint-Briefe bleiben, bis sie dort gelöscht werden.',
+                        body: '<button type="button" class="btn ms-sys-btn-danger" id="ebClearAll">Store leeren</button>'
+                    }
+                ]
+            }) +
+            '</form>'
         );
     }
 
     function bind(s) {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-eb-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-eb-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = String(btn.getAttribute('data-eb-view') || 'uebersicht');

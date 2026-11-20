@@ -138,9 +138,9 @@ Referenzen als **Choice-Text** (Namen/Codes), keine Person-Felder im MVP – ent
 SharePoint Modern Form – per Setup gesetzt:
 
 1. **ClientFormCustomFormatter:** Header mit Live-Name (`Nachname, Vorname`) und Prüfplan zur Variante; Body in Sektionen; Footer-Hinweis.  
-2. **Seminar:** `ConditionalShowFormula` – sichtbar wenn `WahlfachMuendlich` mit „Seminar“ beginnt.  
-3. **Title:** im Formular ausgeblendet (`=false`), nicht pflichtig; Column Formatting zeigt Nachname/Vorname; Wizard-Button **Titel nachziehen** setzt Title + PrüfplanKurz auf bestehende Items.  
-4. **Schulform / Terminjahr / PrüfplanKurz:** im Formular ausgeblendet; Defaults wo möglich.
+2. **Seminar:** möglichst `ConditionalShowFormula` (sichtbar wenn `WahlfachMuendlich` mit „Seminar“ beginnt). SPO typed Field-MERGE lehnt die Eigenschaft oft ab – Setup setzt sie best-effort; native Liste kann Seminar dann dauerhaft zeigen (App-Wizard blendet korrekt aus).  
+3. **Title / Schulform / Terminjahr / PrüfplanKurz:** dauerhaft ausgeblendet über `setshowin*form(false)` (nicht über Field-MERGE `ConditionalShowFormula`); Title nicht pflichtig; Column Formatting zeigt Nachname/Vorname; Wizard-Button **Titel nachziehen** setzt Title + PrüfplanKurz auf bestehende Items.  
+4. **Defaults:** Schulform / Terminjahr wo möglich per Field-Patch.
 
 ### 5.3 Ansichten & Column Formatting
 
@@ -183,7 +183,7 @@ Schritte (Vorschlag):
 3. **Klassen** – Multi-Select aus Stammdaten (vorfilter Abschlussjahr)  
 4. **Lehrer-Pools** – alle Lehrer oder gefilterte Listen für die vier Choice-Felder  
 5. **LFS / Wahlfach / Seminar** – Optionen bearbeiten  
-6. **Gruppen & Rechte** – Admin-, Lehrer-, Kandidaten-Gruppen wählen/anlegen; Vererbung brechen  
+6. **Gruppen & Rechte** – je Rolle **mehrere** M365-Gruppen und optional Personen; Vererbung brechen  
 7. **Anlegen** – Liste + Spalten + Ansichten + Formatting + Rechte; Protokoll  
 8. **Fertig** – Link zur Liste, Link „Neues Element“
 
@@ -203,7 +203,7 @@ Beim Listen-Anlegen: Vererbung brechen und SharePoint-/Entra-Gruppen zuweisen.
 | Verwaltung / Direktion | Vollzugriff | z. B. `sRDP-Admin` / bestehende Admin-Gruppe |
 | Klassenlehrer / Lehrkräfte | Lesen | z. B. Lehrer-Gesamtgruppe oder `sRDP-Lehrer` |
 
-Wizard-Schritt „Gruppen“: vorhandene Gruppen wählen oder Namen vorgeben; Setup setzt Berechtigungen und protokolliert das Ergebnis. Fallback-Hinweis, falls Graph die Rechte nicht setzen kann.
+Wizard-Schritt „Gruppen“: pro Rolle mehrere Entra-/M365-Gruppen und optional Einzelpersonen; Setup setzt alle Zuweisungen und protokolliert das Ergebnis. Fallback-Hinweis, falls Graph die Rechte nicht setzen kann. Bestehende Einzel-Gruppen-IDs werden in die Mehrfach-Listen migriert.
 
 ---
 

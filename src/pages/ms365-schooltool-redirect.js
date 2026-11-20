@@ -150,6 +150,7 @@
     'cleanup-playbook': 'tools/cleanup-playbook.html',
     aufräumen: 'tools/cleanup-playbook.html',
     'stammdaten-uebergabe': 'tools/stammdaten-uebergabe.html',
+    'it-berechtigungen': 'tools/it-berechtigungen.html',
     stammdatenuebergabe: 'tools/stammdaten-uebergabe.html',
     uebergabe: 'tools/stammdaten-uebergabe.html',
     namenskonvention: 'tools/namenskonvention-audit.html',

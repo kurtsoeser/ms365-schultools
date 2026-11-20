@@ -51,6 +51,7 @@ import {
     pushTechnikDelete,
     pushTechnikMeldung
 } from './technik-meldungen-sync.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 const MELDER_VIEWS = [
     { id: 'uebersicht', label: 'Meine Meldungen', icon: 'bi-inbox' },
@@ -61,7 +62,7 @@ const MELDER_VIEWS = [
 
 const ADMIN_EXTRA = [
     { id: 'inbox', label: 'IT-Inbox', icon: 'bi-inboxes' },
-    { id: 'system', label: 'System', icon: 'bi-gear' }
+    { id: 'system', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 function esc(s) {
@@ -120,6 +121,7 @@ export function mountApp(root) {
      * }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         message: null,
         meEmail: acc0.email || DEMO_ME_EMAIL,
         meName: acc0.name || (acc0.email ? acc0.email : DEMO_ME_NAME),
@@ -589,43 +591,88 @@ export function mountApp(root) {
         const sync = getTechnikSyncMeta();
         const site = resolveTechnikSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
         const s = state();
-        return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">System</h2>' +
-            '<div class="tm-system-panel">' +
-            '<h3>SharePoint (Live)</h3>' +
-            '<p><code>' +
-            esc(site) +
-            '</code></p>' +
-            '<p>Sync: <strong>' +
-            esc(sync.source) +
-            '</strong>' +
-            (sync.listTitle ? ' · Liste „' + esc(sync.listTitle) + '“' : '') +
-            (sync.lastPullAt ? ' · zuletzt ' + esc(formatDeDate(sync.lastPullAt)) : '') +
+        const syncLine =
+            'Sync: ' +
+            sync.source +
+            (sync.listTitle ? ' · Liste „' + sync.listTitle + '“' : '') +
+            (sync.lastPullAt ? ' · zuletzt ' + formatDeDate(sync.lastPullAt) : '') +
             (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
-            (sync.error ? ' · ' + esc(sync.error) : '') +
-            '</p>' +
-            '<p>Stammdaten: ' +
-            esc(meta.source) +
+            (sync.error ? ' · ' + sync.error : '');
+        const stammLine =
+            'Stammdaten: ' +
+            (meta.source || '–') +
             (meta.classCount || meta.teacherCount
                 ? ' · ' + meta.classCount + ' Klassen · ' + meta.teacherCount + ' Lehrkräfte'
                 : '') +
-            (meta.error ? ' · ' + esc(meta.error) : '') +
-            '</p>' +
-            '<p>Lokal: ' +
-            (s.meldungen || []).length +
-            ' Meldungen' +
-            (s.localDemoOnly ? ' · Demo local-first' : '') +
-            ' · mit spoItemId: ' +
-            (s.meldungen || []).filter((m) => m.spoItemId).length +
-            '</p>' +
-            '<div class="ag-toolbar">' +
-            '<button type="button" class="btn btn-success" data-ag-pull>Von SharePoint laden</button>' +
-            '<button type="button" class="btn" data-ag-demo>Demo laden</button>' +
-            '<button type="button" class="btn" data-ag-clear-seed>Demo-Seed entfernen</button>' +
-            '<button type="button" class="btn" data-ag-clear>Lokal leeren</button>' +
-            '<a class="btn" href="sharepoint-liste-technik-meldungen.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
-            '</div></div>'
-        );
+            (meta.error ? ' · ' + meta.error : '');
+        return renderSystemAdminPage({
+            prefix: 'tm',
+            activeTab: ui.systemTab,
+            dataAttr: 'data-tm-sys-tab',
+            ariaLabel: 'Systemadministration Technik-Meldungen',
+            panels: [
+                {
+                    id: 'site',
+                    step: '1',
+                    title: 'Datenquelle',
+                    leadHtml: 'SharePoint-Liste der Meldungen. Die Status-Pipeline bleibt die Inbox.',
+                    body:
+                        '<p><code>' +
+                        esc(site) +
+                        '</code></p><p class="muted">' +
+                        esc(syncLine) +
+                        '</p><p class="muted">Lokal: ' +
+                        (s.meldungen || []).length +
+                        ' Meldungen' +
+                        (s.localDemoOnly ? ' · Demo local-first' : '') +
+                        ' · mit spoItemId: ' +
+                        (s.meldungen || []).filter((m) => m.spoItemId).length +
+                        '</p><div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-primary" data-ag-pull>Von SharePoint laden</button>' +
+                        '<a class="btn ms-sys-btn-secondary" href="sharepoint-liste-technik-meldungen.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'perms',
+                    step: '2',
+                    title: 'Berechtigungen',
+                    leadHtml: 'Melder und IT/Admin trennt Entra. Listenrechte setzt der Assistent.',
+                    body:
+                        '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-technik-meldungen.html"><i class="bi bi-shield-check"></i>Listen-Assistent</a></div>'
+                },
+                {
+                    id: 'kalender',
+                    step: '3',
+                    title: 'Kalender',
+                    leadHtml: 'Technik-Meldungen haben keinen Outlook-Feed. Der Raumplan verlinkt hierher.',
+                    body:
+                        '<div class="ms-sys-actions"><a class="btn ms-sys-btn-secondary" href="raumplan.html"><i class="bi bi-map"></i>Raumplan</a></div>'
+                },
+                {
+                    id: 'wartung',
+                    step: '4',
+                    title: 'Wartung',
+                    leadHtml: esc(stammLine),
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-secondary" data-ag-demo>Demo laden</button>' +
+                        '<a class="btn ms-sys-btn-ghost" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>' +
+                        '<a class="btn ms-sys-btn-ghost" href="../hilfe.html"><i class="bi bi-life-preserver"></i>Hilfe</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'danger',
+                    title: 'Danger Zone',
+                    danger: true,
+                    leadHtml: 'Demo-Seed und lokaler Cache. SharePoint-Zeilen bleiben, bis sie dort gelöscht werden.',
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-ag-clear-seed>Demo-Seed entfernen</button>' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-ag-clear>Lokal leeren</button>' +
+                        '</div>'
+                }
+            ]
+        });
     }
 
     function renderItem(m) {
@@ -707,6 +754,13 @@ export function mountApp(root) {
                 if (ui.view === 'inbox') ui.showAll = true;
                 render();
             });
+        });
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-tm-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
         });
         root.querySelectorAll('[data-ag-go]').forEach((btn) => {
             btn.addEventListener('click', () => {

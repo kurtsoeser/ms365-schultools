@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="src/shared/theme-boot.js"></script>
+    <script src="src/shared/theme-boot.js?v=4"></script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schul-Tools</title>
     <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <link rel="stylesheet" href="app.css?v=13">
+    <link rel="stylesheet" href="app.css?v=14">
     <style>
         body { padding-bottom: 0; }
         .help-layout {
@@ -1797,6 +1797,16 @@
                         <p class="help-open"><a href="tools/stammdaten-uebergabe.html">→ Stammdaten-Übergabe öffnen</a> · <a href="#datenschutz">→ Datenschutz</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="berechtigungen app rolle quelle schulleitung lehrkräfte gruppen übersicht">
+                        <h3 id="tool-it-berechtigungen">Berechtigungen <span class="pill">Schul-IT</span></h3>
+                        <p>
+                            Zeigt, welche Gruppen, Personen und Genehmiger in diesem Browser für die Schul-Apps gespeichert sind.
+                            Die App-Rolle selbst steht im Kopf der geöffneten App: App, Rolle, Quelle.
+                            Sie kommt aus dem angemeldeten Konto und der Einrichtung dieser App, nicht aus der Portal-Rolle.
+                        </p>
+                        <p class="help-open"><a href="tools/it-berechtigungen.html">→ Berechtigungen öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="leere gruppen report ohne mitglieder ohne besitzer aufräumen">
                         <h3 id="tool-leere-gruppen">Leere Gruppen finden <span class="pill">Report</span></h3>
                         <p>Gruppen ohne Besitzer oder ohne Mitglieder finden und gezielt aufräumen. Vor dem Löschen prüfen, ob Dateien oder Planner noch gebraucht werden.</p>
@@ -2113,7 +2123,7 @@
     </div>
     <p class="site-credit-row"><a href="https://www.kurtrocks.com/" class="site-credit-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-info-circle" aria-hidden="true"></i>kurtrocks.com</a></p>
     <script src="src/shared/help-page.js" defer></script>
-    <script src="src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="src/shared/theme-toggle.js?v=4" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
 </body>
 </html>

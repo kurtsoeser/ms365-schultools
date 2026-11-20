@@ -57,6 +57,8 @@ describe('demo-portal-teacher', () => {
         expect(first.students[0]).toEqual({
             name: 'Schüler01 DEMO',
             email: 'schueler01.demo@ms365.schule',
+            vorname: 'Schüler01',
+            nachname: 'DEMO',
             klasse: ''
         });
 

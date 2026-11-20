@@ -10,11 +10,24 @@ import {
 } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
 
 describe('freistellung KV chrome', () => {
-    it('useKvPlanerChrome nur für Rolle kv ohne Demo-Umschalter', () => {
+    it('useKvPlanerChrome folgt der aktiven Rolle, auch in der Rollen-Vorschau', () => {
         expect(useKvPlanerChrome({ role: 'kv', demoRoleOverride: false })).toBe(true);
-        expect(useKvPlanerChrome({ role: 'kv', demoRoleOverride: true })).toBe(false);
+        expect(useKvPlanerChrome({ role: 'kv', demoRoleOverride: true })).toBe(true);
         expect(useKvPlanerChrome({ role: 'direktion', demoRoleOverride: false })).toBe(false);
         expect(useStudentPlanerChrome({ role: 'kv', demoRoleOverride: false })).toBe(false);
+    });
+
+    it('Schüler-Chrome auch für Lehrkraft-Konto in der Ansicht Schüler/in', () => {
+        const state = {
+            role: 'schueler',
+            demoRoleOverride: true,
+            planerRoles: ['direktion', 'schueler'],
+            accountEmail: 'lehrer@schule.at',
+            stammdaten: { teachers: [{ email: 'lehrer@schule.at' }] }
+        };
+        expect(useStudentPlanerChrome(state)).toBe(true);
+        expect(useKvPlanerChrome(state)).toBe(false);
+        expect(useDirektionPlanerChrome(state)).toBe(false);
     });
 
     it('viewsForRole für KV bleibt flach und vollständig (Capability, kein Dauer-Modus)', () => {
@@ -49,10 +62,11 @@ describe('freistellung KV chrome', () => {
 });
 
 describe('freistellung Direktion chrome', () => {
-    it('useDirektionPlanerChrome nur für Rolle direktion ohne Demo-Umschalter', () => {
+    it('useDirektionPlanerChrome folgt der aktiven Rolle, auch in der Rollen-Vorschau', () => {
         expect(useDirektionPlanerChrome({ role: 'direktion', demoRoleOverride: false })).toBe(true);
-        expect(useDirektionPlanerChrome({ role: 'direktion', demoRoleOverride: true })).toBe(false);
+        expect(useDirektionPlanerChrome({ role: 'direktion', demoRoleOverride: true })).toBe(true);
         expect(useDirektionPlanerChrome({ role: 'kv', demoRoleOverride: false })).toBe(false);
+        expect(useStudentPlanerChrome({ role: 'direktion', demoRoleOverride: true })).toBe(false);
     });
 
     it('navSectionsForRole für Direktion sektioniert Arbeit/Auswertung/System', () => {

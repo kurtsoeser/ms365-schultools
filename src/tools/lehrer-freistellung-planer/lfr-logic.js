@@ -6,10 +6,15 @@ import {
     toIsoDateOnly,
     toIsoDateTimeLocal,
     toSharePointDateTime,
-    toDateTimeMs
+    toDateTimeMs,
+    hasClockTime
 } from '../freistellung-planer/freistellung-planer-logic.js';
 
-export { toIsoDateOnly, toIsoDateTimeLocal, toSharePointDateTime };
+export { toIsoDateOnly, toIsoDateTimeLocal, toSharePointDateTime, hasClockTime };
+
+/** ISO-8601 Datum/Zeit inkl. optionalem Z / Offset (wie von Power Automate / Graph). */
+const ISO_DT_IN_TEXT_RE =
+    /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/g;
 
 /**
  * @param {object} draft
@@ -59,6 +64,53 @@ export function itemCoversDay(item, dayIso) {
 }
 
 /**
+ * E-Mail-Vergleich (UPN/Mail, Case).
+ * @param {string} a
+ * @param {string} b
+ */
+export function emailsMatchLfr(a, b) {
+    const x = String(a || '')
+        .trim()
+        .toLowerCase();
+    const y = String(b || '')
+        .trim()
+        .toLowerCase();
+    return !!x && !!y && x === y;
+}
+
+function normPersonName(v) {
+    return String(v || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+/**
+ * Gehört der Antrag der angemeldeten Lehrkraft?
+ * Mail, Author, Anzeigename oder SharePoint-„nur eigene“ (callerVisible).
+ * @param {object} item
+ * @param {string} accountEmail
+ * @param {string} [accountName]
+ */
+export function itemOwnedByAccount(item, accountEmail, accountName) {
+    if (item && item.callerVisible) return true;
+    const email = String(accountEmail || '')
+        .trim()
+        .toLowerCase();
+    const em = String((item && item.lehrerEmail) || '')
+        .trim()
+        .toLowerCase();
+    if (email && emailsMatchLfr(em, email)) return true;
+    const author = String((item && item.authorEmail) || '')
+        .trim()
+        .toLowerCase();
+    if (email && emailsMatchLfr(author, email)) return true;
+    const want = normPersonName(accountName);
+    const got = normPersonName(item && item.lehrerName);
+    return !!(want && got && want === got);
+}
+
+/**
  * @param {object[]} items
  * @param {object} filters
  * @param {{ scopeAll?: boolean, accountEmail?: string }} scope
@@ -68,9 +120,8 @@ export function filterItems(items, filters, scope) {
     const email = String(scope.accountEmail || '').trim().toLowerCase();
     const scopeAll = !!scope.scopeAll;
     return (items || []).filter((it) => {
-        if (!scopeAll && email) {
-            const em = String(it.lehrerEmail || '').trim().toLowerCase();
-            if (em && em !== email) return false;
+        if (!scopeAll) {
+            if (!itemOwnedByAccount(it, email, scope.accountName)) return false;
         }
         if (f.status && normalizeStatus(it.status) !== normalizeStatus(f.status)) return false;
         if (f.kategorie && String(it.kategorie || '') !== String(f.kategorie)) return false;
@@ -110,6 +161,33 @@ export function formatDeDate(iso) {
     if (!d) return '–';
     const [y, m, day] = d.split('-');
     return `${day}.${m}.${y}`;
+}
+
+/**
+ * Datum/Uhrzeit für Anzeige (lokale Wandzeit, ohne Z/T-Rohformat).
+ * @param {unknown} iso
+ */
+export function formatDeDateTime(iso) {
+    const local = toIsoDateTimeLocal(iso);
+    if (!local) return '–';
+    const datePart = formatDeDate(local);
+    if (!hasClockTime(local)) return datePart;
+    const time = local.split('T')[1] || '';
+    return datePart + ', ' + time + ' Uhr';
+}
+
+/**
+ * Ersetzt ISO-Zeitstempel in Freitext (Titel, Bemerkung Direktion aus PA) für die Anzeige.
+ * Speichert nichts um – nur Darstellung.
+ * @param {unknown} text
+ */
+export function formatDisplayTextWithDeDates(text) {
+    const s = String(text == null ? '' : text);
+    if (!s) return '';
+    return s.replace(ISO_DT_IN_TEXT_RE, (match) => {
+        const pretty = formatDeDateTime(match);
+        return pretty && pretty !== '–' ? pretty : match;
+    });
 }
 
 export function formatDeDateTimeRange(beginn, ende) {

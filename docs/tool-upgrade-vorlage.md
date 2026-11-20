@@ -87,6 +87,7 @@ Vor jedem Upgrade: **Familie bestimmen**. UI-Shell und Setup sind oft gleich; Do
 **Beispiele:** `sharepoint-liste-*`, Playbooks, Power-Automate-Rezepte  
 **Kern:** Nur Schul-IT; darf „technischer“ aussehen (dashed IT-Panels ok)  
 **Upgrade-Fokus:** klare Schritte, Site-URL, Erfolgsfeedback – nicht Lehrer-Calm erzwingen  
+**Einheitliche Assistenten-Schale:** [`it-setup-assistent.md`](./it-setup-assistent.md) (`it-setup-shell.js` / `.css`) – Stepper, Status-Chips, Audience-Cards, Footer; Domäne tool-spezifisch.  
 
 ### Familien-Matrix (Orientierung)
 
@@ -171,8 +172,32 @@ Kleine Ablauf-Tools dürfen schlanker bleiben – trotzdem Logic von UI trennen,
 2. Lizenz-`ToolSiteUrl` / Bootstrap  
 3. Listen laut Schema; Codes statt Lookups  
 4. `hydrateStammdatenFromLiveSite` + `stammdatenLive`  
-5. System-View nur Staff/IT  
+5. System-View nur Staff/IT – siehe **§5.1 Systemadministration**  
 6. Optional: Listen-Assistent `sharepoint-liste-<tool>.html` und PA-Setup als **Geschwister**, nicht in die Lehrer-Nav
+
+### 5.1 Systemadministration (einheitliches Muster)
+
+**Referenz:** Schulaktivitäten · Shared: `src/shared/system-admin-shell.js` + `system-admin-shell.css`  
+**Nav-Label:** immer **Systemadministration** (nicht „System“ / „Einrichtung“ / „IT“).  
+**Zielgruppe:** Direktion/Admin darf Alltags-Einstellungen hier erledigen; volles IT-Setup bleibt Geschwister-Seite.
+
+| Tab | Inhalt (tool-spezifisch mappen) | Nicht hier |
+|-----|----------------------------------|------------|
+| **1 · Datenquelle** | Site-URL, Verbindung prüfen, Listen-Status, Link Listen-Assistent / Flow-Setup | kompletter Stepper |
+| **2 · Berechtigungen** | Genehmiger / Rollen-Überblick, Speichern wo möglich; Link zum Assistenten für Entra/Listenrechte | Wizard-Schritte 1–5 |
+| **3 · Kalender** | Feed/ICS, Outlook-Ziel, Fristen/Haupttermin – was das Tool wirklich braucht | Arbeits-Kalender-View |
+| **4 · Wartung** | Stammdaten-Diagnose, Demo laden, Hilfe | produktive Löschaktionen |
+| **Danger Zone** | Demo zurücksetzen / destruktive Aktionen – optisch getrennt | |
+
+**UI-Pflicht:** Tabs + Karten mit Step-Badge, Status-Pills, Primary/Secondary/Ghost/Danger-Buttons aus dem Shell-CSS.  
+**state.systemTab** + `data-<prefix>-sys-tab` wie in LFR/sRDP/AKT.
+
+**Rollout (weitere Tools):**  
+1. Shared Shell einbinden (HTML-CSS + `normalizeSystemTab` / `renderSystemTabBar`)  
+2. Bestehende System-/Einrichtungs-Felder in die 4 Tabs + Danger mappen  
+3. IT-Setup-/Listen-Assistent-Links unter Datenquelle/Wartung belassen  
+4. Reihenfolge: gleiche Familie zuerst (`approval-planer` → Freistellung Schüler; `register-planer` → Schularbeiten; dann `betrieb` / `projekt-buchung` / `wahl-portal` / `ablauf-kommunikation`)  
+5. Agent-Prompt: `Propagiere „Systemadministration-Tabs“ von Schulaktivitäten auf <Tool>. Shared system-admin-shell. Domäne nicht umbiegen.`
 
 ---
 
@@ -247,6 +272,7 @@ Pro Ziel-Tool: Smoke der betroffenen Personas (nicht nur Admin) **und** ein Live
 | Modul | Zweck |
 |-------|--------|
 | `ms365-calendar-shell.js/.css` | Agenda/Woche/Monat |
+| `system-admin-shell.js/.css` | Systemadministration-Tabs; Seite über `renderSystemAdminPage` |
 | `school-tool-sites.js` | Tool-Site-URL |
 | `tenant-school-site-bootstrap.js` | Lizenz → Site |
 | `school-stammdaten-spo-lists.js` | Live Klassen/Lehrer |

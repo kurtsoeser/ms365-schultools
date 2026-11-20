@@ -6,6 +6,7 @@ import {
     getBetriebToolAccount,
     resolveBetriebAdminAccess
 } from '../../shared/betrieb-admin-entra.js';
+import { announceStaffAccess } from '../../shared/app-role-chrome.js';
 
 const cache = createBetriebAdminCache();
 
@@ -26,6 +27,11 @@ export async function resolveRaumplanAdmin(email) {
         isAdmin: !!result.isAdmin,
         sources: result.sources || [],
         demo: !!result.demo
+    });
+    announceStaffAccess('raumplan', {
+        email: em,
+        isAdmin: !!result.isAdmin,
+        sources: result.sources || []
     });
     return result;
 }

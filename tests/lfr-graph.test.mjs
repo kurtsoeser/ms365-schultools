@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mapItemFromSp, mapItemToFields } from '../src/tools/lehrer-freistellung-planer/lfr-graph.js';
+import {
+    mapItemFromSp,
+    mapItemToFields,
+    mapRestListItem,
+    extractSpoItemRows
+} from '../src/tools/lehrer-freistellung-planer/lfr-graph.js';
 import { LFR_COLUMNS, STATUS_CHOICES } from '../src/tools/lehrer-freistellung-planer/lfr-schema.js';
 
 describe('lfr-graph mapping', () => {
@@ -44,6 +49,61 @@ describe('lfr-graph mapping', () => {
         });
         expect(row.beginn).toContain('2026-12-03');
         expect(row.status).toBe('Genehmigt');
+    });
+
+    it('mapItemFromSp füllt LehrerEmail aus createdBy wenn Feld leer', () => {
+        const row = mapItemFromSp({
+            id: '9',
+            createdBy: {
+                user: {
+                    email: 'Lehrer01.DEMO@ms365.schule',
+                    userPrincipalName: 'Lehrer01.DEMO@ms365.schule'
+                }
+            },
+            fields: {
+                Title: 'Skiwochenende',
+                LehrerName: 'Lehrer01 DEMO',
+                LehrerEmail: '',
+                Status: 'Ausstehend'
+            }
+        });
+        expect(row.lehrerEmail).toBe('lehrer01.demo@ms365.schule');
+        expect(row.authorEmail).toBe('lehrer01.demo@ms365.schule');
+    });
+
+    it('mapRestListItem markiert die SharePoint-Benutzersicht', () => {
+        const raw = mapRestListItem({
+            Id: 4,
+            Title: 'Skiwochenende',
+            LehrerName: 'Lehrer01 DEMO',
+            LehrerEmail: 'lehrer01.demo@ms365.schule',
+            Status: 'Ausstehend',
+            Beginn: '/Date(1764734400000)/'
+        });
+        const row = mapItemFromSp(raw);
+        expect(row.callerVisible).toBe(true);
+        expect(row.titel).toBe('Skiwochenende');
+        expect(row.lehrerEmail).toBe('lehrer01.demo@ms365.schule');
+        expect(row.beginn).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('extractSpoItemRows liest die Listenansicht (Row)', () => {
+        const rows = extractSpoItemRows({
+            Row: [
+                {
+                    ID: '4',
+                    Title: 'Skiwochenende',
+                    LehrerName: 'Lehrer01 DEMO',
+                    LehrerEmail: 'lehrer01.demo@ms365.schule',
+                    Beginn: '03.12.2026 08:00'
+                }
+            ]
+        });
+        const mapped = mapItemFromSp(mapRestListItem(rows[0]));
+        expect(mapped.callerVisible).toBe(true);
+        expect(mapped.titel).toBe('Skiwochenende');
+        expect(mapped.lehrerEmail).toBe('lehrer01.demo@ms365.schule');
+        expect(mapped.beginn).toBe('2026-12-03T08:00');
     });
 
     it('mapItemToFields schreibt Schema-Spalten und AntragId', () => {

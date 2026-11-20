@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Berechtigungen</title>
+    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-shield-check"></i>Berechtigungen</span>
+            </div>
+            <p>Wer in diesem Browser für welche Schul-App eingerichtet ist. Die App-Rolle entsteht erst beim Öffnen der jeweiligen App.</p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+            </div>
+        </div>
+        <div class="content">
+            <div id="itPermApp" aria-live="polite"></div>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script type="module" src="../src/tools/it-berechtigungen/it-berechtigungen.js"></script>
+</body>
+</html>

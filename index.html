@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script src="src/shared/theme-boot.js?v=4"></script>
     <script src="src/pages/index-boot.js"></script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
@@ -8,9 +9,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Start</title>
     <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <link rel="stylesheet" href="app.css?v=22">
-    <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=11">
-    <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=13">
+    <link rel="stylesheet" href="app.css?v=23">
+    <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=12">
+    <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=14">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=3">
@@ -3533,6 +3534,11 @@
                                 <p>Zoombarer Graph: Klassen, Fächer, ARGE, Lehrkräfte, Unterrichtsbelegung, Eltern/Schüler und M365-Gruppen.</p>
                                 <a class="btn" href="tools/schulgraph.html"><i class="bi bi-diagram-2"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Berechtigungen" data-tool-id="it-berechtigungen" data-cluster="uebersicht" data-search="berechtigungen app rolle rechte übersicht schulleitung lehrkräfte gruppen" draggable="true">
+                                <h2><i class="bi bi-shield-check"></i>Berechtigungen</h2>
+                                <p>Wer in den Schul-Apps eingerichtet ist – Gruppen, Personen, Genehmiger. Die App-Rolle steht im Kopf jeder App.</p>
+                                <a class="btn" href="tools/it-berechtigungen.html"><i class="bi bi-shield-check"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Stammdaten-Übergabe" data-tool-id="stammdaten-uebergabe" data-cluster="uebersicht" data-search="stammdaten übergabe sharepoint backup json document library intranet" draggable="true">
                                 <h2><i class="bi bi-cloud-arrow-up"></i>Stammdaten-Übergabe</h2>
                                 <p>Browser-Backup als JSON in die Intranet-Dokumentbibliothek – für PC-Wechsel und IT-Übergabe.</p>
@@ -3585,7 +3591,7 @@
     <script src="ms365-config.js"></script>
     <script src="src/shared/graph-unified-groups.js" defer></script>
     <script type="module" src="src/shared/msal-auth-ui.js?v=20261118"></script>
-    <script src="src/shared/theme-toggle.js?v=3" defer></script>
+    <script src="src/shared/theme-toggle.js?v=4" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>

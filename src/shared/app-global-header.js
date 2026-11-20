@@ -41,6 +41,13 @@ export function ensureAppHeaderChrome() {
             .catch(function () {
                 /* ignore */
             });
+        import('./app-role-chrome.js')
+            .then(function (m) {
+                if (m && typeof m.bootAppRoleChrome === 'function') m.bootAppRoleChrome();
+            })
+            .catch(function () {
+                /* ignore */
+            });
         return true;
     }
 
@@ -79,6 +86,14 @@ export function mountAppGlobalHeader() {
     import('./app-tool-chrome.js')
         .then(function (m) {
             if (m && typeof m.bootToolPageChrome === 'function') m.bootToolPageChrome();
+        })
+        .catch(function () {
+            /* ignore */
+        });
+
+    import('./app-role-chrome.js')
+        .then(function (m) {
+            if (m && typeof m.bootAppRoleChrome === 'function') m.bootAppRoleChrome();
         })
         .catch(function () {
             /* ignore */

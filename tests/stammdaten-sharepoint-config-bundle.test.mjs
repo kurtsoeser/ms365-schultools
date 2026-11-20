@@ -44,6 +44,34 @@ describe('stammdaten-sharepoint-config-bundle', () => {
         expect(core.body.localStorage['ms365-unknown-local-only']).toBeUndefined();
     });
 
+    it('legt Schulaktivitäten- und sRDP-Rechte ins Konfigurationspaket', () => {
+        const payload = {
+            exportedAt: '2026-11-19T12:00:00.000Z',
+            localStorage: {
+                'ms365-schulaktivitaeten-perms-v1': '{"groupAdminId":"g-admin"}',
+                'ms365-akt-setup-v1': '{"emailDirektion":"dir@schule.at"}',
+                'ms365-srdp-list-perms-v1': '{"adminGroups":[]}',
+                'ms365-srdp-mail-setup-v1': '{"from":"srdp@schule.at"}',
+                'ms365-srdp-anmeldung-v1': '{"terminJahr":2027}',
+                'ms365-srdp-planer-site-v1': 'https://schule.sharepoint.com/sites/Intranet'
+            }
+        };
+        const bundle = buildConfigBundleFromBackup(payload);
+        const akt = bundle.files.find((f) => f.id === 'permissions-schulaktivitaeten');
+        const srdp = bundle.files.find((f) => f.id === 'permissions-srdp');
+        expect(akt.body.localStorage['ms365-schulaktivitaeten-perms-v1']).toContain('g-admin');
+        expect(akt.body.localStorage['ms365-akt-setup-v1']).toContain('dir@schule.at');
+        expect(srdp.body.localStorage['ms365-srdp-list-perms-v1']).toContain('adminGroups');
+        expect(srdp.body.localStorage['ms365-srdp-mail-setup-v1']).toContain('srdp@schule.at');
+        expect(srdp.body.localStorage['ms365-srdp-anmeldung-v1']).toContain('2027');
+        expect(srdp.body.localStorage['ms365-srdp-planer-site-v1']).toContain('Intranet');
+        const apps = bundle.files.find((f) => f.id === 'school-apps-settings');
+        expect(apps.body.localStorage['ms365-akt-setup-v1']).toBeUndefined();
+        const merged = mergeConfigPartsLocalStorage([akt.body, srdp.body]);
+        expect(merged['ms365-schulaktivitaeten-perms-v1']).toContain('g-admin');
+        expect(merged['ms365-srdp-list-perms-v1']).toContain('adminGroups');
+    });
+
     it('legt Schul-Organigramm als eigene Config-Datei ab', () => {
         const v2 = {
             core: {

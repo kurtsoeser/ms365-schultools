@@ -271,8 +271,8 @@ body.app-shell-chrome .container.page-card {
     color: #fff;
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--brand1) 92%, #064e3b) 0%,
-        color-mix(in srgb, var(--brand2) 88%, #064e3b) 100%
+        color-mix(in srgb, var(--brand1) 92%, #0c1222) 0%,
+        color-mix(in srgb, var(--brand2) 88%, #0c1222) 100%
     );
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
@@ -296,8 +296,8 @@ html.dash-header-scrolled .dash-greeting-band {
 html[data-theme="dark"] .dash-greeting-band {
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--brand1) 58%, #042f2a) 0%,
-        color-mix(in srgb, var(--brand2) 48%, #042f2a) 100%
+        color-mix(in srgb, var(--brand1) 78%, #070b12) 0%,
+        color-mix(in srgb, var(--brand2) 70%, #070b12) 100%
     );
 }
 
@@ -550,4 +550,21 @@ body.app-shell-chrome:has(#ms365HeaderSchulregister) .app-tool-subheader .toolba
 
 .dash-compact-header__actions .ms365-backup-panel__status--warn {
     color: #9a3412;
+}
+
+.ms365-app-role-chip {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: 28px;
+    padding: 0 12px;
+    margin-right: 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--brand1, #5b4bdb) 16%, #fff);
+    color: var(--brand1, #3a2f9a);
+    border: 1px solid color-mix(in srgb, var(--brand1, #5b4bdb) 38%, #fff);
 }

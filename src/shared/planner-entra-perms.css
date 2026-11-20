@@ -1,14 +1,44 @@
 /* Entra-Gruppen + Einzelpersonen (Freistellungen-Setup, Schularbeiten-Planer, Listen-Tools) */
 
+.fr-setup-perm-grid-host {
+    display: block;
+    width: 100%;
+    max-width: none;
+}
+
+.fr-setup-perm-grid-host > .fr-setup-perm-grid {
+    width: 100%;
+}
+
 .fr-setup-perm-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: 14px;
     margin-top: 4px;
+    width: 100%;
+    max-width: none;
 }
 
-@media (max-width: 960px) {
-    .fr-setup-perm-grid {
+/* Eine Rolle pro Wizard-Schritt (Genehmigung / Einreicher): volle Pane-Breite */
+.fr-setup-perm-grid--single {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: none;
+}
+
+/* Zwei Rollen nebeneinander (falls zusammen gerendert) */
+.fr-setup-perm-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+    .fr-setup-perm-grid:not(.fr-setup-perm-grid--single) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .fr-setup-perm-grid,
+    .fr-setup-perm-grid--two {
         grid-template-columns: 1fr;
     }
 }
@@ -16,12 +46,15 @@
 .fr-setup-perm-card {
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 14px 14px 12px;
+    padding: 16px 18px 14px;
     background: var(--soft);
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-height: 100%;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .fr-setup-perm-card__head {
@@ -61,6 +94,19 @@
     color: var(--muted);
 }
 
+.fr-setup-perm-card--embedded {
+    background: transparent;
+    border-style: dashed;
+}
+
+.fr-setup-perm-grid--embedded {
+    margin-top: 0;
+}
+
+.fr-setup-perm-card--embedded .fr-setup-perm-sub:first-child {
+    margin-top: 0;
+}
+
 .fr-setup-egp {
     display: flex;
     flex-wrap: wrap;
@@ -69,22 +115,41 @@
     margin-top: 4px;
 }
 
-.fr-setup-egp input[type='text'] {
-    flex: 1 1 100%;
+/* Breite Karten: Suchfeld + Buttons in einer Zeile */
+.fr-setup-perm-grid--single .fr-setup-egp:not(.fr-setup-egp--tight),
+.fr-setup-perm-grid-host .fr-setup-egp:not(.fr-setup-egp--tight) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.fr-setup-egp input[type='text'],
+.fr-setup-egp input[type='email'] {
+    flex: 1 1 12rem;
     min-width: 0;
+    width: 100%;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 8px 10px;
     font-size: 0.85rem;
+    box-sizing: border-box;
+}
+
+.fr-setup-egp input[type='text'][readonly] {
+    cursor: pointer;
 }
 
 .fr-setup-egp .btn-sm {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .fr-setup-egp--tight {
     margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
 }
 
 .fr-setup-user-list {
@@ -98,10 +163,16 @@
     overflow: auto;
 }
 
+.fr-setup-user-list > li {
+    list-style: none;
+}
+
 .fr-setup-user-row {
+    list-style: none;
     display: flex;
     align-items: center;
     gap: 6px;
+    margin: 0;
     padding: 4px 6px 4px 10px;
     font-size: 0.84rem;
     line-height: 1.35;

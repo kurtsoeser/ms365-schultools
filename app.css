@@ -1,6 +1,7 @@
 /* Gemeinsames Styling für alle Tool-Seiten (tools/*.html)
- * Design-Foundation: Tokens (Light/Dark × Brand teal|classic), Buttons, Tabs, Panels.
- * Brand-Standard: teal (Landing). Klassisch (Violett) via html[data-brand="classic"]. Dunkelrot via html[data-brand="wine"].
+ * Design-Foundation: Tokens (Hell/Dunkel × Marke), Buttons, Tabs, Panels.
+ * Marken am Dateiende: teal, classic, wine, azure, forest, amber, custom.
+ * Standard ohne data-brand bleibt Blau-Grün (teal).
  */
 @import url('src/shared/tools-dark.css');
 @import url('src/shared/dashboard-dark.css');
@@ -49,7 +50,7 @@
     --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
     --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
 
-    /* Planer-/Schultool-Apps: Sidebar folgt Marke (teal|classic|wine) × Hell/Dunkel */
+    /* Planer-/Schultool-Apps: Sidebar folgt der gewählten Marke × Hell/Dunkel */
     --bg: var(--soft);
     --surface-2: var(--surface-muted);
     --planner-nav-fg: #f8fafc;
@@ -173,120 +174,6 @@ html[data-theme="light"] {
     --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.28);
     --icon-muted: rgba(255, 255, 255, 0.92);
     --icon-dim: rgba(33, 37, 41, 0.72);
-}
-
-/* Klassisch: Violett (bisheriges Design) */
-html[data-brand="classic"],
-html[data-brand="classic"][data-theme="light"] {
-    --app-backdrop-paper: #f5f6fb;
-    --app-backdrop-grad-a: #f5f6fb;
-    --app-backdrop-grad-b: #eef0f8;
-    --app-backdrop-grad-c: #e6eaf5;
-    --app-backdrop-glow-primary: rgba(94, 114, 228, 0.2);
-    --app-backdrop-glow-accent: rgba(118, 75, 162, 0.14);
-
-    --bg1: #667eea;
-    --bg2: #764ba2;
-    --brand1: #5e72e4;
-    --brand2: #825ee4;
-    --border-strong: rgba(94, 114, 228, 0.28);
-    --soft: #f5f6fb;
-    --surface-muted: #eef0f8;
-    --code-bg: #eef0ff;
-    --text: #1e2440;
-    --heading: #1e2440;
-    --text-secondary: #5c6578;
-}
-
-html[data-brand="classic"][data-theme="dark"] {
-    --app-backdrop-paper: #10121f;
-    --app-backdrop-grad-a: #10121f;
-    --app-backdrop-grad-b: #1a2042;
-    --app-backdrop-grad-c: #241e48;
-    --app-backdrop-glow-primary: rgba(123, 140, 255, 0.18);
-    --app-backdrop-glow-accent: rgba(167, 139, 250, 0.12);
-
-    --bg1: #2a2f6b;
-    --bg2: #3b1f63;
-    --brand1: #7b8cff;
-    --brand2: #a78bfa;
-    --border-strong: rgba(123, 140, 255, 0.35);
-    --soft: #15182a;
-    --surface-muted: #24283e;
-    --code-bg: #2a2f48;
-    --card: #1c1f33;
-    --card-elevated: rgba(36, 40, 62, 0.88);
-    --text: #e8eaf4;
-    --heading: #f3f4ff;
-    --text-secondary: #aeb4c8;
-    --muted: #9aa3b8;
-}
-
-/* Dunkelrot: Burgunder mit Verlauf */
-html[data-brand="wine"],
-html[data-brand="wine"][data-theme="light"] {
-    --app-backdrop-paper: #faf5f5;
-    --app-backdrop-grad-a: #faf5f5;
-    --app-backdrop-grad-b: #f5ebe8;
-    --app-backdrop-grad-c: #fce8ec;
-    --app-backdrop-glow-primary: rgba(185, 28, 28, 0.14);
-    --app-backdrop-glow-accent: rgba(127, 29, 29, 0.1);
-
-    --bg1: #7f1d1d;
-    --bg2: #1a0a0f;
-    --brand1: #b91c1c;
-    --brand2: #7f1d1d;
-    --border-strong: rgba(185, 28, 28, 0.32);
-    --soft: #faf5f5;
-    --surface-muted: #f5e8e8;
-    --code-bg: #fce8e8;
-    --text: #1a0a0f;
-    --heading: #2d0a12;
-    --text-secondary: #6b4f52;
-}
-
-html[data-brand="wine"][data-theme="dark"] {
-    --app-backdrop-paper: #120608;
-    --app-backdrop-grad-a: #120608;
-    --app-backdrop-grad-b: #1a0a10;
-    --app-backdrop-grad-c: #2a1018;
-    --app-backdrop-glow-primary: rgba(248, 113, 113, 0.14);
-    --app-backdrop-glow-accent: rgba(220, 38, 38, 0.1);
-
-    --bg1: #3f0f14;
-    --bg2: #120608;
-    --brand1: #f87171;
-    --brand2: #dc2626;
-    --border-strong: rgba(248, 113, 113, 0.38);
-    --soft: #1a0c10;
-    --surface-muted: #2a1418;
-    --code-bg: #32181c;
-    --card: #1e1014;
-    --card-elevated: rgba(42, 20, 26, 0.92);
-    --text: #f5ecee;
-    --heading: #fff5f6;
-    --text-secondary: #c9aeb4;
-    --muted: #a89096;
-}
-
-/* Teal explizit (z. B. nach Wechsel von Klassisch) */
-html[data-brand="teal"],
-html[data-brand="teal"][data-theme="light"] {
-    --app-backdrop-paper: #f4f7fb;
-    --app-backdrop-grad-a: #f4f7fb;
-    --app-backdrop-grad-b: #e8f4f1;
-    --app-backdrop-grad-c: #dff5f0;
-    --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
-    --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
-}
-
-html[data-brand="teal"][data-theme="dark"] {
-    --app-backdrop-paper: #07101f;
-    --app-backdrop-grad-a: #07101f;
-    --app-backdrop-grad-b: #0a2540;
-    --app-backdrop-grad-c: #0a3d36;
-    --app-backdrop-glow-primary: rgba(20, 196, 171, 0.16);
-    --app-backdrop-glow-accent: rgba(13, 159, 138, 0.1);
 }
 
 * {
@@ -694,8 +581,8 @@ a.dash-playbook-card:active {
     top: calc(100% + 8px);
     right: 0;
     z-index: 40;
-    min-width: 260px;
-    max-width: min(340px, calc(100vw - 32px));
+    min-width: 300px;
+    max-width: min(380px, calc(100vw - 24px));
     padding: 8px;
     border-radius: 12px;
     background: #fff;
@@ -1008,28 +895,28 @@ a.ms365-auth-menu__item:visited {
 
 .ms365-auth-menu__brand-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     padding: 0 4px 4px;
 }
-
-.ms365-auth-menu__brand-row--pair {
-    grid-template-columns: repeat(2, 1fr);
-}
 .ms365-auth-menu__brand {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     margin: 0;
-    padding: 8px 6px;
+    padding: 8px 4px;
     border-radius: 8px;
     border: 1px solid rgba(12, 18, 34, 0.12);
     background: #f8fafc;
     color: #32325d;
     font: inherit;
-    font-size: 0.82em;
+    font-size: 0.75em;
     font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
     cursor: pointer;
 }
 .ms365-auth-menu__brand:hover {
@@ -1058,8 +945,81 @@ a.ms365-auth-menu__item:visited {
 .ms365-auth-menu__brand-swatch--wine {
     background: linear-gradient(135deg, #991b1b, #450a0a);
 }
+.ms365-auth-menu__brand-swatch--azure {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+.ms365-auth-menu__brand-swatch--forest {
+    background: linear-gradient(135deg, #15803d, #166534);
+}
+.ms365-auth-menu__brand-swatch--amber {
+    background: linear-gradient(135deg, #c2410c, #9a3412);
+}
 .ms365-auth-menu__brand-swatch--dark {
     background: linear-gradient(135deg, #1e293b, #0f172a);
+}
+.ms365-auth-menu__custom {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 2px 4px 4px;
+}
+.ms365-auth-menu__custom-preview {
+    display: grid;
+    grid-template-rows: 14px 14px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(12, 18, 34, 0.12);
+}
+.ms365-auth-menu__custom-preview-header {
+    background: linear-gradient(135deg, var(--preview-1, #0d9f8a), var(--preview-2, #12b59c));
+}
+.ms365-auth-menu__custom-preview-page {
+    background: color-mix(in srgb, var(--preview-tint, #0d9f8a) 16%, var(--preview-page, #f6f7f9));
+}
+.ms365-auth-menu__custom-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+.ms365-auth-menu__custom-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.78em;
+    font-weight: 700;
+}
+.ms365-auth-menu__custom-field input[type='color'] {
+    width: 2rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 1px solid rgba(12, 18, 34, 0.16);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+}
+.ms365-auth-menu__custom-save {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(12, 18, 34, 0.12);
+    background: #f8fafc;
+    color: #32325d;
+    font: inherit;
+    font-size: 0.82em;
+    font-weight: 800;
+    cursor: pointer;
+}
+.ms365-auth-menu__custom-save:hover {
+    background: #fff;
+    border-color: color-mix(in srgb, var(--brand1) 45%, transparent);
+}
+.ms365-auth-menu__custom-save.is-active,
+.ms365-auth-menu__custom-save[aria-checked='true'] {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 12%, #fff);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 18%, transparent);
 }
 html[data-theme="dark"] .ms365-auth-menu__section {
     border-bottom-color: rgba(255, 255, 255, 0.1);
@@ -1088,6 +1048,22 @@ html[data-theme="dark"] .ms365-auth-menu__brand:hover {
 html[data-theme="dark"] .ms365-auth-menu__brand.is-active,
 html[data-theme="dark"] .ms365-auth-menu__brand[aria-checked="true"] {
     background: color-mix(in srgb, var(--brand1) 22%, #1a2638);
+}
+html[data-theme="dark"] .ms365-auth-menu__custom-save {
+    background: #1a2638;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e8eef6;
+}
+html[data-theme="dark"] .ms365-auth-menu__custom-save:hover {
+    background: #243044;
+}
+html[data-theme="dark"] .ms365-auth-menu__custom-save.is-active,
+html[data-theme="dark"] .ms365-auth-menu__custom-save[aria-checked='true'] {
+    background: color-mix(in srgb, var(--brand1) 22%, #1a2638);
+}
+html[data-theme="dark"] .ms365-auth-menu__custom-preview,
+html[data-theme="dark"] .ms365-auth-menu__custom-field input[type='color'] {
+    border-color: rgba(255, 255, 255, 0.12);
 }
 html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn {
     background: #1a2638;
@@ -1887,6 +1863,11 @@ th {
     font-weight: 600;
     position: sticky;
     top: 0;
+}
+/* Inline-Styles (display:inline-block) dürfen IT-Links nicht sichtbar lassen. */
+[data-ms365-frontend-it-only][hidden],
+[data-sa-it-only][hidden] {
+    display: none !important;
 }
 .kt-sortable-th { cursor: pointer; user-select: none; }
 .kt-sort-indicator { opacity: 0.95; margin-left: 6px; font-weight: 900; }
@@ -7685,6 +7666,184 @@ html[data-brand="teal"][data-theme="dark"] {
     --app-backdrop-grad-c: #0a3d36;
     --app-backdrop-glow-primary: rgba(20, 196, 171, 0.16);
     --app-backdrop-glow-accent: rgba(13, 159, 138, 0.1);
+}
+
+html[data-brand="azure"][data-theme="light"] {
+    --app-backdrop-paper: #f4f7fb;
+    --app-backdrop-grad-a: #f4f7fb;
+    --app-backdrop-grad-b: #e8eef8;
+    --app-backdrop-grad-c: #dbe7f7;
+    --app-backdrop-glow-primary: rgba(29, 78, 216, 0.16);
+    --app-backdrop-glow-accent: rgba(30, 64, 175, 0.1);
+
+    --bg1: #1e3a8a;
+    --bg2: #0f2744;
+    --brand1: #1d4ed8;
+    --brand2: #1e40af;
+    --border-strong: rgba(29, 78, 216, 0.32);
+    --soft: #f3f6fb;
+    --surface-muted: #e7eef8;
+    --code-bg: #e8f0fc;
+    --text: #0f172a;
+    --heading: #0f2744;
+    --text-secondary: #475569;
+}
+
+html[data-brand="azure"][data-theme="dark"] {
+    --app-backdrop-paper: #070b14;
+    --app-backdrop-grad-a: #070b14;
+    --app-backdrop-grad-b: #0c1830;
+    --app-backdrop-grad-c: #102448;
+    --app-backdrop-glow-primary: rgba(96, 165, 250, 0.16);
+    --app-backdrop-glow-accent: rgba(37, 99, 235, 0.1);
+
+    --bg1: #0f2744;
+    --bg2: #132a4a;
+    --brand1: #60a5fa;
+    --brand2: #3b82f6;
+    --border-strong: rgba(96, 165, 250, 0.38);
+    --soft: #0c1422;
+    --surface-muted: #152238;
+    --code-bg: #1a2c48;
+    --card: #10182a;
+    --card-elevated: rgba(16, 24, 42, 0.92);
+    --text: #e8eef6;
+    --heading: #f4f7ff;
+    --text-secondary: #a8b8cc;
+    --muted: #8b9aab;
+}
+
+html[data-brand="forest"][data-theme="light"] {
+    --app-backdrop-paper: #f4faf6;
+    --app-backdrop-grad-a: #f4faf6;
+    --app-backdrop-grad-b: #e7f5ec;
+    --app-backdrop-grad-c: #dcf0e4;
+    --app-backdrop-glow-primary: rgba(21, 128, 61, 0.14);
+    --app-backdrop-glow-accent: rgba(22, 101, 52, 0.1);
+
+    --bg1: #14532d;
+    --bg2: #052e16;
+    --brand1: #15803d;
+    --brand2: #166534;
+    --border-strong: rgba(21, 128, 61, 0.32);
+    --soft: #f3faf5;
+    --surface-muted: #e5f4ea;
+    --code-bg: #e3f6ea;
+    --text: #052e16;
+    --heading: #14532d;
+    --text-secondary: #3d5a4c;
+}
+
+html[data-brand="forest"][data-theme="dark"] {
+    --app-backdrop-paper: #07110c;
+    --app-backdrop-grad-a: #07110c;
+    --app-backdrop-grad-b: #0c1f14;
+    --app-backdrop-grad-c: #123524;
+    --app-backdrop-glow-primary: rgba(74, 222, 128, 0.14);
+    --app-backdrop-glow-accent: rgba(34, 197, 94, 0.1);
+
+    --bg1: #052e16;
+    --bg2: #0a1f12;
+    --brand1: #4ade80;
+    --brand2: #22c55e;
+    --border-strong: rgba(74, 222, 128, 0.38);
+    --soft: #0c1610;
+    --surface-muted: #14261c;
+    --code-bg: #183024;
+    --card: #0e1c14;
+    --card-elevated: rgba(20, 38, 28, 0.92);
+    --text: #e8f6ee;
+    --heading: #f3fff6;
+    --text-secondary: #b7d0c2;
+    --muted: #8eaa9a;
+}
+
+html[data-brand="amber"][data-theme="light"] {
+    --app-backdrop-paper: #fbf7f2;
+    --app-backdrop-grad-a: #fbf7f2;
+    --app-backdrop-grad-b: #f6eee4;
+    --app-backdrop-grad-c: #fdecd8;
+    --app-backdrop-glow-primary: rgba(194, 65, 12, 0.14);
+    --app-backdrop-glow-accent: rgba(154, 52, 18, 0.1);
+
+    --bg1: #9a3412;
+    --bg2: #431407;
+    --brand1: #c2410c;
+    --brand2: #9a3412;
+    --border-strong: rgba(194, 65, 12, 0.32);
+    --soft: #fbf7f2;
+    --surface-muted: #f6eee4;
+    --code-bg: #fdecd8;
+    --text: #431407;
+    --heading: #7c2d12;
+    --text-secondary: #7c5a45;
+}
+
+html[data-brand="amber"][data-theme="dark"] {
+    --app-backdrop-paper: #140c08;
+    --app-backdrop-grad-a: #140c08;
+    --app-backdrop-grad-b: #24140c;
+    --app-backdrop-grad-c: #3a1c0c;
+    --app-backdrop-glow-primary: rgba(251, 146, 60, 0.16);
+    --app-backdrop-glow-accent: rgba(249, 115, 22, 0.1);
+
+    --bg1: #431407;
+    --bg2: #2a0e05;
+    --brand1: #fb923c;
+    --brand2: #f97316;
+    --border-strong: rgba(251, 146, 60, 0.38);
+    --soft: #1a100c;
+    --surface-muted: #2a1810;
+    --code-bg: #321c12;
+    --card: #1c100c;
+    --card-elevated: rgba(42, 24, 16, 0.92);
+    --text: #f8efe8;
+    --heading: #fff7f0;
+    --text-secondary: #d4b8a4;
+    --muted: #b09888;
+}
+
+html[data-brand="custom"][data-theme="light"] {
+    --bg1: color-mix(in srgb, var(--brand1) 78%, #0c1222);
+    --bg2: color-mix(in srgb, var(--brand2) 68%, #0c1222);
+    --border-strong: color-mix(in srgb, var(--brand1) 32%, transparent);
+    --soft: color-mix(in srgb, var(--brand1) 8%, #f7f8fa);
+    --surface-muted: color-mix(in srgb, var(--brand1) 12%, #f7f8fa);
+    --code-bg: color-mix(in srgb, var(--brand1) 10%, #ffffff);
+    --app-backdrop-paper: #f6f7f9;
+    --app-backdrop-grad-a: #f6f7f9;
+    --app-backdrop-grad-b: color-mix(in srgb, var(--brand1) 8%, #f6f7f9);
+    --app-backdrop-grad-c: color-mix(in srgb, var(--brand1) 14%, #f6f7f9);
+    --app-backdrop-glow-primary: color-mix(in srgb, var(--brand1) 18%, transparent);
+    --app-backdrop-glow-accent: color-mix(in srgb, var(--brand2) 12%, transparent);
+    --text: #0c1222;
+    --heading: #0c1222;
+    --text-secondary: #5b6b82;
+}
+
+html[data-brand="custom"][data-theme="dark"] {
+    --bg1: color-mix(in srgb, var(--brand1) 42%, #070b12);
+    --bg2: color-mix(in srgb, var(--brand2) 36%, #070b12);
+    --border-strong: color-mix(in srgb, var(--brand1) 42%, transparent);
+    --soft: color-mix(in srgb, var(--brand1) 10%, #0c1420);
+    --surface-muted: color-mix(in srgb, var(--brand1) 16%, #121a28);
+    --code-bg: color-mix(in srgb, var(--brand1) 14%, #121a28);
+    --card: color-mix(in srgb, var(--brand1) 8%, #121a28);
+    --card-elevated: color-mix(in srgb, var(--brand1) 12%, #162030);
+    --app-backdrop-paper: #070b12;
+    --app-backdrop-grad-a: #070b12;
+    --app-backdrop-grad-b: color-mix(in srgb, var(--brand1) 16%, #070b12);
+    --app-backdrop-grad-c: color-mix(in srgb, var(--brand2) 22%, #070b12);
+    --app-backdrop-glow-primary: color-mix(in srgb, var(--brand1) 20%, transparent);
+    --app-backdrop-glow-accent: color-mix(in srgb, var(--brand2) 14%, transparent);
+    --text: #e8eef6;
+    --heading: #f2f6fb;
+    --text-secondary: #a8b4c4;
+    --muted: #8b9aab;
+}
+
+html[data-brand="custom"] .header {
+    background: linear-gradient(135deg, var(--brand-header-1, var(--brand1)) 0%, var(--brand-header-2, var(--brand2)) 100%);
 }
 
 /* Admin Feedback Inbox */

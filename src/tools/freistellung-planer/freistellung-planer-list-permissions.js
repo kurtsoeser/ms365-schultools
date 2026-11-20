@@ -16,6 +16,7 @@ import { collectAllClassRows } from './freistellung-planer-class-context.js';
 import { loadStammdaten } from './freistellung-planer-state.js';
 import { normalizePlannerUsers } from './freistellung-planer-direktion-users.js';
 import { entraGroupLogonName } from '../../shared/stammdaten-sharepoint-sync-logic.js';
+import { resolveFlowServiceAccount } from '../../shared/flow-service-account-list-access.js';
 
 /**
  * KV: „Gestaltung“ (enthält Listen verwalten – sonst bei ReadSecurity=2 nur eigene Elemente, auch mit „Bearbeiten“).
@@ -349,7 +350,10 @@ export async function grantFreistellungKlassenvorstandListAccess(ctx, listTitle,
 export async function applyFreistellungListPermissions(siteWebUrl, listTitle, configPatch, logFn) {
     const write = typeof logFn === 'function' ? logFn : () => {};
     const patch = configPatch || {};
-    const flowServiceAccount = String(patch.flowServiceAccount || '').trim().toLowerCase();
+    const flowServiceAccount = resolveFlowServiceAccount(
+        'freistellung',
+        patch.flowServiceAccount
+    );
     const fr = normalizePermissionsConfig({ ...loadPermissionsConfig(), ...patch });
     const title = String(listTitle || '').trim() || 'Freistellungen';
     const listId = String(patch.listId || fr.listId || '').trim();

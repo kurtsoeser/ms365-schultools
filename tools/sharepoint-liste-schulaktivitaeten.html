@@ -1,44 +1,18 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js"></script>
+    <script src="../src/shared/theme-boot.js?v=4"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Schulaktivitäten-Listen</title>
-    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../app.css?v=14">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/it-setup-shell.css">
     <link rel="stylesheet" href="../src/shared/planner-entra-perms.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .spakt-wizard-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-        .spakt-wizard-glance--nav .tm-glance__card {
-            appearance: none;
-            margin: 0;
-            cursor: pointer;
-            text-align: left;
-            font: inherit;
-            color: inherit;
-            width: 100%;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-        }
-        .spakt-wizard-glance--nav .tm-glance__card:hover {
-            border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
-        }
-        .spakt-wizard-glance--nav .tm-glance__card.is-active {
-            border-color: var(--brand1);
-            background: color-mix(in srgb, var(--brand1) 14%, var(--card));
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 28%, transparent);
-        }
-        .spakt-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label { color: var(--brand1); }
-        .spakt-wizard-glance--nav .tm-glance__card.is-active i { color: var(--brand1); }
-        @media (max-width: 720px) {
-            .spakt-wizard-glance { grid-template-columns: 1fr 1fr; }
-        }
-        .fr-setup-perm-grid--single { grid-template-columns: 1fr; max-width: 36rem; }
-        .spakt-summary-list { margin: 0; padding-left: 1.15em; line-height: 1.55; }
-        .spakt-summary-list li { margin-bottom: 8px; }
         #spaktLogPanel[open] { margin-top: 12px; }
         #spaktLog { min-height: 140px; max-height: 320px; overflow: auto; }
         #spaktWizardRunFooter { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -69,7 +43,7 @@
                 <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte + Sites.FullControl.All für Rechte</span>
             </div>
 
-            <section class="tm-glance tm-glance--compact spakt-wizard-glance spakt-wizard-glance--nav" id="spaktWizardGlance" role="tablist" aria-label="Schulaktivitäten-Listen Schritte">
+            <section class="tm-glance tm-glance--compact spakt-wizard-glance spakt-wizard-glance--nav it-setup-glance it-setup-glance--nav it-setup-glance--cols-4" id="spaktWizardGlance" role="tablist" aria-label="Schulaktivitäten-Listen Schritte">
                 <button type="button" role="tab" class="tm-glance__card is-active" data-spakt-wizard-step="1" aria-selected="true" aria-controls="spaktWizardStep1">
                     <i class="bi bi-link-45deg" aria-hidden="true"></i>
                     <span class="tm-glance__label">1 · Website</span>
@@ -172,7 +146,7 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>

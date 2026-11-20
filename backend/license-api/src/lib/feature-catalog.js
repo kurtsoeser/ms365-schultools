@@ -32,6 +32,7 @@ const LICENSE_PACKAGES = [
             'schul-organigramm',
             'schulgraph',
             'stammdaten-uebergabe',
+            'it-berechtigungen',
             'stammdaten-backup-abgleich',
             'cleanup-playbook',
             'datei-migration',

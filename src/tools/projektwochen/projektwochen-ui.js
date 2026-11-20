@@ -36,6 +36,7 @@ import {
 } from './projektwochen-logic.js';
 import { countPendingBookingsSync } from './projektwochen-bookings-logic.js';
 import { formatPwSpoSyncLine } from './projektwochen-sync.js';
+import { renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 function occupancyLabel(state, angebot) {
     const sid = String((angebot && angebot.bookingsServiceId) || '').trim();
@@ -350,7 +351,7 @@ function renderTop(state) {
                 : '<span class="pw-conn">Nicht verbunden</span>';
     const adminHint =
         state.role === 'admin' && !state.bootstrapped
-            ? '<button type="button" class="btn btn-sm" data-pw-view="einstellungen"><i class="bi bi-gear"></i>Einstellungen</button>'
+            ? '<button type="button" class="btn btn-sm" data-pw-view="einstellungen"><i class="bi bi-gear"></i>Systemadministration</button>'
             : state.role === 'admin'
               ? '<button type="button" class="btn btn-sm" id="pwBtnReload" title="Daten neu laden"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>'
               : '';
@@ -1170,70 +1171,97 @@ function renderEinstellungen(state) {
         }
     })();
     const stammLive = state.stammdatenLive || {};
-    return (
-        '<section class="pw-view"><h2>System</h2>' +
-        '<p class="muted" style="max-width:42rem;line-height:1.45;margin:0 0 1rem">' +
-        'SharePoint und Listen sind Admin-/IT-Sache – nicht Teil der Lehrer-Navigation. ' +
-        'Lehrkräfte sehen nur Planung und eigene Angebote.' +
-        '</p>' +
-        '<div class="pw-panel pw-panel--calm" style="margin-bottom:1rem">' +
-        '<div class="tm-panel__head"><i class="bi bi-link-45deg"></i><div><h3>SharePoint-Verbindung</h3>' +
-        '<p>Intranet- oder Schultools-Website (PW-Aktionen / PW-Angebote). Leer → Lizenz-Bootstrap.</p></div></div>' +
-        '<div class="tm-field">' +
-        '<label for="pwSiteUrl">SharePoint-Website</label>' +
-        '<input type="url" id="pwSiteUrl" value="' +
-        esc(state.siteUrl) +
-        '" placeholder="https://…sharepoint.com/sites/…" spellcheck="false" autocomplete="off">' +
-        '</div>' +
-        (siteHost
-            ? '<p class="muted" style="font-size:0.85em;margin:0 0 10px">Aktuell: ' + esc(siteHost) + '</p>'
-            : '') +
-        '<p class="muted" style="font-size:0.85em;margin:0 0 10px">Stammdaten: ' +
-        esc(String(stammLive.source || 'local')) +
-        ' · ' +
-        esc(String(stammLive.teacherCount || 0)) +
-        ' Lehrkräfte / ' +
-        esc(String(stammLive.classCount || 0)) +
-        ' Klassen' +
-        (stammLive.error ? ' · ' + esc(stammLive.error) : '') +
-        '</p>' +
-        '<p class="muted" style="font-size:0.85em;margin:0 0 10px">SPO Live Sync: ' +
-        esc(formatPwSpoSyncLine(state.spoSync)) +
-        ' · Angebote: ' +
-        esc(String((state.items || []).length)) +
-        ' · mit SPO-ID: ' +
-        esc(
-            String(
-                (state.items || []).filter((a) => a && a.itemId && String(a.itemId).indexOf('local-') !== 0)
-                    .length
-            )
-        ) +
-        '</p>' +
-        '<div class="tm-actions" style="display:flex;flex-wrap:wrap;gap:8px">' +
-        '<button type="button" class="btn btn-success" id="pwBtnLoad"><i class="bi bi-cloud-download"></i>Speichern &amp; laden</button>' +
-        '<button type="button" class="btn" id="pwBtnListsHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>' +
-        '</div></div>' +
-        '<div class="pw-panel pw-panel--it" style="margin-bottom:1rem">' +
-        '<div class="tm-panel__head"><i class="bi bi-list-ul"></i><div><h3>IT · Listen</h3>' +
-        '<p>PW-Aktionen und PW-Angebote anlegen oder Spalten ergänzen. Ausführlich: Listen-Assistent.</p></div></div>' +
-        '<div class="tm-actions" style="display:flex;flex-wrap:wrap;gap:8px">' +
-        '<button type="button" class="btn btn-success" id="pwBtnListsCreate"><i class="bi bi-plus-square"></i>Listen anlegen / aktualisieren</button>' +
-        '<a class="btn" href="sharepoint-liste-projektwochen.html" style="text-decoration:none"><i class="bi bi-box-arrow-up-right"></i>Listen-Assistent</a>' +
-        '</div>' +
-        '<pre class="pw-setup-log" id="pwSetupLog" hidden></pre>' +
-        '</div>' +
-        '<div class="pw-panel pw-panel--it">' +
-        '<div class="tm-panel__head"><i class="bi bi-database"></i><div><h3>Demo (Opt-in)</h3>' +
-        '<p>Nur mit Button oder <code>?demo=1</code>. Lokal first – <strong>nicht</strong> automatisch nach SPO. ' +
-        'Schreiben nach SharePoint nur nach ausdrücklicher Bestätigung. Rollen: <code>?demoRole=1</code>.</p></div></div>' +
-        '<div class="tm-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
-        '<button type="button" class="btn" id="pwBtnDemo"><i class="bi bi-database"></i>Demo laden</button>' +
-        '<label class="btn" for="pwImportJsonAdmin"><i class="bi bi-upload"></i>JSON-Datei wählen</label>' +
-        '<input type="file" id="pwImportJsonAdmin" accept=".json,application/json" hidden>' +
-        '</div>' +
-        '<p class="muted" style="margin:10px 0 0;font-size:0.85em"><code>docs/demo-data/projektwochen-demo.json</code></p>' +
-        '</div></section>'
-    );
+    const spoCount = (state.items || []).filter(
+        (a) => a && a.itemId && String(a.itemId).indexOf('local-') !== 0
+    ).length;
+    return renderSystemAdminPage({
+        prefix: 'pw',
+        activeTab: state.systemTab,
+        dataAttr: 'data-pw-sys-tab',
+        ariaLabel: 'Systemadministration Projektwochen',
+        panels: [
+            {
+                id: 'site',
+                step: '1',
+                title: 'Datenquelle',
+                leadHtml:
+                    'SharePoint und Listen sind Admin-/IT-Sache. Lehrkräfte sehen nur Planung und eigene Angebote.',
+                body:
+                    '<div class="ms-sys-field"><label for="pwSiteUrl">SharePoint-Website</label>' +
+                    '<div class="ms-sys-field__row"><input type="url" id="pwSiteUrl" class="ms-sys-input" value="' +
+                    esc(state.siteUrl) +
+                    '" placeholder="https://…sharepoint.com/sites/…" spellcheck="false" autocomplete="off">' +
+                    '<button type="button" class="btn ms-sys-btn-primary" id="pwBtnLoad"><i class="bi bi-cloud-download"></i>Speichern &amp; laden</button></div></div>' +
+                    (siteHost ? '<p class="muted">Aktuell: ' + esc(siteHost) + '</p>' : '') +
+                    '<p class="muted">Stammdaten: ' +
+                    esc(String(stammLive.source || 'local')) +
+                    ' · ' +
+                    esc(String(stammLive.teacherCount || 0)) +
+                    ' Lehrkräfte / ' +
+                    esc(String(stammLive.classCount || 0)) +
+                    ' Klassen' +
+                    (stammLive.error ? ' · ' + esc(stammLive.error) : '') +
+                    '</p>' +
+                    '<p class="muted">SPO Live Sync: ' +
+                    esc(formatPwSpoSyncLine(state.spoSync)) +
+                    ' · Angebote: ' +
+                    esc(String((state.items || []).length)) +
+                    ' · mit SPO-ID: ' +
+                    esc(String(spoCount)) +
+                    '</p>' +
+                    '<div class="ms-sys-actions">' +
+                    '<button type="button" class="btn ms-sys-btn-secondary" id="pwBtnListsHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>' +
+                    '<button type="button" class="btn ms-sys-btn-secondary" id="pwBtnListsCreate"><i class="bi bi-plus-square"></i>Listen anlegen / aktualisieren</button>' +
+                    '<a class="btn ms-sys-btn-ghost" href="sharepoint-liste-projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Listen-Assistent</a>' +
+                    '</div><pre class="pw-setup-log" id="pwSetupLog" hidden></pre>'
+            },
+            {
+                id: 'perms',
+                step: '2',
+                title: 'Berechtigungen',
+                leadHtml: 'Gruppen und Listenrechte setzt der Listen-Assistent, nicht diese Ansicht.',
+                body:
+                    '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-projektwochen.html"><i class="bi bi-shield-check"></i>Listen-Assistent</a></div>'
+            },
+            {
+                id: 'kalender',
+                step: '3',
+                title: 'Kalender',
+                leadHtml:
+                    'Wochenplan und Buchungsstart bleiben in den Arbeitsansichten. Der Export nach Microsoft Bookings ist ein eigener Schritt.',
+                body:
+                    '<div class="ms-sys-actions">' +
+                    '<button type="button" class="btn ms-sys-btn-secondary" data-pw-view="kalender"><i class="bi bi-calendar3"></i>Kalender</button>' +
+                    '<button type="button" class="btn ms-sys-btn-secondary" data-pw-view="bookings"><i class="bi bi-box-arrow-up-right"></i>Bookings-Sync</button>' +
+                    '<button type="button" class="btn ms-sys-btn-ghost" data-pw-view="admin"><i class="bi bi-shield-check"></i>Freigabe &amp; Buchungsstart</button>' +
+                    '</div>'
+            },
+            {
+                id: 'wartung',
+                step: '4',
+                title: 'Wartung',
+                leadHtml:
+                    'Demo nur mit Button oder ?demo=1. Lokal first – nicht automatisch nach SharePoint. Rollen: ?demoRole=1.',
+                body:
+                    '<div class="ms-sys-actions">' +
+                    '<button type="button" class="btn ms-sys-btn-secondary" id="pwBtnDemo"><i class="bi bi-database"></i>Demo laden</button>' +
+                    '<label class="btn ms-sys-btn-ghost" for="pwImportJsonAdmin"><i class="bi bi-upload"></i>JSON-Datei wählen</label>' +
+                    '<input type="file" id="pwImportJsonAdmin" accept=".json,application/json" hidden>' +
+                    '<a class="btn ms-sys-btn-ghost" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>' +
+                    '<a class="btn ms-sys-btn-ghost" href="../hilfe.html#tool-projektwochen"><i class="bi bi-life-preserver"></i>Hilfe</a>' +
+                    '</div>' +
+                    '<p class="muted" style="margin:10px 0 0"><code>docs/demo-data/projektwochen-demo.json</code></p>'
+            },
+            {
+                id: 'danger',
+                title: 'Danger Zone',
+                danger: true,
+                leadHtml:
+                    'Diese Ansicht löscht keine SharePoint-Listen. Demo ersetzt nur die lokale Anzeige, bis du neu lädst.',
+                body: '<p class="muted">Destruktives Leeren der Produktivlisten bleibt dem Listen-Assistenten bzw. SharePoint vorbehalten.</p>'
+            }
+        ]
+    });
 }
 
 function renderBookings(state) {

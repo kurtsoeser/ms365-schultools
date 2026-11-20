@@ -606,8 +606,18 @@ document.addEventListener('DOMContentLoaded', () => {
             seedOnly.disabled = true;
             seedSchulaktivitaetenStammdatenLists(webUrl, log)
                 .then((r) => {
-                    if (r && r.skipped) {
-                        toast('Keine lokalen Stammdaten gefunden – zuerst Klassen/Lehrer pflegen.');
+                    if (r && r.spoAlreadyFilled) {
+                        toast(
+                            'SharePoint hat bereits Stammdaten (Lehrerinnen ' +
+                                (r.spoLehrer != null ? r.spoLehrer : '?') +
+                                ' / Klassen ' +
+                                (r.spoKlassen != null ? r.spoKlassen : '?') +
+                                ') – in diesem Browser war lokal nichts zu schreiben.'
+                        );
+                    } else if (r && r.skipped) {
+                        toast(
+                            'In diesem Browser keine lokalen Stammdaten – und SharePoint-Listen sind leer. Zuerst unter Stammdaten pflegen.'
+                        );
                     } else {
                         toast(
                             'Stammdaten geschrieben (' +

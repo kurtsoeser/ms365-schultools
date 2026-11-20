@@ -10,6 +10,7 @@ import {
     formatRelationSummary,
     hasAktKvCapability,
     canKvStellungnahme,
+    canEditItem,
     itemTouchesKvKlassen
 } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-state.js';
 
@@ -276,6 +277,45 @@ describe('Schulaktivitäten Lehrer-UX Scope', () => {
         expect(
             canKvStellungnahme(items[1], state)
         ).toBe(true);
+    });
+
+    it('Schulkalender (scopeAll): Lehrkraft sieht fremde Termine, darf sie nicht bearbeiten', () => {
+        const state = {
+            role: 'lehrer',
+            accountEmail: 'dave.grohl@kurtrocks.com',
+            stammdaten: {
+                teachers: [{ code: 'GRO', email: 'dave.grohl@kurtrocks.com' }]
+            }
+        };
+        const calScope = scopeFromState(state, { scopeAll: true });
+        expect(calScope.onlyMine).toBe(false);
+        const items = [
+            {
+                titel: 'Eigene Exkursion',
+                beantragtVon: 'dave.grohl@kurtrocks.com',
+                lehrerEmail: 'dave.grohl@kurtrocks.com',
+                status: 'beantragt'
+            },
+            {
+                titel: 'Andere Klasse',
+                beantragtVon: 'anna.mayer@kurtrocks.com',
+                lehrerEmail: 'anna.mayer@kurtrocks.com',
+                status: 'genehmigt'
+            },
+            {
+                titel: 'Fremder Entwurf',
+                beantragtVon: 'anna.mayer@kurtrocks.com',
+                lehrerEmail: 'anna.mayer@kurtrocks.com',
+                status: 'entwurf'
+            }
+        ];
+        const visible = filterItems(items, {}, calScope).filter((i) => {
+            const st = String(i.status).toLowerCase();
+            return st !== 'abgelehnt' && st !== 'abgesagt' && st !== 'entwurf';
+        });
+        expect(visible.map((i) => i.titel).sort()).toEqual(['Andere Klasse', 'Eigene Exkursion']);
+        expect(canEditItem(items[0], state)).toBe(true);
+        expect(canEditItem(items[1], state)).toBe(false);
     });
 });
 

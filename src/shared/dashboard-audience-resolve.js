@@ -12,6 +12,10 @@
 import { resolveDashboardPersonaFromEntraGroups } from './dashboard-audience-entra.js';
 import { dashboardAudienceGroupsConfigured } from './dashboard-audience-groups-store.js';
 import {
+    loadEffectiveTeachersForPersona,
+    loadLiveSchoolStammdatenCache
+} from './live-school-stammdaten-cache.js';
+import {
     userIsEntraGlobalAdministrator,
     fetchUserMemberGroupIds,
     listRolesFromEntraGroups as listSaRolesFromEntra,
@@ -23,7 +27,10 @@ import {
     loadEffectivePermissionsConfig as loadSaEffectivePermissions,
     normalizePermissionsConfig as normalizeSaPermissions
 } from '../tools/schularbeiten-planer/schularbeiten-planer-permissions.js';
-import { accountIsPlannerUserInList } from '../tools/freistellung-planer/freistellung-planer-direktion-users.js';
+import {
+    accountIsPlannerUserInList,
+    direktionUsersFromTenantStammdaten
+} from '../tools/freistellung-planer/freistellung-planer-direktion-users.js';
 import { userIsDesignatedSchoolIt } from './designated-school-it.js';
 import {
     matchTeacherByEmail,
@@ -99,7 +106,8 @@ function loadStammdatenScope() {
      *   kvMatch?: boolean,
      *   kvKlassen?: string[],
      *   teacherCount?: number,
-     *   domain?: string
+     *   domain?: string,
+     *   schulleitungMatch?: boolean
      * }} */
     const scope = {
         teacherMatch: null,
@@ -107,32 +115,64 @@ function loadStammdatenScope() {
         kvMatch: false,
         kvKlassen: [],
         teacherCount: 0,
-        domain: ''
+        domain: '',
+        schulleitungMatch: false
     };
     try {
+        let teachers = [];
+        let classes = [];
+        let students = [];
         if (typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function') {
             const s = window.ms365TenantSettingsLoad();
-            const teachers = (s && s.teachers) || [];
-            scope.teacherCount = Array.isArray(teachers) ? teachers.length : 0;
+            teachers = Array.isArray(s && s.teachers) ? s.teachers : [];
+            classes = Array.isArray(s && s.classes) ? s.classes : [];
+            students = Array.isArray(s && s.students) ? s.students : [];
             scope.domain = String((s && s.domain) || '')
                 .trim()
                 .replace(/^@+/, '');
-            scope.teacherMatch = matchTeacherByEmail(mail, teachers);
-            scope.studentMatch = matchStudentByEmail(mail, s && s.students);
-            const classes = (s && s.classes) || [];
-            const kvKlassen = classes
-                .filter((c) => {
-                    const head = String(
-                        (c && (c.headEmail || c.kvEmail || c.classTeacherEmail)) || ''
-                    )
-                        .trim()
-                        .toLowerCase();
-                    return !!mail && head === mail;
-                })
-                .map((c) => String((c && c.code) || '').trim())
-                .filter(Boolean);
-            scope.kvKlassen = kvKlassen;
-            scope.kvMatch = kvKlassen.length > 0;
+        }
+        // Lehrer-Browser: App-Data / Live-SharePoint-Cache, wenn Tenant-Liste noch leer
+        if (!teachers.length) {
+            teachers = loadEffectiveTeachersForPersona();
+            if (!classes.length) {
+                const live = loadLiveSchoolStammdatenCache();
+                if (Array.isArray(live.classes) && live.classes.length) classes = live.classes;
+            }
+        }
+        if (!teachers.length && window.ms365AppDataV2 && typeof window.ms365AppDataV2.getCore === 'function') {
+            try {
+                const core = window.ms365AppDataV2.getCore() || {};
+                if (Array.isArray(core.teachers) && core.teachers.length) teachers = core.teachers;
+                if (!classes.length && Array.isArray(core.classes) && core.classes.length) {
+                    classes = core.classes;
+                }
+            } catch {
+                /* ignore */
+            }
+        }
+        scope.teacherCount = Array.isArray(teachers) ? teachers.length : 0;
+        scope.teacherMatch = matchTeacherByEmail(mail, teachers);
+        scope.studentMatch = matchStudentByEmail(mail, students);
+        const kvKlassen = (classes || [])
+            .filter((c) => {
+                const head = String(
+                    (c && (c.headEmail || c.kvEmail || c.classTeacherEmail)) || ''
+                )
+                    .trim()
+                    .toLowerCase();
+                return !!mail && head === mail;
+            })
+            .map((c) => String((c && c.code) || '').trim())
+            .filter(Boolean);
+        scope.kvKlassen = kvKlassen;
+        scope.kvMatch = kvKlassen.length > 0;
+        try {
+            scope.schulleitungMatch = accountIsPlannerUserInList(
+                mail,
+                direktionUsersFromTenantStammdaten()
+            );
+        } catch {
+            scope.schulleitungMatch = false;
         }
     } catch {
         /* ignore */
@@ -260,6 +300,7 @@ async function resolveFreistellungRoles() {
     const stammdatenScopeFr = loadStammdatenScope();
     if (stammdatenScopeFr.studentMatch) add('schueler', 'stammdaten');
     if (stammdatenScopeFr.kvMatch) add('kv', 'stammdaten-kv');
+    if (stammdatenScopeFr.schulleitungMatch) add('direktion', 'stammdaten-direktion');
 
     if (!entra && !roles.length) return [];
     return finalizeFrRoles(roles, sources).roles;
@@ -273,6 +314,8 @@ export function isTeacherDashboardRole(schularbeitenRoles, freistellungRoles, st
     if (freistellungRoles.includes('kv') || freistellungRoles.includes('direktion')) return true;
     if (stammdatenScope && stammdatenScope.teacherMatch) return true;
     if (stammdatenScope && stammdatenScope.kvMatch) return true;
+    // Schulleitung ohne Lehrerlisten-Eintrag: trotzdem Portal-Lehrkraft (nicht „Noch nicht zugeordnet“)
+    if (stammdatenScope && stammdatenScope.schulleitungMatch) return true;
     return false;
 }
 

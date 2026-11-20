@@ -139,7 +139,13 @@ export const STORAGE_SELECTIVE_BUNDLES = [
             'ms365-schularbeiten-perms-v1',
             'ms365-sa-settings-v1',
             'ms365-lfr-setup-v1',
-            'ms365-lfr-perms-v1'
+            'ms365-lfr-perms-v1',
+            'ms365-schulaktivitaeten-perms-v1',
+            'ms365-akt-setup-v1',
+            'ms365-srdp-list-perms-v1',
+            'ms365-srdp-anmeldung-v1',
+            'ms365-srdp-mail-setup-v1',
+            'ms365-srdp-planer-site-v1'
         ]
     },
     {

@@ -43,6 +43,7 @@ import {
     isSaAccessDeniedError
 } from './schularbeiten-planer-graph.js';
 import { upsertSchulterminFromSchularbeit } from './schularbeiten-planer-sync.js';
+import { announcePlannerState } from '../../shared/app-role-chrome.js';
 import {
     upsertGroupCalendarEvent,
     removeGroupCalendarEventForSa,
@@ -110,7 +111,7 @@ function toast(msg) {
 function friendlySaSpoError(err) {
     const msg = String((err && err.message) || err || '');
     if (isSaAccessDeniedError(err)) {
-        return 'Kein SharePoint-Zugriff – Site in der Administration prüfen oder Demo lokal laden.';
+        return 'Kein SharePoint-Zugriff – Site in der Systemadministration prüfen oder Demo lokal laden.';
     }
     return msg || 'SharePoint nicht erreichbar.';
 }
@@ -144,6 +145,7 @@ function syncPlanerPageChrome() {
 
 function paint() {
     if (!root) return;
+    announcePlannerState('schularbeiten', state);
     renderApp(state, root);
     bindStatic();
     syncPlanerPageChrome();
@@ -175,6 +177,14 @@ function bindStatic() {
             state.planerAccessDenied = false;
             const allowed = viewsForRole(role).map((v) => v.id);
             if (!allowed.includes(state.view)) state.view = 'dashboard';
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-sa-sys-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const id = String(btn.getAttribute('data-sa-sys-tab') || 'site');
+            state.systemTab =
+                id === 'perms' || id === 'kalender' || id === 'wartung' || id === 'danger' ? id : 'site';
             paint();
         });
     });
@@ -215,7 +225,7 @@ function bindStatic() {
         });
     }
 
-    ['saFilterKlasse', 'saFilterLehrer'].forEach((id) => {
+    ['saFilterKlasse', 'saFilterLehrer', 'saFilterFach', 'saFilterStatus'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
@@ -673,104 +683,6 @@ function readPermissionsFromDom() {
     return readPermissionsFromPickers(PLANER_GROUP_FIELDS);
 }
 
-async function moveSchularbeitOnCalendar(itemId, newDateIso) {
-    if (state.role !== 'admin' || !state.ctx) return;
-    const sa = state.items.find((x) => x.itemId === itemId);
-    if (!sa) return;
-    const scope = scopeFromState(state);
-    if (!canEditSchularbeit(sa, scope)) {
-        toast('Dieser Termin kann nicht verschoben werden.');
-        return;
-    }
-    const nextDate = String(newDateIso || '').trim().slice(0, 10);
-    if (!nextDate || nextDate === String(sa.datum || '').slice(0, 10)) return;
-
-    const draft = { ...sa, datum: nextDate };
-    const check = validateSchularbeit({
-        draft,
-        existing: filterSchularbeiten(state.items, {}, scopeFromState(state, { scopeAll: true })),
-        rules: state.rules,
-        windows: state.windows
-    });
-    if (!check.canSubmit) {
-        const ok = window.confirm(
-            (check.errors[0] || 'Regelverstoß') + '\n\nTrotzdem auf ' + nextDate + ' verschieben?'
-        );
-        if (!ok) return;
-    }
-
-    state.loading = true;
-    paint();
-    try {
-        const payload = { ...sa, datum: nextDate };
-        await updateSchularbeitItem(state.ctx, sa.itemId, payload, graphMapOpts());
-        if (String(payload.status || '').toLowerCase() === 'fixiert') {
-            await maybeSyncSchultermin(payload);
-            await maybeSyncClassCalendar(payload);
-        }
-        await refreshData({ silent: true });
-        toast('Termin verschoben auf ' + nextDate + '.');
-    } catch (e) {
-        state.error = e && e.message ? e.message : String(e);
-        toast(state.error);
-        state.loading = false;
-        paint();
-    }
-}
-
-function bindCalShowToggles() {
-    const map = [
-        ['saCalShowBeantragt', 'beantragt'],
-        ['saCalShowFixiert', 'fixiert'],
-        ['saCalShowAbgelehnt', 'abgelehnt']
-    ];
-    map.forEach(([id, key]) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.addEventListener('change', () => {
-            state.calShow = persistCalShowSettings({ [key]: !!el.checked });
-            paint();
-        });
-    });
-}
-
-function bindKalenderDragDrop() {
-    if (state.role !== 'admin' || !root) return;
-    root.querySelectorAll('[data-sa-cal-drag]').forEach((btn) => {
-        btn.addEventListener('dragstart', (e) => {
-            const id = btn.getAttribute('data-sa-cal-drag');
-            if (!id || !e.dataTransfer) return;
-            e.dataTransfer.setData('text/plain', id);
-            e.dataTransfer.effectAllowed = 'move';
-            btn.classList.add('is-dragging');
-        });
-        btn.addEventListener('dragend', () => {
-            btn.classList.remove('is-dragging');
-            root.querySelectorAll('.sa-cal__cell.is-drop-target').forEach((c) => c.classList.remove('is-drop-target'));
-        });
-    });
-    root.querySelectorAll('[data-sa-cal-droppable]').forEach((cell) => {
-        cell.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-            cell.classList.add('is-drop-target');
-        });
-        cell.addEventListener('dragleave', () => {
-            cell.classList.remove('is-drop-target');
-        });
-        cell.addEventListener('drop', (e) => {
-            e.preventDefault();
-            cell.classList.remove('is-drop-target');
-            const id = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
-            const iso = cell.getAttribute('data-sa-cal-drop');
-            if (!id || !iso) return;
-            moveSchularbeitOnCalendar(id, iso).catch((err) =>
-                toast(err && err.message ? err.message : String(err))
-            );
-        });
-    });
-}
-
 function syncCalMonthFromWeekMonday() {
     const mon = String(state.calWeekMonday || '').trim().slice(0, 10);
     if (!mon) return;
@@ -780,82 +692,70 @@ function syncCalMonthFromWeekMonday() {
     state.calMonth = parseInt(parts[1], 10) - 1;
 }
 
+function bindCalShowToggles() {
+    const toggles = [
+        ['saCalShowBeantragt', 'beantragt'],
+        ['saCalShowFixiert', 'fixiert'],
+        ['saCalShowAbgelehnt', 'abgelehnt']
+    ];
+    toggles.forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', () => {
+            state.calShow = persistCalShowSettings({ [key]: el.checked });
+            paint();
+        });
+    });
+}
+
 function bindKalender() {
     bindCalShowToggles();
-    bindKalenderDragDrop();
-    const modeMonth = document.getElementById('saCalModeMonth');
-    const modeWeek = document.getElementById('saCalModeWeek');
-    if (modeMonth) {
-        modeMonth.addEventListener('click', () => {
-            if (state.calMode === 'month') return;
-            state.calMode = persistCalModeSettings('month');
-            syncCalMonthFromWeekMonday();
-            paint();
-        });
-    }
-    if (modeWeek) {
-        modeWeek.addEventListener('click', () => {
-            if (state.calMode === 'week') return;
-            state.calMode = persistCalModeSettings('week');
-            const anchor = `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-15`;
-            state.calWeekMonday = mondayOfWeekContaining(anchor) || mondayOfWeekContaining(toIsoDateOnly(new Date()) || '') || '';
-            paint();
-        });
-    }
-    const prev = document.getElementById('saCalPrev');
-    const next = document.getElementById('saCalNext');
-    const today = document.getElementById('saCalToday');
-    if (prev) {
-        prev.addEventListener('click', () => {
-            if (state.calMode === 'week') {
-                const mon =
-                    state.calWeekMonday ||
-                    mondayOfWeekContaining(
-                        `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-15`
-                    ) ||
-                    '';
-                state.calWeekMonday = addDays(mon, -7) || mon;
-                syncCalMonthFromWeekMonday();
-            } else {
-                state.calMonth -= 1;
-                if (state.calMonth < 0) {
-                    state.calMonth = 11;
-                    state.calYear -= 1;
-                }
+    if (!root) return;
+    root.querySelectorAll('[data-sa-cal-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const mode = String(btn.getAttribute('data-sa-cal-mode') || 'month');
+            const next = mode === 'agenda' || mode === 'week' || mode === 'month' ? mode : 'month';
+            if (state.calMode === next) return;
+            state.calMode = persistCalModeSettings(next);
+            if (next === 'week' && !state.calWeekMonday) {
+                const anchor = `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-15`;
+                state.calWeekMonday =
+                    mondayOfWeekContaining(anchor) || mondayOfWeekContaining(toIsoDateOnly(new Date()) || '') || '';
             }
             paint();
         });
-    }
-    if (next) {
-        next.addEventListener('click', () => {
-            if (state.calMode === 'week') {
+    });
+    root.querySelectorAll('[data-sa-cal-nav]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const delta = Number(btn.getAttribute('data-sa-cal-nav') || '0');
+            const mode = String(state.calMode || 'month');
+            if (mode === 'week') {
                 const mon =
                     state.calWeekMonday ||
-                    mondayOfWeekContaining(
-                        `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-15`
-                    ) ||
+                    mondayOfWeekContaining(`${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-15`) ||
                     '';
-                state.calWeekMonday = addDays(mon, 7) || mon;
+                state.calWeekMonday =
+                    delta === 0
+                        ? mondayOfWeekContaining(toIsoDateOnly(new Date()) || '') || mon
+                        : addDays(mon, delta * 7) || mon;
                 syncCalMonthFromWeekMonday();
+            } else if (delta === 0) {
+                const n = new Date();
+                state.calYear = n.getFullYear();
+                state.calMonth = n.getMonth();
             } else {
-                state.calMonth += 1;
-                if (state.calMonth > 11) {
+                state.calMonth += delta;
+                if (state.calMonth < 0) {
+                    state.calMonth = 11;
+                    state.calYear -= 1;
+                } else if (state.calMonth > 11) {
                     state.calMonth = 0;
                     state.calYear += 1;
                 }
             }
             paint();
         });
-    }
-    if (today) {
-        today.addEventListener('click', () => {
-            const n = new Date();
-            state.calYear = n.getFullYear();
-            state.calMonth = n.getMonth();
-            state.calWeekMonday = mondayOfWeekContaining(toIsoDateOnly(n) || '') || '';
-            paint();
-        });
-    }
+    });
 }
 
 function bindExport() {
@@ -1594,11 +1494,19 @@ async function importDemoJsonText(text) {
 }
 
 function bindDetail() {
+    const openDetail = (el) => {
+        state.detailId = el.getAttribute('data-sa-detail');
+        paint();
+    };
     root.querySelectorAll('[data-sa-detail]').forEach((el) => {
-        el.addEventListener('click', () => {
-            state.detailId = el.getAttribute('data-sa-detail');
-            paint();
-        });
+        el.addEventListener('click', () => openDetail(el));
+        if (el.classList.contains('sa-table__row')) {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Enter' && ev.key !== ' ') return;
+                ev.preventDefault();
+                openDetail(el);
+            });
+        }
     });
     const closeDetail = () => {
         state.detailId = null;

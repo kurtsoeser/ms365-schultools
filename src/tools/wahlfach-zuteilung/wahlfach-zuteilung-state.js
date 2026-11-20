@@ -15,7 +15,7 @@ export const VIEWS = Object.freeze([
     { id: 'anmeldungen', label: 'Anmeldungen', icon: 'bi-people', section: 'arbeit' },
     { id: 'zuteilung', label: 'Zuteilung', icon: 'bi-diagram-3', section: 'arbeit' },
     { id: 'ergebnis', label: 'Ergebnis', icon: 'bi-table', section: 'arbeit' },
-    { id: 'system', label: 'System', icon: 'bi-gear', section: 'system' }
+    { id: 'system', label: 'Systemadministration', icon: 'bi-gear', section: 'system' }
 ]);
 
 /**
@@ -163,6 +163,7 @@ export function createWzUiState() {
     const account = readWzAccount();
     return {
         view: /** @type {WzView} */ ('uebersicht'),
+        systemTab: 'site',
         message: /** @type {{ type: string, text: string }|null} */ (null),
         softError: '',
         hardError: '',

@@ -4,6 +4,7 @@ import {
     isAktDemoRoleUiEnabled,
     resolveActiveAktRole,
     shellPreferredAktRole,
+    shouldAutoApplyAktDemoTeacherPersona,
     sortAktRoles,
     roleSourceLabel
 } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-entra-role.js';
@@ -49,6 +50,52 @@ describe('schulaktivitaeten-entra-role policy', () => {
     it('roleSourceLabel kennt designated-it und Schulleitung', () => {
         expect(roleSourceLabel('designated-it')).toBe('Schul-IT');
         expect(roleSourceLabel('stammdaten-direktion')).toBe('Schulleitung (Stammdaten)');
+    });
+});
+
+describe('shouldAutoApplyAktDemoTeacherPersona', () => {
+    const prevWindow = globalThis.window;
+
+    afterEach(() => {
+        globalThis.window = prevWindow;
+    });
+
+    it('nur Schul-IT (designated-it / global-admin)', () => {
+        expect(
+            shouldAutoApplyAktDemoTeacherPersona({
+                planerRoles: ['admin', 'lehrer'],
+                planerRoleSources: { admin: 'designated-it' }
+            })
+        ).toBe(true);
+        expect(
+            shouldAutoApplyAktDemoTeacherPersona({
+                planerRoles: ['admin'],
+                planerRoleSources: { admin: 'global-admin' }
+            })
+        ).toBe(true);
+    });
+
+    it('Direktion / Genehmiger nie in Dave-Persona zwingen', () => {
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: false }
+        };
+        for (const src of ['stammdaten-direktion', 'admin-user', 'direktion-user', 'entra']) {
+            expect(
+                shouldAutoApplyAktDemoTeacherPersona({
+                    planerRoles: ['admin', 'kv', 'lehrer'],
+                    planerRoleSources: { admin: src }
+                })
+            ).toBe(false);
+        }
+    });
+
+    it('ohne Admin-Rolle false', () => {
+        expect(
+            shouldAutoApplyAktDemoTeacherPersona({
+                planerRoles: ['lehrer', 'kv'],
+                planerRoleSources: {}
+            })
+        ).toBe(false);
     });
 });
 

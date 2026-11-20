@@ -274,40 +274,107 @@ import { loadMsalBrowser } from './msal-loader.js';
         }
     }
 
-    const MENU_BRANDS = ['teal', 'classic', 'wine'];
+    const MENU_BRANDS = ['teal', 'classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
+    const MENU_BRAND_LABELS = {
+        teal: 'Blau-Grün',
+        classic: 'Klassisch',
+        wine: 'Wein',
+        azure: 'Blau',
+        forest: 'Grün',
+        amber: 'Bernstein'
+    };
 
     function normalizeMenuBrand(brand) {
         return MENU_BRANDS.indexOf(brand) !== -1 ? brand : 'teal';
     }
 
+    function brandGridHtml() {
+        return MENU_BRANDS.filter(function (id) {
+            return id !== 'custom';
+        })
+            .map(function (id) {
+                return (
+                    '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="' +
+                    id +
+                    '" aria-checked="' +
+                    (id === 'teal' ? 'true' : 'false') +
+                    '">' +
+                    '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--' +
+                    id +
+                    '" aria-hidden="true"></span>' +
+                    MENU_BRAND_LABELS[id] +
+                    '</button>'
+                );
+            })
+            .join('');
+    }
+
+    function customSeedsFromInputs() {
+        const boot = window.ms365BrandBoot;
+        const first = document.getElementById('ms365BrandCustom1');
+        const second = document.getElementById('ms365BrandCustom2');
+        const brand1 = boot && boot.parseHex ? boot.parseHex(first && first.value) : '';
+        const brand2 = boot && boot.parseHex ? boot.parseHex(second && second.value) : '';
+        return {
+            brand1: brand1 || '#0d9f8a',
+            brand2: brand2 || '#12b59c'
+        };
+    }
+
+    function paintCustomPreview() {
+        const preview = document.getElementById('ms365BrandCustomPreview');
+        const boot = window.ms365BrandBoot;
+        if (!preview || !boot || typeof boot.darkenForHeader !== 'function') return;
+        const seeds = customSeedsFromInputs();
+        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        preview.style.setProperty('--preview-1', boot.darkenForHeader(seeds.brand1));
+        preview.style.setProperty('--preview-2', boot.darkenForHeader(seeds.brand2));
+        preview.style.setProperty('--preview-tint', seeds.brand1);
+        preview.style.setProperty('--preview-page', dark ? '#070b12' : '#f6f7f9');
+    }
+
+    function loadCustomInputs() {
+        const boot = window.ms365BrandBoot;
+        const seeds = boot && typeof boot.readCustom === 'function' ? boot.readCustom() : null;
+        const first = document.getElementById('ms365BrandCustom1');
+        const second = document.getElementById('ms365BrandCustom2');
+        if (document.activeElement === first || document.activeElement === second) {
+            paintCustomPreview();
+            return;
+        }
+        if (first) first.value = seeds ? seeds.brand1 : '#0d9f8a';
+        if (second) second.value = seeds ? seeds.brand2 : '#12b59c';
+        paintCustomPreview();
+    }
+
+    function saveCustomBrand() {
+        const seeds = customSeedsFromInputs();
+        const key = (window.ms365BrandBoot && window.ms365BrandBoot.customKey) || 'ms365-brand-custom-v1';
+        try {
+            localStorage.setItem(key, JSON.stringify(seeds));
+        } catch (_) {
+            /* ignore */
+        }
+        applyMenuBrandChoice('custom');
+    }
+
     function applyMenuBrandChoice(brand) {
         const next = normalizeMenuBrand(brand);
+        if (window.ms365Theme && typeof window.ms365Theme.setBrand === 'function') {
+            window.ms365Theme.setBrand(next);
+            return;
+        }
         document.documentElement.setAttribute('data-brand', next);
         try {
             localStorage.setItem('ms365-brand-v1', next);
         } catch (_) {
             /* ignore */
         }
-        if (window.ms365Theme && typeof window.ms365Theme.setBrand === 'function') {
-            window.ms365Theme.setBrand(next);
-        }
-        if (document.documentElement.getAttribute('data-brand') !== next) {
-            document.documentElement.setAttribute('data-brand', next);
-            try {
-                localStorage.setItem('ms365-brand-v1', next);
-            } catch (_) {
-                /* ignore */
-            }
-        }
-        if (window.ms365Theme && typeof window.ms365Theme.syncBrandUi === 'function') {
-            window.ms365Theme.syncBrandUi();
-        } else {
-            document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
-                const on = el.getAttribute('data-ms365-brand') === next;
-                el.setAttribute('aria-checked', on ? 'true' : 'false');
-                el.classList.toggle('is-active', on);
-            });
-        }
+        document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
+            const on = el.getAttribute('data-ms365-brand') === next;
+            el.setAttribute('aria-checked', on ? 'true' : 'false');
+            el.classList.toggle('is-active', on);
+        });
     }
 
     function bindAuthMenuDismiss() {
@@ -529,6 +596,24 @@ import { loadMsalBrowser } from './msal-loader.js';
         return (await instance.acquireTokenSilent(req)).accessToken;
     }
 
+    /**
+     * Neues Access-Token ohne Abmelden. Nötig, damit eine frische Gruppenmitgliedschaft
+     * (z. B. Klasse 5A) beim nächsten Laden der App gilt.
+     * @param {string[]} [scopes]
+     */
+    async function acquireTokenFresh(scopes) {
+        const instance = await ensurePca();
+        const accounts = instance.getAllAccounts();
+        if (!accounts.length) throw new Error('Nicht angemeldet.');
+        const a = getAccount() || accounts[0];
+        const req = {
+            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES,
+            account: a,
+            forceRefresh: true
+        };
+        return (await instance.acquireTokenSilent(req)).accessToken;
+    }
+
     /** Popup-Anmeldung (ohne Seiten-Redirect) – für Einrichtung und Werkzeuge mit lokalen Formularen. */
     async function acquireTokenPopup(scopes) {
         const instance = await ensurePca();
@@ -700,7 +785,7 @@ import { loadMsalBrowser } from './msal-loader.js';
         drop.className = 'ms365-auth-menu__panel';
         drop.setAttribute('role', 'menu');
         drop.hidden = true;
-        drop.setAttribute('data-ms365-auth-menu-v', '2');
+        drop.setAttribute('data-ms365-auth-menu-v', '3');
         drop.innerHTML =
             '<div class="ms365-auth-menu__meta">' +
             '<div class="ms365-auth-menu__meta-name" id="ms365AuthMenuName"></div>' +
@@ -752,11 +837,22 @@ import { loadMsalBrowser } from './msal-loader.js';
             '<span class="ms365-auth-menu__theme-switch-track" aria-hidden="true">' +
             '<span class="ms365-auth-menu__theme-switch-thumb"></span></span>' +
             '</button></div>' +
-            '<div class="ms365-auth-menu__brand-row ms365-auth-menu__brand-row--pair">' +
-            '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="teal" aria-checked="true">' +
-            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--teal" aria-hidden="true"></span>Blau-Grün</button>' +
-            '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="classic" aria-checked="false">' +
-            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--classic" aria-hidden="true"></span>Klassisch</button>' +
+            '<div class="ms365-auth-menu__brand-row">' +
+            brandGridHtml() +
+            '</div>' +
+            '<div class="ms365-auth-menu__custom">' +
+            '<div class="ms365-auth-menu__section-label">Eigene Farbe</div>' +
+            '<div class="ms365-auth-menu__custom-preview" id="ms365BrandCustomPreview" aria-hidden="true">' +
+            '<span class="ms365-auth-menu__custom-preview-header"></span>' +
+            '<span class="ms365-auth-menu__custom-preview-page"></span>' +
+            '</div>' +
+            '<div class="ms365-auth-menu__custom-fields">' +
+            '<label class="ms365-auth-menu__custom-field">Farbe 1' +
+            '<input type="color" id="ms365BrandCustom1" value="#0d9f8a" aria-label="Eigene Farbe 1"></label>' +
+            '<label class="ms365-auth-menu__custom-field">Farbe 2' +
+            '<input type="color" id="ms365BrandCustom2" value="#12b59c" aria-label="Eigene Farbe 2"></label>' +
+            '</div>' +
+            '<button type="button" class="ms365-auth-menu__custom-save" id="ms365BrandCustomSave" data-ms365-brand="custom" aria-checked="false">Speichern</button>' +
             '</div></div>' +
             '<div class="ms365-auth-menu__section ms365-auth-menu__section--links" role="group" aria-label="Verwaltung">' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
@@ -865,9 +961,33 @@ import { loadMsalBrowser } from './msal-loader.js';
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
+                if (btn.id === 'ms365BrandCustomSave') {
+                    saveCustomBrand();
+                    return;
+                }
                 applyMenuBrandChoice(btn.getAttribute('data-ms365-brand'));
             });
         });
+        ['ms365BrandCustom1', 'ms365BrandCustom2'].forEach(function (id) {
+            const input = document.getElementById(id);
+            if (!input || input.dataset.bound) return;
+            input.dataset.bound = '1';
+            input.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+            const applyPicked = function (e) {
+                e.stopPropagation();
+                paintCustomPreview();
+                saveCustomBrand();
+            };
+            input.addEventListener('input', applyPicked);
+            input.addEventListener('change', applyPicked);
+        });
+        loadCustomInputs();
+        if (!paintCustomPreview.themeBound) {
+            paintCustomPreview.themeBound = true;
+            window.addEventListener('ms365-theme-change', paintCustomPreview);
+        }
         if (window.ms365Theme && typeof window.ms365Theme.getBrand === 'function') {
             const cur = window.ms365Theme.getBrand();
             document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
@@ -1501,7 +1621,7 @@ import { loadMsalBrowser } from './msal-loader.js';
             wrap &&
             wrap.querySelector('#ms365AuthDropdown') &&
             wrap.querySelector('#ms365AuthDropdown').getAttribute('data-ms365-auth-menu-v');
-        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '2') {
+        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '3') {
             if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
             wrap = createAuthWidget();
         }
@@ -1905,6 +2025,7 @@ import { loadMsalBrowser } from './msal-loader.js';
     window.ms365AuthRememberReturnUrl = rememberPostLoginReturnUrl;
     window.ms365AuthAcquireToken = acquireToken;
     window.ms365AuthAcquireTokenSilent = acquireTokenSilentOnly;
+    window.ms365AuthAcquireTokenFresh = acquireTokenFresh;
     window.ms365AuthAcquireTokenPopup = acquireTokenPopup;
     window.ms365AuthAcquireIdToken = acquireIdToken;
     window.ms365AuthAcquireIdTokenPopup = acquireIdTokenPopup;

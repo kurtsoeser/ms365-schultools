@@ -350,11 +350,10 @@ function renderStaffTop(state) {
             : state.view === 'freigabe'
               ? 'Anträge prüfen, Rückfragen stellen und Entscheidungen nachvollziehen.'
               : state.view === 'system'
-                ? 'Verbinden, konfigurieren und diagnostizieren – getrennt vom Schulbetrieb.'
+                ? 'Site, Berechtigungen, Kalender und Wartung in Tabs – Danger Zone bewusst getrennt.'
                 : '';
     const workViews = state.view === 'dashboard' || state.view === 'freigabe' || state.view === 'liste';
     const showOpenBadge = workViews && openN > 0;
-    const showLeitung = workViews || state.view === 'kalender';
     return `
     <header class="akt-top akt-top--staff-calm">
       <div class="akt-top__copy">
@@ -362,19 +361,11 @@ function renderStaffTop(state) {
         ${lead ? `<p class="akt-top__lead">${esc(lead)}</p>` : ''}
       </div>
       <div class="akt-top__user">
-        ${showLeitung ? '<span class="akt-badge akt-badge--info">Leitung</span>' : ''}
         ${state.localDemoOnly && state.view === 'system' ? '<span class="akt-badge akt-badge--warn">Demo lokal</span>' : ''}
         ${
             showOpenBadge
                 ? `<button type="button" class="akt-chip is-active" data-akt-view-jump="freigabe">${openN} offen</button>`
                 : ''
-        }
-        ${
-            state.accountEmail
-                ? `<small>${esc(state.accountName || state.accountEmail)}</small>`
-                : workViews
-                  ? '<small class="muted">Nicht angemeldet</small>'
-                  : ''
         }
       </div>
     </header>`;
@@ -862,15 +853,18 @@ function renderDashboard(state) {
     return renderLeitungDashboard(state);
 }
 
-/** Liste/Kalender (Lehrerwelt): persönliche Beteiligung – nicht Klassenkontext. */
+/** Liste: persönliche Beteiligung. */
 function listScopeOpts(state) {
     if (isAktStaffRole(state.role)) return { scopeAll: true };
     return { onlyMine: true };
 }
 
-function calendarScopeOpts(state) {
-    if (isAktStaffRole(state.role)) return { scopeAll: true };
-    return { onlyMine: true };
+/**
+ * Kalender: alle Lehrkräfte sehen den Schulkalender (auch fremde Klassen).
+ * Bearbeiten bleibt über canEditItem nur bei eigenen Einträgen.
+ */
+function calendarScopeOpts(_state) {
+    return { scopeAll: true };
 }
 
 function renderListe(state) {
@@ -1061,20 +1055,72 @@ function renderMeineKlasse(state) {
     </section>`;
 }
 
-function statBars(map, labelFn) {
-    const entries = Object.entries(map || {}).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+/**
+ * @param {Record<string, number>} map
+ * @param {(k: string) => string} [labelFn]
+ * @param {{ filterKey?: string, activeKey?: string, toneFn?: (k: string) => string }} [opts]
+ */
+function statBars(map, labelFn, opts) {
+    const o = opts || {};
+    const entries = Object.entries(map || {}).sort(
+        (a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'de')
+    );
     if (!entries.length) return '<p class="muted">Keine Daten.</p>';
     const max = Math.max(...entries.map((e) => e[1]), 1);
+    const total = entries.reduce((s, e) => s + e[1], 0) || 1;
+    const filterKey = o.filterKey || '';
     return `<ul class="akt-stat-bars">${entries
         .map(([k, n]) => {
             const pct = Math.round((n / max) * 100);
+            const share = Math.round((n / total) * 100);
+            const label = labelFn ? labelFn(k) : k;
+            const active = filterKey && String(o.activeKey || '') === String(k);
+            const tone = o.toneFn ? o.toneFn(k) : '';
+            const fillClass = tone ? ` akt-stat-bars__fill--${tone}` : '';
+            const inner = `
+        <span class="akt-stat-bars__label" title="${esc(label)}">${esc(label)}</span>
+        <span class="akt-stat-bars__track"><span class="akt-stat-bars__fill${fillClass}" style="width:${pct}%"></span></span>
+        <span class="akt-stat-bars__n" title="${share} %">${esc(n)}</span>`;
+            if (!filterKey) {
+                return `<li class="akt-stat-bars__row">${inner}</li>`;
+            }
             return `<li class="akt-stat-bars__row">
-        <span class="akt-stat-bars__label">${esc(labelFn ? labelFn(k) : k)}</span>
-        <span class="akt-stat-bars__track"><span class="akt-stat-bars__fill" style="width:${pct}%"></span></span>
-        <span class="akt-stat-bars__n">${esc(n)}</span>
+        <button type="button" class="akt-stat-bars__btn${active ? ' is-active' : ''}" data-akt-report-filter="${esc(
+                filterKey
+            )}" data-akt-report-value="${esc(k)}" aria-pressed="${active ? 'true' : 'false'}">${inner}</button>
       </li>`;
         })
         .join('')}</ul>`;
+}
+
+function reportMonthLabel(ym) {
+    const m = /^(\d{4})-(\d{2})$/.exec(String(ym || ''));
+    if (!m) return String(ym || '–');
+    const months = [
+        'Jan',
+        'Feb',
+        'Mär',
+        'Apr',
+        'Mai',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Dez'
+    ];
+    const idx = Number(m[2]) - 1;
+    return `${months[idx] || m[2]} ${m[1]}`;
+}
+
+function statusBarTone(st) {
+    const s = String(st || '').toLowerCase();
+    if (s === 'genehmigt') return 'ok';
+    if (s === 'abgelehnt' || s === 'abgesagt') return 'bad';
+    if (s === 'nachforderung') return 'warn';
+    if (s === 'beantragt' || s === 'kv_stellungnahme') return 'info';
+    return 'muted';
 }
 
 function countUeForItem(it) {
@@ -1100,47 +1146,171 @@ function renderBerichte(state) {
     const sjLabel = schoolYearLabel(sj);
     const scope = scopeFromState(state, { scopeAll: state.role === 'admin' });
     const scoped = filterItems(state.items, {}, scope);
-    const yearItems = scoped
+    const allYear = scoped
         .filter((it) => isoInSchoolYear(it.startdatum, sj))
         .slice()
         .sort((a, b) => String(a.startdatum).localeCompare(String(b.startdatum)));
     const stats = computeAktivitaetStats(scoped, { schoolYearStart: sj });
     const labels = labelMaps(state.stammdaten);
-    const loadDays = yearItems.reduce((n, it) => n + countDaysForItem(it), 0);
-    const loadUe = yearItems.reduce((n, it) => n + countUeForItem(it), 0);
+    const filterTyp = String(state.reportFilterTyp || '').trim();
+    const filterStatus = String(state.reportFilterStatus || '').trim().toLowerCase();
+    const filterKlasse = String(state.reportFilterKlasse || '').trim().toUpperCase();
+    const yearItems = allYear.filter((it) => {
+        if (filterTyp && String(it.typ || '') !== filterTyp) return false;
+        if (filterStatus && String(it.status || '').toLowerCase() !== filterStatus) return false;
+        if (filterKlasse && !klasseCodesOf(it).includes(filterKlasse)) return false;
+        return true;
+    });
+    const loadDays = allYear.reduce((n, it) => n + countDaysForItem(it), 0);
+    const loadUe = allYear.reduce((n, it) => n + countUeForItem(it), 0);
+    const offen =
+        (stats.byStatus.beantragt || 0) + (stats.byStatus.kv_stellungnahme || 0);
+    const breakdownRaw = String(state.reportBreakdown || 'typ').toLowerCase();
+    const breakdown =
+        breakdownRaw === 'klasse' ||
+        breakdownRaw === 'status' ||
+        breakdownRaw === 'month'
+            ? breakdownRaw
+            : 'typ';
+    const hasListFilter = !!(filterTyp || filterStatus || filterKlasse);
+    const filterChips = [];
+    if (filterTyp) {
+        filterChips.push(
+            `<button type="button" class="akt-report-chip is-active" data-akt-report-filter="typ" data-akt-report-value="">${esc(
+                typLabel(filterTyp)
+            )} <i class="bi bi-x" aria-hidden="true"></i></button>`
+        );
+    }
+    if (filterStatus) {
+        filterChips.push(
+            `<button type="button" class="akt-report-chip is-active" data-akt-report-filter="status" data-akt-report-value="">${esc(
+                statusLabel(filterStatus)
+            )} <i class="bi bi-x" aria-hidden="true"></i></button>`
+        );
+    }
+    if (filterKlasse) {
+        filterChips.push(
+            `<button type="button" class="akt-report-chip is-active" data-akt-report-filter="klasse" data-akt-report-value="">${esc(
+                labels.klasse[filterKlasse] || filterKlasse
+            )} <i class="bi bi-x" aria-hidden="true"></i></button>`
+        );
+    }
+    let breakdownHtml = '';
+    if (breakdown === 'klasse') {
+        breakdownHtml = statBars(stats.byKlasse, (c) => labels.klasse[c] || c, {
+            filterKey: 'klasse',
+            activeKey: filterKlasse
+        });
+    } else if (breakdown === 'status') {
+        breakdownHtml = statBars(stats.byStatus, (s) => statusLabel(s), {
+            filterKey: 'status',
+            activeKey: filterStatus,
+            toneFn: statusBarTone
+        });
+    } else if (breakdown === 'month') {
+        const byMonthSorted = Object.fromEntries(
+            Object.entries(stats.byMonth || {}).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+        );
+        breakdownHtml = statBars(byMonthSorted, reportMonthLabel);
+    } else {
+        breakdownHtml = statBars(stats.byTyp, (t) => typLabel(t), {
+            filterKey: 'typ',
+            activeKey: filterTyp
+        });
+    }
+    const seg = (id, label) =>
+        `<button type="button" class="akt-seg__btn${
+            breakdown === id ? ' is-active' : ''
+        }" data-akt-report-breakdown="${id}">${label}</button>`;
+
     return `
-    <section class="akt-panel akt-panel--calm">
-      <div class="akt-cal__head">
-        <p class="akt-report-sj">Schuljahr <strong>${esc(sjLabel)}</strong></p>
-        <div class="akt-top__row">
-          <button type="button" class="btn" id="aktReportPrev" aria-label="Vorheriges Schuljahr"><i class="bi bi-chevron-left"></i></button>
-          <button type="button" class="btn" id="aktReportNext" aria-label="Nächstes Schuljahr"><i class="bi bi-chevron-right"></i></button>
+    <section class="akt-panel akt-panel--calm akt-report">
+      <div class="akt-report__head">
+        <div>
+          <p class="akt-report-sj">Schuljahr <strong>${esc(sjLabel)}</strong></p>
+          <p class="akt-report__lead muted">Überblick und Jahresliste – Balken filtern die Liste.</p>
+        </div>
+        <div class="akt-report__year-nav" role="group" aria-label="Schuljahr wechseln">
+          <button type="button" class="btn akt-btn-ghost akt-btn-compact" id="aktReportPrev" aria-label="Vorheriges Schuljahr"><i class="bi bi-chevron-left"></i></button>
+          <button type="button" class="btn akt-btn-ghost akt-btn-compact" id="aktReportNext" aria-label="Nächstes Schuljahr"><i class="bi bi-chevron-right"></i></button>
         </div>
       </div>
-      <p class="akt-report-hero"><strong>${stats.gesamt}</strong> ${
-          stats.gesamt === 1 ? 'Aktivität' : 'Aktivitäten'
-      }</p>
-      <ul class="akt-report-status">
-        <li><strong>${stats.byStatus.genehmigt || 0}</strong> genehmigt</li>
-        <li><strong>${stats.byStatus.abgelehnt || 0}</strong> abgelehnt</li>
-        <li><strong>${
-            (stats.byStatus.beantragt || 0) + (stats.byStatus.kv_stellungnahme || 0)
-        }</strong> eingereicht</li>
-      </ul>
-      <p class="muted akt-report-load">${loadDays} betroffene Unterrichtstage · ${loadUe} UE (Summe über Termine)</p>
+
+      <div class="akt-report-kpis" role="list">
+        <button type="button" class="akt-report-kpi${
+            !hasListFilter ? ' is-active' : ''
+        }" data-akt-report-clear role="listitem">
+          <span class="akt-report-kpi__n">${stats.gesamt}</span>
+          <span class="akt-report-kpi__l">${stats.gesamt === 1 ? 'Aktivität' : 'Aktivitäten'}</span>
+        </button>
+        <button type="button" class="akt-report-kpi akt-report-kpi--ok${
+            filterStatus === 'genehmigt' ? ' is-active' : ''
+        }" data-akt-report-filter="status" data-akt-report-value="genehmigt" role="listitem">
+          <span class="akt-report-kpi__n">${stats.byStatus.genehmigt || 0}</span>
+          <span class="akt-report-kpi__l">Genehmigt</span>
+        </button>
+        <button type="button" class="akt-report-kpi akt-report-kpi--info${
+            filterStatus === 'beantragt' ? ' is-active' : ''
+        }" data-akt-report-filter="status" data-akt-report-value="beantragt" role="listitem">
+          <span class="akt-report-kpi__n">${offen}</span>
+          <span class="akt-report-kpi__l">Eingereicht</span>
+        </button>
+        <button type="button" class="akt-report-kpi akt-report-kpi--bad${
+            filterStatus === 'abgelehnt' ? ' is-active' : ''
+        }" data-akt-report-filter="status" data-akt-report-value="abgelehnt" role="listitem">
+          <span class="akt-report-kpi__n">${stats.byStatus.abgelehnt || 0}</span>
+          <span class="akt-report-kpi__l">Abgelehnt</span>
+        </button>
+        <div class="akt-report-kpi akt-report-kpi--static" role="listitem">
+          <span class="akt-report-kpi__n">${loadDays}</span>
+          <span class="akt-report-kpi__l">Unterrichtstage</span>
+        </div>
+        <div class="akt-report-kpi akt-report-kpi--static" role="listitem">
+          <span class="akt-report-kpi__n">${loadUe}</span>
+          <span class="akt-report-kpi__l">UE gesamt</span>
+        </div>
+      </div>
+
+      <div class="akt-report-breakdown">
+        <div class="akt-report-breakdown__toolbar">
+          <div class="akt-seg akt-seg--report" role="tablist" aria-label="Aufschlüsselung">
+            ${seg('typ', 'Art')}
+            ${seg('klasse', 'Klasse')}
+            ${seg('status', 'Status')}
+            ${seg('month', 'Monat')}
+          </div>
+          ${
+              hasListFilter
+                  ? `<button type="button" class="akt-text-link" data-akt-report-clear>Filter zurücksetzen</button>`
+                  : '<span class="muted akt-report-breakdown__hint">Tippe auf einen Balken zum Filtern</span>'
+          }
+        </div>
+        ${
+            filterChips.length
+                ? `<div class="akt-report-chips">${filterChips.join('')}</div>`
+                : ''
+        }
+        <div class="akt-report-breakdown__chart">
+          ${breakdownHtml}
+        </div>
+      </div>
     </section>
-    <section class="akt-panel akt-panel--calm">
-      <h3>Nach Art</h3>
-      ${statBars(stats.byTyp, (t) => typLabel(t))}
-      <h3 style="margin-top:18px">Nach Klasse</h3>
-      ${statBars(stats.byKlasse, (c) => labels.klasse[c] || c)}
-    </section>
-    <section class="akt-panel akt-panel--calm">
-      <h3>Jahresliste</h3>
+
+    <section class="akt-panel akt-panel--calm akt-report-list">
+      <div class="akt-report-list__head">
+        <h3>Jahresliste</h3>
+        <p class="muted">${yearItems.length}${
+            hasListFilter ? ` von ${allYear.length}` : ''
+        } ${yearItems.length === 1 ? 'Eintrag' : 'Einträge'}</p>
+      </div>
       ${
           yearItems.length
               ? renderTable(yearItems, state)
-              : '<p class="muted">Keine Einträge in diesem Schuljahr.</p>'
+              : `<p class="muted">${
+                    hasListFilter
+                        ? 'Keine Einträge für diesen Filter.'
+                        : 'Keine Einträge in diesem Schuljahr.'
+                }</p>`
       }
     </section>`;
 }
@@ -1264,7 +1434,7 @@ function renderKalender(state) {
         year: y,
         month0: m - 1,
         prefix: 'akt-cal',
-        hint: 'Aktivität antippen für Details · ICS = aktuelle Filteransicht zum Import in Outlook.',
+        hint: 'Schulkalender: alle eingereichten/genehmigten Termine · Antippen für Details (fremde nur lesen) · ICS = Filteransicht für Outlook.',
         actionsHtml:
             '<button type="button" class="btn akt-btn-ghost akt-btn-compact" id="aktBtnCalIcsHeader" title="Sichtbare Termine als ICS herunterladen">' +
             '<i class="bi bi-download" aria-hidden="true"></i>ICS herunterladen</button>'
@@ -1392,43 +1562,58 @@ function renderKostenLimits(state) {
     const flash = state.settingsSavedFlash === 'limits';
     const cards = limits
         .map((l, idx) => {
+            const ok = Math.max(0, Number(l.okBis) || 0);
+            const warn = Math.max(ok, Number(l.warnBis) || 0);
+            const title = typLabel(l.typ);
+            const scale = `<div class="akt-threshold-scale" aria-hidden="true">
+          <span class="akt-threshold-scale__ok" style="flex:${Math.max(ok, 1)}"></span>
+          <span class="akt-threshold-scale__warn" style="flex:${Math.max(warn - ok, 1)}"></span>
+          <span class="akt-threshold-scale__teuer" style="flex:${Math.max(Math.round(warn * 0.35) || 1, 1)}"></span>
+        </div>
+        <div class="akt-threshold-scale__legend">
+          <span><i class="akt-dot akt-dot--ok" aria-hidden="true"></i>bis ${esc(ok)} €</span>
+          <span><i class="akt-dot akt-dot--warn" aria-hidden="true"></i>bis ${esc(warn)} €</span>
+          <span><i class="akt-dot akt-dot--teuer" aria-hidden="true"></i>darüber Prüfung</span>
+        </div>`;
             if (!canEdit) {
                 return `<article class="akt-threshold-card">
-          <h3>${esc(l.typ)}</h3>
-          <dl>
-            <div><dt>Ohne Rücksprache bis</dt><dd>${esc(l.okBis)} €</dd></div>
-            <div><dt>Rücksprache erforderlich bis</dt><dd>${esc(l.warnBis)} €</dd></div>
-            <div><dt>Darüber</dt><dd>besondere Prüfung</dd></div>
-          </dl>
+          <h3>${esc(title)}</h3>
+          ${scale}
         </article>`;
             }
             return `<article class="akt-threshold-card">
-          <label class="akt-threshold-card__title"><span class="akt-sr-only">Art</span>
-            <input type="text" name="limitTyp" data-idx="${idx}" value="${esc(l.typ)}">
-          </label>
+          <h3 class="akt-threshold-card__title">${esc(title)}</h3>
+          <input type="hidden" name="limitTyp" data-idx="${idx}" value="${esc(l.typ)}">
+          ${scale}
           <div class="akt-threshold-card__grid">
-            <label><span>Ohne Rücksprache bis</span>
-              <span class="akt-money-input"><input type="number" min="0" step="1" name="limitOk" data-idx="${idx}" value="${esc(l.okBis)}"><span class="akt-money-input__suffix">€</span></span>
+            <label class="akt-threshold-field">
+              <span class="akt-threshold-field__label">Ohne Rücksprache bis</span>
+              <span class="akt-money-input"><input type="number" min="0" step="1" name="limitOk" data-idx="${idx}" value="${esc(
+                l.okBis
+            )}"><span class="akt-money-input__suffix">€</span></span>
             </label>
-            <label><span>Rücksprache erforderlich bis</span>
-              <span class="akt-money-input"><input type="number" min="0" step="1" name="limitWarn" data-idx="${idx}" value="${esc(l.warnBis)}"><span class="akt-money-input__suffix">€</span></span>
+            <label class="akt-threshold-field">
+              <span class="akt-threshold-field__label">Rücksprache bis</span>
+              <span class="akt-money-input"><input type="number" min="0" step="1" name="limitWarn" data-idx="${idx}" value="${esc(
+                l.warnBis
+            )}"><span class="akt-money-input__suffix">€</span></span>
             </label>
           </div>
-          <p class="muted akt-threshold-hint">Darüber: besondere Prüfung</p>
         </article>`;
         })
         .join('');
     return `
-    <section class="akt-panel akt-panel--calm">
-      <header class="akt-wizard-head" style="margin-bottom:12px">
+    <section class="akt-panel akt-panel--calm akt-limits">
+      <header class="akt-limits__head">
         <h2 class="akt-sr-only">Kostenschwellen</h2>
-        <p>Orientierung bei der Planung – Entscheidungsschwellen, keine Zahlung.</p>
+        <p class="akt-limits__lead">Eine Schwelle pro Antrags-Art (wie im Formular) – Ampel im Kostenfeld, <strong>keine Zahlung</strong>, kein Blockieren.</p>
+        <p class="muted akt-limits__note">Exkursion, Schulaktivität, Veranstaltung, Klassenabwesenheit, Sonstiges – Beträge hier pflegen.</p>
       </header>
       <form id="aktKostenLimitsForm" data-akt-dirty-form="limits">
         <div class="akt-threshold-grid">${cards}</div>
         ${
             canEdit
-                ? `<div class="akt-actions" style="margin-top:14px">
+                ? `<div class="akt-actions" style="margin-top:16px">
             <button type="submit" class="btn akt-btn-primary" ${dirty ? '' : 'disabled'}><i class="bi bi-save"></i>Änderungen speichern</button>
             <button type="button" class="btn" id="aktKostenLimitsReset"><i class="bi bi-arrow-counterclockwise"></i>Standard wiederherstellen</button>
             ${flash ? '<p class="akt-save-flash" role="status">✓ Änderungen gespeichert</p>' : ''}
@@ -1552,101 +1737,161 @@ function renderSystemAdmin(state) {
                 ? `Aktivitäten: ${aktCount} Einträge geladen`
                 : 'Aktivitäten: noch nicht geladen';
     const noSite = !String(state.siteUrl || '').trim();
+    const tabRaw = String(state.systemTab || 'site').toLowerCase();
+    const tab =
+        tabRaw === 'perms' ||
+        tabRaw === 'kalender' ||
+        tabRaw === 'wartung' ||
+        tabRaw === 'danger'
+            ? tabRaw
+            : 'site';
+    const tabBtn = (id, label, opts) => {
+        const danger = !!(opts && opts.danger);
+        const active = tab === id;
+        return `<button type="button" class="akt-sys-tabs__btn${active ? ' is-active' : ''}${
+            danger ? ' akt-sys-tabs__btn--danger' : ''
+        }" role="tab" id="aktSysTab-${id}" data-akt-sys-tab="${id}" aria-selected="${
+            active ? 'true' : 'false'
+        }" aria-controls="aktSysPanel-${id}">${esc(label)}</button>`;
+    };
+    const panelOpen = (id) => (tab === id ? '' : ' hidden');
     return `
-    <section class="akt-panel akt-panel--calm akt-sys-card" id="aktSysPermSection">
-      <div class="akt-section-head">
-        <h3>Genehmigung / Direktion</h3>
-        <p class="muted">Wer Anträge freigibt – Entra-Gruppe oder Einzelpersonen (auch aus Stammdaten Schulleitung). Speichern schreibt die App-Rollen; „Listenrechte anwenden“ setzt SharePoint-Rechte.</p>
+    <div class="akt-sys">
+      <div class="akt-sys-tabs" role="tablist" aria-label="Systemadministration">
+        ${tabBtn('site', '1 · Datenquelle')}
+        ${tabBtn('perms', '2 · Berechtigungen')}
+        ${tabBtn('kalender', '3 · Kalender')}
+        ${tabBtn('wartung', '4 · Wartung')}
+        ${tabBtn('danger', 'Danger Zone', { danger: true })}
       </div>
-      <div id="aktSysPermAdminMount"></div>
-      <div class="akt-actions" style="margin-top:12px;flex-wrap:wrap;gap:8px">
-        <button type="button" class="btn akt-btn-primary" id="aktSysPermSave"><i class="bi bi-check2"></i>Genehmiger speichern</button>
-        <button type="button" class="btn" id="aktSysPermApply"><i class="bi bi-shield-check"></i>Listenrechte anwenden</button>
-        <a class="btn" href="sharepoint-liste-schulaktivitaeten.html" style="text-decoration:none"><i class="bi bi-list-ul"></i>Listen verwalten</a>
-      </div>
-      <p class="muted" id="aktSysPermStatus" style="margin-top:8px" hidden></p>
-    </section>
-    <section class="akt-panel akt-panel--calm akt-sys-card">
-      <div class="akt-section-head">
-        <h3>Datenquelle</h3>
-        <p class="muted">SharePoint-Site der Schule – verbinden und Listen verwalten.</p>
-      </div>
-      ${
-          noSite
-              ? `<div class="akt-inline-warn" role="status">
-        <strong>Keine SharePoint-URL in diesem Browser.</strong>
-        <p class="muted" style="margin:6px 0 0">Dass die Listen in SharePoint sichtbar sind, reicht nicht – der Planer braucht die Site-Adresse.
-        IT: unter Admin → Schule die <em>Tool-Site-URL</em> auf die MS365-Schultools-Site setzen (dann hat jeder Lehrer-Browser denselben Zeiger),
-        oder hier die URL eintragen und „Verbindung prüfen“. Danach IT-Sicherung ablegen.</p>
-      </div>`
-              : ''
-      }
-      <p class="akt-sys-status"><span class="akt-status akt-status--${statusMod}"><span class="akt-status__dot" aria-hidden="true"></span>${esc(
-          statusLabel
-      )}</span></p>
-      <p class="akt-sys-status" style="margin-top:8px"><span class="akt-status akt-status--${
-          liveOk ? 'ok' : liveWarn ? 'warn' : 'warn'
-      }"><span class="akt-status__dot" aria-hidden="true"></span>${esc(liveLine)}</span></p>
-      <p class="akt-sys-status" style="margin-top:8px"><span class="akt-status akt-status--${
-          aktOk ? 'ok' : aktWarn ? 'warn' : 'warn'
-      }"><span class="akt-status__dot" aria-hidden="true"></span>${esc(aktLine)}</span></p>
-      ${
-          liveWarn
-              ? `<div class="akt-inline-warn" style="margin-top:10px" role="status">
-        <strong>Klassenauswahl braucht befüllte SharePoint-Listen.</strong>
-        <p class="muted" style="margin:6px 0 0">„Nur Berechtigungen“ reicht nicht – unter Listen verwalten „Nur Stammdaten befüllen“ oder „Paket anlegen“ ausführen.</p>
-      </div>`
-              : ''
-      }
-      <label for="aktSiteUrl">SharePoint-URL</label>
-      <div class="akt-top__row" style="margin-top:6px;flex-wrap:wrap;gap:8px">
-        <input type="url" id="aktSiteUrl" value="${esc(state.siteUrl)}" placeholder="https://…sharepoint.com/sites/…" spellcheck="false" style="flex:1;min-width:220px">
-        <button type="button" class="btn akt-btn-primary" id="aktBtnLoad"><i class="bi bi-plug"></i>Verbindung prüfen</button>
-      </div>
-      <div class="akt-actions" style="margin-top:12px">
-        <a class="btn" href="sharepoint-liste-schulaktivitaeten.html" style="text-decoration:none"><i class="bi bi-list-ul"></i>Listen verwalten</a>
-        <a class="btn" href="schulaktivitaeten-setup.html" style="text-decoration:none"><i class="bi bi-lightning-charge"></i>Flow-Setup</a>
-        <a class="btn" href="../tenant.html" style="text-decoration:none"><i class="bi bi-gear"></i>Stammdaten</a>
-      </div>
-    </section>
-    <section class="akt-panel akt-panel--calm akt-sys-card">
-      <div class="akt-section-head">
-        <h3>Kalenderintegration</h3>
-        <p class="muted">Genehmigte Termine als ICS oder abonnierbarer Feed.</p>
-      </div>
-      ${renderFeedBar(state)}
-      <div class="akt-actions" style="margin-top:10px">
-        <button type="button" class="btn" id="aktBtnFeed"><i class="bi bi-rss"></i>Feed verwalten</button>
-        <button type="button" class="btn" id="aktBtnIcs"><i class="bi bi-download"></i>ICS herunterladen</button>
-      </div>
-    </section>
-    <section class="akt-panel akt-panel--calm akt-sys-card">
-      <div class="akt-section-head">
-        <h3>Datenimport</h3>
-        <p class="muted">JSON-Backup importieren (Absicherung, kein Ersatz für Live-Listen).</p>
-      </div>
-      <div class="akt-actions">
-        <label class="btn" for="aktImportJson"><i class="bi bi-upload"></i>JSON importieren</label>
-        <input type="file" id="aktImportJson" accept=".json,application/json" hidden>
-      </div>
-    </section>
-    <section class="akt-panel akt-panel--calm akt-sys-card">
-      <div class="akt-section-head">
-        <h3>Demo &amp; Diagnose</h3>
-        <p class="muted">Vorführung und Fehlersuche – nicht für den Schulalltag.</p>
-      </div>
-      <div class="akt-actions">
-        <button type="button" class="btn" id="aktBtnDemo"><i class="bi bi-database"></i>Demo-Daten laden</button>
-        <a class="btn" href="../hilfe.html#tool-schulaktivitaeten-planer" style="text-decoration:none"><i class="bi bi-life-preserver"></i>Hilfe / Diagnose</a>
-      </div>
-    </section>
-    <section class="akt-panel akt-panel--calm akt-sys-card akt-sys-card--danger">
-      <div class="akt-section-head">
-        <h3>Danger Zone</h3>
-        <p class="muted">Unwiderrufliche bzw. disruptive Aktionen.</p>
-      </div>
-      <button type="button" class="btn akt-btn-danger" id="aktBtnDemoReset"><i class="bi bi-trash"></i>Demo-Daten zurücksetzen</button>
-    </section>`;
+
+      <section class="akt-sys-card" id="aktSysPanel-site" role="tabpanel" aria-labelledby="aktSysTab-site"${panelOpen(
+          'site'
+      )}>
+        <header class="akt-sys-card__head">
+          <span class="akt-sys-card__step">1</span>
+          <div>
+            <h3>Datenquelle</h3>
+            <p>SharePoint-Site verbinden – Grundlage für Listen, Genehmiger und Kalender.</p>
+          </div>
+        </header>
+        ${
+            noSite
+                ? `<div class="akt-inline-warn" role="status">
+          <strong>Keine SharePoint-URL in diesem Browser.</strong>
+          <p class="muted" style="margin:6px 0 0">IT: unter Admin → Schule die <em>Tool-Site-URL</em> setzen, oder hier eintragen und „Verbindung prüfen“.</p>
+        </div>`
+                : ''
+        }
+        <div class="akt-sys-health" role="status">
+          <span class="akt-status akt-status--${statusMod}"><span class="akt-status__dot" aria-hidden="true"></span>${esc(statusLabel)}</span>
+          <span class="akt-status akt-status--${liveOk ? 'ok' : 'warn'}"><span class="akt-status__dot" aria-hidden="true"></span>${esc(liveLine)}</span>
+          <span class="akt-status akt-status--${aktOk ? 'ok' : aktWarn ? 'warn' : 'warn'}"><span class="akt-status__dot" aria-hidden="true"></span>${esc(aktLine)}</span>
+        </div>
+        ${
+            liveWarn
+                ? `<div class="akt-inline-warn" role="status">
+          <strong>Klassenlisten fehlen oder sind leer.</strong>
+          <p class="muted" style="margin:6px 0 0">Unter „Listen verwalten“ Stammdaten befüllen oder Paket anlegen.</p>
+        </div>`
+                : ''
+        }
+        <div class="akt-sys-field">
+          <label for="aktSiteUrl">SharePoint-URL</label>
+          <div class="akt-sys-field__row">
+            <input type="url" id="aktSiteUrl" class="akt-sys-input" value="${esc(state.siteUrl)}" placeholder="https://…sharepoint.com/sites/…" spellcheck="false" autocomplete="off">
+            <button type="button" class="btn akt-btn-primary" id="aktBtnLoad"><i class="bi bi-plug"></i>Verbindung prüfen</button>
+          </div>
+        </div>
+        <div class="akt-sys-links">
+          <a class="btn akt-btn-secondary" href="sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-list-ul"></i>Listen verwalten</a>
+          <a class="btn akt-btn-ghost" href="schulaktivitaeten-setup.html"><i class="bi bi-lightning-charge"></i>Flow-Setup</a>
+          <a class="btn akt-btn-ghost" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+        </div>
+      </section>
+
+      <section class="akt-sys-card" id="aktSysPanel-perms" role="tabpanel" aria-labelledby="aktSysTab-perms"${panelOpen(
+          'perms'
+      )}>
+        <header class="akt-sys-card__head">
+          <span class="akt-sys-card__step">2</span>
+          <div>
+            <h3>Berechtigungen</h3>
+            <p>Genehmiger und Einreicher (Lehrkräfte) – sonst sehen Lehrer nach „Listenrechte“ die Liste nicht.</p>
+          </div>
+        </header>
+        <div class="akt-sys-callout" role="note">
+          <strong>Speichern</strong> schreibt die App-Rollen.
+          <strong>Listenrechte anwenden</strong> setzt SharePoint-Rechte (Vererbung bricht) – Schulleitung <em>und</em> Einreicher-Gruppe müssen gesetzt sein.
+        </div>
+        <div id="aktSysPermAdminMount" class="akt-sys-perm-mount"></div>
+        <div id="aktSysPermLehrerMount" class="akt-sys-perm-mount" style="margin-top:12px"></div>
+        <div class="akt-sys-actions">
+          <button type="button" class="btn akt-btn-primary" id="aktSysPermSave"><i class="bi bi-check2"></i>Berechtigungen speichern</button>
+          <button type="button" class="btn akt-btn-secondary" id="aktSysPermApply"><i class="bi bi-shield-check"></i>Listenrechte anwenden</button>
+          <a class="btn akt-btn-ghost" href="sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-box-arrow-up-right"></i>Listen-Assistent</a>
+        </div>
+        <p class="akt-sys-flash muted" id="aktSysPermStatus" hidden></p>
+      </section>
+
+      <section class="akt-sys-card" id="aktSysPanel-kalender" role="tabpanel" aria-labelledby="aktSysTab-kalender"${panelOpen(
+          'kalender'
+      )}>
+        <header class="akt-sys-card__head">
+          <span class="akt-sys-card__step">3</span>
+          <div>
+            <h3>Kalenderintegration</h3>
+            <p>Genehmigte Termine als ICS oder abonnierbarer Feed.</p>
+          </div>
+        </header>
+        ${renderFeedBar(state)}
+        <div class="akt-sys-actions">
+          <button type="button" class="btn akt-btn-secondary" id="aktBtnFeed"><i class="bi bi-rss"></i>Feed verwalten</button>
+          <button type="button" class="btn akt-btn-ghost" id="aktBtnIcs"><i class="bi bi-download"></i>ICS herunterladen</button>
+        </div>
+      </section>
+
+      <section class="akt-sys-card" id="aktSysPanel-wartung" role="tabpanel" aria-labelledby="aktSysTab-wartung"${panelOpen(
+          'wartung'
+      )}>
+        <header class="akt-sys-card__head">
+          <span class="akt-sys-card__step">4</span>
+          <div>
+            <h3>Wartung &amp; Diagnose</h3>
+            <p>Backup, Demo und Hilfe – getrennt vom Schulalltag.</p>
+          </div>
+        </header>
+        <div class="akt-sys-split">
+          <div class="akt-sys-split__block">
+            <h4>Datenimport</h4>
+            <p class="muted">JSON-Backup (Absicherung, kein Ersatz für Live-Listen).</p>
+            <label class="btn akt-btn-secondary" for="aktImportJson"><i class="bi bi-upload"></i>JSON importieren</label>
+            <input type="file" id="aktImportJson" accept=".json,application/json" hidden>
+          </div>
+          <div class="akt-sys-split__block">
+            <h4>Demo &amp; Hilfe</h4>
+            <p class="muted">Vorführung und Fehlersuche.</p>
+            <div class="akt-sys-actions">
+              <button type="button" class="btn akt-btn-secondary" id="aktBtnDemo"><i class="bi bi-database"></i>Demo-Daten laden</button>
+              <a class="btn akt-btn-ghost" href="../hilfe.html#tool-schulaktivitaeten-planer"><i class="bi bi-life-preserver"></i>Hilfe</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="akt-sys-card akt-sys-card--danger" id="aktSysPanel-danger" role="tabpanel" aria-labelledby="aktSysTab-danger"${panelOpen(
+          'danger'
+      )}>
+        <header class="akt-sys-card__head">
+          <span class="akt-sys-card__step akt-sys-card__step--danger" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></span>
+          <div>
+            <h3>Danger Zone</h3>
+            <p>Disruptive Aktionen – nur bewusst ausführen.</p>
+          </div>
+        </header>
+        <button type="button" class="btn akt-btn-danger" id="aktBtnDemoReset"><i class="bi bi-trash"></i>Demo-Daten zurücksetzen</button>
+      </section>
+    </div>`;
 }
 
 export function readFormFromDom() {

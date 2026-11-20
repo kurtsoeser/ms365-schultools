@@ -2,7 +2,10 @@
  * Stammdaten Lokal-First (Umbau): kanonisch lokal im Browser.
  *
  * Phase 4: manuelle IT-Sicherungsbibliothek (Einrichten + Sichern + Laden)
- * ist wieder erlaubt. Auto-Sync/Abgleich und Intranet-Listen-Export bleiben aus.
+ * ist erlaubt. Auto-Sync/Abgleich bleibt aus.
+ *
+ * Phase 5: manueller Intranet-Listen-Export (Lehrerinnen, Klassen, …)
+ * ist wieder erlaubt – damit Schultools Live-Listen aus SharePoint lesen können.
  *
  * Siehe docs/stammdaten-local-first.md
  */
@@ -11,9 +14,22 @@ export const STAMMDATEN_LOCAL_FIRST = true;
 /** Manuelles Einrichten/Sichern/Laden in die IT-Bibliothek (ohne Auto-Sync). */
 export const STAMMDATEN_IT_MANUAL_BACKUP = true;
 
-export const LOCAL_FIRST_BANNER = STAMMDATEN_IT_MANUAL_BACKUP
-    ? 'Lokal-First: Speichern in diesem Browser. IT-Sicherungsbibliothek: manuell sichern und laden (mit Versionierung). Kein Auto-Abgleich. Intranet-Listen-Export pausiert.'
-    : 'Lokal-First-Umbau: Speichern nur in diesem Browser. SharePoint-IT-Bibliothek und Intranet-Listen-Export sind deaktiviert. Sicherung: manuelles Browser-Backup (JSON).';
+/** Manueller Export der Intranet-Stammdaten-Listen nach SharePoint (ohne Auto-Sync). */
+export const STAMMDATEN_INTRANET_MANUAL_EXPORT = true;
+
+export const LOCAL_FIRST_BANNER = (() => {
+    const parts = ['Lokal-First: Speichern in diesem Browser.'];
+    if (STAMMDATEN_IT_MANUAL_BACKUP) {
+        parts.push('IT-Sicherungsbibliothek: manuell sichern und laden (mit Versionierung).');
+    }
+    if (STAMMDATEN_INTRANET_MANUAL_EXPORT) {
+        parts.push('Intranet-Listen: manuell abgleichen (z. B. „Intranet: Lehrerinnen“).');
+    } else {
+        parts.push('Intranet-Listen-Export pausiert.');
+    }
+    parts.push('Kein Auto-Abgleich.');
+    return parts.join(' ');
+})();
 
 export function isStammdatenLocalFirst() {
     return STAMMDATEN_LOCAL_FIRST === true;
@@ -30,8 +46,9 @@ export function isSpoNetworkSyncAllowed() {
     return !isStammdatenLocalFirst();
 }
 
-/** Intranet-Stammdaten-Listen nach SharePoint schreiben. */
+/** Intranet-Stammdaten-Listen nach SharePoint schreiben (manuell). */
 export function isIntranetExportAllowed() {
+    if (STAMMDATEN_INTRANET_MANUAL_EXPORT === true) return true;
     return !isStammdatenLocalFirst();
 }
 
@@ -40,9 +57,12 @@ export function localFirstStatusMessage() {
 }
 
 export function localFirstShortLabel() {
-    return STAMMDATEN_IT_MANUAL_BACKUP
-        ? 'Lokal-First · IT manuell'
-        : 'Lokal-First: nur Browser';
+    if (STAMMDATEN_IT_MANUAL_BACKUP && STAMMDATEN_INTRANET_MANUAL_EXPORT) {
+        return 'Lokal-First · IT + Intranet manuell';
+    }
+    if (STAMMDATEN_IT_MANUAL_BACKUP) return 'Lokal-First · IT manuell';
+    if (STAMMDATEN_INTRANET_MANUAL_EXPORT) return 'Lokal-First · Intranet manuell';
+    return 'Lokal-First: nur Browser';
 }
 
 /**
@@ -107,11 +127,11 @@ export function applyLocalFirstCompareUi(root) {
 }
 
 /**
- * Intranet-Sync-Buttons deaktivieren.
+ * Intranet-Sync-Buttons deaktivieren, solange manueller Export gesperrt ist.
  * @param {ParentNode|Document|null|undefined} [root]
  */
 export function applyLocalFirstIntranetUi(root) {
-    if (!isStammdatenLocalFirst()) return;
+    if (isIntranetExportAllowed()) return;
     const doc = root && root.querySelectorAll ? root : typeof document !== 'undefined' ? document : null;
     if (!doc) return;
     doc.querySelectorAll('[data-tenant-intranet-sync]').forEach(function (btn) {
@@ -127,6 +147,7 @@ if (typeof window !== 'undefined') {
     window.ms365StammdatenLocalFirst = {
         STAMMDATEN_LOCAL_FIRST,
         STAMMDATEN_IT_MANUAL_BACKUP,
+        STAMMDATEN_INTRANET_MANUAL_EXPORT,
         LOCAL_FIRST_BANNER,
         isStammdatenLocalFirst,
         isSpoManualBackupAllowed,
@@ -143,6 +164,7 @@ if (typeof window !== 'undefined') {
 export default {
     STAMMDATEN_LOCAL_FIRST,
     STAMMDATEN_IT_MANUAL_BACKUP,
+    STAMMDATEN_INTRANET_MANUAL_EXPORT,
     LOCAL_FIRST_BANNER,
     isStammdatenLocalFirst,
     isSpoManualBackupAllowed,

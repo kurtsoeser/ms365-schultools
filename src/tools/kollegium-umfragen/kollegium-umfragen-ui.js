@@ -54,13 +54,14 @@ import {
     isKollegiumAdminCached,
     resolveKollegiumRoles
 } from './kollegium-umfragen-entra-role.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 const VIEWS = [
     { id: 'uebersicht', label: 'Übersicht', icon: 'bi-speedometer2' },
     { id: 'vorlagen', label: 'Vorlagen', icon: 'bi-layout-text-window' },
     { id: 'liste', label: 'Umfragen', icon: 'bi-collection' },
     { id: 'detail', label: 'Auswertung', icon: 'bi-bar-chart' },
-    { id: 'einstellungen', label: 'Einstellungen', icon: 'bi-gear' }
+    { id: 'einstellungen', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 function esc(s) {
@@ -94,6 +95,7 @@ export function mountApp(root) {
     /** @type {{ view: string, selectedId: string, draft: object|null, message: {type:string,text:string}|null }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         selectedId: '',
         draft: null,
         message: null
@@ -591,54 +593,92 @@ export function mountApp(root) {
         const sync = getKollegiumSyncMeta();
         const site = resolveKollegiumSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
         const s = state();
-        return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">Einstellungen / System</h2>' +
-            '<p class="ku-item__meta" style="margin:0 0 12px;">Admin aus Schulleitung/Verwaltung/Schul-IT (Entra)' +
-            (role.demo ? ' · Demo' : role.sources.length ? ' · ' + esc(role.sources.join(', ')) : '') +
-            '. Zielgruppe „alle Lehrkräfte“ prüft Lehrer-Gruppe/Stammdaten – nicht jedes MSAL-Konto.</p>' +
-            '<form class="ku-form" id="kuSettingsForm">' +
-            '<label>Schulname (Anzeige)<input name="schoolName" value="' +
-            esc(set.schoolName) +
-            '"></label>' +
-            '<label class="ku-check"><input type="checkbox" name="defaultAnonym"' +
-            (set.defaultAnonym ? ' checked' : '') +
-            '> Neue Umfragen standardmäßig anonym</label>' +
-            '<div class="ku-form__actions"><button type="submit" class="btn btn-success">Speichern</button></div>' +
-            '</form>' +
-            '<div class="ku-item" style="margin-top:16px;">' +
-            '<h3 style="margin:0 0 8px;font-size:1rem;">SharePoint (Live)</h3>' +
-            '<p class="ku-item__meta"><code>' +
-            esc(site) +
-            '</code></p>' +
-            '<p class="ku-item__meta">Sync: <strong>' +
-            esc(sync.source) +
-            '</strong>' +
-            (sync.listTitle ? ' · „' + esc(sync.listTitle) + '“' : '') +
-            (sync.lastPullAt ? ' · zuletzt ' + esc(formatDeDate(sync.lastPullAt)) : '') +
+        const who =
+            'Admin aus Schulleitung/Verwaltung/Schul-IT (Entra)' +
+            (role.demo ? ' · Demo' : role.sources.length ? ' · ' + role.sources.join(', ') : '') +
+            '. Zielgruppe „alle Lehrkräfte“ prüft Lehrer-Gruppe/Stammdaten – nicht jedes MSAL-Konto.';
+        const syncLine =
+            'Sync: ' +
+            sync.source +
+            (sync.listTitle ? ' · „' + sync.listTitle + '“' : '') +
+            (sync.lastPullAt ? ' · zuletzt ' + formatDeDate(sync.lastPullAt) : '') +
             (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
-            (sync.error ? ' · ' + esc(sync.error) : '') +
-            '</p>' +
-            '<p class="ku-item__meta">Lokal: ' +
-            (s.umfragen || []).length +
-            ' Umfragen · ' +
-            (s.antworten || []).length +
-            ' Antworten' +
-            (s.localDemoOnly ? ' · Demo local-first' : '') +
-            ' · mit spoItemId: ' +
-            (s.umfragen || []).filter((u) => u.spoItemId).length +
-            ' / ' +
-            (s.antworten || []).filter((a) => a.spoItemId).length +
-            '</p>' +
-            '</div>' +
-            '<div class="ku-toolbar" style="margin-top:16px;">' +
-            '<button type="button" class="btn btn-success" data-ku-pull>Von SharePoint laden</button>' +
-            '<button type="button" class="btn" data-ku-demo>Demo laden</button>' +
-            '<button type="button" class="btn" data-ku-clear-seed>Demo-Seed entfernen</button>' +
-            '<button type="button" class="btn" data-ku-clear>Lokal leeren</button>' +
-            '<a class="btn" href="sharepoint-liste-kollegium-umfragen.html">SharePoint-Paket anlegen</a>' +
-            '</div>' +
-            '<p class="ku-item__meta">Hinweis: Microsoft Forms wird bewusst nicht als System of Record genutzt. Optional später: Export/Link als Zusatzkanal.</p>'
-        );
+            (sync.error ? ' · ' + sync.error : '');
+        return renderSystemAdminPage({
+            prefix: 'ku',
+            activeTab: ui.systemTab,
+            dataAttr: 'data-ku-sys-tab',
+            ariaLabel: 'Systemadministration Kollegiumsumfragen',
+            panels: [
+                {
+                    id: 'site',
+                    step: '1',
+                    title: 'Datenquelle',
+                    leadHtml: 'Umfragen und Antworten in SharePoint. Microsoft Forms ist nicht die Quelle.',
+                    body:
+                        '<p><code>' +
+                        esc(site) +
+                        '</code></p><p class="muted">' +
+                        esc(syncLine) +
+                        '</p><p class="muted">Lokal: ' +
+                        (s.umfragen || []).length +
+                        ' Umfragen · ' +
+                        (s.antworten || []).length +
+                        ' Antworten' +
+                        (s.localDemoOnly ? ' · Demo local-first' : '') +
+                        ' · mit spoItemId: ' +
+                        (s.umfragen || []).filter((u) => u.spoItemId).length +
+                        ' / ' +
+                        (s.antworten || []).filter((a) => a.spoItemId).length +
+                        '</p><div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-primary" data-ku-pull>Von SharePoint laden</button>' +
+                        '<a class="btn ms-sys-btn-secondary" href="sharepoint-liste-kollegium-umfragen.html">SharePoint-Paket anlegen</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'perms',
+                    step: '2',
+                    title: 'Berechtigungen',
+                    leadHtml: esc(who),
+                    body:
+                        '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-kollegium-umfragen.html"><i class="bi bi-shield-check"></i>Listen-Paket</a></div>'
+                },
+                {
+                    id: 'kalender',
+                    step: '3',
+                    title: 'Kalender',
+                    leadHtml: 'Kein Terminkalender. Laufzeit und Status stehen an der Umfrage.',
+                    body: '<p class="muted">Antworten laufen über die Antwortseite, nicht über Outlook.</p>'
+                },
+                {
+                    id: 'wartung',
+                    step: '4',
+                    title: 'Wartung',
+                    leadHtml: 'Anzeige-Name und Standard für neue Umfragen.',
+                    body:
+                        '<form class="ku-form" id="kuSettingsForm">' +
+                        '<label>Schulname (Anzeige)<input name="schoolName" value="' +
+                        esc(set.schoolName) +
+                        '"></label>' +
+                        '<label class="ku-check"><input type="checkbox" name="defaultAnonym"' +
+                        (set.defaultAnonym ? ' checked' : '') +
+                        '> Neue Umfragen standardmäßig anonym</label>' +
+                        '<div class="ku-form__actions"><button type="submit" class="btn btn-success">Speichern</button>' +
+                        '<button type="button" class="btn" data-ku-demo>Demo laden</button></div></form>'
+                },
+                {
+                    id: 'danger',
+                    title: 'Danger Zone',
+                    danger: true,
+                    leadHtml: 'Lokal leeren lässt die SharePoint-Liste stehen.',
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-ku-clear-seed>Demo-Seed entfernen</button>' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-ku-clear>Lokal leeren</button>' +
+                        '</div>'
+                }
+            ]
+        });
     }
 
     function readDraftFromForm(form, activate) {
@@ -681,6 +721,13 @@ export function mountApp(root) {
     }
 
     function bind() {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-ku-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-ku-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = btn.getAttribute('data-ku-view') || 'uebersicht';

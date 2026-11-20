@@ -12,7 +12,8 @@ import {
     healthSchoolStammdatenShellLists,
     teacherToLehrerListFields,
     classToKlassenListFields,
-    loadLocalSchoolStammdatenFromWindow
+    loadLocalSchoolStammdatenFromWindow,
+    siteWebUrlFromSharePointListUrl
 } from '../src/shared/school-stammdaten-spo-lists.js';
 
 describe('school-stammdaten-spo-lists', () => {
@@ -21,6 +22,17 @@ describe('school-stammdaten-spo-lists', () => {
         expect(t.lehrer).toBeTruthy();
         expect(t.klassen).toBe('Klassen');
         expect(resolveStammdatenSpoListTitles({ lehrer: 'Kollegium' }).lehrer).toBe('Kollegium');
+    });
+
+    it('siteWebUrlFromSharePointListUrl schneidet /Lists/… ab', () => {
+        expect(
+            siteWebUrlFromSharePointListUrl(
+                'https://kurtrocks.sharepoint.com/sites/MS365-Schultools/Lists/Lehrerinnen'
+            )
+        ).toBe('https://kurtrocks.sharepoint.com/sites/MS365-Schultools');
+        expect(
+            siteWebUrlFromSharePointListUrl('https://kurtrocks.sharepoint.com/sites/MS365-Schultools')
+        ).toBe('https://kurtrocks.sharepoint.com/sites/MS365-Schultools');
     });
 
     it('Lehrer- und Klassen-Spalten enthalten KV / Kürzel / M365-Gruppe', () => {
@@ -58,6 +70,20 @@ describe('school-stammdaten-spo-lists', () => {
             email: 'julia.bauer@schule.at',
             upn: 'julia.bauer@schule.at'
         });
+    });
+
+    it('mapLehrerFieldsToTeacher liest Personenfeld Lehrkraft und Title-only', () => {
+        const fromPerson = mapLehrerFieldsToTeacher({
+            Title: '',
+            Lehrkraft: { Email: 'max@schule.at', LookupValue: 'Max Muster' }
+        });
+        expect(fromPerson && fromPerson.email).toBe('max@schule.at');
+        expect(fromPerson && fromPerson.name).toBe('Max Muster');
+        expect(fromPerson && fromPerson.code).toBe('max@schule.at');
+
+        const titleOnly = mapLehrerFieldsToTeacher({ Title: 'Andrea Hagauer' });
+        expect(titleOnly && titleOnly.code).toBe('Andrea Hagauer');
+        expect(titleOnly && titleOnly.name).toBe('Andrea Hagauer');
     });
 
     it('mapKlassenFieldsToClass mappt KV, Abschlussjahr und M365-Gruppe', () => {
@@ -213,6 +239,58 @@ describe('school-stammdaten-spo-lists', () => {
         const local = loadLocalSchoolStammdatenFromWindow(win);
         expect(local.teachers).toHaveLength(1);
         expect(local.classes[0].code).toBe('1A');
+        expect(local.source).toContain('tenant-settings');
+    });
+
+    it('loadLocalSchoolStammdatenFromWindow liest app-data-v2 getContainer (nicht getCore)', () => {
+        const win = {
+            ms365AppDataV2: {
+                getContainer: () => ({
+                    core: {
+                        teachers: [
+                            { code: 'YOU', name: 'Angus Young', email: 'angus.young@kurtrocks.com' },
+                            { code: 'GRO', name: 'Dave Grohl', email: 'dave.grohl@kurtrocks.com' }
+                        ]
+                    },
+                    years: {
+                        current: '2025/26',
+                        byLabel: {
+                            '2025/26': {
+                                classes: [
+                                    { code: '1A', name: 'DEMO Klasse 1A' },
+                                    { code: '4B', name: 'DEMO Klasse 4B' }
+                                ]
+                            }
+                        }
+                    }
+                })
+            }
+        };
+        const local = loadLocalSchoolStammdatenFromWindow(win);
+        expect(local.teachers).toHaveLength(2);
+        expect(local.classes).toHaveLength(2);
+        expect(local.source).toContain('app-data-v2');
+    });
+
+    it('loadLocalSchoolStammdatenFromWindow liest ms365-schooltool-data-v2 aus localStorage', () => {
+        const store = {
+            'ms365-schooltool-data-v2': JSON.stringify({
+                core: { teachers: [{ code: 'SCO', name: 'Bon Scott' }] },
+                years: {
+                    current: '2025/26',
+                    byLabel: { '2025/26': { classes: [{ code: '2A', name: 'Klasse 2A' }] } }
+                }
+            })
+        };
+        const win = {
+            localStorage: {
+                getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null)
+            }
+        };
+        const local = loadLocalSchoolStammdatenFromWindow(win);
+        expect(local.teachers[0].code).toBe('SCO');
+        expect(local.classes[0].code).toBe('2A');
+        expect(local.source).toContain('localStorage-v2');
     });
 
     it('fetchSchoolStammdatenFromSite nutzt SPO-REST wenn Graph 0 Zeilen liefert', async () => {

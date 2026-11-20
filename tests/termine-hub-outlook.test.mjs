@@ -152,12 +152,24 @@ describe('Kalender und Termine Outlook helpers', () => {
         expect(audienceKeyFromPersonas({ isSchueler: true })).toBe('schueler');
         expect(audienceKeyFromPersonas({ loggedIn: false })).toBe('');
         expect(audienceKeyFromPersonas({})).toBe('');
+        expect(audienceKeyFromPersonas({ loggedIn: true })).toBe('self');
+        expect(
+            audienceKeyFromPersonas({
+                loggedIn: true,
+                isSchueler: true,
+                unknownUser: true
+            })
+        ).toBe('self');
         expect(sourceAllowedForAudience(SOURCE_IDS.LEHRER, 'schueler')).toBe(false);
         expect(sourceAllowedForAudience(SOURCE_IDS.SCHUELER, 'lehrer')).toBe(false);
         expect(sourceAllowedForAudience(SOURCE_IDS.SCHUL, 'schueler')).toBe(true);
         expect(sourceAllowedForAudience(SOURCE_IDS.SCHUL, '')).toBe(false);
+        expect(sourceAllowedForAudience(SOURCE_IDS.ME, 'self')).toBe(true);
+        expect(sourceAllowedForAudience(SOURCE_IDS.SCHUL, 'self')).toBe(false);
         expect(sourceWritableForAudience(SOURCE_IDS.SCHUL, 'schueler')).toBe(false);
         expect(sourceWritableForAudience(SOURCE_IDS.ME, 'schueler')).toBe(true);
+        expect(sourceWritableForAudience(SOURCE_IDS.ME, 'self')).toBe(true);
+        expect(sourceWritableForAudience(SOURCE_IDS.SCHUL, 'self')).toBe(false);
         expect(sourceWritableForAudience(SOURCE_IDS.SCHUL, 'lehrer')).toBe(true);
         expect(resolveEnabledSources(
             normalizeSettings({
@@ -166,6 +178,36 @@ describe('Kalender und Termine Outlook helpers', () => {
             }),
             { audience: '' }
         )).toEqual([]);
+    });
+
+    it('self-Audience: eigener Kalender auch ohne Portal-Rolle und ohne enabled me', () => {
+        const settings = normalizeSettings({
+            schulkalenderUpn: 'schul@x.at',
+            lehrerkalenderUpn: 'lehrer@x.at',
+            schuelerkalenderUpn: 'schueler@x.at',
+            enabledSources: [SOURCE_IDS.SCHUL, SOURCE_IDS.LEHRER, SOURCE_IDS.SCHUELER]
+        });
+        const src = resolveEnabledSources(settings, { audience: 'self' });
+        expect(src.map((s) => s.id)).toEqual([SOURCE_IDS.ME]);
+        expect(sourceWritableForAudience(SOURCE_IDS.ME, 'self')).toBe(true);
+        expect(audienceKeyFromPersonas({ loggedIn: true, isIt: false, isLehrer: false, isSchueler: false })).toBe(
+            'self'
+        );
+    });
+
+    it('erzwingt Mein Kalender für jede Audience auch ohne enabled me', () => {
+        const settings = normalizeSettings({
+            enabledSources: [SOURCE_IDS.SCHUL],
+            schulkalenderUpn: 'schul@x.at'
+        });
+        expect(resolveEnabledSources(settings, { audience: 'lehrer' }).map((s) => s.id)).toEqual([
+            SOURCE_IDS.ME,
+            SOURCE_IDS.SCHUL
+        ]);
+        expect(resolveEnabledSources(settings, { audience: 'schueler' }).map((s) => s.id)).toEqual([
+            SOURCE_IDS.ME,
+            SOURCE_IDS.SCHUL
+        ]);
     });
 
     it('filterEventsByVisibleSources blendet Layer aus', () => {

@@ -2,6 +2,7 @@
 
 **Status:** aktiv (`STAMMDATEN_LOCAL_FIRST = true` in [`src/shared/stammdaten-local-first.js`](../src/shared/stammdaten-local-first.js))  
 **Phase 4:** manuelle IT-Bibliothek freigeschaltet (`STAMMDATEN_IT_MANUAL_BACKUP = true`)  
+**Phase 5:** manueller Intranet-Listen-Export freigeschaltet (`STAMMDATEN_INTRANET_MANUAL_EXPORT = true`)  
 **Verwandt:** [schul-struktur-kanon.md](schul-struktur-kanon.md), [stammdaten-v1-sunset.md](stammdaten-v1-sunset.md), **[daten-inventar-landkarte.md](daten-inventar-landkarte.md)** (wo welche Daten liegen)
 
 ## Live-Listen vs. JSON-Backup
@@ -55,7 +56,6 @@ Jeder Speichern-/Import-Pfad schreibt Listen über [`stammdaten-write.js`](../sr
 
 - Auto-Push/Pull SharePoint IT-Bibliothek
 - Konflikt-/Abgleich-Dialoge („Lokal vs. IT prüfen“)
-- Intranet-Stammdaten-Listen-Export
 
 ## Was erlaubt ist
 
@@ -65,6 +65,9 @@ Jeder Speichern-/Import-Pfad schreibt Listen über [`stammdaten-write.js`](../sr
   - Einrichten (Stammdaten / Übergabe-Seite)
   - Sichern = aktuelles Browser-Backup nach SharePoint (+ datierte Version)
   - Laden = Backup-Datei aus der Bibliothek wählen und importieren
+- **Intranet-Listen manuell** (z. B. „Intranet: Lehrerinnen“ unter `/tenant.html#lehrer`)
+  - Schreibt die lokalen Stammdaten in die SharePoint-Liste auf der Intranet-Site
+  - Damit Schultools (Schulaktivitäten, sRDP, …) die aktualisierte Live-Liste lesen
 - Landkarte und Listen-Tabs pflegen
 - Importe (WebUntis / CSV) → schreiben Listen + materialisieren Landkarte
 
@@ -72,8 +75,9 @@ Jeder Speichern-/Import-Pfad schreibt Listen über [`stammdaten-write.js`](../sr
 
 | Flag | Bedeutung |
 |------|-----------|
-| `STAMMDATEN_LOCAL_FIRST` | Auto-Sync und Intranet-Export gesperrt |
+| `STAMMDATEN_LOCAL_FIRST` | Auto-Sync gesperrt; kanonisch lokal im Browser |
 | `STAMMDATEN_IT_MANUAL_BACKUP` | Manuelles Einrichten/Sichern/Laden der IT-Bib erlaubt |
+| `STAMMDATEN_INTRANET_MANUAL_EXPORT` | Manueller Intranet-Listen-Export (Lehrer, Klassen, …) erlaubt |
 
 Vollständigen Auto-Sync erst freigeben, wenn `STAMMDATEN_LOCAL_FIRST = false`.
 

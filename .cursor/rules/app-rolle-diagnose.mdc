@@ -1,0 +1,26 @@
+---
+description: >-
+  Portal-Persona und App-Rolle getrennt halten. Bei falscher Tool-Ansicht zuerst
+  die angezeigte App-Rolle lesen, nicht SharePoint-Rechte nachziehen.
+alwaysApply: true
+---
+
+# App-Rolle vor SharePoint
+
+Verbindlich: `docs/rollen-vertrag.md`.
+
+Portal-Persona (Kontomenü: Lehrkraft, Schüler/in, Schul-IT) entscheidet die Startseite. Die App-Rolle entscheidet, was dieses Tool zeigt. Schulleitung bleibt im Portal oft Lehrkraft und ist im Tool trotzdem Direktion.
+
+## Wenn jemand „nichts sieht“ oder die falsche Navigation hat
+
+1. Die Zeile `App-Rolle · …` neben dem Titel lesen.
+2. Steht dort `default` oder „Konto wird gelesen“, wurde die Rolle ohne angemeldete E-Mail gespeichert. Zuerst das Konto abwarten. SharePoint-Listenrechte, Gruppen und Filter nicht anfassen.
+3. Steht eine echte Quelle (Genehmiger, Schulleitung, Entra, Demo-Direktor), dann erst Zeilen und Listenrechte prüfen.
+4. Eine leere Direktion-Gruppe ist in Ordnung, wenn die Person eingetragen ist.
+
+## Beim Implementieren
+
+- Rolle erst speichern, wenn die E-Mail des Kontos gelesen ist.
+- Ein früher Lauf ohne Konto darf einen späteren Lauf mit Konto nicht überschreiben.
+- Die IT-Bibliothek sichert die Tool-Einrichtung. Sie ist nicht die Rollenvergabe.
+- Jedes Tool liest seine eigene Einrichtung, nicht die Portal-Persona und nicht das Nachbar-Tool.

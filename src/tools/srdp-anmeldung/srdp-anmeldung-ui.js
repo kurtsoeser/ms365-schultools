@@ -3,7 +3,6 @@
  */
 import {
     navSectionsForRole,
-    roleLabel,
     emptyForm,
     itemsForCurrentRole,
     filterItemsForView,
@@ -18,12 +17,16 @@ import {
 import {
     isSeminarWahlfach,
     computeAnmeldungStats,
+    groupItemsBy,
     buildAnmeldungSummary,
     teacherRolesOnItem,
+    filterItemsForTeacher,
     buildPruefplanKurz,
+    buildPruefplanDetail,
     isSrdpAnmeldeFensterOffen,
     findAnmeldungBySchuelerEmail
 } from './srdp-anmeldung-logic.js';
+import { periodenForTerminJahr, MATURA_TERMIN_URL, formatGermanDate } from './srdp-pruefungstermine.js';
 import {
     SRDP_ROLE_ORDER,
     canUseSrdpRoleSwitcher,
@@ -36,6 +39,15 @@ import {
     renderMs365CalendarShell,
     toIsoDateOnly
 } from '../../shared/ms365-calendar-shell.js';
+import {
+    normalizeSystemTab,
+    renderSystemTabBar,
+    systemPanelHiddenAttr
+} from '../../shared/system-admin-shell.js';
+import {
+    loadEffectiveSrdpPermissionsConfig,
+    formatSrdpAudienceSummary
+} from '../sharepoint/sharepoint-liste-srdp-permissions-ui.js';
 
 function esc(s) {
     return String(s ?? '')
@@ -84,6 +96,7 @@ function topTitle(state) {
         'meine-pruefungen': 'Meine Prüfungen',
         'meine-klasse': 'Meine Klasse',
         liste: 'Alle Anmeldungen',
+        termine: 'sRDP-Termine',
         kalender: 'Kalender',
         auswertung: 'Auswertung',
         system: 'Systemadministration',
@@ -95,11 +108,29 @@ function topTitle(state) {
 function topHint(state) {
     const jahr = (state.options && state.options.jahr) || '';
     const profile = (state.options && state.options.profileLabel) || 'HAK';
+    if (state.view === 'system' || state.view === 'einrichtung') {
+        return 'Site, Berechtigungen, Kalender und Wartung in Tabs – Danger Zone bewusst getrennt.';
+    }
     if (state.role === 'schueler') {
+        if (state.view === 'termine') {
+            return 'Wann die zentralen Klausuren des Haupttermins ' + jahr + ' und der Nebentermine stattfinden.';
+        }
+        if (state.view === 'kalender') {
+            return 'Deine schriftlichen Klausuren am Haupttermin ' + jahr + '.';
+        }
         return 'Melde dich für den Haupttermin ' + jahr + ' an (' + profile + ').';
     }
     if (state.role === 'lehrer') {
-        return 'Prüfungen und Klassen, in denen du beteiligt bist · ' + profile + ' ' + jahr;
+        if (state.view === 'meine-klasse') {
+            return 'Nur Anmeldungen deiner Klasse · ' + profile + ' ' + jahr;
+        }
+        if (state.view === 'termine') {
+            return 'Zentrale Klausuren laut matura.gv.at · Haupttermin, Herbsttermin, Wintertermin.';
+        }
+        if (state.view === 'liste' || state.view === 'auswertung' || state.view === 'kalender') {
+            return 'Alle Anmeldungen der Schule · ' + profile + ' ' + jahr;
+        }
+        return 'Prüfungen, in denen du als Lehrkraft eingetragen bist · ' + profile + ' ' + jahr;
     }
     return 'Entscheidungen, Nacharbeit und Auswertung · ' + profile + ' ' + jahr;
 }
@@ -125,7 +156,6 @@ function renderTop(state) {
         <p>${esc(topHint(state))}</p>
       </div>
       <div class="srdp-top__user">
-        <span>Angemeldet als <span class="srdp-badge srdp-badge--info">${esc(roleLabel(state.role))}</span></span>
         ${phaseBadge(state)}
         ${
             state.localDemoOnly
@@ -135,9 +165,7 @@ function renderTop(state) {
         ${
             state.demoPersonaEmail
                 ? `<small>Persona ${esc(state.demoPersonaName || state.demoPersonaEmail)}</small>`
-                : state.accountEmail
-                  ? `<small>${esc(state.accountName || state.accountEmail)}</small>`
-                  : '<small>Bitte oben rechts anmelden</small>'
+                : ''
         }
       </div>
     </header>`;
@@ -150,6 +178,35 @@ function quietEmpty(text, actionHtml) {
     </p>${actionHtml || ''}`;
 }
 
+function planDateHtml(row) {
+    if (row && row.datum) return `<time datetime="${esc(row.datumIso)}">${esc(row.datum)}</time>`;
+    if (row && row.datumHinweis) return `<time class="is-school">${esc(row.datumHinweis)}</time>`;
+    return '';
+}
+
+function renderPlanSplit(item, profileId, terminJahr, bfkDatum) {
+    const plan = buildPruefplanDetail(item, profileId, { terminJahr, bfkDatum });
+    const col = (title, rows, mod) => {
+        const body = (rows || [])
+            .map((r) => {
+                if (!r.part) return '';
+                return `<li><strong>${esc(r.part)}</strong>${planDateHtml(r)}${
+                    r.detail ? `<span>${esc(r.detail)}</span>` : ''
+                }</li>`;
+            })
+            .join('');
+        return `<section class="srdp-plan-col srdp-plan-col--${mod}">
+        <h4>${esc(title)}</h4>
+        <ul>${body || '<li><span>–</span></li>'}</ul>
+      </section>`;
+    };
+    if (!plan.schriftlich.length && !plan.muendlich.length) return '';
+    return `<div class="srdp-plan-split">
+      ${col('Schriftlich', plan.schriftlich, 'schriftlich')}
+      ${col('Mündlich', plan.muendlich, 'muendlich')}
+    </div>`;
+}
+
 function renderSummaryCard(item, profileId, opts) {
     const o = opts || {};
     const summary = buildAnmeldungSummary(item, profileId);
@@ -158,14 +215,9 @@ function renderSummaryCard(item, profileId, opts) {
     )}">
       <div class="srdp-summary__head">
         <h3>${esc(o.heading || summary.title || 'Anmeldung')}</h3>
-        <p>${esc(o.sub || summary.pruefplan || 'Deine gewählten Prüfungsteile')}</p>
+        <p>${esc(String(item.klasse || '–'))} · ${esc(String(item.variante || '–'))}</p>
       </div>
-      <dl>
-        ${summary.rows
-            .slice(0, 6)
-            .map((r) => `<dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd>`)
-            .join('')}
-      </dl>
+      ${renderPlanSplit(item, profileId, o.jahr || '', o.bfkDatum || '')}
     </button>`;
 }
 
@@ -260,45 +312,114 @@ function renderFilters(state) {
     </div>`;
 }
 
-function renderTable(items, state, opts) {
+function renderNacharbeitStatus(item) {
+    const done = !!(item && item.nacharbeitErledigt);
+    const mod = done ? 'ok' : 'warn';
+    const label = done ? 'In der Prüfungsliste' : 'Noch offen';
+    return `<span class="srdp-status srdp-status--${mod}"><span class="srdp-status__dot" aria-hidden="true"></span>${label}</span>`;
+}
+
+function renderGroupBar(state) {
+    const cur = String(state.groupBy || '');
+    const opts = [
+        ['', 'Als Liste'],
+        ['klasse', 'Nach Klasse'],
+        ['variante', 'Nach Variante'],
+        ['wahlfach', 'Nach Wahlfach']
+    ];
+    const count = filterItemsForView(state.items || [], state).length;
+    return `<div class="srdp-listbar">
+      <div class="srdp-seg" role="group" aria-label="Gruppieren">
+        ${opts
+            .map(
+                ([id, label]) =>
+                    `<button type="button" class="srdp-seg__btn${
+                        cur === id ? ' is-active' : ''
+                    }" data-srdp-group="${esc(id)}" aria-pressed="${cur === id ? 'true' : 'false'}">${esc(
+                        label
+                    )}</button>`
+            )
+            .join('')}
+      </div>
+      <input type="search" class="srdp-listbar__search" placeholder="Suche Name…" value="${esc(
+          state.filterQuery || ''
+      )}" data-srdp-filter="query" aria-label="Name suchen">
+      <span class="srdp-listbar__meta">${count} ${count === 1 ? 'Eintrag' : 'Einträge'}</span>
+    </div>`;
+}
+
+function renderFlatTable(items, state, opts) {
     const o = opts || {};
     const list = Array.isArray(items) ? items : [];
+    const hide = String(o.hideCol || '');
+    const showNach = o.showNacharbeit != null ? !!o.showNacharbeit : isSrdpStaffRole(state.role);
     if (!list.length) {
         return quietEmpty('<strong>Keine Anmeldungen</strong> · In dieser Ansicht ist nichts vorhanden.');
     }
-    return `<div class="srdp-table-wrap"><table class="srdp-table">
+    return `<div class="srdp-table-wrap"><table class="srdp-table srdp-table--rows">
       <thead><tr>
-        <th>Name</th><th>Klasse</th><th>Variante</th><th>LFS</th><th>Wahlfach</th>
+        <th>Name</th>${hide === 'klasse' ? '' : '<th>Klasse</th>'}${
+            hide === 'variante' ? '' : '<th>Variante</th>'
+        }<th>LFS</th>${hide === 'wahlfach' ? '' : '<th>Wahlfach</th>'}
         ${o.showRoles ? '<th>Deine Rolle</th>' : ''}
         <th>Betreuung DA</th>
-        <th></th>
+        ${showNach ? '<th>Nacharbeit</th>' : ''}
+        <th class="srdp-table__chevron"><span class="srdp-sr-only">Öffnen</span></th>
       </tr></thead>
       <tbody>
         ${list
             .map((it) => {
+                const name = it.title || [it.nachname, it.vorname].filter(Boolean).join(', ') || 'Anmeldung';
                 const roles = o.showRoles
                     ? teacherRolesOnItem(it, state.teacherLabel)
                           .map((r) => `<span class="srdp-pill srdp-pill--role">${esc(r.label)}</span>`)
                           .join('')
                     : '';
-                return `<tr>
-            <td><strong>${esc(it.title || it.nachname + ', ' + it.vorname)}</strong></td>
-            <td>${esc(it.klasse)}</td>
-            <td><span class="srdp-pill">${esc(it.variante)}</span></td>
-            <td>${esc(it.lfs)}${it.lehrerLFS ? '<br><small>' + esc(it.lehrerLFS) + '</small>' : ''}</td>
-            <td>${esc(it.wahlfachMuendlich)}${
-                    it.seminar ? '<br><small>Seminar: ' + esc(it.seminar) + '</small>' : ''
-                }</td>
+                return `<tr class="srdp-table__row" tabindex="0" role="link" data-srdp-open-detail="${esc(
+                    it.itemId
+                )}" aria-label="${esc(name + ' öffnen')}">
+            <td><strong>${esc(name)}</strong></td>
+            ${hide === 'klasse' ? '' : `<td>${esc(it.klasse)}</td>`}
+            ${hide === 'variante' ? '' : `<td>${esc(it.variante)}</td>`}
+            <td>${esc(it.lfs)}${
+                it.lehrerLFS ? '<div class="srdp-table__sub">' + esc(it.lehrerLFS) + '</div>' : ''
+            }</td>
+            ${
+                hide === 'wahlfach'
+                    ? ''
+                    : `<td>${esc(it.wahlfachMuendlich)}${
+                          it.seminar ? '<div class="srdp-table__sub">Seminar: ' + esc(it.seminar) + '</div>' : ''
+                      }</td>`
+            }
             ${o.showRoles ? `<td>${roles || '–'}</td>` : ''}
             <td>${esc(it.betreuungslehrerDA || it.betreuungslehrerABA || '–')}</td>
-            <td><button type="button" class="srdp-text-link" data-srdp-open-detail="${esc(
-                it.itemId
-            )}">Details</button></td>
+            ${showNach ? `<td>${renderNacharbeitStatus(it)}</td>` : ''}
+            <td class="srdp-table__chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></td>
           </tr>`;
             })
             .join('')}
       </tbody>
     </table></div>`;
+}
+
+function renderTable(items, state, opts) {
+    const o = opts || {};
+    const list = Array.isArray(items) ? items : [];
+    const by = String(o.groupBy != null ? o.groupBy : state.groupBy || '');
+    if (by !== 'klasse' && by !== 'variante' && by !== 'wahlfach') {
+        return renderFlatTable(list, state, o);
+    }
+    if (!list.length) {
+        return quietEmpty('<strong>Keine Anmeldungen</strong> · In dieser Ansicht ist nichts vorhanden.');
+    }
+    return groupItemsBy(list, by)
+        .map(
+            (g) => `<section class="srdp-group">
+      <header class="srdp-group__head"><h3>${esc(g.key)}</h3><span>${g.items.length}</span></header>
+      ${renderFlatTable(g.items, state, { ...o, hideCol: by })}
+    </section>`
+        )
+        .join('');
 }
 
 function renderBars(buckets, total) {
@@ -347,7 +468,7 @@ function renderLehrerDashboard(state) {
       <p class="srdp-panel__hint">Zuordnungen als Betreuung, LFS, BKO oder Wahlfach.</p>
       ${
           mine.length
-              ? renderTable(mine.slice(0, 6), state, { showRoles: true })
+              ? renderTable(mine.slice(0, 6), state, { showRoles: true, groupBy: '' })
               : '<p class="muted">Keine kommenden Zuordnungen.</p>'
       }
       <div class="srdp-actions">
@@ -432,28 +553,62 @@ function renderMeine(state) {
             `<div class="srdp-actions"><button type="button" class="btn btn-success" data-srdp-view-jump="anmelden"><i class="bi bi-pencil-square"></i>Jetzt anmelden</button></div>`
         );
     }
-    return mine.map((it) => renderSummaryCard(it, state.options.profileId)).join('');
+    return mine
+        .map((it) =>
+            renderSummaryCard(it, state.options.profileId, { jahr: state.options.jahr })
+        )
+        .join('');
 }
 
 function renderAuswertung(state) {
-    const stats = computeAnmeldungStats(filterItemsForView(state.items || [], state));
-    return `${renderFilters(state)}
+    const items = filterItemsForView(state.items || [], state);
+    const stats = computeAnmeldungStats(items);
+    const by =
+        state.groupBy === 'variante' || state.groupBy === 'wahlfach' || state.groupBy === 'klasse'
+            ? state.groupBy
+            : '';
+    const groups = by ? groupItemsBy(items, by) : [{ key: 'Alle', items }];
+    const cards = groups.length
+        ? `<div class="srdp-eval">${groups
+              .map((g) => {
+                  const rows = g.items
+                      .map((it) => {
+                          const name = it.title || [it.nachname, it.vorname].filter(Boolean).join(', ');
+                          const meta = [
+                              by === 'klasse' ? '' : it.klasse,
+                              by === 'variante' ? '' : it.variante,
+                              by === 'wahlfach' ? '' : it.wahlfachMuendlich
+                          ]
+                              .map((x) => String(x || '').trim())
+                              .filter(Boolean)
+                              .join(' · ');
+                          return `<li><button type="button" data-srdp-open-detail="${esc(it.itemId)}">
+                <strong>${esc(name || 'Anmeldung')}</strong>
+                <span>${esc(meta || '–')}</span>
+              </button></li>`;
+                      })
+                      .join('');
+                  return `<article class="srdp-eval-card">
+            <header><h3>${esc(g.key)}</h3><strong>${g.items.length}</strong></header>
+            <ul>${rows}</ul>
+          </article>`;
+              })
+              .join('')}</div>`
+        : quietEmpty('<strong>Keine Anmeldungen</strong> · In dieser Auswahl ist nichts vorhanden.');
+    return `${renderGroupBar(state)}
     <div class="srdp-kpis">
-      <div class="srdp-kpi"><strong>${stats.total}</strong><span>gefiltert</span></div>
-      <div class="srdp-kpi"><strong>${stats.mitSeminar}</strong><span>Seminar</span></div>
+      <div class="srdp-kpi"><strong>${stats.total}</strong><span>Anmeldungen</span></div>
+      <div class="srdp-kpi"><strong>${stats.byKlasse.length}</strong><span>Klassen</span></div>
+      <div class="srdp-kpi"><strong>${stats.mitSeminar}</strong><span>mit Seminar</span></div>
     </div>
-    <section class="srdp-panel srdp-panel--calm"><h3>Klassen</h3>${renderBars(
-        stats.byKlasse,
-        stats.total
-    )}</section>
-    <section class="srdp-panel srdp-panel--calm"><h3>Varianten</h3>${renderBars(
-        stats.byVariante,
-        stats.total
-    )}</section>
-    <section class="srdp-panel srdp-panel--calm"><h3>Wahlfächer</h3>${renderBars(
-        stats.byWahlfach,
-        stats.total
-    )}</section>`;
+    ${cards}
+    <section class="srdp-panel srdp-panel--calm"><h3>Verteilung</h3>
+      <div class="srdp-eval-dist">
+        <div><h4>Klassen</h4>${renderBars(stats.byKlasse, stats.total)}</div>
+        <div><h4>Varianten</h4>${renderBars(stats.byVariante, stats.total)}</div>
+        <div><h4>Wahlfächer</h4>${renderBars(stats.byWahlfach, stats.total)}</div>
+      </div>
+    </section>`;
 }
 
 function formatSyncPullAt(iso) {
@@ -482,79 +637,253 @@ function renderSystem(state) {
         ? 'demo'
         : sync.source || (sync.connected ? 'sharepoint' : 'none');
     const withItemId = (state.items || []).filter((it) => String(it.itemId || '').trim()).length;
-    return `<section class="srdp-panel srdp-panel--it">
-      <h3>Listen &amp; Jahr</h3>
-      <p class="srdp-panel__hint">IT / Administration: SharePoint-Liste für den Haupttermin verbinden. Lehrer sehen diesen Bereich nicht.</p>
-      <div class="srdp-form-grid">
-        <div class="srdp-field srdp-field--full">
-          <label for="srdpSiteUrl">SharePoint-Website</label>
-          <input type="url" id="srdpSiteUrl" value="${esc(state.siteUrl || '')}" placeholder="https://….sharepoint.com/sites/…">
+    const connected = !!(sync.connected || (state.siteUrl && !state.error && !state.localDemoOnly));
+    const statusLabel = state.loading
+        ? 'Verbindung wird geprüft…'
+        : state.error
+          ? 'Fehler'
+          : connected
+            ? 'Verbunden'
+            : state.siteUrl
+              ? 'URL gesetzt – noch nicht geladen'
+              : 'Nicht verbunden';
+    const statusMod = state.error ? 'bad' : connected ? 'ok' : 'warn';
+    const liveOk = !!(live.ok || (Number(live.classCount) || 0) > 0);
+    const liveLine = liveOk
+        ? `SharePoint: ${Number(live.classCount) || 0} Klassen, ${Number(live.teacherCount) || 0} Lehrkräfte`
+        : live.error
+          ? `Live-Laden: ${live.error}`
+          : `Quelle: ${live.source || '–'} · Klassen ${Number(live.classCount) || 0}`;
+    const syncLine = `Sync: ${syncSource}${
+        sync.listTitle ? ' · Liste „' + sync.listTitle + '“' : ''
+    }${sync.lastPullAt ? ' · zuletzt ' + formatSyncPullAt(sync.lastPullAt) : ''}${
+        state.localDemoOnly ? ' · Demo local-first' : ''
+    } · ${withItemId}/${(state.items || []).length} mit itemId`;
+    const perms = loadEffectiveSrdpPermissionsConfig();
+    const adminSum = formatSrdpAudienceSummary({
+        groups: perms.adminGroups,
+        users: perms.adminUsers,
+        id: perms.groupAdminId,
+        label: perms.groupAdmin
+    });
+    const lehrerSum = formatSrdpAudienceSummary({
+        groups: perms.lehrerGroups,
+        users: perms.lehrerUsers,
+        id: perms.groupLehrerId,
+        label: perms.groupLehrer
+    });
+    const kandSum = formatSrdpAudienceSummary({
+        groups: perms.kandidatenGroups,
+        users: perms.kandidatenUsers,
+        id: perms.groupKandidatenId,
+        label: perms.groupKandidaten
+    });
+    const permsOk = adminSum !== '— nicht gesetzt —' || lehrerSum !== '— nicht gesetzt —';
+    const tab = normalizeSystemTab(state.systemTab);
+    const noSite = !String(state.siteUrl || '').trim();
+    const panelOpen = (id) => systemPanelHiddenAttr(tab, id);
+    return `
+    <div class="ms-sys">
+      ${renderSystemTabBar({
+          prefix: 'srdp',
+          activeTab: tab,
+          dataAttr: 'data-srdp-sys-tab',
+          ariaLabel: 'Systemadministration sRDP'
+      })}
+
+      <section class="ms-sys-card" id="srdpSysPanel-site" role="tabpanel" aria-labelledby="srdpSysTab-site"${panelOpen(
+          'site'
+      )}>
+        <header class="ms-sys-card__head">
+          <span class="ms-sys-card__step">1</span>
+          <div>
+            <h3>Datenquelle</h3>
+            <p>SharePoint-Liste für den Haupttermin verbinden – Lehrer sehen diesen Bereich nicht.</p>
+          </div>
+        </header>
+        ${
+            noSite
+                ? `<div class="ms-sys-inline-warn" role="status">
+          <strong>Keine SharePoint-URL in diesem Browser.</strong>
+          <p class="muted" style="margin:6px 0 0">Site hier eintragen oder im vollständigen Setup hinterlegen.</p>
+        </div>`
+                : ''
+        }
+        <div class="ms-sys-health" role="status">
+          <span class="ms-sys-status ms-sys-status--${statusMod}"><span class="ms-sys-status__dot" aria-hidden="true"></span>${esc(
+              statusLabel
+          )}</span>
+          <span class="ms-sys-status ms-sys-status--${liveOk ? 'ok' : 'warn'}"><span class="ms-sys-status__dot" aria-hidden="true"></span>${esc(
+              liveLine
+          )}</span>
+          <span class="ms-sys-status ms-sys-status--${
+              sync.connected && !state.localDemoOnly ? 'ok' : 'warn'
+          }"><span class="ms-sys-status__dot" aria-hidden="true"></span>${esc(syncLine)}</span>
         </div>
-        <div class="srdp-field">
-          <label>Profil</label>
-          <input type="text" value="${esc(o.profileLabel || '')}" readonly>
+        <div class="ms-sys-field">
+          <label for="srdpSiteUrl">SharePoint-URL</label>
+          <div class="ms-sys-field__row">
+            <input type="url" id="srdpSiteUrl" class="ms-sys-input" value="${esc(
+                state.siteUrl || ''
+            )}" placeholder="https://…sharepoint.com/sites/…" spellcheck="false" autocomplete="off">
+            <button type="button" class="btn ms-sys-btn-primary" data-srdp-save-site><i class="bi bi-plug"></i>Verbindung prüfen</button>
+          </div>
         </div>
-        <div class="srdp-field">
-          <label>Terminjahr</label>
-          <input type="text" value="${esc(o.jahr || '')}" readonly>
+        <div class="ms-sys-field__grid">
+          <div class="ms-sys-field">
+            <label>Profil</label>
+            <input type="text" class="ms-sys-input" value="${esc(o.profileLabel || '')}" readonly>
+          </div>
+          <div class="ms-sys-field">
+            <label>Terminjahr</label>
+            <input type="text" class="ms-sys-input" value="${esc(o.jahr || '')}" readonly>
+          </div>
         </div>
-        <div class="srdp-field srdp-field--full">
+        <div class="ms-sys-field">
           <label>Listenname</label>
-          <input type="text" value="${esc(o.listTitle || sync.listTitle || '')}" readonly>
+          <input type="text" class="ms-sys-input" value="${esc(
+              o.listTitle || sync.listTitle || ''
+          )}" readonly>
         </div>
-      </div>
-      <p class="srdp-panel__hint">Sync: <strong>${esc(syncSource)}</strong>${
-          sync.listTitle ? ' · Liste „' + esc(sync.listTitle) + '“' : ''
-      }${
-          sync.lastPullAt ? ' · zuletzt ' + esc(formatSyncPullAt(sync.lastPullAt)) : ''
-      }${sync.connected ? ' · verbunden' : ' · nicht verbunden'}${
-          state.localDemoOnly ? ' · Demo local-first' : ''
-      } · ${withItemId}/${(state.items || []).length} mit itemId</p>
-      <div class="srdp-actions">
-        <button type="button" class="btn btn-success" data-srdp-save-site><i class="bi bi-save"></i>Site speichern &amp; laden</button>
-        <button type="button" class="btn" data-srdp-reload><i class="bi bi-arrow-repeat"></i>Von SharePoint laden</button>
-        <button type="button" class="btn" data-srdp-demo><i class="bi bi-magic"></i>Demo lokal</button>
-        <button type="button" class="btn" data-srdp-demo-reset><i class="bi bi-arrow-counterclockwise"></i>Demo zurücksetzen</button>
-        <a class="btn" href="sharepoint-liste-srdp.html" style="text-decoration:none;"><i class="bi bi-sliders"></i>Vollständiges Setup</a>
-        <a class="btn" href="srdp-mail-setup.html" style="text-decoration:none;"><i class="bi bi-envelope-check"></i>Bestätigungsmail-Flow</a>
-      </div>
-    </section>
-    <section class="srdp-panel srdp-panel--it">
-      <h3>Stammdaten / Diagnose</h3>
-      <p class="srdp-panel__hint">Quelle: ${esc(live.source || '–')} · Klassen ${
-          Number(live.classCount) || 0
-      } · Lehrkräfte ${Number(live.teacherCount) || 0}${
-          live.ok ? '' : live.error ? ' · ' + esc(live.error) : ''
-      }</p>
-      <dl class="srdp-summary" style="border:0;border-radius:0;box-shadow:none;">
-        <dt>Klassen (Setup)</dt><dd>${esc((o.klassen || []).join(', ') || '–')}</dd>
-        <dt>LFS</dt><dd>${esc((o.lfs || []).join(', ') || '–')}</dd>
-        <dt>Wahlfächer</dt><dd>${esc((o.wahlfaecher || []).slice(0, 8).join(', ') || '–')}${
-            (o.wahlfaecher || []).length > 8 ? ' …' : ''
-        }</dd>
-      </dl>
-      <div class="srdp-form-grid" style="margin-top:12px">
-        <div class="srdp-field">
-          <label for="srdpAnmeldeFrist">Anmeldefrist</label>
-          <input type="date" id="srdpAnmeldeFrist" value="${esc(
-              String(o.anmeldeFrist || '').slice(0, 10)
-          )}">
+        <div class="ms-sys-actions">
+          <button type="button" class="btn ms-sys-btn-secondary" data-srdp-reload><i class="bi bi-arrow-repeat"></i>Von SharePoint laden</button>
+          <a class="btn ms-sys-btn-secondary" href="sharepoint-liste-srdp.html"><i class="bi bi-list-ul"></i>Listen verwalten</a>
+          <a class="btn ms-sys-btn-ghost" href="srdp-mail-setup.html"><i class="bi bi-envelope-check"></i>Bestätigungsmail-Flow</a>
         </div>
-        <div class="srdp-field">
-          <label for="srdpHaupttermin">Haupttermin</label>
-          <input type="date" id="srdpHaupttermin" value="${esc(
-              String(o.haupttermin || '').slice(0, 10)
-          )}">
+      </section>
+
+      <section class="ms-sys-card" id="srdpSysPanel-perms" role="tabpanel" aria-labelledby="srdpSysTab-perms"${panelOpen(
+          'perms'
+      )}>
+        <header class="ms-sys-card__head">
+          <span class="ms-sys-card__step">2</span>
+          <div>
+            <h3>Berechtigungen</h3>
+            <p>Admin, Lehrkräfte und Kandidat:innen – Detailpflege im Listen-Assistenten.</p>
+          </div>
+        </header>
+        <div class="ms-sys-callout" role="note">
+          <strong>Übersicht</strong> aus der gespeicherten Konfiguration.
+          Gruppen und Listenrechte setzt du im vollständigen Setup.
         </div>
-      </div>
-      <div class="srdp-actions">
-        <button type="button" class="btn btn-success" data-srdp-save-termine><i class="bi bi-calendar-check"></i>Frist &amp; Termin speichern</button>
-      </div>
-    </section>`;
+        <div class="ms-sys-health" role="status">
+          <span class="ms-sys-status ms-sys-status--${permsOk ? 'ok' : 'warn'}"><span class="ms-sys-status__dot" aria-hidden="true"></span>${
+              permsOk ? 'Rollen teilweise gesetzt' : 'Noch keine Gruppen gesetzt'
+          }</span>
+        </div>
+        <dl class="ms-sys-dl">
+          <dt>Admin / Direktion</dt><dd>${esc(adminSum)}</dd>
+          <dt>Lehrkräfte</dt><dd>${esc(lehrerSum)}</dd>
+          <dt>Kandidat:innen</dt><dd>${esc(kandSum)}</dd>
+        </dl>
+        <div class="ms-sys-links">
+          <a class="btn ms-sys-btn-secondary" href="sharepoint-liste-srdp.html"><i class="bi bi-shield-check"></i>Vollständiges Setup · Rechte</a>
+        </div>
+      </section>
+
+      <section class="ms-sys-card" id="srdpSysPanel-kalender" role="tabpanel" aria-labelledby="srdpSysTab-kalender"${panelOpen(
+          'kalender'
+      )}>
+        <header class="ms-sys-card__head">
+          <span class="ms-sys-card__step">3</span>
+          <div>
+            <h3>Kalender &amp; Fristen</h3>
+            <p>Anmeldefrist und Haupttermin steuern Phase und Kalenderansicht.</p>
+          </div>
+        </header>
+        <div class="ms-sys-field__grid">
+          <div class="ms-sys-field">
+            <label for="srdpAnmeldeFrist">Anmeldefrist</label>
+            <input type="date" id="srdpAnmeldeFrist" class="ms-sys-input" value="${esc(
+                String(o.anmeldeFrist || '').slice(0, 10)
+            )}">
+          </div>
+          <div class="ms-sys-field">
+            <label for="srdpHaupttermin">Haupttermin</label>
+            <input type="date" id="srdpHaupttermin" class="ms-sys-input" value="${esc(
+                String(o.haupttermin || '').slice(0, 10)
+            )}">
+          </div>
+        </div>
+        <div class="ms-sys-actions">
+          <button type="button" class="btn ms-sys-btn-primary" data-srdp-save-termine><i class="bi bi-calendar-check"></i>Frist &amp; Termin speichern</button>
+          <button type="button" class="btn ms-sys-btn-secondary" data-srdp-view-jump="kalender"><i class="bi bi-calendar3"></i>Kalender öffnen</button>
+        </div>
+      </section>
+
+      <section class="ms-sys-card" id="srdpSysPanel-wartung" role="tabpanel" aria-labelledby="srdpSysTab-wartung"${panelOpen(
+          'wartung'
+      )}>
+        <header class="ms-sys-card__head">
+          <span class="ms-sys-card__step">4</span>
+          <div>
+            <h3>Wartung &amp; Diagnose</h3>
+            <p>Stammdaten-Diagnose, Demo und Setup – getrennt vom Schulalltag.</p>
+          </div>
+        </header>
+        <div class="ms-sys-split">
+          <div class="ms-sys-split__block">
+            <h4>Stammdaten</h4>
+            <p class="muted">Quelle: ${esc(live.source || '–')} · Klassen ${
+                Number(live.classCount) || 0
+            } · Lehrkräfte ${Number(live.teacherCount) || 0}</p>
+            <dl class="ms-sys-dl">
+              <dt>Klassen</dt><dd>${esc((o.klassen || []).join(', ') || '–')}</dd>
+              <dt>LFS</dt><dd>${esc((o.lfs || []).join(', ') || '–')}</dd>
+              <dt>Wahlfächer</dt><dd>${esc(
+                  (o.wahlfaecher || []).slice(0, 8).join(', ') || '–'
+              )}${(o.wahlfaecher || []).length > 8 ? ' …' : ''}</dd>
+            </dl>
+            <div class="ms-sys-actions">
+              <a class="btn ms-sys-btn-secondary" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+              <a class="btn ms-sys-btn-ghost" href="sharepoint-liste-srdp.html"><i class="bi bi-sliders"></i>Vollständiges Setup</a>
+            </div>
+          </div>
+          <div class="ms-sys-split__block">
+            <h4>Demo &amp; Hilfe</h4>
+            <p class="muted">Vorführung ohne SharePoint – Seeds bleiben lokal.</p>
+            <div class="ms-sys-actions">
+              <button type="button" class="btn ms-sys-btn-secondary" data-srdp-demo><i class="bi bi-database"></i>Demo lokal</button>
+              <a class="btn ms-sys-btn-ghost" href="../hilfe.html#tool-srdp-anmeldung"><i class="bi bi-life-preserver"></i>Hilfe</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ms-sys-card ms-sys-card--danger" id="srdpSysPanel-danger" role="tabpanel" aria-labelledby="srdpSysTab-danger"${panelOpen(
+          'danger'
+      )}>
+        <header class="ms-sys-card__head">
+          <span class="ms-sys-card__step ms-sys-card__step--danger" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></span>
+          <div>
+            <h3>Danger Zone</h3>
+            <p>Disruptive Aktionen – nur bewusst ausführen.</p>
+          </div>
+        </header>
+        <button type="button" class="btn ms-sys-btn-danger" data-srdp-demo-reset><i class="bi bi-trash"></i>Demo zurücksetzen</button>
+      </section>
+    </div>`;
+}
+
+function examItemsForCalendar(state) {
+    const items = Array.isArray(state.items) ? state.items : [];
+    if (state.role === 'lehrer') return filterItemsForTeacher(items, state.teacherLabel);
+    if (state.role === 'schueler') return itemsForCurrentRole(state);
+    return items;
+}
+
+function teacherOwnsWrittenPart(part, roles) {
+    const p = String(part || '').toLowerCase();
+    return (roles || []).some((role) => {
+        if (role.role === 'lfs' && p.includes('lfs')) return true;
+        if (role.role === 'vierte' && (p.includes('klausur') || p.includes('englisch'))) return true;
+        return false;
+    });
 }
 
 function buildCalendarEvents(state) {
     const o = state.options || {};
+    const jahr = o.jahr || '';
     /** @type {object[]} */
     const events = [];
     if (o.anmeldeFrist) {
@@ -564,34 +893,133 @@ function buildCalendarEvents(state) {
             start: o.anmeldeFrist,
             allDay: true,
             tone: 'warn',
-            subtitle: 'Haupttermin ' + (o.jahr || '')
+            subtitle: 'Haupttermin ' + jahr
         });
     }
-    if (o.haupttermin) {
-        events.push({
-            id: 'haupt',
-            title: 'Haupttermin Matura/sRDP',
-            start: o.haupttermin,
-            allDay: true,
-            tone: 'ok',
-            subtitle: o.profileLabel || 'HAK'
+    const items = examItemsForCalendar(state);
+    if (state.role === 'admin') {
+        /** @type {Map<string, { iso: string, fach: string, names: string[] }>} */
+        const buckets = new Map();
+        items.forEach((it) => {
+            const plan = buildPruefplanDetail(it, o.profileId, {
+                terminJahr: jahr,
+                bfkDatum: o.bfkDatum || ''
+            });
+            plan.schriftlich.forEach((row) => {
+                if (!row.datumIso || !row.fach) return;
+                const key = row.datumIso + '|' + row.fachKey;
+                if (!buckets.has(key)) buckets.set(key, { iso: row.datumIso, fach: row.fach, names: [] });
+                const name = it.title || [it.nachname, it.vorname].filter(Boolean).join(' ');
+                if (name) buckets.get(key).names.push(name);
+            });
         });
+        buckets.forEach((bucket, key) => {
+            const n = bucket.names.length;
+            events.push({
+                id: 'exam-' + key,
+                title: bucket.fach + ' schriftlich',
+                start: bucket.iso,
+                allDay: true,
+                tone: 'info',
+                subtitle:
+                    'Haupttermin ' +
+                    jahr +
+                    ' · ' +
+                    n +
+                    (n === 1 ? ' Kandidat:in' : ' Kandidat:innen')
+            });
+        });
+        return events;
     }
-    const list = filterItemsForView(state.items || [], state);
-    list.forEach((it) => {
-        const start = toIsoDateOnly(it.created);
-        if (!start) return;
-        events.push({
-            id: String(it.itemId || ''),
-            title: it.title || buildAnmeldungSummary(it).title || 'Anmeldung',
-            start,
-            allDay: true,
-            tone: it.nacharbeitErledigt ? 'ok' : 'info',
-            subtitle: [it.klasse, it.variante].filter(Boolean).join(' · '),
-            openAttr: 'data-srdp-open-detail="' + esc(it.itemId) + '"'
+    items.forEach((it) => {
+        const plan = buildPruefplanDetail(it, o.profileId, { terminJahr: jahr, bfkDatum: o.bfkDatum || '' });
+        const roles = state.role === 'lehrer' ? teacherRolesOnItem(it, state.teacherLabel) : null;
+        plan.schriftlich.forEach((row) => {
+            if (!row.datumIso || !row.fach) return;
+            if (roles && row.fachKey !== 'bfk' && !teacherOwnsWrittenPart(row.part, roles)) return;
+            const who = it.title || [it.nachname, it.vorname].filter(Boolean).join(' ');
+            events.push({
+                id: String(it.itemId || who) + '-' + row.fachKey,
+                title: row.fach + ' schriftlich',
+                start: row.datumIso,
+                allDay: true,
+                tone: 'info',
+                subtitle: [it.klasse, who, 'Haupttermin ' + jahr].filter(Boolean).join(' · '),
+                openAttr: it.itemId ? 'data-srdp-open-detail="' + esc(it.itemId) + '"' : ''
+            });
         });
     });
     return events;
+}
+
+export function firstCalendarExamDate(state) {
+    const exams = buildCalendarEvents(state)
+        .filter((ev) => ev.id !== 'frist')
+        .map((ev) => String(ev.start || ''))
+        .filter((iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso))
+        .sort();
+    return exams[0] || '';
+}
+
+function renderTermine(state) {
+    const jahr = (state.options && state.options.jahr) || '';
+    const bundle = periodenForTerminJahr(jahr);
+    const bfkMatch = String((state.options && state.options.bfkDatum) || '').match(/20\d{2}-\d{2}-\d{2}/);
+    const bfkIso = bfkMatch ? bfkMatch[0] : '';
+    const blocks = bundle.perioden
+        .map((periode) => {
+            const rows = (periode.block.faecher || []).map((fach) => {
+                const daten = (fach.daten || []).slice().filter(Boolean).sort();
+                return {
+                    sort: daten[0] || '9999-99-99',
+                    label: fach.fach,
+                    when: daten.map((iso) => formatGermanDate(iso)).filter(Boolean).join(' und ') || '–',
+                    school: false
+                };
+            });
+            if (periode.id === 'haupt') {
+                rows.push({
+                    sort: bfkIso || '9999-99-99',
+                    label: 'BFK schriftlich',
+                    when: bfkIso ? formatGermanDate(bfkIso) : 'noch nicht festgelegt',
+                    school: true
+                });
+            }
+            rows.sort((a, b) => a.sort.localeCompare(b.sort) || (a.school ? 1 : 0) - (b.school ? 1 : 0));
+            const body = rows
+                .map(
+                    (row) =>
+                        `<tr><th scope="row">${esc(row.label)}</th><td>${esc(row.when)}</td></tr>`
+                )
+                .join('');
+            const neben = periode.neben ? `<p class="srdp-termine__neben">${esc(periode.neben)}</p>` : '';
+            return `<section class="srdp-termine__block">
+        <header>
+          <h3>${esc(periode.label)} ${esc(periode.block.jahr)}</h3>
+          ${neben}
+        </header>
+        <table class="srdp-termine__table">
+          <tbody>${body}</tbody>
+        </table>
+      </section>`;
+        })
+        .join('');
+    const empty = bundle.perioden.length
+        ? ''
+        : state.termineSource === 'live' || state.termineSource === 'cache'
+          ? `<p class="srdp-panel__hint">Für ${esc(jahr || 'dieses Jahr')} stehen auf matura.gv.at noch keine Termine.</p>`
+          : `<p class="srdp-panel__hint">Für ${esc(jahr || 'dieses Jahr')} liegt noch kein Termin vor. Die Seite matura.gv.at wird beim Öffnen gelesen, sobald das Jahr dort veröffentlicht ist.</p>`;
+    return `<section class="srdp-panel srdp-panel--calm srdp-termine">
+      <h2 class="srdp-sr-only">sRDP-Termine</h2>
+      <p class="srdp-panel__hint">Schuljahr ${esc(bundle.schuljahr || '–')} · Die Anmeldung gilt für den Haupttermin. Die schriftliche BFK steht dort mit den zentralen Klausuren. Herbst- und Wintertermin sind die Nebentermine.</p>
+      ${empty}
+      ${blocks}
+      <p class="srdp-termine__source">${
+          state.termineSource === 'live' || state.termineSource === 'cache'
+              ? 'Gerade von matura.gv.at gelesen. '
+              : 'Bis die Seite gelesen ist, gilt der letzte mitgelieferte Stand. '
+      }Quelle: <a href="${esc(MATURA_TERMIN_URL)}" target="_blank" rel="noopener noreferrer">matura.gv.at/pruefungstermine</a></p>
+    </section>`;
 }
 
 function renderKalender(state) {
@@ -606,7 +1034,7 @@ function renderKalender(state) {
         year: y,
         month0: m - 1,
         prefix: 'srdp-cal',
-        hint: 'Anmeldefrist, Haupttermin und eingegangene Anmeldungen · Agenda, Woche, Monat.',
+        hint: 'Schriftliche Klausuren am Haupttermin. BFK, BKO und Wahlfach legt die Schule fest. Alle Fächer unter sRDP-Termine.',
         actionsHtml: ''
     });
     return `<section class="srdp-panel srdp-panel--calm srdp-cal-layout">
@@ -635,7 +1063,8 @@ function renderView(state) {
                     quietEmpty(
                         '<strong>Du bist bereits angemeldet</strong> · Eine zweite Anmeldung ist nicht nötig.',
                         `<div class="srdp-actions"><button type="button" class="btn btn-success" data-srdp-view-jump="meine">Zur Zusammenfassung →</button></div>`
-                    ) + renderSummaryCard(existing, state.options.profileId)
+                    ) +
+                    renderSummaryCard(existing, state.options.profileId, { jahr: state.options.jahr })
                 );
             }
             if (!isSrdpAnmeldeFensterOffen(state.options)) {
@@ -660,7 +1089,7 @@ function renderView(state) {
         case 'meine':
             return renderMeine(state);
         case 'meine-pruefungen':
-            return renderTable(itemsForCurrentRole(state), state, { showRoles: true });
+            return renderTable(itemsForCurrentRole(state), state, { showRoles: true, groupBy: '' });
         case 'meine-klasse': {
             const kvCodes = kvKlasseCodesForState(state);
             const rows = itemsForCurrentRole(state);
@@ -677,16 +1106,18 @@ function renderView(state) {
             }
             return (
                 `<p class="srdp-panel__hint">KV-Klassen: ${esc(kvCodes.join(', ') || '–')}</p>` +
-                renderTable(rows, state, { showRoles: false })
+                renderTable(rows, state, { showRoles: false, groupBy: '' })
             );
         }
         case 'liste':
             return (
-                renderFilters(state) +
+                renderGroupBar(state) +
                 renderTable(filterItemsForView(state.items || [], state), state, {
                     showRoles: state.role === 'lehrer'
                 })
             );
+        case 'termine':
+            return renderTermine(state);
         case 'kalender':
             return renderKalender(state);
         case 'auswertung':
@@ -790,33 +1221,55 @@ export function renderApp(state, root) {
           ${state.loading ? '' : renderView(state)}
         </div>
       </div>
-      ${detail ? renderAnmeldungDrawer(detail, state) : ''}
     </div>`;
+
+    let host = document.getElementById('srdpDrawerHost');
+    if (!host) {
+        host = document.createElement('div');
+        host.id = 'srdpDrawerHost';
+        document.body.appendChild(host);
+    }
+    host.innerHTML = detail ? renderAnmeldungDrawer(detail, state) : '';
 }
 
-export function readFormFromDom() {
+/**
+ * @param {object} [prev] bisheriger Formularzustand (Hidden-Felder / andere Wizard-Schritte)
+ */
+export function readFormFromDom(prev) {
     const g = (id) => document.getElementById(id);
+    const p = prev && typeof prev === 'object' ? prev : {};
+    const val = (id, fallback) => {
+        const el = g(id);
+        if (!el) return fallback;
+        return el.value;
+    };
     const best = g('srdpBestaetigung');
     const bestaetigung = best
         ? best.type === 'checkbox'
             ? !!best.checked
             : String(best.value || '') === '1' || String(best.value || '').toLowerCase() === 'true'
-        : false;
+        : !!p.bestaetigung;
     const formEl = document.getElementById('srdpForm');
-    const step = formEl ? Number(formEl.getAttribute('data-srdp-wizard-step') || 1) : 1;
+    const step = formEl
+        ? Number(formEl.getAttribute('data-srdp-wizard-step') || p.wizardStep || 1)
+        : Number(p.wizardStep) || 1;
     return emptyForm({
-        klasse: g('srdpKlasse') && g('srdpKlasse').value,
-        nachname: g('srdpNachname') && g('srdpNachname').value,
-        vorname: g('srdpVorname') && g('srdpVorname').value,
-        titelDiplomarbeit: g('srdpDA') && g('srdpDA').value,
-        betreuungslehrerDA: g('srdpBetreuung') && g('srdpBetreuung').value,
-        variante: g('srdpVariante') && g('srdpVariante').value,
-        lfs: g('srdpLfs') && g('srdpLfs').value,
-        lehrerLFS: g('srdpLehrerLfs') && g('srdpLehrerLfs').value,
-        lehrerBKO: g('srdpLehrerBko') && g('srdpLehrerBko').value,
-        wahlfachMuendlich: g('srdpWahlfach') && g('srdpWahlfach').value,
-        seminar: g('srdpSeminar') && g('srdpSeminar').value,
-        lehrerWahlfach: g('srdpLehrerWahl') && g('srdpLehrerWahl').value,
+        klasse: val('srdpKlasse', p.klasse),
+        nachname: val('srdpNachname', p.nachname),
+        vorname: val('srdpVorname', p.vorname),
+        titelDiplomarbeit: val('srdpDA', p.titelDiplomarbeit),
+        betreuungslehrerDA: val('srdpBetreuung', p.betreuungslehrerDA),
+        variante: val('srdpVariante', p.variante),
+        lfs: val('srdpLfs', p.lfs),
+        lehrerLFS: val('srdpLehrerLfs', p.lehrerLFS),
+        lehrerBKO: val('srdpLehrerBko', p.lehrerBKO),
+        wahlfachMuendlich: val('srdpWahlfach', p.wahlfachMuendlich || p.wahlfach),
+        seminar: (function () {
+            const typed = String((g('srdpSeminarText') && g('srdpSeminarText').value) || '').trim();
+            const picked = String((g('srdpSeminar') && g('srdpSeminar').value) || '').trim();
+            return typed || picked || String(p.seminar || '').trim();
+        })(),
+        lehrerWahlfach: val('srdpLehrerWahl', p.lehrerWahlfach),
         bestaetigung,
         wizardStep: step
     });

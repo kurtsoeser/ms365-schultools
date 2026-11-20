@@ -8,6 +8,7 @@ import {
     parseAdminMails,
     setEinsammlerAdminAccessCache
 } from './einsammler-scope.js';
+import { announceStaffAccess } from '../../shared/app-role-chrome.js';
 
 /**
  * @param {string} [email]
@@ -27,6 +28,11 @@ export async function resolveEinsammlerAdmin(email) {
         isAdmin: !!result.isAdmin,
         sources: result.sources || [],
         demo: !!result.demo
+    });
+    announceStaffAccess('einsammler', {
+        email: em,
+        isAdmin: !!result.isAdmin,
+        sources: result.sources || []
     });
     return result;
 }

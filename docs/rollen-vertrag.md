@@ -117,3 +117,21 @@ Shared Helper: `src/shared/betrieb-admin-entra.js` (nutzt Ablauf-Admin).
 | Technik | melden; nur eigene (Lehrer **und** Schüler) | Inbox + Status/Löschen |
 | Raumplan | lesen/suchen + Technik-Link (Lehrer) | Import, CRUD, Plan-Upload |
 | Ausgaben | „meine“ Vorgänge (`empfaengerEmail`) | Inventar/Ausgeben/Retour/Settings; Audience `lehrer` |
+
+---
+
+## 8. Diagnose, wenn die falsche Ansicht offen ist
+
+Die App-Rolle wird beim Öffnen berechnet. Quelle ist das angemeldete Konto plus die Einrichtung **dieses** Tools (Genehmiger, Personen, Entra-Gruppe, Schulleitung in den Stammdaten, globaler Administrator). Die IT-Bibliothek speichert diese Einrichtung (`permissions-*.json`) und lädt sie in den Browser. Sie vergibt die Rolle nicht.
+
+Die Portal-Persona im Kontomenü ist eine andere Schicht. Schulleitung bleibt dort oft „Lehrkraft“.
+
+Anzeige neben dem Titel: `App-Rolle · <Quelle>`.
+
+| Anzeige | Bedeutung | Nächster Schritt |
+|---------|-----------|------------------|
+| Demo-Direktor, Genehmiger (Setup), Schulleitung (Stammdaten), Entra-Gruppe | Konto wurde gelesen, Quelle ist klar | Listenrechte und eigene/alle Zeilen prüfen |
+| `default` oder „Konto wird gelesen“ | Rolle wurde ohne E-Mail festgelegt | Anmeldung abwarten, nichts in SharePoint ändern |
+| Direktion-Gruppe leer, Person ist eingetragen | Zugriff läuft über die Person | Gruppe nicht als Fehler lesen |
+
+Eine Rolle darf erst gespeichert werden, wenn die E-Mail des Kontos gelesen ist. Ein leerer früher Lauf darf einen späteren Lauf mit Konto nicht überschreiben.

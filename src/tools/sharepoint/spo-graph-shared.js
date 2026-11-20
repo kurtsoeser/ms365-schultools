@@ -1,11 +1,31 @@
 (function (global) {
     'use strict';
 
+    var freshTokenByKey = Object.create(null);
+
     async function getGraphToken(scopes) {
+        var list = Array.isArray(scopes) ? scopes.filter(Boolean) : [];
+        var key = list.join(' ');
+        if (freshTokenByKey[key]) return freshTokenByKey[key];
+        // Einmal pro Seitenaufruf still erneuern, damit eine neue Gruppenmitgliedschaft
+        // ohne Abmelden in allen Schul-Tools gilt.
+        if (typeof global.ms365AuthAcquireTokenFresh === 'function') {
+            try {
+                var fresh = await global.ms365AuthAcquireTokenFresh(list.length ? list : undefined);
+                if (fresh) {
+                    freshTokenByKey[key] = fresh;
+                    return fresh;
+                }
+            } catch (e) {
+                /* Cache oder Anmeldung – unten der bisherige Weg */
+            }
+        }
         // Popup zuerst: Formulare bleiben erhalten (kein Seiten-Redirect).
         if (typeof global.ms365AuthAcquireTokenPopup === 'function') {
             try {
-                return await global.ms365AuthAcquireTokenPopup(scopes);
+                var popupTok = await global.ms365AuthAcquireTokenPopup(scopes);
+                if (popupTok) freshTokenByKey[key] = popupTok;
+                return popupTok;
             } catch (e) {
                 const msg = String((e && e.message) || e || '');
                 const code = String((e && (e.errorCode || e.code)) || '');
@@ -20,7 +40,9 @@
             }
         }
         if (typeof global.ms365AuthAcquireToken === 'function') {
-            return await global.ms365AuthAcquireToken(scopes);
+            var tok = await global.ms365AuthAcquireToken(scopes);
+            if (tok) freshTokenByKey[key] = tok;
+            return tok;
         }
         throw new Error('Bitte oben rechts anmelden (MSAL-Widget nicht verfügbar).');
     }
@@ -689,23 +711,46 @@
         };
     }
 
-    /**
-     * Beliebiges Listenfeld per MERGE patchen (ConditionalShowFormula, CustomFormatter, Required, …).
-     * @param {Record<string, unknown>} body
-     */
-    async function spoPatchListField(siteWebUrl, spoToken, digest, listTitle, fieldInternalName, body) {
+    function spoListFieldApiPath(listTitle, fieldInternalName) {
         const listName = String(listTitle || '').trim();
         const field = String(fieldInternalName || '').trim();
         if (!listName || !field) throw new Error('Liste oder Feldname fehlt.');
-        const esc = listName.replace(/'/g, "''");
-        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
-        const api =
+        return (
             "/_api/web/lists/getbytitle('" +
-            esc +
+            listName.replace(/'/g, "''") +
             "')/fields/getbyinternalnameortitle('" +
             field.replace(/'/g, "''") +
-            "')";
-        const payload = body && typeof body === 'object' ? body : {};
+            "')"
+        );
+    }
+
+    /**
+     * Formeln wie „=false“, die das Feld dauerhaft im Formular ausblenden.
+     * Spiegel von src/shared/spo-field-visibility.js (IIFE ohne ESM-Import).
+     */
+    function isAlwaysHideShowFormula(formula) {
+        const s = String(formula || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '');
+        return s === '=false' || s === "='false'" || s === "=if(true,'false','true')";
+    }
+
+    /**
+     * Beliebiges Listenfeld per MERGE patchen (CustomFormatter, Required, DefaultValue, …).
+     * Hinweis: ConditionalShowFormula gehört nicht hierher – SPO typed Field-MERGE lehnt die
+     * Eigenschaft ab; siehe spoSetFieldConditionalShowFormula / spoSetFieldShowInForms.
+     * @param {Record<string, unknown>} body
+     */
+    async function spoPatchListField(siteWebUrl, spoToken, digest, listTitle, fieldInternalName, body) {
+        const field = String(fieldInternalName || '').trim();
+        const api = spoListFieldApiPath(listTitle, field);
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const payload = body && typeof body === 'object' ? { ...body } : {};
+        if ('ConditionalShowFormula' in payload) {
+            delete payload.ConditionalShowFormula;
+        }
+        if (!Object.keys(payload).length) return true;
         const res = await fetch(origin + api, {
             method: 'POST',
             headers: {
@@ -723,6 +768,112 @@
             throw new Error('Feld „' + field + '": ' + res.status + ' ' + text);
         }
         return true;
+    }
+
+    /**
+     * Feld in New/Edit/Display-Formularen ein-/ausblenden (zuverlässige REST-Methoden).
+     * @param {boolean} show
+     */
+    async function spoSetFieldShowInForms(
+        siteWebUrl,
+        spoToken,
+        digest,
+        listTitle,
+        fieldInternalName,
+        show
+    ) {
+        const field = String(fieldInternalName || '').trim();
+        const api = spoListFieldApiPath(listTitle, field);
+        const flag = show === true;
+        const methods = ['setshowinnewform', 'setshowineditform', 'setshowindisplayform'];
+        for (let i = 0; i < methods.length; i++) {
+            const res = await spoRestFetch(
+                siteWebUrl,
+                spoToken,
+                digest,
+                'POST',
+                api + '/' + methods[i] + '(' + flag + ')',
+                ''
+            );
+            if (!res.ok && res.status !== 204) {
+                throw new Error(
+                    'Feld „' +
+                        field +
+                        '": ' +
+                        methods[i] +
+                        ' ' +
+                        res.status +
+                        ' ' +
+                        (res.text || '')
+                );
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Bedingte Formular-Sichtbarkeit setzen.
+     * SPO lehnt ConditionalShowFormula am typed Field-MERGE ab; daher:
+     * 1) Verbose-MERGE als SP.Field (manche Tenants),
+     * 2) bei immer-ausblenden: setshowin*form(false),
+     * 3) sonst Best-Effort – Aufrufer kann soft warnen.
+     * @returns {Promise<{ via: string }>}
+     */
+    async function spoSetFieldConditionalShowFormula(
+        siteWebUrl,
+        spoToken,
+        digest,
+        listTitle,
+        fieldInternalName,
+        formula
+    ) {
+        const field = String(fieldInternalName || '').trim();
+        const formulaStr = String(formula || '').trim();
+        if (!field || !formulaStr) throw new Error('Feld oder Formel fehlt.');
+        const api = spoListFieldApiPath(listTitle, field);
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+
+        const verboseRes = await fetch(origin + api, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json;odata=verbose',
+                Authorization: 'Bearer ' + spoToken,
+                'X-RequestDigest': digest,
+                'Content-Type': 'application/json;odata=verbose;charset=utf-8',
+                'X-HTTP-Method': 'MERGE',
+                'IF-MATCH': '*'
+            },
+            body: JSON.stringify({
+                __metadata: { type: 'SP.Field' },
+                ConditionalShowFormula: formulaStr
+            })
+        });
+        if (verboseRes.ok || verboseRes.status === 204) {
+            return { via: 'verbose-sp-field' };
+        }
+        const verboseText = await verboseRes.text();
+
+        if (isAlwaysHideShowFormula(formulaStr)) {
+            await spoSetFieldShowInForms(
+                siteWebUrl,
+                spoToken,
+                digest,
+                listTitle,
+                field,
+                false
+            );
+            return { via: 'show-in-forms' };
+        }
+
+        throw new Error(
+            'Feld „' +
+                field +
+                '": ConditionalShowFormula nicht setzbar (' +
+                verboseRes.status +
+                ' ' +
+                verboseText +
+                ')'
+        );
     }
 
     /**
@@ -1035,6 +1186,9 @@
         spoEnsureListView: spoEnsureListView,
         spoPatchTitleField: spoPatchTitleField,
         spoPatchListField: spoPatchListField,
+        spoSetFieldShowInForms: spoSetFieldShowInForms,
+        spoSetFieldConditionalShowFormula: spoSetFieldConditionalShowFormula,
+        isAlwaysHideShowFormula: isAlwaysHideShowFormula,
         spoSetListClientFormCustomFormatter: spoSetListClientFormCustomFormatter,
         graphBase: graphBase,
         parseSharePointWebUrl: parseSharePointWebUrl,

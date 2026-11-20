@@ -953,12 +953,33 @@
         } catch {
             fromV2 = null;
         }
-        if (fromV2 && settingsHasSchoolData(fromV2)) {
-            return fromV2;
-        }
 
         const raw = loadRaw();
         const fromV1 = normalizeSettings(raw || {});
+
+        // v2 kanonisch – aber leere Lehrer/Klassen nicht über v1 mit Inhalt stellen
+        if (fromV2 && settingsHasSchoolData(fromV2)) {
+            const v2Teachers = (fromV2.teachers || []).length;
+            const v2Classes = (fromV2.classes || []).length;
+            const v1Teachers = (fromV1.teachers || []).length;
+            const v1Classes = (fromV1.classes || []).length;
+            if ((v1Teachers > v2Teachers || v1Classes > v2Classes) && settingsHasSchoolData(fromV1)) {
+                const merged = normalizeSettings(
+                    Object.assign({}, fromV2, {
+                        teachers: v1Teachers > v2Teachers ? fromV1.teachers : fromV2.teachers,
+                        classes: v1Classes > v2Classes ? fromV1.classes : fromV2.classes,
+                        students:
+                            (fromV1.students || []).length > (fromV2.students || []).length
+                                ? fromV1.students
+                                : fromV2.students
+                    })
+                );
+                migrateV1MirrorIntoV2(merged);
+                return merged;
+            }
+            return fromV2;
+        }
+
         if (settingsHasSchoolData(fromV1)) {
             migrateV1MirrorIntoV2(fromV1);
             return fromV1;

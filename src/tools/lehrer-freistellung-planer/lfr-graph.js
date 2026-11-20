@@ -36,6 +36,8 @@ async function findListByTitle(tok, siteId, listTitle) {
 }
 
 async function fetchAllItems(tok, siteId, listId) {
+    // Nur fields expandieren. $select=createdBy lässt die Spalten oft leer –
+    // dann filtert die App eigene Anträge weg, obwohl die Liste sie enthält.
     let path =
         G().graphPathSite(siteId) +
         '/lists/' +
@@ -57,9 +59,226 @@ async function fetchAllItems(tok, siteId, listId) {
     return out;
 }
 
+/** SharePoint-Antwort (REST, GetItems, RenderListDataAsStream) → Zeilen. */
+export function extractSpoItemRows(data) {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.Row)) return data.Row;
+    const d = data.d || data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d.Row)) return d.Row;
+    if (Array.isArray(d.results)) return d.results;
+    if (Array.isArray(d.value)) return d.value;
+    return [];
+}
+
+/**
+ * SharePoint-Zeile → Graph-ähnliches Item.
+ * callerVisible: REST läuft mit dem Benutzer-Token und „nur eigene Elemente“.
+ * @param {object} row
+ */
+export function mapRestListItem(row) {
+    const r = row || {};
+    const author = r.Author || {};
+    const email =
+        r.LehrerEmail ||
+        r.EMailLehrkraft ||
+        author.EMail ||
+        author.Email ||
+        author.UserPrincipalName ||
+        '';
+    return {
+        id: r.Id != null ? r.Id : r.ID != null ? r.ID : r.id,
+        callerVisible: true,
+        createdBy: {
+            user: {
+                email: author.EMail || author.Email || email || '',
+                userPrincipalName: author.UserPrincipalName || '',
+                displayName: author.Title || r.LehrerName || ''
+            }
+        },
+        fields: {
+            Title: r.Title || r.Titel,
+            Beginn: r.Beginn,
+            Ende: r.Ende,
+            Status: r.Status,
+            Kategorie: r.Kategorie,
+            Beschreibung: r.Beschreibung,
+            LehrerName: r.LehrerName || r.Lehrkraft,
+            LehrerEmail: email,
+            AntragId: r.AntragId || r.AntragID,
+            GenehmigtVonDirektion: r.GenehmigtVonDirektion,
+            GenehmigtAmDirektion: r.GenehmigtAmDirektion,
+            AbgelehntVon: r.AbgelehntVon,
+            AbgelehntAm: r.AbgelehntAm,
+            BemerkungDirektion: r.BemerkungDirektion
+        }
+    };
+}
+
+function listApiPath(listId, listTitle) {
+    const id = String(listId || '').trim();
+    if (id) return "/_api/web/lists(guid'" + id.replace(/'/g, "''") + "')";
+    const title = String(listTitle || 'Lehrer-Freistellungen').trim() || 'Lehrer-Freistellungen';
+    return "/_api/web/lists/getbytitle('" + title.replace(/'/g, "''") + "')";
+}
+
+/**
+ * SPO-REST: dieselbe Sicht wie die SharePoint-Liste (auch bei „nur eigene Elemente“).
+ * Graph liefert in dem Fall oft 0 Zeilen.
+ * @param {string} webUrl
+ * @param {string} listId
+ * @param {string} [listTitle]
+ */
+async function fetchAllItemsViaSpoRest(webUrl, listId, listTitle) {
+    const url = String(webUrl || '')
+        .trim()
+        .replace(/\/+$/, '');
+    if (!url) return [];
+    let host = '';
+    try {
+        host = new URL(url).hostname;
+    } catch {
+        return [];
+    }
+    const spoTok = await G().getGraphToken([
+        'https://' + host + '/AllSites.Read',
+        'https://graph.microsoft.com/User.Read'
+    ]);
+    const digest = await G().getSpoRequestDigest(url, spoTok);
+    const paths = [];
+    const byId = listApiPath(listId, '');
+    const byTitle = listApiPath('', listTitle || 'Lehrer-Freistellungen');
+    if (listId) paths.push(byId);
+    if (byTitle !== byId) paths.push(byTitle);
+    /** @type {string[]} */
+    const errors = [];
+    for (let i = 0; i < paths.length; i++) {
+        const base = paths[i];
+        const attempts = [
+            {
+                method: 'POST',
+                api: base + '/RenderListDataAsStream',
+                body: {
+                    parameters: {
+                        RenderOptions: 2,
+                        ViewXml: '<View><RowLimit>300</RowLimit></View>'
+                    }
+                }
+            },
+            {
+                method: 'GET',
+                api: base + '/items?$expand=FieldValuesAsText&$top=200',
+                body: undefined
+            }
+        ];
+        for (let a = 0; a < attempts.length; a++) {
+            const attempt = attempts[a];
+            let res;
+            try {
+                res = await G().spoRestFetch(
+                    url,
+                    spoTok,
+                    digest,
+                    attempt.method,
+                    attempt.api,
+                    attempt.body
+                );
+            } catch (e) {
+                errors.push(e && e.message ? e.message : String(e));
+                continue;
+            }
+            if (!res || !res.ok) {
+                errors.push(
+                    attempt.method +
+                        ' ' +
+                        (res && res.status ? res.status : '?') +
+                        ' ' +
+                        String((res && res.text) || '').slice(0, 180)
+                );
+                continue;
+            }
+            const rows = extractSpoItemRows(res.data);
+            if (rows.length) {
+                return rows.map((row) => {
+                    const text = row && (row.FieldValuesAsText || row.fieldValuesAsText);
+                    if (text && typeof text === 'object') {
+                        return mapRestListItem(
+                            Object.assign({}, text, {
+                                Id: row.Id || row.ID || text.Id || text.ID
+                            })
+                        );
+                    }
+                    return mapRestListItem(row);
+                });
+            }
+        }
+    }
+    if (errors.length) {
+        const err = new Error(errors[0]);
+        err.details = errors;
+        throw err;
+    }
+    return [];
+}
+
 function fieldStr(fields, key) {
     const v = fields && fields[key];
-    return v == null ? '' : String(v).trim();
+    if (v == null) return '';
+    if (typeof v === 'object') {
+        const mail = v.Email || v.EMail || v.email || v.UserPrincipalName || '';
+        return String(mail || '').trim();
+    }
+    const s = String(v).trim();
+    const m = /^\/Date\((-?\d+)\)\/$/.exec(s);
+    if (m) {
+        const d = new Date(Number(m[1]));
+        if (!isNaN(d.getTime())) return d.toISOString();
+    }
+    const de = /^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/.exec(s);
+    if (de) {
+        return de[3] + '-' + de[2] + '-' + de[1] + (de[4] ? 'T' + de[4] + ':' + de[5] : '');
+    }
+    return s;
+}
+
+/** Case-insensitive Feldzugriff (Graph liefert manchmal abweichende Keys). */
+function fieldStrCI(fields, keys) {
+    const list = Array.isArray(keys) ? keys : [keys];
+    for (let i = 0; i < list.length; i++) {
+        const hit = fieldStr(fields, list[i]);
+        if (hit) return hit;
+    }
+    const map = {};
+    Object.keys(fields || {}).forEach((k) => {
+        map[String(k).toLowerCase()] = k;
+    });
+    for (let i = 0; i < list.length; i++) {
+        const real = map[String(list[i] || '').toLowerCase()];
+        if (real) {
+            const hit = fieldStr(fields, real);
+            if (hit) return hit;
+        }
+    }
+    return '';
+}
+
+export function authorEmailFromLfrItem(item) {
+    const created =
+        (item && item.createdBy && item.createdBy.user && item.createdBy.user.email) ||
+        (item && item.createdBy && item.createdBy.user && item.createdBy.user.userPrincipalName) ||
+        '';
+    if (created) return String(created).trim().toLowerCase();
+    const f = (item && item.fields) || {};
+    if (f.Author && typeof f.Author === 'object') {
+        const a = f.Author;
+        return String(a.Email || a.EMail || a.UserPrincipalName || a.LookupValue || '')
+            .trim()
+            .toLowerCase();
+    }
+    return String(f.AuthorEmail || f.Author0 || '')
+        .trim()
+        .toLowerCase();
 }
 
 /**
@@ -116,22 +335,28 @@ export async function resolveLfrContext(webUrl, opts) {
 
 export function mapItemFromSp(item) {
     const f = (item && item.fields) || {};
+    const authorEmail = authorEmailFromLfrItem(item);
+    const lehrerEmail =
+        fieldStrCI(f, ['LehrerEmail', 'EMailLehrkraft', 'EmailLehrkraft']).toLowerCase() ||
+        authorEmail;
     return {
         itemId: item && item.id != null ? String(item.id) : '',
-        antragId: fieldStr(f, 'AntragId'),
-        titel: fieldStr(f, 'Title'),
-        beginn: fieldStr(f, 'Beginn') || fieldStr(f, 'Start'),
-        ende: fieldStr(f, 'Ende'),
-        status: normalizeStatus(fieldStr(f, 'Status') || 'Ausstehend'),
-        kategorie: fieldStr(f, 'Kategorie'),
-        beschreibung: fieldStr(f, 'Beschreibung'),
-        lehrerName: fieldStr(f, 'LehrerName'),
-        lehrerEmail: fieldStr(f, 'LehrerEmail').toLowerCase(),
-        genehmigtVon: fieldStr(f, 'GenehmigtVonDirektion'),
-        genehmigtAm: fieldStr(f, 'GenehmigtAmDirektion'),
-        abgelehntVon: fieldStr(f, 'AbgelehntVon'),
-        abgelehntAm: fieldStr(f, 'AbgelehntAm'),
-        bemerkungDirektion: fieldStr(f, 'BemerkungDirektion')
+        antragId: fieldStrCI(f, ['AntragId', 'AntragID']),
+        titel: fieldStrCI(f, ['Title', 'Titel']),
+        beginn: fieldStrCI(f, ['Beginn', 'Start']) || fieldStr(f, 'Start'),
+        ende: fieldStrCI(f, ['Ende']),
+        status: normalizeStatus(fieldStrCI(f, ['Status']) || 'Ausstehend'),
+        kategorie: fieldStrCI(f, ['Kategorie']),
+        beschreibung: fieldStrCI(f, ['Beschreibung']),
+        lehrerName: fieldStrCI(f, ['LehrerName', 'Lehrkraft']) || '',
+        lehrerEmail,
+        authorEmail,
+        callerVisible: !!(item && item.callerVisible),
+        genehmigtVon: fieldStrCI(f, ['GenehmigtVonDirektion']),
+        genehmigtAm: fieldStrCI(f, ['GenehmigtAmDirektion']),
+        abgelehntVon: fieldStrCI(f, ['AbgelehntVon']),
+        abgelehntAm: fieldStrCI(f, ['AbgelehntAm']),
+        bemerkungDirektion: fieldStrCI(f, ['BemerkungDirektion'])
     };
 }
 
@@ -158,10 +383,45 @@ export function mapItemToFields(row, opts) {
     return fields;
 }
 
+function rowHasPayload(row) {
+    const f = (row && row.fields) || {};
+    return !!(
+        fieldStr(f, 'Title') ||
+        fieldStr(f, 'LehrerEmail') ||
+        fieldStr(f, 'LehrerName') ||
+        fieldStr(f, 'Beginn')
+    );
+}
+
 export async function loadAllItems(ctx) {
+    // Zuerst die SharePoint-Ansicht des angemeldeten Kontos.
+    // Nach „nur eigene Elemente“ ist das die Liste, die die Lehrkraft im Browser sieht.
+    // Graph (Sites.ReadWrite.All) liefert dann oft 0 Zeilen oder zusätzlich fremde.
+    let restError = '';
+    if (ctx && ctx.webUrl) {
+        try {
+            const restRows = await fetchAllItemsViaSpoRest(
+                ctx.webUrl,
+                ctx.list && ctx.list.id,
+                ctx.list && ctx.list.title
+            );
+            if (restRows.length) return restRows.map(mapItemFromSp);
+        } catch (e) {
+            restError = e && e.message ? e.message : String(e);
+        }
+    }
     const tok = await token();
-    const rows = await fetchAllItems(tok, ctx.siteId, ctx.list.id);
-    return rows.map(mapItemFromSp);
+    let graphRows = [];
+    try {
+        graphRows = await fetchAllItems(tok, ctx.siteId, ctx.list.id);
+    } catch (e) {
+        if (!restError) restError = e && e.message ? e.message : String(e);
+        graphRows = [];
+    }
+    const graphOk = graphRows.filter(rowHasPayload);
+    if (graphOk.length) return graphOk.map(mapItemFromSp);
+    if (restError) throw new Error(restError);
+    return [];
 }
 
 export async function createItem(ctx, row) {

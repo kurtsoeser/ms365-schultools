@@ -4,18 +4,17 @@
 import {
     validateSchularbeit,
     computeDashboardKpis,
-    buildWeeklyDistribution,
     toIsoDateOnly,
-    dateInWindow,
     mondayOfWeekContaining,
-    buildSchoolWeekDays,
     addDays,
     schularbeitDisplayTitle,
     formatSchularbeitZeitspanne,
     formatSchularbeitZeitKurz,
     normalizeBeginnUhrzeit,
-    sortSchularbeitenByBeginn
+    computeEndeUhrzeit
 } from './schularbeiten-planer-logic.js';
+import { renderMs365CalendarShell, renderWeekView } from '../../shared/ms365-calendar-shell.js';
+import { renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 import {
     viewsForRole,
     filterSchularbeiten,
@@ -43,7 +42,6 @@ import { htmlSchularbeitenEntraPermGrid } from './schularbeiten-permissions-ui.j
 import {
     isPlanerDemoRoleUiEnabled,
     canUsePlanerRoleSwitcher,
-    roleSourceLabel,
     entraGroupsConfigured,
     sortPlanerRoles,
     PLANER_ROLE_ORDER
@@ -72,94 +70,101 @@ function statusBadge(status) {
     return `<span class="${cls}">${esc(statusLabel(s))}</span>`;
 }
 
-function renderNavSession(state, ctx) {
-    const { demoRoleUi, isSchueler, klasseCode, klasseLabel } = ctx;
-    const switchable = demoRoleUi ? PLANER_ROLE_ORDER : sortPlanerRoles(state.planerRoles || []);
+function renderSaRoleBlock(state, demoRoleUi) {
     const showRoleSwitcher = canUsePlanerRoleSwitcher(state.planerRoles || [], demoRoleUi);
-    const activeSource = roleSourceLabel(
-        (state.planerRoleSources && state.planerRoleSources[state.role]) || state.roleSource
+    if (!showRoleSwitcher) {
+        if (state.planerAccessDenied) {
+            return `<p class="sa-nav__hint">${esc(state.roleHint || 'Kein Zugang.')}</p>`;
+        }
+        return '';
+    }
+    const switchable = demoRoleUi ? PLANER_ROLE_ORDER : sortPlanerRoles(state.planerRoles || []);
+    return (
+        '<span class="sa-nav__role-label">Ansicht (Vorschau)</span>' +
+        '<div class="sa-nav__role-btns" role="group" aria-label="Ansicht wählen">' +
+        switchable
+            .map(
+                (r) =>
+                    `<button type="button" class="sa-chip${state.role === r ? ' is-active' : ''}" data-sa-role="${esc(
+                        r
+                    )}">${esc(roleLabel(r))}</button>`
+            )
+            .join('') +
+        '</div>'
     );
+}
 
-    const roleBlock = showRoleSwitcher
-        ? `<div class="sa-nav__role-btns" role="group" aria-label="Rolle wählen">
-            ${switchable
-                .map(
-                    (r) =>
-                        `<button type="button" class="sa-chip${state.role === r ? ' is-active' : ''}" data-sa-role="${esc(r)}">${esc(
-                            roleLabel(r)
-                        )}</button>`
-                )
-                .join('')}
-          </div>`
-        : switchable.length === 1
-          ? `<p class="sa-nav__role-fixed"><span class="sa-badge sa-badge--nav">${esc(roleLabel(state.role))}</span>${
-                activeSource ? ` <small class="sa-nav__account-src">(${esc(activeSource)})</small>` : ''
-            }</p>`
-          : state.accountEmail
-            ? `<p class="sa-nav__account-hint muted">Keine Planer-Rolle zugewiesen.</p>`
-            : '';
+function renderStudentKlassePick(state) {
+    if (state.role !== 'schueler' || state.studentMatch) return '';
+    const klasseCode = resolveStudentKlasseCode(state);
+    const options = (state.stammdaten.classes || [])
+        .map(
+            (c) =>
+                `<option value="${esc(c.code)}"${klasseCode === c.code ? ' selected' : ''}>${esc(
+                    c.name || c.code
+                )}</option>`
+        )
+        .join('');
+    return `<label class="sa-klasse-pick" for="saDemoKlasse">Klasse
+      <select id="saDemoKlasse">
+        <option value="">– wählen –</option>
+        ${options}
+      </select>
+    </label>`;
+}
 
-    const sessionLabel = String(state.accountName || state.accountEmail || '').trim();
-    const sessionLoggedIn = !!(
-        state.accountEmail ||
-        state.accountName ||
-        (typeof window !== 'undefined' &&
-            typeof window.ms365AuthIsLoggedIn === 'function' &&
-            window.ms365AuthIsLoggedIn())
-    );
+function groupNav(views) {
+    const byId = new Map((views || []).map((v) => [v.id, v]));
+    const take = (ids) => ids.map((id) => byId.get(id)).filter(Boolean);
+    return [
+        { label: 'Planen', ids: ['dashboard', 'liste', 'kalender', 'meine'] },
+        { label: '', ids: ['neu'] },
+        { label: 'Weiteres', ids: ['regeln', 'export'] },
+        { label: 'System', ids: ['admin'] }
+    ]
+        .map((g) => ({ label: g.label, items: take(g.ids) }))
+        .filter((g) => g.items.length);
+}
 
+function renderSaTop(state, klasseLabel) {
+    const titles = {
+        dashboard:
+            state.role === 'schueler' ? 'Meine Klasse' : state.role === 'admin' ? 'Überblick' : 'Meine Schularbeiten',
+        liste: 'Liste',
+        kalender: 'Kalender',
+        neu: state.editingItemId ? 'Schularbeit bearbeiten' : 'Neue Schularbeit',
+        meine: 'Meine Schularbeiten',
+        admin: 'Systemadministration',
+        regeln: 'Regelwerk',
+        export: 'Export'
+    };
+    const title = titles[state.view] || 'Schularbeiten';
+    let lead = '';
+    if (state.role === 'schueler' && ['dashboard', 'liste', 'kalender', 'export'].includes(state.view)) {
+        lead = klasseLabel
+            ? 'Klasse ' + klasseLabel + ' · nur fixierte Termine'
+            : 'Klasse wählen, damit die Termine erscheinen.';
+    } else if (state.role === 'admin' && state.view === 'dashboard') {
+        lead = 'Alle Klassen im Schuljahr.';
+    } else if (state.role === 'lehrer' && state.view === 'dashboard') {
+        lead = 'Eigene Termine dieser Woche.';
+    }
+    const showCta = state.role !== 'schueler' && state.view !== 'neu' && state.view !== 'admin';
     return `
-        <div class="sa-nav__session" aria-label="Anmeldung und Rolle">
-          <span class="sa-nav__role-label">Anmeldung</span>
-          ${
-              sessionLoggedIn
-                  ? `<p class="sa-nav__account-name">${esc(sessionLabel || 'Angemeldet')}</p>`
-                  : '<p class="sa-nav__account-hint">Mit Schul-Konto anmelden:</p>'
-          }
-          ${
-              state.accountEmail || switchable.length
-                  ? `<div class="sa-nav__session-role">
-              <span class="sa-nav__session-role-label">Rolle${showRoleSwitcher ? ' wählen' : ''}</span>
-              ${roleBlock}
-              ${
-                  isSchueler && klasseCode
-                      ? `<span class="sa-badge sa-nav__account-klasse">${esc(klasseLabel)}</span>`
-                      : ''
-              }
-            </div>`
-                  : ''
-          }
-          ${
-              isSchueler
-                  ? `<label class="sa-nav__klasse" for="saDemoKlasse">Klasse
-              <select id="saDemoKlasse" ${state.studentMatch ? 'disabled' : ''}>
-                <option value="">– wählen –</option>
-                ${(state.stammdaten.classes || [])
-                    .map(
-                        (c) =>
-                            `<option value="${esc(c.code)}"${klasseCode === c.code ? ' selected' : ''}>${esc(
-                                c.name || c.code
-                            )}</option>`
-                    )
-                    .join('')}
-              </select>
-            </label>
-            <p class="sa-nav__hint">${
-                state.studentMatch
-                    ? 'Klasse aus Stammdaten (E-Mail).'
-                    : demoRoleUi
-                      ? 'Demo: Klasse wählen, wenn keine Schüler-E-Mail in den Stammdaten.'
-                      : state.planerRoleSources && state.planerRoleSources.schueler === 'admin-schueler' && !state.studentMatch
-                        ? 'Als Admin: Klasse wählen, um die Schüler-Ansicht zu prüfen.'
-                        : 'Klasse aus Stammdaten (Schüler-Entra-Gruppe oder E-Mail-Zuordnung).'
-            }</p>`
-                  : showRoleSwitcher && !demoRoleUi
-                    ? '<p class="sa-nav__hint">Mehrere Berechtigungen – hier umschalten.</p>'
-                    : demoRoleUi
-                      ? '<p class="sa-nav__hint">Demo-Umschalter zur Vorschau.</p>'
-                      : ''
-          }
-        </div>`;
+    <header class="sa-top">
+      <div class="sa-top__intro">
+        <h2 class="sa-top__title">${esc(title)}</h2>
+        ${lead ? `<p class="sa-top__lead">${esc(lead)}</p>` : ''}
+      </div>
+      <div class="sa-top__actions">
+        ${renderStudentKlassePick(state)}
+        ${
+            showCta
+                ? '<button type="button" class="btn sa-top__cta" data-sa-view="neu"><i class="bi bi-plus-lg" aria-hidden="true"></i>Neue Schularbeit</button>'
+                : ''
+        }
+      </div>
+    </header>`;
 }
 
 function optionList(items, selected, emptyLabel) {
@@ -182,7 +187,13 @@ function optionList(items, selected, emptyLabel) {
  */
 export function renderApp(state, root) {
     if (!root) return;
-    const isSchueler = state.role === 'schueler';
+    try {
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-sa-app-role', String(state.role || 'lehrer'));
+        }
+    } catch {
+        /* ignore */
+    }
     const views = viewsForRole(state.role);
     const demoRoleUi = isPlanerDemoRoleUiEnabled(
         state.entraGroupsConfigured || entraGroupsConfigured(loadPermissionsConfig()),
@@ -191,32 +202,45 @@ export function renderApp(state, root) {
     const klasseCode = resolveStudentKlasseCode(state);
     const klasseLabel =
         (state.stammdaten.classes || []).find((c) => c.code === klasseCode)?.name || klasseCode;
+    const shellMod =
+        state.role === 'admin' ? 'sa-shell--admin' : state.role === 'schueler' ? 'sa-shell--schueler' : 'sa-shell--lehrer';
+    const brandSub =
+        state.role === 'schueler' ? 'Termine lesen' : state.role === 'admin' ? 'Leitung & Überblick' : 'Planen & eintragen';
+    const roleBlock = renderSaRoleBlock(state, demoRoleUi);
+    const navHtml = groupNav(views)
+        .map((sec) => {
+            const label = sec.label ? `<span class="sa-nav__section-label">${esc(sec.label)}</span>` : '';
+            const btns = sec.items
+                .map(
+                    (v) => `
+            <button type="button" class="sa-nav__btn${state.view === v.id ? ' is-active' : ''}${
+                v.id === 'neu' ? ' sa-nav__btn--cta' : ''
+            }" data-sa-view="${esc(v.id)}">
+              <i class="bi ${v.icon}" aria-hidden="true"></i><span class="sa-nav__btn-label">${esc(v.label)}</span>
+            </button>`
+                )
+                .join('');
+            return `<div class="sa-nav__section">${label}${btns}</div>`;
+        })
+        .join('');
 
     root.innerHTML = `
-    <div class="sa-shell">
+    <div class="sa-shell ${shellMod}">
       <aside class="sa-nav" aria-label="Planer-Navigation">
         <div class="sa-nav__brand">
-          <i class="bi bi-mortarboard-fill" aria-hidden="true"></i>
+          <i class="bi bi-journal-check" aria-hidden="true"></i>
           <div>
             <strong>Schularbeiten</strong>
-            <span>HAK Planer</span>
+            <span>${esc(brandSub)}</span>
           </div>
         </div>
         <nav class="sa-nav__list">
-          ${views
-              .map(
-                  (v) => `
-            <button type="button" class="sa-nav__btn${state.view === v.id ? ' is-active' : ''}" data-sa-view="${esc(v.id)}">
-              <i class="bi ${v.icon}" aria-hidden="true"></i>${esc(v.label)}
-            </button>`
-              )
-              .join('')}
+          ${navHtml}
         </nav>
-        <div class="sa-nav__bottom">
-        ${renderNavSession(state, { demoRoleUi, isSchueler, klasseCode, klasseLabel })}
-        </div>
+        ${roleBlock ? `<div class="sa-nav__role">${roleBlock}</div>` : ''}
       </aside>
       <div class="sa-main">
+        ${renderSaTop(state, klasseLabel)}
         ${
             state.error &&
             !(state.localDemoOnly && /403|Zugriff|Forbidden/i.test(String(state.error)))
@@ -290,75 +314,6 @@ function subjectCodesForFilterPills(state, scope) {
     );
 }
 
-function renderFilterSelect(id, label, icon, items, selected, emptyLabel) {
-    return `<div class="sa-filter-field">
-      <label class="sa-filter-field__label" for="${esc(id)}"><i class="bi ${icon}" aria-hidden="true"></i>${esc(label)}</label>
-      <div class="sa-filter-field__control">
-        <select id="${esc(id)}" class="sa-filter-select" aria-label="${esc(label)}">${optionList(items, selected, emptyLabel)}</select>
-        <i class="bi bi-chevron-down sa-filter-field__chev" aria-hidden="true"></i>
-      </div>
-    </div>`;
-}
-
-function renderStatusPills(activeStatus) {
-    const cur = String(activeStatus || '').toLowerCase();
-    const opts = [
-        { value: '', label: 'Alle' },
-        { value: 'beantragt', label: 'Beantragt' },
-        { value: 'fixiert', label: 'Fixiert' },
-        { value: 'abgelehnt', label: 'Abgelehnt' }
-    ];
-    return `<div class="sa-filter-pills" role="group" aria-label="Status filtern">
-      ${opts
-          .map((o) => {
-              const on = o.value === '' ? !cur : cur === o.value;
-              const cls =
-                  'sa-filter-pill sa-filter-pill--status' +
-                  (on ? ' is-active' : '') +
-                  (o.value === 'fixiert' && on ? ' sa-filter-pill--ok' : '') +
-                  (o.value === 'beantragt' && on ? ' sa-filter-pill--warn' : '') +
-                  (o.value === 'abgelehnt' && on ? ' sa-filter-pill--bad' : '');
-              return `<button type="button" class="${cls}" data-sa-filter-pill data-sa-filter-key="status" data-sa-filter-value="${esc(
-                  o.value
-              )}" aria-pressed="${on ? 'true' : 'false'}">${esc(o.label)}</button>`;
-          })
-          .join('')}
-    </div>`;
-}
-
-function renderSchuljahrFilterField(state) {
-    const disabled = !state.bootstrapped && !state.localDemoOnly;
-    const years = schoolYearOptions(state);
-    const sel = String(state.schuljahr || '');
-    const opts = years
-        .map((y) => `<option value="${esc(y)}"${sel === String(y) ? ' selected' : ''}>${esc(y)}</option>`)
-        .join('');
-    return `<div class="sa-filter-field">
-      <label class="sa-filter-field__label" for="saSchuljahr"><i class="bi bi-calendar3" aria-hidden="true"></i>Schuljahr</label>
-      <div class="sa-filter-field__control">
-        <select id="saSchuljahr" class="sa-filter-select" aria-label="Schuljahr"${disabled ? ' disabled' : ''}>${opts}</select>
-        <i class="bi bi-chevron-down sa-filter-field__chev" aria-hidden="true"></i>
-      </div>
-    </div>`;
-}
-
-function renderFachFilterPills(codes, labels, fachMeta, activeFach) {
-    const cur = String(activeFach || '').trim();
-    const allOn = !cur;
-    let html = `<button type="button" class="sa-filter-pill sa-filter-pill--fach${allOn ? ' is-active' : ''}" data-sa-filter-pill data-sa-filter-key="fach" data-sa-filter-value="" aria-pressed="${allOn ? 'true' : 'false'}">Alle Fächer</button>`;
-    codes.forEach((code, i) => {
-        const on = cur === code;
-        const color = fachColor(code, i, fachMeta);
-        const label = (labels.fach && labels.fach[code]) || code;
-        html += `<button type="button" class="sa-filter-pill sa-filter-pill--fach${on ? ' is-active' : ''}" style="--sa-fach:${esc(
-            color
-        )}" data-sa-filter-pill data-sa-filter-key="fach" data-sa-filter-value="${esc(code)}" aria-pressed="${
-            on ? 'true' : 'false'
-        }" title="${esc(label)}"><i class="sa-filter-pill__dot" aria-hidden="true"></i>${esc(label)}</button>`;
-    });
-    return `<div class="sa-filter-pills sa-filter-pills--fach" role="group" aria-label="Fach filtern">${html}</div>`;
-}
-
 function filterBar(state, opts) {
     const sd = state.stammdaten;
     const labels = labelMaps(sd);
@@ -368,9 +323,11 @@ function filterBar(state, opts) {
     const scope = scopeFromState(state, { scopeAll: scopeAll && !isSchueler, onlyMine: onlyMine && !isSchueler });
     const scopeItems = itemsInFilterScope(state, scope);
     const filteredCount = filterSchularbeiten(state.items, state.filters, scope).length;
-    const scopeTotal = scopeItems.length;
-    const loadedTotal = (state.items || []).length;
     const fachCodes = subjectCodesForFilterPills(state, scope);
+    const fachItems = fachCodes.map((code) => ({
+        value: code,
+        label: (labels.fach && labels.fach[code]) || code
+    }));
     const klasseOptions = mergeStammdatenOptions(
         sd.classes,
         scopeItems.map((sa) => sa.klasseCode).filter(Boolean)
@@ -379,54 +336,50 @@ function filterBar(state, opts) {
         sd.teachers,
         scopeItems.map((sa) => sa.lehrerCode).filter(Boolean)
     );
+    const statusItems = [
+        { value: 'beantragt', label: 'Beantragt' },
+        { value: 'fixiert', label: 'Fixiert' },
+        { value: 'abgelehnt', label: 'Abgelehnt' }
+    ];
     const metaLabel = isSchueler
-        ? `${filteredCount} fixierte Termine`
-        : `${filteredCount} Treffer · ${scopeTotal} im Schuljahr` +
-          (loadedTotal > scopeTotal ? ` · ${loadedTotal} geladen` : '');
-
-    if (isSchueler) {
-        return `
-    <div class="sa-filters sa-filters--modern sa-filters--compact" data-sa-filters>
-      <div class="sa-filters__grid">
-        <div class="sa-filters__group">
-          <span class="sa-filters__group-title">Schuljahr &amp; Fach</span>
-          <div class="sa-filters__group-cols">
-            ${renderSchuljahrFilterField(state)}
-          </div>
-          ${renderFachFilterPills(fachCodes, labels, state.fachMeta, state.filters.fach)}
-        </div>
-      </div>
-      <div class="sa-filters__foot">
-        <button type="button" class="btn btn-sm" id="saFilterReset"><i class="bi bi-arrow-counterclockwise"></i>Zurücksetzen</button>
-        <span class="sa-filters__meta">${metaLabel}</span>
-      </div>
-    </div>`;
-    }
+        ? filteredCount + (filteredCount === 1 ? ' Termin' : ' Termine')
+        : filteredCount + (filteredCount === 1 ? ' Eintrag' : ' Einträge');
+    const disabled = !state.bootstrapped && !state.localDemoOnly;
+    const years = schoolYearOptions(state);
+    const selYear = String(state.schuljahr || '');
+    const yearOpts = years
+        .map((y) => `<option value="${esc(y)}"${selYear === String(y) ? ' selected' : ''}>${esc(y)}</option>`)
+        .join('');
 
     return `
-    <div class="sa-filters sa-filters--modern sa-filters--compact" data-sa-filters>
-      <div class="sa-filters__grid">
-        <div class="sa-filters__group sa-filters__group--scope">
-          <span class="sa-filters__group-title">Zuordnung</span>
-          <div class="sa-filters__group-cols">
-            ${renderSchuljahrFilterField(state)}
-            ${renderFilterSelect('saFilterKlasse', 'Klasse', 'bi-people', klasseOptions, state.filters.klasse, 'Alle Klassen')}
-            ${renderFilterSelect('saFilterLehrer', 'Lehrkraft', 'bi-person-badge', lehrerOptions, state.filters.lehrer, 'Alle Lehrer:innen')}
-          </div>
-        </div>
-        <div class="sa-filters__group sa-filters__group--status">
-          <span class="sa-filters__group-title">Status</span>
-          ${renderStatusPills(state.filters.status)}
-        </div>
-        <div class="sa-filters__group sa-filters__group--fach">
-          <span class="sa-filters__group-title">Fach</span>
-          ${renderFachFilterPills(fachCodes, labels, state.fachMeta, state.filters.fach)}
-        </div>
-      </div>
-      <div class="sa-filters__foot">
-        <button type="button" class="btn btn-sm" id="saFilterReset"><i class="bi bi-arrow-counterclockwise"></i>Zurücksetzen</button>
-        <span class="sa-filters__meta">${metaLabel}</span>
-      </div>
+    <div class="sa-listbar" data-sa-filters>
+      <select id="saSchuljahr" class="sa-listbar__select" aria-label="Schuljahr"${disabled ? ' disabled' : ''}>${yearOpts}</select>
+      ${
+          isSchueler
+              ? ''
+              : `<select id="saFilterKlasse" class="sa-listbar__select" aria-label="Klasse">${optionList(
+                    klasseOptions,
+                    state.filters.klasse,
+                    'Alle Klassen'
+                )}</select>
+      <select id="saFilterLehrer" class="sa-listbar__select" aria-label="Lehrkraft">${optionList(
+          lehrerOptions,
+          state.filters.lehrer,
+          'Alle Lehrkräfte'
+      )}</select>
+      <select id="saFilterStatus" class="sa-listbar__select" aria-label="Status">${optionList(
+          statusItems,
+          state.filters.status,
+          'Alle Status'
+      )}</select>`
+      }
+      <select id="saFilterFach" class="sa-listbar__select" aria-label="Fach">${optionList(
+          fachItems,
+          state.filters.fach,
+          'Alle Fächer'
+      )}</select>
+      <span class="sa-listbar__meta">${esc(metaLabel)}</span>
+      <button type="button" class="sa-text-link" id="saFilterReset">Zurücksetzen</button>
     </div>`;
 }
 
@@ -435,15 +388,15 @@ function renderView(state) {
         return `<section class="tm-panel">
       <h2 class="sa-h2">Kein Zugriff auf den Schularbeiten-Planer</h2>
       <p>Ihr Microsoft-Konto ist keiner der konfigurierten Entra-Gruppen zugeordnet und nicht als Einzelperson eingetragen (Verwaltung, Lehrkräfte oder Schüler).</p>
-      <p>Bitte wenden Sie sich an die Schul-IT. Gruppen und Einzelpersonen legen Sie unter <strong>Administration → SharePoint-Berechtigungen</strong> fest.</p>
+      <p>Bitte wenden Sie sich an die Schul-IT. Gruppen und Einzelpersonen legen Sie unter <strong>Systemadministration → Berechtigungen</strong> fest.</p>
     </section>`;
     }
     if (!state.bootstrapped && !state.ctx && !state.localDemoOnly) {
         if (state.role === 'admin') {
-            return `<section class="tm-panel"><p>SharePoint noch nicht verbunden. Unter <strong>Administration</strong> die Site-URL eintragen und <strong>Laden</strong>.</p>
+            return `<section class="tm-panel"><p>SharePoint noch nicht verbunden. Unter <strong>Systemadministration</strong> die Site-URL eintragen und <strong>Laden</strong>.</p>
           <p><a href="sharepoint-liste-schularbeiten.html">→ Schularbeiten-Listen anlegen</a></p></section>`;
         }
-        return `<section class="tm-panel"><p>Daten werden geladen … Falls nichts erscheint, bitte die Schul-IT (SharePoint-Verbindung in der Administration).</p></section>`;
+        return `<section class="tm-panel"><p>Daten werden geladen … Falls nichts erscheint, bitte die Schul-IT (SharePoint-Verbindung in der Systemadministration).</p></section>`;
     }
     if (state.role === 'schueler' && ['neu', 'meine', 'admin', 'regeln'].includes(state.view)) {
         return renderSchuelerDashboard(state);
@@ -477,6 +430,60 @@ function scopedItems(state, onlyMine) {
     );
 }
 
+function isoMondayToDate(isoMonday) {
+    const iso = String(isoMonday || '').slice(0, 10);
+    const p = iso.split('-').map((n) => parseInt(n, 10));
+    if (p.length < 3 || p.some((n) => !Number.isFinite(n))) return new Date();
+    return new Date(p[0], p[1] - 1, p[2]);
+}
+
+function schularbeitToCalEvent(sa, labels) {
+    const day = toIsoDateOnly(sa && sa.datum);
+    if (!day) return null;
+    const start = normalizeBeginnUhrzeit(sa.beginnUhrzeit);
+    const end = start ? computeEndeUhrzeit(start, sa.dauerMinuten) : '';
+    const timed = !!(start && end);
+    const st = String((sa && sa.status) || 'beantragt').toLowerCase();
+    const fach = (labels.fach && labels.fach[sa.fachCode]) || sa.fachCode || '';
+    const klasse = (labels.klasse && labels.klasse[sa.klasseCode]) || sa.klasseCode || '';
+    return {
+        id: sa.itemId,
+        title: schularbeitDisplayTitle(sa),
+        start: timed ? day + 'T' + start + ':00' : day + 'T00:00:00',
+        end: timed ? day + 'T' + end + ':00' : day + 'T23:59:59',
+        allDay: !timed,
+        tone: st,
+        subtitle: [fach, klasse, statusLabel(st)].filter(Boolean).join(' · '),
+        openAttr: 'data-sa-detail="' + esc(sa.itemId) + '"'
+    };
+}
+
+function calendarEventsFor(items, state) {
+    const labels = labelMaps(state.stammdaten);
+    return (items || []).map((sa) => schularbeitToCalEvent(sa, labels)).filter(Boolean);
+}
+
+function renderWeekCalendar(items, state, weekMonday) {
+    const anchor = isoMondayToDate(weekMonday);
+    const title =
+        formatDeDate(weekMonday) + ' – ' + formatDeDate(addDays(weekMonday, 6) || weekMonday);
+    return `<div class="ms365-cal sa-week-cal">
+      <div class="ms365-cal__toolbar">
+        <div class="ms365-cal__title-block">
+          <button type="button" class="ms365-cal__textbtn" data-sa-week-today>Heute</button>
+          <button type="button" class="ms365-cal__iconbtn" data-sa-week-prev aria-label="Vorherige Woche">‹</button>
+          <h2 class="ms365-cal__title">${esc(title)}</h2>
+          <button type="button" class="ms365-cal__iconbtn" data-sa-week-next aria-label="Nächste Woche">›</button>
+        </div>
+        <div class="ms365-cal__actions">
+          <button type="button" class="sa-text-link" data-sa-view="liste">Als Liste</button>
+        </div>
+      </div>
+      ${renderWeekView(calendarEventsFor(items, state), anchor)}
+      <p class="ms365-cal__hint">Termin antippen für Details.</p>
+    </div>`;
+}
+
 function renderDashboard(state) {
     if (state.role === 'schueler') return renderSchuelerDashboard(state);
 
@@ -484,36 +491,17 @@ function renderDashboard(state) {
         state.role === 'admin'
             ? filterSchularbeiten(state.items, state.filters, scopeFromState(state, { scopeAll: true }))
             : scopedItems(state, true);
-    const labels = labelMaps(state.stammdaten);
     const weekMonday =
         state.dashboardWeekMonday || mondayOfWeekContaining(toIsoDateOnly(new Date()));
-    const todayIso = toIsoDateOnly(new Date());
 
     return `
     ${filterBar(state, { scopeAll: state.role === 'admin' })}
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-calendar-week"></i>
-        <div><h3>Unterrichtswoche</h3>
-        <p>Mo–Fr · ${esc(formatDeDate(weekMonday))} – ${esc(formatDeDate(addDays(weekMonday, 4) || weekMonday))}</p></div>
-        <div class="sa-week-nav">
-          <button type="button" class="btn btn-sm" data-sa-week-prev title="Vorherige Woche"><i class="bi bi-chevron-left"></i></button>
-          <button type="button" class="btn btn-sm" data-sa-week-today title="Aktuelle Woche">Heute</button>
-          <button type="button" class="btn btn-sm" data-sa-week-next title="Nächste Woche"><i class="bi bi-chevron-right"></i></button>
-        </div>
-      </div>
-      ${renderSchoolWeekBoard(items, labels, state.fachMeta, weekMonday, todayIso)}
-      <p class="muted" style="margin:12px 0 0;font-size:0.88em;">
-        Alle Einträge tabellarisch: <button type="button" class="sa-link" data-sa-view="liste">Liste</button>
-      </p>
-    </section>`;
+    ${renderWeekCalendar(items, state, weekMonday)}`;
 }
 
 function renderListe(state) {
-    if (state.role === 'schueler') {
-        const klasseCode = resolveStudentKlasseCode(state);
-        if (!klasseCode) {
-            return `<section class="tm-panel"><p class="muted">Bitte Klasse wählen oder Stammdaten mit Schüler-E-Mail.</p></section>`;
-        }
+    if (state.role === 'schueler' && !resolveStudentKlasseCode(state)) {
+        return `<div class="sa-empty"><p><strong>Keine Klasse zugeordnet</strong></p><p class="muted">Klasse oben wählen oder die Schüler-E-Mail in den Stammdaten hinterlegen.</p></div>`;
     }
     const items =
         state.role === 'admin'
@@ -523,104 +511,36 @@ function renderListe(state) {
               : scopedItems(state, true);
     const labels = labelMaps(state.stammdaten);
     const listItems = items.slice().sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+    const empty =
+        state.role === 'schueler'
+            ? `<div class="sa-empty"><p><strong>Keine fixierten Termine</strong></p><p class="muted">Sobald eine Schularbeit fixiert ist, erscheint sie hier.</p></div>`
+            : `<div class="sa-empty"><p><strong>Keine Schularbeiten</strong></p><p class="muted">Für diesen Filter gibt es keine Einträge.</p>
+            <button type="button" class="btn" data-sa-view="neu">Neue Schularbeit</button></div>`;
 
     return `
     ${filterBar(state, { scopeAll: state.role === 'admin' })}
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-list-ul"></i>
-        <div><h3>Listenansicht</h3><p>${listItems.length} Einträge nach aktuellem Filter</p></div>
-      </div>
-      ${tableSchularbeiten(listItems, labels, {
-          showActions: state.role === 'admin' || state.role === 'lehrer',
-          fachMeta: state.fachMeta,
-          scope: scopeFromState(state)
-      })}
-    </section>`;
-}
-
-function renderSchoolWeekBoard(items, labels, fachMeta, weekMonday, todayIso) {
-    const week = buildSchoolWeekDays(weekMonday);
-    const byDay = new Map();
-    week.days.forEach((d) => byDay.set(d.iso, []));
-    (items || []).forEach((sa) => {
-        const d = toIsoDateOnly(sa.datum);
-        if (!d || !byDay.has(d)) return;
-        byDay.get(d).push(sa);
-    });
-    week.days.forEach((d) => {
-        byDay.set(d.iso, sortSchularbeitenByBeginn(byDay.get(d.iso)));
-    });
-
-    const cols = week.days
-        .map((d) => {
-            const dayItems = byDay.get(d.iso) || [];
-            const isToday = d.iso === todayIso;
-            const cards = dayItems.length
-                ? dayItems
-                      .map((sa) => {
-                          const klasse = labels.klasse[sa.klasseCode] || sa.klasseCode;
-                          const zeitKurz = formatSchularbeitZeitKurz(sa);
-                          return `<article class="sa-week-card" style="--sa-fach:${esc(fachColor(sa.fachCode, -1, fachMeta))}">
-              <button type="button" class="sa-week-card__main sa-link" data-sa-detail="${esc(sa.itemId)}">
-                <span class="sa-week-card__fach">${fachChip(sa.fachCode, labels, fachMeta)}</span>
-                <strong class="sa-week-card__thema">${esc(schularbeitDisplayTitle(sa))}</strong>
-                <span class="sa-week-card__meta"><span class="sa-week-card__time">${esc(zeitKurz || '–')}</span> · ${esc(klasse)} · ${esc(labels.lehrer[sa.lehrerCode] || sa.lehrerCode || '–')}</span>
-              </button>
-              ${statusBadge(sa.status)}
-            </article>`;
-                      })
-                      .join('')
-                : '<p class="sa-week-empty muted">Keine Schularbeiten</p>';
-            return `<div class="sa-week-day${isToday ? ' is-today' : ''}">
-        <header class="sa-week-day__head">
-          <span class="sa-week-day__wd">${esc(d.weekday)}</span>
-          <span class="sa-week-day__date">${esc(formatDeDate(d.iso))}</span>
-        </header>
-        <div class="sa-week-day__body">${cards}</div>
-      </div>`;
-        })
-        .join('');
-
-    return `<div class="sa-week-board" role="region" aria-label="Schularbeiten Unterrichtswoche">${cols}</div>`;
+    ${
+        listItems.length
+            ? tableSchularbeiten(listItems, labels, {
+                  interactive: true,
+                  fachMeta: state.fachMeta
+              })
+            : empty
+    }`;
 }
 
 function renderSchuelerDashboard(state) {
     const klasseCode = resolveStudentKlasseCode(state);
-    const labels = labelMaps(state.stammdaten);
-    const items = scopedItems(state, false)
-        .slice()
-        .sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+    if (!klasseCode) {
+        return `<div class="sa-empty"><p><strong>Keine Klasse zugeordnet</strong></p><p class="muted">Klasse oben wählen oder die Schüler-E-Mail in den Stammdaten hinterlegen. Ohne Klasse gibt es keine Termine.</p></div>`;
+    }
+    const items = scopedItems(state, false);
     const weekMonday =
         state.dashboardWeekMonday || mondayOfWeekContaining(toIsoDateOnly(new Date()));
-    const todayIso = toIsoDateOnly(new Date());
-
-    if (!klasseCode) {
-        return `
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-people"></i>
-        <div><h3>Meine Klasse</h3><p>Bitte Klasse wählen oder Stammdaten mit Schüler-E-Mail pflegen.</p></div>
-      </div>
-      <p class="muted">Ohne Klassen-Zuordnung können keine Schularbeiten angezeigt werden.</p>
-    </section>`;
-    }
 
     return `
     ${filterBar(state, {})}
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-calendar-week"></i>
-        <div><h3>Unterrichtswoche</h3>
-        <p>Mo–Fr · ${esc(formatDeDate(weekMonday))} – ${esc(formatDeDate(addDays(weekMonday, 4) || weekMonday))}</p></div>
-        <div class="sa-week-nav">
-          <button type="button" class="btn btn-sm" data-sa-week-prev title="Vorherige Woche"><i class="bi bi-chevron-left"></i></button>
-          <button type="button" class="btn btn-sm" data-sa-week-today title="Aktuelle Woche">Heute</button>
-          <button type="button" class="btn btn-sm" data-sa-week-next title="Nächste Woche"><i class="bi bi-chevron-right"></i></button>
-        </div>
-      </div>
-      ${renderSchoolWeekBoard(items, labels, state.fachMeta, weekMonday, todayIso)}
-      <p class="muted" style="margin:12px 0 0;font-size:0.88em;">
-        Alle Termine: <button type="button" class="sa-link" data-sa-view="liste">Liste</button>
-      </p>
-    </section>`;
+    ${renderWeekCalendar(items, state, weekMonday)}`;
 }
 
 /** Feste Palette für Fächer (ohne SharePoint-Meta). */
@@ -930,73 +850,59 @@ function renderMeine(state) {
             : `<p class="muted">Keine Einträge zu Ihrer Anmeldung (${esc(state.accountEmail || '—')}).
             „Meine Schularbeiten“ zeigt nur Anträge Ihrer Lehrkraft-Zuordnung.
             Alle Termine: <button type="button" class="sa-link" data-sa-view="dashboard">Dashboard</button>
-            ${state.role === 'admin' ? ' bzw. Administration.' : ''}
+            ${state.role === 'admin' ? ' bzw. Systemadministration.' : ''}
             Für die Lehrer-Ansicht: Rolle „Lehrer“ und E-Mail in den Stammdaten pflegen.</p>`;
     } else if (!items.length) {
         emptyHint = '<p class="muted">Keine Einträge.</p>';
     }
     return `
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-card-checklist"></i>
-        <div><h3>Meine Schularbeiten</h3><p>Eigene Anträge und Termine</p></div>
-      </div>
-      ${filterBar(state, { onlyMine: true, scopeAll: false })}
-      ${
-          ownSyncable.length
-              ? `<div class="sa-meine-cal-bar">
+    ${filterBar(state, { onlyMine: true, scopeAll: false })}
+    ${
+        ownSyncable.length
+            ? `<div class="sa-meine-cal-bar">
         <button type="button" class="btn btn-sm" data-sa-sync-my-cal>
           <i class="bi bi-calendar-plus"></i>In meinen Outlook-Kalender (${ownSyncable.length})
         </button>
         <span class="muted">Fixierte und beantragte eigene Termine · Filter oben beachten</span>
       </div>`
-              : ''
-      }
-      ${items.length ? tableSchularbeiten(items, labels, { showActions: true, scope: scopeFromState(state), fachMeta: state.fachMeta }) : emptyHint}
-    </section>`;
+            : ''
+    }
+    ${
+        items.length
+            ? tableSchularbeiten(items, labels, { interactive: true, fachMeta: state.fachMeta })
+            : emptyHint
+    }`;
 }
 
 function tableSchularbeiten(items, labels, opts) {
     if (!items.length) return '<p class="muted">Keine Einträge.</p>';
-    const showActions = opts && opts.showActions;
+    const interactive = !(opts && opts.interactive === false);
     const fachMeta = (opts && opts.fachMeta) || [];
-    const scope = opts && opts.scope;
-    return `<div class="sa-table-wrap"><table class="sa-table"><thead><tr>
-      <th>Datum</th><th>Fach</th><th>Klasse</th><th>Titel</th><th>Dauer</th><th>Sem.</th><th>Status</th>
-      ${showActions ? '<th>Aktionen</th>' : ''}
+    return `<div class="sa-table-wrap"><table class="sa-table sa-table--rows"><thead><tr>
+      <th>Datum</th><th>Zeit</th><th>Fach</th><th>Klasse</th><th>Titel</th><th>Status</th>
+      ${interactive ? '<th class="sa-table__chevron"><span class="sa-sr-only">Öffnen</span></th>' : ''}
     </tr></thead><tbody>
     ${items
         .map((sa) => {
-            const editable = scope ? canEditSchularbeit(sa, scope) : schularbeitStatus(sa) === 'beantragt';
-            const deletable = scope ? canDeleteSchularbeit(sa, scope) : editable;
             const color = fachColor(sa.fachCode, -1, fachMeta);
-            return `<tr class="sa-row" style="--sa-fach:${esc(color)}">
-        <td><button type="button" class="sa-link" data-sa-detail="${esc(sa.itemId)}">${esc(formatDeDate(sa.datum))}</button></td>
+            const zeit = formatSchularbeitZeitKurz(sa) || '–';
+            const open = interactive
+                ? ` class="sa-table__row" tabindex="0" role="link" data-sa-detail="${esc(sa.itemId)}" aria-label="${esc(
+                      schularbeitDisplayTitle(sa) + ' öffnen'
+                  )}"`
+                : '';
+            return `<tr${open} style="--sa-fach:${esc(color)}">
+        <td>${esc(formatDeDate(sa.datum))}</td>
+        <td>${esc(zeit)}</td>
         <td>${fachChip(sa.fachCode, labels, fachMeta)}</td>
         <td>${esc(labels.klasse[sa.klasseCode] || sa.klasseCode)}</td>
-        <td>${esc(schularbeitDisplayTitle(sa))}</td>
-        <td>${esc(sa.dauerMinuten)}'</td>
-        <td>${esc(sa.semester)}</td>
+        <td><strong>${esc(schularbeitDisplayTitle(sa))}</strong></td>
         <td>${statusBadge(sa.status)}</td>
-        ${
-            showActions
-                ? `<td class="sa-actions">
-            ${
-                editable || deletable
-                    ? `${editable ? `<button type="button" class="btn btn-sm" data-sa-edit="${esc(sa.itemId)}" title="Bearbeiten"><i class="bi bi-pencil"></i></button>` : ''}
-               ${deletable ? `<button type="button" class="btn btn-sm" data-sa-del="${esc(sa.itemId)}" title="Löschen"><i class="bi bi-trash"></i></button>` : ''}`
-                    : '–'
-            }
-          </td>`
-                : ''
-        }
+        ${interactive ? '<td class="sa-table__chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></td>' : ''}
       </tr>`;
         })
         .join('')}
     </tbody></table></div>`;
-}
-
-function schularbeitStatus(sa) {
-    return String((sa && sa.status) || '').toLowerCase();
 }
 
 function renderAdminKpiGrid(state) {
@@ -1230,8 +1136,7 @@ function renderAdmin(state) {
     const open = state.items.filter((s) => s.status === 'beantragt');
     const rw = state.rules;
 
-    return `
-    ${renderAdminSitePanel(state)}
+    const arbeitsHtml = `
     ${renderAdminKpiGrid(state)}
     <section class="tm-panel">
       <div class="tm-panel__head"><i class="bi bi-inbox"></i>
@@ -1262,9 +1167,58 @@ function renderAdmin(state) {
               : '<p class="muted">Keine offenen Anträge.</p>'
       }
     </section>
-
-    <div class="sa-split">
-      <section class="tm-panel">
+    `;
+    const shell = renderSystemAdminPage({
+        prefix: 'sa',
+        activeTab: state.systemTab,
+        dataAttr: 'data-sa-sys-tab',
+        ariaLabel: 'Systemadministration Schularbeiten',
+        panels: [
+            {
+                id: 'site',
+                step: '1',
+                title: 'Datenquelle',
+                leadHtml: 'SharePoint ist die Quelle. Lehrer schreibt, Schüler liest.',
+                body: `${renderAdminSitePanel(state)}`
+            },
+            {
+                id: 'perms',
+                step: '2',
+                title: 'Berechtigungen',
+                leadHtml: 'Entra-Gruppen auf den Planer-Listen. Der vollständige Assistent bleibt die Geschwister-Seite.',
+                body: `<section class="tm-panel">
+      <div class="tm-panel__head"><i class="bi bi-people"></i>
+        <div><h3>SharePoint-Berechtigungen</h3>
+          <p>Entra-Gruppen auf allen Planer-Listen (Vererbung wird gebrochen)</p></div>
+      </div>
+      ${(() => {
+          const p = loadPermissionsConfig();
+          return `
+      <p class="muted" style="font-size:0.88em;line-height:1.45;margin:0 0 10px;">
+        Empfohlen auf einer <strong>Administrations-Site</strong> (z. B. <code>/sites/administration</code>).
+        Schularbeiten: Lehrer <em>Beitragen</em>, Schüler <em>Lesen</em>, Verwaltung <em>Vollzugriff</em>.
+        Regelwerk/Terminfenster/FachMeta: Lehrer Lesen, Schüler kein Zugriff.
+        Voraussetzung: <code>Sites.FullControl.All</code> und <code>Group.Read.All</code>.
+      </p>
+      ${htmlSchularbeitenEntraPermGrid(p, { delegated: true, mode: 'planer' })}
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+        <button type="button" class="btn" id="saBtnSavePerms"><i class="bi bi-save"></i>Gruppen speichern</button>
+        <button type="button" class="btn btn-primary" id="saBtnApplyPerms"><i class="bi bi-shield-lock"></i>Berechtigungen anwenden</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0;font-size:0.88em;">
+        Gleiche Einstellungen wie im Tool
+        <a href="sharepoint-liste-schularbeiten.html">Schularbeiten-Listen</a>.
+        Site muss unter „SharePoint-Verbindung“ geladen sein (${esc(state.siteUrl || '–')}).
+      </p>`;
+      })()}
+    </section>`
+            },
+            {
+                id: 'kalender',
+                step: '3',
+                title: 'Kalender',
+                leadHtml: 'Sperrzeiten und wohin fixierte Termine geschrieben werden.',
+                body: `<section class="tm-panel">
         <div class="tm-panel__head"><i class="bi bi-slash-circle"></i>
           <div><h3>Sperrzeiten (Terminfenster)</h3><p>Ferien, Sportwoche, …</p></div>
         </div>
@@ -1293,65 +1247,7 @@ function renderAdmin(state) {
           }
         </ul>
       </section>
-
-      <section class="tm-panel">
-        <div class="tm-panel__head"><i class="bi bi-sliders"></i>
-          <div><h3>Regelwerk</h3><p>Basis: SchUG § 17 / LBVO § 7</p></div>
-        </div>
-        <div class="sa-form">
-          <div class="tm-field"><label for="saRwName">Name</label><input id="saRwName" type="text" value="${esc(rw.name || '')}"></div>
-          <div class="sa-form__row">
-            <div class="tm-field"><label for="saRwTag">Max. pro Tag</label><input id="saRwTag" type="number" min="1" max="3" value="${esc(rw.maxProTag)}"></div>
-            <div class="tm-field"><label for="saRwWoche">Max. pro Woche</label><input id="saRwWoche" type="number" min="1" max="5" value="${esc(rw.maxProWoche)}"></div>
-          </div>
-          <div class="sa-form__row">
-            <div class="tm-field"><label for="saRwFrist">Ankündigungsfrist (Tage)</label><input id="saRwFrist" type="number" min="1" max="30" value="${esc(rw.ankuendigungsfristTage)}"></div>
-            <div class="tm-field"><label for="saRwSperre">Sperre vor Notenkonferenz</label><input id="saRwSperre" type="number" min="0" max="21" value="${esc(rw.sperreVorNotenkonferenzTage)}"></div>
-          </div>
-          <button type="button" class="btn" id="saBtnSaveRules"><i class="bi bi-save"></i>Speichern</button>
-        </div>
-      </section>
-    </div>
-
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-palette"></i>
-        <div><h3>SAP-FachMeta</h3><p>Farbe, Kontingent und Standarddauer (optional, je Schuljahr)</p></div>
-      </div>
-      ${
-          state.ctx && state.ctx.lists && state.ctx.lists.fachMeta
-              ? renderFachMetaAdminTable(state)
-              : '<p class="muted">Liste SAP-FachMeta fehlt. <a href="sharepoint-liste-schularbeiten.html">Listen-Paket erneut ausführen</a>.</p>'
-      }
-    </section>
-
-    <section class="tm-panel">
-      <div class="tm-panel__head"><i class="bi bi-people"></i>
-        <div><h3>SharePoint-Berechtigungen</h3>
-          <p>Entra-Gruppen auf allen Planer-Listen (Vererbung wird gebrochen)</p></div>
-      </div>
-      ${(() => {
-          const p = loadPermissionsConfig();
-          return `
-      <p class="muted" style="font-size:0.88em;line-height:1.45;margin:0 0 10px;">
-        Empfohlen auf einer <strong>Administrations-Site</strong> (z. B. <code>/sites/administration</code>).
-        Schularbeiten: Lehrer <em>Beitragen</em>, Schüler <em>Lesen</em>, Verwaltung <em>Vollzugriff</em>.
-        Regelwerk/Terminfenster/FachMeta: Lehrer Lesen, Schüler kein Zugriff.
-        Voraussetzung: <code>Sites.FullControl.All</code> und <code>Group.Read.All</code>.
-      </p>
-      ${htmlSchularbeitenEntraPermGrid(p, { delegated: true, mode: 'planer' })}
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
-        <button type="button" class="btn" id="saBtnSavePerms"><i class="bi bi-save"></i>Gruppen speichern</button>
-        <button type="button" class="btn btn-primary" id="saBtnApplyPerms"><i class="bi bi-shield-lock"></i>Berechtigungen anwenden</button>
-      </div>
-      <p class="muted" style="margin:10px 0 0;font-size:0.88em;">
-        Gleiche Einstellungen wie im Tool
-        <a href="sharepoint-liste-schularbeiten.html">Schularbeiten-Listen</a>.
-        Site muss unter „SharePoint-Verbindung“ geladen sein (${esc(state.siteUrl || '–')}).
-      </p>`;
-      })()}
-    </section>
-
-    <section class="tm-panel">
+<section class="tm-panel">
       <div class="tm-panel__head"><i class="bi bi-sliders2"></i>
         <div><h3>Automatisierung</h3><p>Lokal im Browser gespeichert</p></div>
       </div>
@@ -1391,64 +1287,52 @@ function renderAdmin(state) {
         </label>
         <input type="file" id="saImportJsonAdmin" accept=".json,application/json" hidden>
       </div>
+    </section>`
+            },
+            {
+                id: 'wartung',
+                step: '4',
+                title: 'Wartung',
+                leadHtml: 'Regelwerk, Fachfarben und Intranet.',
+                body: `<section class="tm-panel">
+        <div class="tm-panel__head"><i class="bi bi-sliders"></i>
+          <div><h3>Regelwerk</h3><p>Basis: SchUG § 17 / LBVO § 7</p></div>
+        </div>
+        <div class="sa-form">
+          <div class="tm-field"><label for="saRwName">Name</label><input id="saRwName" type="text" value="${esc(rw.name || '')}"></div>
+          <div class="sa-form__row">
+            <div class="tm-field"><label for="saRwTag">Max. pro Tag</label><input id="saRwTag" type="number" min="1" max="3" value="${esc(rw.maxProTag)}"></div>
+            <div class="tm-field"><label for="saRwWoche">Max. pro Woche</label><input id="saRwWoche" type="number" min="1" max="5" value="${esc(rw.maxProWoche)}"></div>
+          </div>
+          <div class="sa-form__row">
+            <div class="tm-field"><label for="saRwFrist">Ankündigungsfrist (Tage)</label><input id="saRwFrist" type="number" min="1" max="30" value="${esc(rw.ankuendigungsfristTage)}"></div>
+            <div class="tm-field"><label for="saRwSperre">Sperre vor Notenkonferenz</label><input id="saRwSperre" type="number" min="0" max="21" value="${esc(rw.sperreVorNotenkonferenzTage)}"></div>
+          </div>
+          <button type="button" class="btn" id="saBtnSaveRules"><i class="bi bi-save"></i>Speichern</button>
+        </div>
+      </section>
+<section class="tm-panel">
+      <div class="tm-panel__head"><i class="bi bi-palette"></i>
+        <div><h3>SAP-FachMeta</h3><p>Farbe, Kontingent und Standarddauer (optional, je Schuljahr)</p></div>
+      </div>
+      ${
+          state.ctx && state.ctx.lists && state.ctx.lists.fachMeta
+              ? renderFachMetaAdminTable(state)
+              : '<p class="muted">Liste SAP-FachMeta fehlt. <a href="sharepoint-liste-schularbeiten.html">Listen-Paket erneut ausführen</a>.</p>'
+      }
     </section>
-    ${renderAdminListResetPanel(state)}
-    ${renderIntranetPanel(state)}`;
-}
-
-function calEventsHtml(list, state, labels, canDrag, calMode) {
-    const weekLayout = calMode === 'week';
-    return sortSchularbeitenByBeginn(list)
-        .map((sa) => {
-            const color = fachColor(sa.fachCode, -1, state.fachMeta);
-            const fg = contrastOn(color);
-            const fachLabel = labels.fach[sa.fachCode] || sa.fachCode || '?';
-            const title = schularbeitDisplayTitle(sa);
-            const zeitKurz = formatSchularbeitZeitKurz(sa);
-            const zeitLabel = zeitKurz || '–';
-            const drag =
-                canDrag && (sa.status === 'beantragt' || sa.status === 'fixiert' || sa.status === 'abgelehnt');
-            const tip =
-                fachLabel +
-                ' · ' +
-                (formatSchularbeitZeitspanne(sa) || 'ohne Uhrzeit') +
-                ' · ' +
-                title +
-                ' · ' +
-                statusLabel(sa.status) +
-                (drag ? ' · Ziehen zum Verschieben' : '');
-            const timeHtml = weekLayout
-                ? `<span class="sa-cal__ev-time">${esc(zeitLabel)}</span>`
-                : `<span class="sa-cal__ev-time sa-cal__ev-time--compact">${esc(zeitKurz ? zeitKurz.split('–')[0] : '–')}</span>`;
-            return `<button type="button" class="sa-cal__ev sa-cal__ev--${esc(sa.status)}${
-                weekLayout ? ' sa-cal__ev--week' : ''
-            }${drag ? ' sa-cal__ev--draggable' : ''}" style="--sa-fach:${esc(color)};--sa-fach-fg:${esc(fg)}"${
-                drag ? ` draggable="true" data-sa-cal-drag="${esc(sa.itemId)}"` : ''
-            } data-sa-detail="${esc(sa.itemId)}" title="${esc(tip)}">${timeHtml}<span class="sa-cal__ev-title">${esc(
-                title
-            )}</span></button>`;
-        })
-        .join('');
-}
-
-function calCellHtml(iso, dayLabel, list, state, todayIso, canDrag, labels, calMode) {
-    const blocked = (state.windows || []).some((w) => w.typ === 'gesperrt' && dateInWindow(iso, w));
-    return `<div class="sa-cal__cell${iso === todayIso ? ' is-today' : ''}${blocked ? ' is-blocked' : ''}" data-sa-cal-drop="${esc(
-        iso
-    )}"${canDrag ? ' data-sa-cal-droppable="1"' : ''}>
-          <div class="sa-cal__day">${esc(String(dayLabel))}</div>
-          <div class="sa-cal__events">${calEventsHtml(list, state, labels, canDrag, calMode)}</div>
-        </div>`;
-}
-
-function calDayLabel(iso, calMode) {
-    const dayNum = parseInt(String(iso).slice(8, 10), 10);
-    if (calMode !== 'week') return String(dayNum);
-    const p = String(iso).split('-').map((x) => parseInt(x, 10));
-    if (p.length < 3) return String(dayNum);
-    const d = new Date(p[0], p[1] - 1, p[2]);
-    const wd = d.toLocaleDateString('de-AT', { weekday: 'short' });
-    return `${wd} ${dayNum}.`;
+${renderIntranetPanel(state)}`
+            },
+            {
+                id: 'danger',
+                title: 'Danger Zone',
+                danger: true,
+                leadHtml: 'Listen leeren lässt die Spalten stehen. Kalender-Einträge außerhalb der Listen bleiben.',
+                body: `${renderAdminListResetPanel(state)}`
+            }
+        ]
+    });
+    return arbeitsHtml + shell;
 }
 
 function resolveCalWeekMonday(state) {
@@ -1460,96 +1344,36 @@ function resolveCalWeekMonday(state) {
 }
 
 function renderKalender(state) {
-    const labels = labelMaps(state.stammdaten);
     const isAdmin = state.role === 'admin';
-    const canDrag = isAdmin;
     const baseItems =
         isAdmin
             ? filterSchularbeiten(state.items, state.filters, scopeFromState(state, { scopeAll: true }))
             : scopedItems(state, state.role !== 'schueler');
     const items = filterItemsForCalendarView(baseItems, state);
     const calShow = state.calShow || { beantragt: true, fixiert: true, abgelehnt: false };
-    const calMode = state.calMode === 'week' ? 'week' : 'month';
-
-    const y = state.calYear;
-    const m = state.calMonth;
-    const first = new Date(y, m, 1);
-    const startPad = (first.getDay() + 6) % 7; // Montag = 0
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const monthName = first.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
-    const today = toIsoDateOnly(new Date());
+    const calMode = state.calMode === 'agenda' || state.calMode === 'week' ? state.calMode : 'month';
     const weekMonday = resolveCalWeekMonday(state);
-    const weekSunday = addDays(weekMonday, 6) || weekMonday;
-    const weekTitle =
-        formatDeDate(weekMonday) + ' – ' + formatDeDate(weekSunday) + ' · ' + String(weekMonday).slice(0, 4);
-    const periodTitle = calMode === 'week' ? weekTitle : monthName;
-
-    const byDay = {};
-    items.forEach((sa) => {
-        const d = String(sa.datum || '').slice(0, 10);
-        if (!d) return;
-        if (!byDay[d]) byDay[d] = [];
-        byDay[d].push(sa);
-    });
-    Object.keys(byDay).forEach((d) => {
-        byDay[d] = sortSchularbeitenByBeginn(byDay[d]);
-    });
-
-    let gridClass = 'sa-cal__grid';
-    const cells = [];
-    if (calMode === 'week') {
-        gridClass += ' sa-cal__grid--week';
-        for (let i = 0; i < 7; i++) {
-            const iso = addDays(weekMonday, i) || '';
-            if (!iso) continue;
-            cells.push(calCellHtml(iso, calDayLabel(iso, 'week'), byDay[iso] || [], state, today, canDrag, labels, 'week'));
-        }
-    } else {
-        for (let i = 0; i < startPad; i++) cells.push('<div class="sa-cal__cell sa-cal__cell--empty"></div>');
-        for (let day = 1; day <= daysInMonth; day++) {
-            const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            cells.push(calCellHtml(iso, calDayLabel(iso, 'month'), byDay[iso] || [], state, today, canDrag, labels, 'month'));
-        }
-    }
-
-    const navPrevLabel = calMode === 'week' ? 'Vorherige Woche' : 'Vorheriger Monat';
-    const navNextLabel = calMode === 'week' ? 'Nächste Woche' : 'Nächster Monat';
-
-    return `
-    ${filterBar(state, { scopeAll: state.role === 'admin' })}
-    <section class="tm-panel">
-      <div class="sa-cal__head">
-        <h3>${esc(periodTitle)}</h3>
-        <div class="sa-cal__nav">
-          <div class="sa-cal__mode" role="group" aria-label="Kalenderansicht">
-            <button type="button" class="${calMode === 'month' ? 'is-active' : ''}" id="saCalModeMonth" aria-pressed="${calMode === 'month'}">Monat</button>
-            <button type="button" class="${calMode === 'week' ? 'is-active' : ''}" id="saCalModeWeek" aria-pressed="${calMode === 'week'}">Woche</button>
-          </div>
-          <button type="button" class="btn" id="saCalPrev" aria-label="${esc(navPrevLabel)}"><i class="bi bi-chevron-left"></i></button>
-          <button type="button" class="btn" id="saCalToday">Heute</button>
-          <button type="button" class="btn" id="saCalNext" aria-label="${esc(navNextLabel)}"><i class="bi bi-chevron-right"></i></button>
-        </div>
-      </div>
-      ${
-          isAdmin
-              ? `<div class="sa-cal__admin-bar" role="group" aria-label="Kalender anzeigen">
+    const extra = isAdmin
+        ? `<div class="sa-cal__admin-bar" role="group" aria-label="Kalender anzeigen">
           <span class="sa-cal__admin-label">Anzeigen:</span>
-          <label class="sa-cal__check"><input type="checkbox" id="saCalShowBeantragt"${calShow.beantragt ? ' checked' : ''}> Geplant (beantragt)</label>
+          <label class="sa-cal__check"><input type="checkbox" id="saCalShowBeantragt"${calShow.beantragt ? ' checked' : ''}> Beantragt</label>
           <label class="sa-cal__check"><input type="checkbox" id="saCalShowFixiert"${calShow.fixiert ? ' checked' : ''}> Fixiert</label>
           <label class="sa-cal__check"><input type="checkbox" id="saCalShowAbgelehnt"${calShow.abgelehnt ? ' checked' : ''}> Abgelehnt</label>
-          <span class="muted sa-cal__drag-hint"><i class="bi bi-arrows-move"></i> Termine per Drag &amp; Drop auf einen Tag verschieben</span>
         </div>`
-              : ''
-      }
-      <div class="sa-cal__weekdays"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
-      <div class="${gridClass}">${cells.join('')}</div>
-      <div class="sa-cal__legend">
-        <span><i class="sa-dot sa-dot--warn"></i>Beantragt (gestrichelt)</span>
-        <span><i class="sa-dot sa-dot--ok"></i>Fixiert</span>
-        <span><i class="sa-dot sa-dot--bad"></i>Abgelehnt (blass)</span>
-        <span><i class="sa-blocked-swatch"></i>Gesperrter Tag</span>
-      </div>
-    </section>`;
+        : '';
+    const shell = renderMs365CalendarShell({
+        mode: calMode,
+        events: calendarEventsFor(items, state),
+        weekAnchor: isoMondayToDate(weekMonday),
+        year: state.calYear,
+        month0: state.calMonth,
+        prefix: 'sa-cal',
+        extraHtml: extra,
+        hint: 'Termin antippen für Details. Gesperrte Tage prüft der Planer beim Speichern.'
+    });
+    return `
+    ${filterBar(state, { scopeAll: state.role === 'admin' })}
+    ${shell}`;
 }
 
 function renderRegeln(state) {
@@ -1602,7 +1426,7 @@ function renderRegeln(state) {
       </div>
       <div class="sa-alert sa-alert--info" style="margin-top:16px;">
         <strong>Fehler</strong> blockieren das Einreichen. <strong>Warnungen</strong> sind erlaubt, werden aber hervorgehoben.
-        Administrator:innen pflegen Sperrzeiten und Zahlenwerte unter Administration.
+        Administrator:innen pflegen Sperrzeiten und Zahlenwerte unter Systemadministration → Kalender.
       </div>
     </section>`;
 }
@@ -1663,7 +1487,7 @@ function renderExportGroupCalendarCard(state, fixiertItems, labels) {
     let disabled = !state.ctx || n === 0;
 
     if (!state.ctx) {
-        hint = 'SharePoint-Site unter Administration laden.';
+        hint = 'SharePoint-Site unter Systemadministration laden.';
     } else if (n === 0) {
         hint =
             'Keine fixierten Termine in der Vorschau. Status „Fixiert“ setzen oder Filter anpassen (iCal/Druck zeigen auch beantragte Termine).';
@@ -1742,7 +1566,7 @@ function renderExport(state) {
       <div class="tm-panel__head"><i class="bi bi-eye"></i>
         <div><h3>Vorschau (${fixed.length} Termine, davon ${fixiertOnly.length} fixiert)</h3><p>${esc(printTableCaption(fixed))}</p></div>
       </div>
-      ${tableSchularbeiten(fixed, labels, { showActions: false, fachMeta: state.fachMeta })}
+      ${tableSchularbeiten(fixed, labels, { interactive: false, fachMeta: state.fachMeta })}
     </section>`;
 }
 
@@ -1863,16 +1687,22 @@ export function readFormFromDom() {
 }
 
 export function readFiltersFromDom(currentFilters) {
-    const g = (id) => {
+    const read = (id) => {
+        if (typeof document === 'undefined') return null;
         const el = document.getElementById(id);
-        return el ? String(el.value || '') : '';
+        if (!el) return null;
+        return String(el.value || '');
     };
     const cur = currentFilters && typeof currentFilters === 'object' ? currentFilters : {};
+    const pick = (id, fallback) => {
+        const value = read(id);
+        return value == null ? String(fallback || '') : value;
+    };
     return {
-        klasse: g('saFilterKlasse'),
-        lehrer: g('saFilterLehrer'),
-        fach: String(cur.fach || ''),
-        status: String(cur.status || '')
+        klasse: pick('saFilterKlasse', cur.klasse),
+        lehrer: pick('saFilterLehrer', cur.lehrer),
+        fach: pick('saFilterFach', cur.fach),
+        status: pick('saFilterStatus', cur.status)
     };
 }
 

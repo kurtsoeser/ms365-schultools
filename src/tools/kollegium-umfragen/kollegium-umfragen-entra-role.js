@@ -7,6 +7,7 @@ import {
     resolveIsAblaufTeacherMember
 } from '../../shared/ablauf-admin-entra.js';
 import { resolveTeacherContext } from './kollegium-umfragen-logic.js';
+import { announceStaffAccess } from '../../shared/app-role-chrome.js';
 
 /**
  * @returns {{ email: string, name: string, loggedIn: boolean }}
@@ -81,6 +82,13 @@ export async function resolveKollegiumRoles(email) {
         demo: !!admin.demo,
         resolved: true
     };
+    announceStaffAccess('kollegium', {
+        email: em,
+        isAdmin: cache.isAdmin,
+        isKv: cache.isKv,
+        isTeacher: cache.isTeacher,
+        sources: cache.sources
+    });
     return {
         isAdmin: cache.isAdmin,
         isTeacher: cache.isTeacher,

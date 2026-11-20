@@ -9,6 +9,10 @@ import {
     DEFAULT_INTRANET_LIST_TITLES,
     resolveIntranetListTitle
 } from './intranet-list-title-logic.js';
+import {
+    loadLiveSchoolStammdatenCache,
+    preferRicherTeacherList
+} from './live-school-stammdaten-cache.js';
 
 /** @typedef {{ name: string, displayName?: string, text?: object, personOrGroup?: object, number?: object, boolean?: object, choice?: object, dateTime?: object }} SpoColumnDef */
 /** @typedef {{ code: string, name: string, email?: string, upn?: string }} StammdatenTeacher */
@@ -223,25 +227,74 @@ export function enrichClassWithM365Group(c, win) {
 }
 
 /**
+ * Erste E-Mail aus typischen Lehrer-Feldern (Text + Person).
+ * @param {Record<string, unknown>} f
+ */
+function firstLehrerEmailFromFields(f) {
+    const direct = [
+        f.EMail,
+        f.Email,
+        f.email,
+        f.UPN,
+        f.Upn,
+        f.WorkEmail,
+        f.LehrerEmail,
+        f.LehrerEMail
+    ];
+    for (let i = 0; i < direct.length; i++) {
+        const em = String(direct[i] || '')
+            .trim()
+            .toLowerCase();
+        if (em.indexOf('@') >= 0) return em;
+    }
+    const fromPerson =
+        personFieldEmail(f.Lehrkraft) ||
+        personFieldEmail(f.Lehrer) ||
+        personFieldEmail(f.Person) ||
+        personFieldEmail(f.Author);
+    if (fromPerson) return fromPerson;
+    const keys = Object.keys(f || {});
+    for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (!/mail|upn|email|lehrkraft|lehrer/i.test(k)) continue;
+        if (/lookupid$/i.test(k)) continue;
+        const v = f[k];
+        const em =
+            typeof v === 'object' && v
+                ? personFieldEmail(v)
+                : String(v || '')
+                      .trim()
+                      .toLowerCase();
+        if (em.indexOf('@') >= 0) return em;
+    }
+    return '';
+}
+
+/**
  * SP-Felder Lehrerinnen → App-Teacher.
+ * Robuster gegen abweichende Spaltennamen / nur Personenfeld / nur Title.
  * @param {Record<string, unknown>|null|undefined} fields
  * @returns {StammdatenTeacher|null}
  */
 export function mapLehrerFieldsToTeacher(fields) {
     const f = fields || {};
-    const code = String(f.LehrerCode || f.lehrerCode || '').trim();
-    const email = String(f.EMail || f.Email || f.UPN || personFieldEmail(f.Lehrkraft) || '')
+    const code = String(
+        f.LehrerCode || f.lehrerCode || f.Kuerzel || f.Kürzel || f.Code || f.ShortName || ''
+    ).trim();
+    const email = firstLehrerEmailFromFields(f);
+    const upn = String(f.UPN || f.Upn || email)
         .trim()
         .toLowerCase();
-    const upn = String(f.UPN || email).trim().toLowerCase();
     const fromParts = [f.Vorname, f.Nachname]
         .map((x) => String(x || '').trim())
         .filter(Boolean)
         .join(' ');
     const name =
-        String(f.Title || '').trim() ||
+        String(f.Title || f.LinkTitle || f.FileLeafRef || '').trim() ||
         fromParts ||
         personFieldName(f.Lehrkraft) ||
+        personFieldName(f.Lehrer) ||
+        personFieldName(f.Person) ||
         code ||
         email;
     if (!code && !email && !name) return null;
@@ -305,17 +358,16 @@ export function mergeStammdatenPreferLive(local, live) {
     const liv = live || {};
     const liveTeachers = Array.isArray(liv.teachers) ? liv.teachers : [];
     const liveClasses = Array.isArray(liv.classes) ? liv.classes : [];
+    const localTeachers = Array.isArray(loc.teachers) ? loc.teachers : [];
+    const localClasses = Array.isArray(loc.classes) ? loc.classes : [];
+    // Live gewinnt; Mini-/Demo-Lokalstand darf Volliste nicht verdrängen
+    let teachers = liveTeachers.length ? liveTeachers : localTeachers;
+    if (liveTeachers.length && localTeachers.length && liveTeachers.length > localTeachers.length) {
+        teachers = liveTeachers;
+    }
     return {
-        teachers: liveTeachers.length
-            ? liveTeachers
-            : Array.isArray(loc.teachers)
-              ? loc.teachers
-              : [],
-        classes: liveClasses.length
-            ? liveClasses
-            : Array.isArray(loc.classes)
-              ? loc.classes
-              : [],
+        teachers,
+        classes: liveClasses.length ? liveClasses : localClasses,
         students: Array.isArray(loc.students) ? loc.students : []
     };
 }
@@ -572,18 +624,28 @@ async function findListByTitle(G, token, siteId, listTitle) {
     return ((data && data.value) || [])[0] || null;
 }
 
+const GRAPH_SELECT_LEHRER =
+    'Title,LehrerCode,Vorname,Nachname,EMail,Email,UPN,Lehrkraft,LehrkraftLookupId';
+const GRAPH_SELECT_KLASSEN =
+    'Title,KlassenCode,Abschlussjahr,KVName,KVEmail,M365GroupId,M365GroupMail,M365GroupName,Klassenvorstand,KlassenvorstandLookupId';
+
 /**
  * @param {{ graphPathSite: Function, graphJson: Function }} G
  * @param {string} token
  * @param {string} siteId
  * @param {string} listId
+ * @param {string} [fieldSelect] Graph $expand=fields($select=…)
  */
-async function fetchAllListItems(G, token, siteId, listId) {
+async function fetchAllListItems(G, token, siteId, listId, fieldSelect) {
+    const sel = String(fieldSelect || '').trim();
+    const expand = sel ? 'fields($select=' + sel + ')' : 'fields';
     let path =
         G.graphPathSite(siteId) +
         '/lists/' +
         encodeURIComponent(listId) +
-        '/items?$expand=fields&$top=100';
+        '/items?$expand=' +
+        expand +
+        '&$top=100';
     const out = [];
     while (path) {
         const data = await G.graphJson(
@@ -600,7 +662,31 @@ async function fetchAllListItems(G, token, siteId, listId) {
     return out;
 }
 
-const SPO_SELECT_LEHRER = 'Id,Title,LehrerCode,Vorname,Nachname,EMail,UPN';
+/**
+ * Listenzeilen lesen – bei $select-Fehler Fallback auf volles fields-Expand.
+ * @param {{ graphPathSite: Function, graphJson: Function }} G
+ * @param {string} token
+ * @param {string} siteId
+ * @param {string} listId
+ * @param {string} [fieldSelect]
+ */
+async function fetchAllListItemsPreferSelect(G, token, siteId, listId, fieldSelect) {
+    const sel = String(fieldSelect || '').trim();
+    if (!sel) return fetchAllListItems(G, token, siteId, listId);
+    try {
+        return await fetchAllListItems(G, token, siteId, listId, sel);
+    } catch {
+        return fetchAllListItems(G, token, siteId, listId);
+    }
+}
+
+const SPO_SELECT_LEHRER_ATTEMPTS = [
+    'Id,Title,LehrerCode,Vorname,Nachname,EMail,UPN,Lehrkraft/EMail,Lehrkraft/Title,Lehrkraft/Name&$expand=Lehrkraft',
+    'Id,Title,LehrerCode,Vorname,Nachname,EMail,Email,UPN',
+    'Id,Title,LehrerCode,EMail,UPN',
+    'Id,Title,LehrerCode',
+    'Id,Title'
+];
 const SPO_SELECT_KLASSEN =
     'Id,Title,KlassenCode,Abschlussjahr,KVName,KVEmail,M365GroupId,M365GroupMail,M365GroupName';
 
@@ -609,7 +695,7 @@ const SPO_SELECT_KLASSEN =
  * @param {{ getGraphToken: Function, getSpoRequestDigest: Function, spoRestFetch: Function }} G
  * @param {string} siteWebUrl
  * @param {string} listTitle
- * @param {string} [selectFields]
+ * @param {string|string[]} [selectFields]
  * @returns {Promise<{ fields: Record<string, unknown> }[]>}
  */
 async function fetchAllListItemsViaSpoRest(G, siteWebUrl, listTitle, selectFields) {
@@ -625,9 +711,11 @@ async function fetchAllListItemsViaSpoRest(G, siteWebUrl, listTitle, selectField
     } catch {
         throw new Error('Site-URL ungültig für SPO-REST.');
     }
+    // Ein Token = eine Ressource (AADSTS28000 bei SPO+Graph gemischt).
+    // Write zuerst: oft schon per Admin-Consent da; Read allein triggert sonst den Lehrer-Dialog.
     const spoScopes = [
-        ['https://' + host + '/AllSites.Read', 'https://graph.microsoft.com/User.Read'],
-        ['https://' + host + '/AllSites.Write', 'https://graph.microsoft.com/User.Read']
+        ['https://' + host + '/AllSites.Write'],
+        ['https://' + host + '/AllSites.Read']
     ];
     let spoToken = '';
     let lastErr = '';
@@ -651,40 +739,74 @@ async function fetchAllListItemsViaSpoRest(G, siteWebUrl, listTitle, selectField
 
     const digest = await G.getSpoRequestDigest(url, spoToken);
     const esc = title.replace(/'/g, "''");
-    const select = String(selectFields || SPO_SELECT_KLASSEN).trim();
-    /** @type {{ fields: Record<string, unknown> }[]} */
-    const out = [];
-    let api =
-        "/_api/web/lists/getbytitle('" +
-        esc +
-        "')/items?$top=100&$select=" +
-        select;
-    while (api) {
-        const res = await G.spoRestFetch(url, spoToken, digest, 'GET', api);
-        if (!res.ok) {
-            throw new Error(
-                'SPO „' + title + '": HTTP ' + res.status + ' ' + String(res.text || '').slice(0, 180)
-            );
+    const attempts = Array.isArray(selectFields)
+        ? selectFields.map((s) => String(s || '').trim()).filter(Boolean)
+        : [String(selectFields || SPO_SELECT_KLASSEN).trim()].filter(Boolean);
+    if (!attempts.length) attempts.push(SPO_SELECT_KLASSEN);
+
+    let lastHttpErr = '';
+    for (let a = 0; a < attempts.length; a++) {
+        const select = attempts[a];
+        /** @type {{ fields: Record<string, unknown> }[]} */
+        const out = [];
+        let api =
+            "/_api/web/lists/getbytitle('" +
+            esc +
+            "')/items?$top=100&$select=" +
+            select;
+        try {
+            while (api) {
+                const res = await G.spoRestFetch(url, spoToken, digest, 'GET', api);
+                if (!res.ok) {
+                    const bodyHint = String(res.text || '')
+                        .replace(/\s+/g, ' ')
+                        .slice(0, 120);
+                    throw new Error(
+                        'SPO „' +
+                            title +
+                            '": HTTP ' +
+                            res.status +
+                            ' · Site ' +
+                            url +
+                            (bodyHint ? ' · ' + bodyHint : '')
+                    );
+                }
+                const rows = (res.data && res.data.value) || [];
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i] || {};
+                    // odata=nometadata: Felder liegen flach auf dem Item
+                    out.push({ fields: row, id: row.Id != null ? row.Id : row.id });
+                }
+                const next = String(
+                    (res.data && (res.data['@odata.nextLink'] || res.data['odata.nextLink'])) || ''
+                ).trim();
+                api = next || '';
+            }
+            return out;
+        } catch (e) {
+            lastHttpErr = e && e.message ? String(e.message) : String(e);
         }
-        const rows = (res.data && res.data.value) || [];
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i] || {};
-            // odata=nometadata: Felder liegen flach auf dem Item
-            out.push({ fields: row, id: row.Id != null ? row.Id : row.id });
-        }
-        const next = String(
-            (res.data && (res.data['@odata.nextLink'] || res.data['odata.nextLink'])) || ''
-        ).trim();
-        api = next || '';
     }
-    return out;
+    throw new Error(lastHttpErr || 'SPO „' + title + '": Lesen fehlgeschlagen');
+}
+
+/**
+ * Felder aus Graph-/SPO-Listenelement (expand=fields oder flach).
+ * @param {Record<string, unknown>|null|undefined} item
+ */
+function fieldsFromListItem(item) {
+    if (!item || typeof item !== 'object') return {};
+    if (item.fields && typeof item.fields === 'object') {
+        return /** @type {Record<string, unknown>} */ (item.fields);
+    }
+    return /** @type {Record<string, unknown>} */ (item);
 }
 
 function mapRowsFromItems(items, mapFn) {
     const seen = new Set();
     const out = [];
     for (let i = 0; i < items.length; i++) {
-        const mapped = mapFn(items[i] && items[i].fields);
+        const mapped = mapFn(fieldsFromListItem(items[i]));
         if (!mapped) continue;
         const key = String(mapped.code || mapped.email || '')
             .trim()
@@ -708,6 +830,50 @@ function canUseSpoRestFallback(G, siteWebUrl) {
         typeof G.getSpoRequestDigest === 'function' &&
         typeof G.spoRestFetch === 'function'
     );
+}
+
+/**
+ * Listen-URL → Site-Collection-URL (ohne /Lists/…).
+ * @param {string} listOrSiteUrl
+ * @returns {string}
+ */
+export function siteWebUrlFromSharePointListUrl(listOrSiteUrl) {
+    const raw = String(listOrSiteUrl || '')
+        .trim()
+        .replace(/\/+$/, '');
+    if (!raw) return '';
+    try {
+        const u = new URL(raw.indexOf('http') === 0 ? raw : 'https://' + raw);
+        let path = u.pathname || '';
+        path = path.replace(/\/Lists\/[\s\S]*$/i, '');
+        path = path.replace(/\/SitePages\/[\s\S]*$/i, '');
+        path = path.replace(/\/Forms\/[\s\S]*$/i, '');
+        path = path.replace(/\/AllItems\.aspx[\s\S]*$/i, '');
+        path = path.replace(/\/+$/, '');
+        return (u.origin + (path || '')).replace(/\/+$/, '');
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * @param {string[]} urls
+ * @returns {string[]}
+ */
+function uniqueSiteWebUrls(urls) {
+    const out = [];
+    const seen = new Set();
+    (urls || []).forEach((raw) => {
+        const u = String(raw || '')
+            .trim()
+            .replace(/\/+$/, '');
+        if (!u) return;
+        const key = u.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(u);
+    });
+    return out;
 }
 
 /**
@@ -751,6 +917,11 @@ export async function fetchSchoolStammdatenFromSite(opts) {
     let classes = [];
     let usedSpoFallback = false;
 
+    /** @type {number} */
+    let rawLehrerCount = 0;
+    /** @type {number} */
+    let rawKlassenCount = 0;
+
     try {
         const lehrerList = await findListByTitle(G, token, siteId, titles.lehrer);
         if (!lehrerList || !lehrerList.id) {
@@ -762,9 +933,24 @@ export async function fetchSchoolStammdatenFromSite(opts) {
                 webUrl: lehrerList.webUrl || ''
             };
             try {
-                const rows = await fetchAllListItems(G, token, siteId, String(lehrerList.id));
+                const rows = await fetchAllListItemsPreferSelect(
+                    G,
+                    token,
+                    siteId,
+                    String(lehrerList.id),
+                    GRAPH_SELECT_LEHRER
+                );
+                rawLehrerCount = rows.length;
                 teachers = mapRowsFromItems(rows, mapLehrerFieldsToTeacher);
                 teachers.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de'));
+                if (rawLehrerCount > 0 && !teachers.length) {
+                    readErrors.push(
+                        titles.lehrer +
+                            ': ' +
+                            rawLehrerCount +
+                            ' Zeilen gelesen, aber keine Lehrkraft zuordenbar (Spalten Title/Kürzel/E-Mail?)'
+                    );
+                }
             } catch (e) {
                 const msg = e && e.message ? String(e.message) : String(e);
                 const st = e && e.status != null ? e.status : '';
@@ -797,7 +983,14 @@ export async function fetchSchoolStammdatenFromSite(opts) {
                 webUrl: klassenList.webUrl || ''
             };
             try {
-                const rows = await fetchAllListItems(G, token, siteId, String(klassenList.id));
+                const rows = await fetchAllListItemsPreferSelect(
+                    G,
+                    token,
+                    siteId,
+                    String(klassenList.id),
+                    GRAPH_SELECT_KLASSEN
+                );
+                rawKlassenCount = rows.length;
                 classes = mapRowsFromItems(rows, mapKlassenFieldsToClass);
                 classes.sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'de'));
             } catch (e) {
@@ -821,24 +1014,73 @@ export async function fetchSchoolStammdatenFromSite(opts) {
         }
     }
 
-    // Graph leer/403, aber Lehrer sieht die Liste im Browser → SPO-REST (AllSites.Read)
+    // Kanonische Site-URL aus Graph (nicht Intranet-Root / verfälschte LocalStorage-URL)
+    let canonicalSiteWebUrl = siteWebUrl;
+    try {
+        const siteMeta = await G.graphJson(
+            'GET',
+            G.graphPathSite(siteId) + '?$select=id,webUrl,displayName',
+            token,
+            undefined,
+            'v1.0'
+        );
+        const fromGraph = String((siteMeta && siteMeta.webUrl) || '')
+            .trim()
+            .replace(/\/+$/, '');
+        if (fromGraph) canonicalSiteWebUrl = fromGraph;
+    } catch {
+        /* siteWebUrl behalten */
+    }
+
+    const spoSiteCandidates = uniqueSiteWebUrls([
+        canonicalSiteWebUrl,
+        siteWebUrl,
+        siteWebUrlFromSharePointListUrl(lists.lehrer && lists.lehrer.webUrl),
+        siteWebUrlFromSharePointListUrl(lists.klassen && lists.klassen.webUrl)
+    ]);
+
+    const spoUrlForGate = spoSiteCandidates[0] || canonicalSiteWebUrl || siteWebUrl;
+    // Graph leer/403/unmappbar → SPO-REST (AllSites.Read), inkl. Personenfeld Lehrkraft
     const needLehrerSpo =
-        canUseSpoRestFallback(G, siteWebUrl) &&
-        (!teachers.length || readErrors.some((x) => String(x).indexOf(titles.lehrer) === 0));
+        canUseSpoRestFallback(G, spoUrlForGate) &&
+        (!teachers.length ||
+            (rawLehrerCount > 0 && teachers.length < rawLehrerCount) ||
+            readErrors.some((x) => String(x).indexOf(titles.lehrer) === 0));
     const needKlassenSpo =
-        canUseSpoRestFallback(G, siteWebUrl) &&
+        canUseSpoRestFallback(G, spoUrlForGate) &&
         (!classes.length || readErrors.some((x) => String(x).indexOf(titles.klassen) === 0));
+
+    /**
+     * @param {string} listTitle
+     * @param {string|string[]} selectFields
+     */
+    async function spoFetchFirstOk(listTitle, selectFields) {
+        let lastErr = '';
+        for (let i = 0; i < spoSiteCandidates.length; i++) {
+            const url = spoSiteCandidates[i];
+            try {
+                return {
+                    url,
+                    rows: await fetchAllListItemsViaSpoRest(G, url, listTitle, selectFields)
+                };
+            } catch (e) {
+                lastErr = e && e.message ? String(e.message) : String(e);
+                // Falsche Site → nächste URL; andere Fehler ebenfalls weiterprobieren
+                if (!/404|ArgumentException|nicht vorhanden|does not exist/i.test(lastErr) && i === 0) {
+                    /* weiter */
+                }
+            }
+        }
+        throw new Error(lastErr || 'SPO „' + listTitle + '": keine lesbare Site-URL');
+    }
 
     if (needLehrerSpo || needKlassenSpo) {
         const cleared = [];
         if (needLehrerSpo) {
             try {
-                const rows = await fetchAllListItemsViaSpoRest(
-                    G,
-                    siteWebUrl,
-                    titles.lehrer,
-                    SPO_SELECT_LEHRER
-                );
+                const spo = await spoFetchFirstOk(titles.lehrer, SPO_SELECT_LEHRER_ATTEMPTS);
+                const rows = spo.rows;
+                rawLehrerCount = Math.max(rawLehrerCount, rows.length);
                 const mapped = mapRowsFromItems(rows, mapLehrerFieldsToTeacher);
                 if (mapped.length) {
                     teachers = mapped.sort((a, b) =>
@@ -846,28 +1088,41 @@ export async function fetchSchoolStammdatenFromSite(opts) {
                     );
                     usedSpoFallback = true;
                     if (!lists.lehrer) {
-                        lists.lehrer = { id: '', title: titles.lehrer, webUrl: siteWebUrl };
+                        lists.lehrer = { id: '', title: titles.lehrer, webUrl: spo.url };
                     }
                     for (let i = missing.length - 1; i >= 0; i--) {
                         if (missing[i] === titles.lehrer) missing.splice(i, 1);
                     }
                     cleared.push(titles.lehrer);
+                } else if (rows.length) {
+                    if (!readErrors.some((x) => String(x).indexOf(titles.lehrer) === 0)) {
+                        readErrors.push(
+                            titles.lehrer +
+                                ': SPO lieferte ' +
+                                rows.length +
+                                ' Zeilen ohne mappbare Lehrkraft-Felder (Site: ' +
+                                spo.url +
+                                ')'
+                        );
+                    }
                 }
             } catch (e) {
                 const msg = e && e.message ? String(e.message) : String(e);
                 if (!readErrors.some((x) => String(x).indexOf(titles.lehrer) === 0)) {
-                    readErrors.push(titles.lehrer + ' (SPO): ' + msg);
+                    readErrors.push(
+                        titles.lehrer +
+                            ' (SPO): ' +
+                            msg.slice(0, 220) +
+                            ' · erwartete Tool-Site z. B. …/sites/MS365-Schultools'
+                    );
                 }
             }
         }
         if (needKlassenSpo) {
             try {
-                const rows = await fetchAllListItemsViaSpoRest(
-                    G,
-                    siteWebUrl,
-                    titles.klassen,
-                    SPO_SELECT_KLASSEN
-                );
+                const spo = await spoFetchFirstOk(titles.klassen, SPO_SELECT_KLASSEN);
+                const rows = spo.rows;
+                rawKlassenCount = Math.max(rawKlassenCount, rows.length);
                 const mapped = mapRowsFromItems(rows, mapKlassenFieldsToClass);
                 if (mapped.length) {
                     classes = mapped.sort((a, b) =>
@@ -875,7 +1130,7 @@ export async function fetchSchoolStammdatenFromSite(opts) {
                     );
                     usedSpoFallback = true;
                     if (!lists.klassen) {
-                        lists.klassen = { id: '', title: titles.klassen, webUrl: siteWebUrl };
+                        lists.klassen = { id: '', title: titles.klassen, webUrl: spo.url };
                     }
                     for (let i = missing.length - 1; i >= 0; i--) {
                         if (missing[i] === titles.klassen) missing.splice(i, 1);
@@ -885,7 +1140,7 @@ export async function fetchSchoolStammdatenFromSite(opts) {
             } catch (e) {
                 const msg = e && e.message ? String(e.message) : String(e);
                 if (!readErrors.some((x) => String(x).indexOf(titles.klassen) === 0)) {
-                    readErrors.push(titles.klassen + ' (SPO): ' + msg);
+                    readErrors.push(titles.klassen + ' (SPO): ' + msg.slice(0, 220));
                 }
             }
         }
@@ -906,7 +1161,9 @@ export async function fetchSchoolStammdatenFromSite(opts) {
         lists,
         missing,
         readErrors,
-        source: usedSpoFallback ? 'spo-rest' : 'graph'
+        source: usedSpoFallback ? 'spo-rest' : 'graph',
+        rawLehrerCount,
+        rawKlassenCount
     };
 }
 
@@ -935,7 +1192,10 @@ export async function hydrateStammdatenFromLiveSite(opts) {
             titles: o.titles || resolveStammdatenSpoListTitlesFromWindow()
         });
         const readErrors = Array.isArray(live.readErrors) ? live.readErrors : [];
-        const ok = readErrors.length === 0 || !!(live.classes && live.classes.length);
+        const ok =
+            readErrors.length === 0 ||
+            !!(live.classes && live.classes.length) ||
+            !!(live.teachers && live.teachers.length);
         return {
             stammdaten: mergeStammdatenPreferLive(local, live),
             live,
@@ -998,36 +1258,137 @@ function splitTeacherName(name) {
 }
 
 /**
- * Lokale Stammdaten (Lehrer/Klassen) aus Browser-API.
- * @param {Window|null|undefined} [win]
+ * @param {unknown} teachers
+ * @param {unknown} classes
  * @returns {{ teachers: unknown[], classes: unknown[] }}
+ */
+function normalizeLocalStammdatenPair(teachers, classes) {
+    return {
+        teachers: Array.isArray(teachers) ? teachers : [],
+        classes: Array.isArray(classes) ? classes : []
+    };
+}
+
+/**
+ * @param {{ teachers: unknown[], classes: unknown[], source: string }} best
+ * @param {{ teachers?: unknown[], classes?: unknown[] }} cand
+ * @param {string} source
+ */
+function preferRicherLocalStammdaten(best, cand, source) {
+    const c = normalizeLocalStammdatenPair(cand && cand.teachers, cand && cand.classes);
+    if (!c.teachers.length && !c.classes.length) return best;
+    const nextT = preferRicherTeacherList(best.teachers, c.teachers);
+    const nextC =
+        c.classes.length > (best.classes || []).length
+            ? c.classes
+            : (best.classes || []).length
+              ? best.classes
+              : c.classes;
+    const richer =
+        nextT.length > (best.teachers || []).length || nextC.length > (best.classes || []).length;
+    if (!richer && (best.teachers || []).length + (best.classes || []).length > 0) return best;
+    return {
+        teachers: nextT,
+        classes: nextC,
+        source: richer
+            ? best.source
+                ? best.source + '+' + source
+                : source
+            : best.source || source
+    };
+}
+
+/**
+ * Lokale Stammdaten (Lehrer/Klassen) aus Browser-API + localStorage + Live-Cache.
+ * Das ist der IT-Browser-Stand – nicht automatisch der Inhalt der SPO-Listen.
+ * @param {Window|null|undefined} [win]
+ * @returns {{ teachers: unknown[], classes: unknown[], source?: string }}
  */
 export function loadLocalSchoolStammdatenFromWindow(win) {
     const w = win || (typeof window !== 'undefined' ? window : null);
-    if (!w) return { teachers: [], classes: [] };
+    if (!w) return { teachers: [], classes: [], source: '' };
+
+    /** @type {{ teachers: unknown[], classes: unknown[], source: string }} */
+    let best = { teachers: [], classes: [], source: '' };
+
     try {
         if (typeof w.ms365TenantSettingsLoad === 'function') {
             const s = w.ms365TenantSettingsLoad() || {};
-            return {
-                teachers: Array.isArray(s.teachers) ? s.teachers : [],
-                classes: Array.isArray(s.classes) ? s.classes : []
-            };
-        }
-        if (w.ms365AppDataV2 && typeof w.ms365AppDataV2.getCore === 'function') {
-            const core = w.ms365AppDataV2.getCore() || {};
-            const year =
-                typeof w.ms365AppDataV2.getCurrentYear === 'function'
-                    ? w.ms365AppDataV2.getCurrentYear() || {}
-                    : {};
-            return {
-                teachers: Array.isArray(core.teachers) ? core.teachers : [],
-                classes: Array.isArray(year.classes) ? year.classes : []
-            };
+            best = preferRicherLocalStammdaten(best, s, 'tenant-settings');
         }
     } catch {
         /* ignore */
     }
-    return { teachers: [], classes: [] };
+
+    // App-Daten v2: getContainer (getCore existiert nicht!)
+    try {
+        if (w.ms365AppDataV2 && typeof w.ms365AppDataV2.getContainer === 'function') {
+            const c = w.ms365AppDataV2.getContainer() || {};
+            const cur = String((c.years && c.years.current) || '');
+            const y =
+                c.years && c.years.byLabel && cur && c.years.byLabel[cur]
+                    ? c.years.byLabel[cur]
+                    : {};
+            best = preferRicherLocalStammdaten(
+                best,
+                {
+                    teachers: c.core && c.core.teachers,
+                    classes: y.classes
+                },
+                'app-data-v2'
+            );
+        }
+    } catch {
+        /* ignore */
+    }
+
+    // Direkter localStorage-Fallback (falls APIs auf der Seite fehlen / leer)
+    try {
+        const ls = w.localStorage;
+        if (ls && typeof ls.getItem === 'function') {
+            const rawV2 = ls.getItem('ms365-schooltool-data-v2');
+            if (rawV2) {
+                const parsed = JSON.parse(rawV2);
+                const cur = String((parsed && parsed.years && parsed.years.current) || '');
+                const y =
+                    parsed &&
+                    parsed.years &&
+                    parsed.years.byLabel &&
+                    cur &&
+                    parsed.years.byLabel[cur]
+                        ? parsed.years.byLabel[cur]
+                        : {};
+                best = preferRicherLocalStammdaten(
+                    best,
+                    {
+                        teachers: parsed && parsed.core && parsed.core.teachers,
+                        classes: y.classes
+                    },
+                    'localStorage-v2'
+                );
+            }
+            const rawV1 = ls.getItem('ms365-tenant-settings-v1');
+            if (rawV1) {
+                const parsed = JSON.parse(rawV1);
+                best = preferRicherLocalStammdaten(best, parsed, 'localStorage-v1');
+            }
+        }
+    } catch {
+        /* ignore */
+    }
+
+    // Live-Cache (z. B. nach „Klassen neu laden“ / Portal)
+    try {
+        const live =
+            w === (typeof window !== 'undefined' ? window : null)
+                ? loadLiveSchoolStammdatenCache()
+                : {};
+        best = preferRicherLocalStammdaten(best, live, 'live-cache');
+    } catch {
+        /* ignore */
+    }
+
+    return best;
 }
 
 /**
@@ -1256,11 +1617,67 @@ export async function seedSchoolStammdatenListsFromLocal(opts) {
     );
 
     write(
-        'Stammdaten lokal: ' + teachers.length + ' Lehrkräfte, ' + classes.length + ' Klassen – schreibe nach SharePoint …'
+        'Browser-Stammdaten: ' +
+            teachers.length +
+            ' Lehrkräfte, ' +
+            classes.length +
+            ' Klassen' +
+            (local.source ? ' (Quelle: ' + local.source + ')' : '') +
+            ' – schreibe nach SharePoint …'
     );
     if (!teachers.length && !classes.length) {
-        write('  ! Keine lokalen Stammdaten – Listen bleiben leer. Bitte zuerst in den Stammdaten pflegen.');
-        return { shell, teachers: 0, classes: 0, lehrer: null, klassen: null, skipped: true };
+        let spoLehrer = -1;
+        let spoKlassen = -1;
+        try {
+            if (shell.lists.lehrer && shell.lists.lehrer.id) {
+                const c = await countListItemsReadable(G, token, siteId, shell.lists.lehrer.id);
+                if (c.readable) spoLehrer = c.count;
+            }
+            if (shell.lists.klassen && shell.lists.klassen.id) {
+                const c = await countListItemsReadable(G, token, siteId, shell.lists.klassen.id);
+                if (c.readable) spoKlassen = c.count;
+            }
+        } catch {
+            /* ignore */
+        }
+        if (spoLehrer > 0 || spoKlassen > 0) {
+            write(
+                '  OK: In diesem Browser keine lokalen Stammdaten – SharePoint behält den Bestand' +
+                    ' (Lehrerinnen: ' +
+                    (spoLehrer >= 0 ? spoLehrer : '?') +
+                    ', Klassen: ' +
+                    (spoKlassen >= 0 ? spoKlassen : '?') +
+                    '). Nichts wurde geleert.'
+            );
+            write(
+                '  Hinweis: „Lokal befüllt“ ≠ dieser Browser. Stammdaten ggf. unter Stammdaten öffnen oder von SharePoint laden.'
+            );
+            return {
+                shell,
+                teachers: 0,
+                classes: 0,
+                spoLehrer,
+                spoKlassen,
+                lehrer: null,
+                klassen: null,
+                skipped: true,
+                spoAlreadyFilled: true
+            };
+        }
+        write(
+            '  ! Keine Browser-Stammdaten und SharePoint-Listen sind leer (Lehrerinnen/Klassen).' +
+                ' Bitte zuerst unter Stammdaten pflegen oder von SharePoint/IT-Backup laden, dann erneut befüllen.'
+        );
+        return {
+            shell,
+            teachers: 0,
+            classes: 0,
+            spoLehrer,
+            spoKlassen,
+            lehrer: null,
+            klassen: null,
+            skipped: true
+        };
     }
 
     const withPersons = o.personFields !== false;

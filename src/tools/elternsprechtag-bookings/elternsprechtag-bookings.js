@@ -1,4 +1,5 @@
 import { escapeHtml } from '../../shared/utils/strings.js';
+import { bindSystemTabClicks, renderSystemTabBar } from '../../shared/system-admin-shell.js';
 /**
  * Elternsprechtag: Microsoft Bookings-Grundanlage per Graph.
  * Ein Dienst + alle ausgewählten Lehrkräfte als Mitarbeiter.
@@ -29,6 +30,30 @@ const STORAGE_KEY = 'ms365-elternsprechtag-bookings-v1';
 let teachers = [];
 /** @type {Array<{ id: string, displayName: string }>} */
 let businesses = [];
+
+let esSysTab = 'site';
+
+function paintEsSysTabs() {
+    const host = $('esSysTabs');
+    const root = $('esSys');
+    if (!host || !root) return;
+    host.innerHTML = renderSystemTabBar({
+        prefix: 'es',
+        activeTab: esSysTab,
+        dataAttr: 'data-es-sys-tab',
+        ariaLabel: 'Systemadministration Elternsprechtag'
+    });
+    root.querySelectorAll('[data-es-sys-panel]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-es-sys-panel') !== esSysTab;
+    });
+    bindSystemTabClicks(root, {
+        dataAttr: 'data-es-sys-tab',
+        onSelect: function (tab) {
+            esSysTab = tab;
+            paintEsSysTabs();
+        }
+    });
+}
 
 function $(id) {
     return document.getElementById(id);
@@ -1228,6 +1253,8 @@ function wire() {
             refreshSummary();
         });
     }
+
+    paintEsSysTabs();
 
     const btnReload = $('esBtnReloadTeachers');
     if (btnReload) btnReload.addEventListener('click', loadTeachersFromStammdaten);

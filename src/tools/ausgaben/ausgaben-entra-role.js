@@ -7,6 +7,7 @@ import {
     resolveBetriebAdminAccess
 } from '../../shared/betrieb-admin-entra.js';
 import { loadAusgabenSettings } from './ausgaben-settings.js';
+import { announceStaffAccess } from '../../shared/app-role-chrome.js';
 
 const cache = createBetriebAdminCache();
 
@@ -41,6 +42,11 @@ export async function resolveAusgabenAdmin(email) {
         isAdmin: !!result.isAdmin,
         sources: result.sources || [],
         demo: !!result.demo
+    });
+    announceStaffAccess('ausgaben', {
+        email: em,
+        isAdmin: !!result.isAdmin,
+        sources: result.sources || []
     });
     return result;
 }

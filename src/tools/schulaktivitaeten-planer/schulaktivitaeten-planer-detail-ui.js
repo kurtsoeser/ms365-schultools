@@ -30,6 +30,12 @@ import {
     getAktPersonalCalendarEventId,
     previewAktInviteTargets
 } from './schulaktivitaeten-planer-calendar.js';
+import {
+    parseEuroFromText,
+    classifyKostenAmpel,
+    kostenAmpelLabel,
+    kostenLimitForTyp
+} from './schulaktivitaeten-planer-logic.js';
 
 function esc(s) {
     return String(s ?? '')
@@ -151,28 +157,78 @@ function resolvePerson(state, person) {
 }
 
 /**
+ * Kompakte User-Kachel: Name sichtbar, E-Mail per Hover/title.
  * @param {object} state
  * @param {{ code?: string, email?: string, name?: string }} person
  * @param {string} missingLabel
  */
-function renderPersonLine(state, person, missingLabel) {
+function renderPersonTile(state, person, missingLabel) {
     const p = resolvePerson(state, person);
     if (!p.name && !p.email) {
         return `<span class="akt-missing">${esc(missingLabel || 'Nicht erfasst')}</span>`;
     }
-    if (p.name) {
-        return `<span class="akt-person"><strong>${esc(p.name)}</strong>${
-            p.email && p.email.toLowerCase() !== p.name.toLowerCase()
-                ? `<span class="akt-person__email muted">${esc(p.email)}</span>`
-                : ''
-        }</span>`;
-    }
-    return `<span class="akt-person">${esc(p.email)}</span>`;
+    const label = p.name || p.email;
+    const mail =
+        p.email && p.email.toLowerCase() !== String(label).toLowerCase() ? p.email : '';
+    const initial = String(label)
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+    return `<span class="akt-user-tile"${mail ? ` title="${esc(mail)}"` : ''}>
+      <span class="akt-user-tile__av" aria-hidden="true">${esc(initial || '?')}</span>
+      <span class="akt-user-tile__meta">
+        <span class="akt-user-tile__name">${esc(label)}</span>
+        ${mail ? `<span class="akt-user-tile__email">${esc(mail)}</span>` : ''}
+      </span>
+    </span>`;
 }
 
-function parseVerlauf(aenderungsLog) {
+function renderPersonLine(state, person, missingLabel) {
+    return renderPersonTile(state, person, missingLabel);
+}
+
+function formatVerlaufWhen(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    const iso = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(s);
+    if (iso) {
+        const day = `${iso[3]}.${iso[2]}.${iso[1]}`;
+        return iso[4] != null ? `${day}, ${iso[4]}:${iso[5]}` : day;
+    }
+    return s;
+}
+
+/**
+ * Verlaufseinträge – Zeilen oder Power-Automate-Blöcke (--- / Datum:/Kommentar:).
+ * @param {string} aenderungsLog
+ * @returns {{ when: string, text: string }[]}
+ */
+export function parseVerlauf(aenderungsLog) {
     const raw = String(aenderungsLog || '').trim();
     if (!raw) return [];
+    const looksBlocked =
+        /(^|\n)\s*---\s*(\n|$)/.test(raw) ||
+        /Datum:\s*\d{4}-\d{2}-\d{2}/i.test(raw) ||
+        /Kommentar:\s*/i.test(raw);
+    if (looksBlocked) {
+        const blocks = raw
+            .split(/\n\s*---\s*\n?/)
+            .map((b) => b.replace(/^---\s*/, '').trim())
+            .filter(Boolean);
+        return blocks
+            .map((block) => {
+                const dateM = /Datum:\s*([^\n]+)/i.exec(block);
+                const when = formatVerlaufWhen(dateM ? dateM[1] : '');
+                const text = block
+                    .replace(/Datum:\s*[^\n]+\n?/i, '')
+                    .replace(/^\s*\.\s*$/gm, '')
+                    .trim();
+                return { when, text: text || block };
+            })
+            .filter((e) => e.text)
+            .slice(-8)
+            .reverse();
+    }
     return raw
         .split(/\n+/)
         .map((line) => line.trim())
@@ -180,12 +236,38 @@ function parseVerlauf(aenderungsLog) {
         .map((line) => {
             const m = /^(\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{2,4})?\s*[·.]?\s*(.*)$/.exec(line);
             if (m && m[1]) {
-                return { when: m[1], text: m[2] || line };
+                return { when: formatVerlaufWhen(m[1]), text: m[2] || line };
             }
             return { when: '', text: line };
         })
         .slice(-8)
         .reverse();
+}
+
+function renderInviteTargetList(targets) {
+    if (!targets.length) {
+        return `<p class="muted">Keine Klassen oder Begleitung hinterlegt – Einladung nur manuell möglich.</p>`;
+    }
+    const items = targets
+        .map(
+            (t) =>
+                `<li class="${t.ok ? 'is-ok' : 'is-warn'}"><strong>${esc(t.label)}</strong> · ${esc(
+                    t.detail
+                )}</li>`
+        )
+        .join('');
+    const list = `<ul class="akt-drawer-cal__targets">${items}</ul>`;
+    const warnN = targets.filter((t) => !t.ok).length;
+    const summaryBits = [`${targets.length} Empfänger`];
+    if (warnN) summaryBits.push(`${warnN} ohne Adresse`);
+    /* Bei vielen Zielen einklappbar, damit die Aktionsbuttons sichtbar bleiben. */
+    if (targets.length > 4) {
+        return `<details class="akt-drawer-cal__targets-wrap">
+      <summary>${esc(summaryBits.join(' · '))}</summary>
+      ${list}
+    </details>`;
+    }
+    return list;
 }
 
 function renderCalendarBlock(it, state) {
@@ -198,51 +280,58 @@ function renderCalendarBlock(it, state) {
     const linked = !!(email && getAktPersonalCalendarEventId(id, email));
     const targets = previewAktInviteTargets(it, state.stammdaten);
     const okN = targets.filter((t) => t.ok).length;
-    const targetList = targets.length
-        ? `<ul class="akt-cal-panel__targets">${targets
-              .map(
-                  (t) =>
-                      `<li class="${t.ok ? 'is-ok' : 'is-warn'}"><strong>${esc(t.label)}</strong> · ${esc(
-                          t.detail
-                      )}</li>`
-              )
-              .join('')}</ul>`
-        : `<p class="muted">Keine Klassen oder Begleitung hinterlegt – Einladung nur manuell möglich.</p>`;
-    return `<section class="akt-drawer__section akt-drawer__section--action akt-cal-panel">
-      <h4>Kalender &amp; Einladung</h4>
-      <p class="akt-drawer__lead">Termin in Outlook übernehmen oder Klasse / Begleitung per Microsoft&nbsp;365 einladen.</p>
-      ${
-          linked
-              ? '<p class="akt-cal-panel__linked"><i class="bi bi-check2-circle" aria-hidden="true"></i> Bereits mit deinem Outlook-Kalender verknüpft.</p>'
-              : ''
-      }
-      <div class="akt-cal-panel__actions">
-        <button type="button" class="btn akt-btn-primary" data-akt-cal-mine="${esc(
-            id
-        )}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>In meinen Outlook-Kalender</button>
-        <button type="button" class="btn" data-akt-cal-invite="${esc(
-            id
-        )}" ${okN ? '' : 'disabled title="Keine einladbaren Adressen gefunden"'}><i class="bi bi-envelope-plus" aria-hidden="true"></i>Termin anlegen &amp; einladen${
-            okN ? ` (${okN})` : ''
-        }</button>
-        <button type="button" class="btn akt-btn-ghost" data-akt-cal-ics="${esc(
-            id
-        )}"><i class="bi bi-download" aria-hidden="true"></i>ICS herunterladen</button>
-      </div>
-      <p class="akt-cal-panel__hint muted">Einladung nutzt die verknüpften Klassen-Teams / Verteiler und E-Mails der Begleitung. ICS funktioniert in Outlook, Apple und Google.</p>
-      ${targetList}
+    return `<section class="akt-drawer__section akt-drawer-cal">
+      <details class="akt-drawer-cal__details">
+        <summary>
+          <span class="akt-drawer-cal__summary-title">Kalender &amp; Einladung</span>
+          <span class="akt-drawer-cal__summary-meta muted">${
+              okN ? `${okN} Empfänger` : 'Outlook / ICS'
+          }</span>
+        </summary>
+        <p class="akt-drawer__lead">Termin in Outlook übernehmen oder Klasse / Begleitung per Microsoft&nbsp;365 einladen.</p>
+        ${
+            linked
+                ? '<p class="akt-drawer-cal__linked"><i class="bi bi-check2-circle" aria-hidden="true"></i> Bereits mit deinem Outlook-Kalender verknüpft.</p>'
+                : ''
+        }
+        <div class="akt-drawer-cal__actions">
+          <button type="button" class="btn akt-btn-primary akt-btn-compact" data-akt-cal-mine="${esc(
+              id
+          )}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>In meinen Kalender</button>
+          <button type="button" class="btn akt-btn-compact" data-akt-cal-invite="${esc(
+              id
+          )}" ${okN ? '' : 'disabled title="Keine einladbaren Adressen gefunden"'}><i class="bi bi-envelope-plus" aria-hidden="true"></i>Einladen${
+              okN ? ` (${okN})` : ''
+          }</button>
+          <button type="button" class="btn akt-btn-ghost akt-btn-compact" data-akt-cal-ics="${esc(
+              id
+          )}"><i class="bi bi-download" aria-hidden="true"></i>ICS</button>
+        </div>
+        <p class="akt-drawer-cal__hint muted">Nutzt Klassen-Teams / Verteiler und Begleitung. ICS für Outlook, Apple und Google.</p>
+        ${renderInviteTargetList(targets)}
+      </details>
     </section>`;
+}
+
+/** Kompakte Klassenzeile für den Drawer-Kopf (viele Klassen → Kurzform). */
+function drawerTeilnahmeSub(it, labels) {
+    const codes = klasseCodesOf(it);
+    const full = teilnahmeKurz(it, labels.klasse);
+    if (codes.length <= 3) return full;
+    const first = codes
+        .slice(0, 2)
+        .map((c) => labels.klasse[c] || c)
+        .join(', ');
+    return `${first} u. ${codes.length - 2} weitere Klassen`;
 }
 
 function renderStatusBlock(it, state) {
     const st = String(it.status || '').toLowerCase();
     const editable = canEditItem(it, state);
-    const sched = scheduleBadge(it);
     if (st === 'genehmigt') {
-        return `<section class="akt-drawer__section">
+        return `<section class="akt-drawer__section akt-drawer__section--status">
       <h4>Status</h4>
-      <div class="akt-drawer__badges">${statusBadge(st)}${sched}</div>
-      <p class="akt-drawer__lead">${
+      <p class="akt-drawer__status-msg">${
           scheduleStatusOf(it) === 'pending'
               ? 'Genehmigt – organisatorische Eintragung noch ausständig.'
               : 'Aktuell ist nichts von dir erforderlich.'
@@ -419,9 +508,9 @@ export function renderActivityDrawer(state) {
         <header class="akt-drawer__head">
           <div>
             <h2 class="akt-drawer__title">${esc(it.titel || 'Aktivität')}</h2>
-            <p class="akt-drawer__sub">${esc(teilnahmeKurz(it, labels.klasse))}${
-                schuelerN ? ` · ${schuelerN} Schüler:innen` : ''
-            }</p>
+            <p class="akt-drawer__sub" title="${esc(teilnahmeKurz(it, labels.klasse))}">${esc(
+                drawerTeilnahmeSub(it, labels)
+            )}${schuelerN ? ` · ${schuelerN} Schüler:innen` : ''}</p>
             <div class="akt-drawer__badges">${statusBadge(it.status)}${scheduleBadge(it)}</div>
           </div>
           <button type="button" class="btn akt-drawer__close" id="aktDetailCloseBtn" aria-label="Schließen"><i class="bi bi-x-lg"></i></button>
@@ -475,29 +564,34 @@ export function renderActivityDrawer(state) {
 
           <section class="akt-drawer__section">
             <h4>Antrag</h4>
-            <p>${esc(typLabel(it.typ))}</p>
-            ${
-                it.beantragtAm
-                    ? `<p><strong>Eingereicht am</strong><br>${esc(formatDeDate(it.beantragtAm))}</p>`
-                    : ''
-            }
-            <p><strong>Antrag gestellt von</strong><br>${renderPersonLine(
-                state,
-                {
-                    email: it.beantragtVon,
-                    code: it.beantragtVon === it.lehrerEmail ? it.lehrerCode : '',
-                    name: ''
-                },
-                'Antragsteller nicht erfasst'
-            )}</p>
-            <p><strong>Verantwortliche Lehrkraft</strong><br>${renderPersonLine(
-                state,
-                {
-                    code: it.lehrerCode,
-                    email: it.lehrerEmail
-                },
-                'Verantwortliche Lehrkraft nicht erfasst'
-            )}</p>
+            <p>${esc(typLabel(it.typ))}${
+                it.beantragtAm ? ` · eingereicht ${esc(formatDeDate(it.beantragtAm))}` : ''
+            }</p>
+            <div class="akt-drawer__people">
+              <div class="akt-drawer__people-group">
+                <span class="akt-drawer__people-label">Antrag gestellt von</span>
+                <div class="akt-user-tiles">${renderPersonTile(
+                    state,
+                    {
+                        email: it.beantragtVon,
+                        code: it.beantragtVon === it.lehrerEmail ? it.lehrerCode : '',
+                        name: ''
+                    },
+                    'Antragsteller nicht erfasst'
+                )}</div>
+              </div>
+              <div class="akt-drawer__people-group">
+                <span class="akt-drawer__people-label">Verantwortliche Lehrkraft</span>
+                <div class="akt-user-tiles">${renderPersonTile(
+                    state,
+                    {
+                        code: it.lehrerCode,
+                        email: it.lehrerEmail
+                    },
+                    'Verantwortliche Lehrkraft nicht erfasst'
+                )}</div>
+              </div>
+            </div>
           </section>
 
           ${
@@ -543,18 +637,38 @@ export function renderActivityDrawer(state) {
 
           <section class="akt-drawer__section">
             <h4>Organisation</h4>
-            <p><strong>Begleitung</strong><br>${
-                begleitungCodes.length
-                    ? begleitungCodes
-                          .map((c) =>
-                              renderPersonLine(state, { code: c }, 'Begleitperson nicht erfasst')
-                          )
-                          .join('<br>')
-                    : '<span class="akt-missing">Keine Begleitperson eingetragen</span>'
-            }</p>
-            ${it.verkehrsmittel ? `<p><strong>Verkehrsmittel</strong><br>${esc(it.verkehrsmittel)}</p>` : ''}
-            ${it.kostenHinweis ? `<p><strong>Kosten</strong><br>${esc(it.kostenHinweis)}</p>` : ''}
-            ${it.externeVortragende ? `<p><strong>Externe</strong><br>${esc(it.externeVortragende)}</p>` : ''}
+            <div class="akt-drawer__people-group">
+              <span class="akt-drawer__people-label">Begleitung</span>
+              ${
+                  begleitungCodes.length
+                      ? `<div class="akt-user-tiles">${begleitungCodes
+                            .map((c) =>
+                                renderPersonTile(state, { code: c }, 'Begleitperson nicht erfasst')
+                            )
+                            .join('')}</div>`
+                      : '<span class="akt-missing">Keine Begleitperson eingetragen</span>'
+              }
+            </div>
+            ${it.verkehrsmittel ? `<p><strong>Verkehrsmittel</strong> · ${esc(it.verkehrsmittel)}</p>` : ''}
+            ${
+                it.kostenHinweis
+                    ? `<p><strong>Kosten</strong> · ${esc(it.kostenHinweis)}${(() => {
+                          const amount = parseEuroFromText(it.kostenHinweis);
+                          const level = Number.isFinite(amount)
+                              ? classifyKostenAmpel(it.typ, amount, state.rules)
+                              : 'unknown';
+                          const label = kostenAmpelLabel(level);
+                          const lim = kostenLimitForTyp(it.typ, state.rules);
+                          if (!label) return '';
+                          return ` <span class="akt-kosten-ampel akt-kosten-ampel--${level}" title="${esc(
+                              lim
+                                  ? `Schwelle ${lim.typ}: bis ${lim.okBis} € / ${lim.warnBis} €`
+                                  : ''
+                          )}">${esc(label)}</span>`;
+                      })()}</p>`
+                    : ''
+            }
+            ${it.externeVortragende ? `<p><strong>Externe</strong> · ${esc(it.externeVortragende)}</p>` : ''}
             ${it.ablauf ? `<p><strong>Ablauf</strong><br>${esc(it.ablauf)}</p>` : ''}
             ${
                 it.unterrichtsbezug
@@ -566,15 +680,16 @@ export function renderActivityDrawer(state) {
 
           ${
               verlauf.length
-                  ? `<section class="akt-drawer__section">
+                  ? `<section class="akt-drawer__section akt-drawer__section--verlauf">
             <h4>Verlauf</h4>
             <ul class="akt-drawer__timeline">
               ${verlauf
                   .map(
                       (v) =>
-                          `<li>${v.when ? `<span class="akt-drawer__twhen">${esc(v.when)}</span>` : ''}<span>${esc(
-                              v.text
-                          )}</span></li>`
+                          `<li class="akt-drawer__timeline-item">
+                ${v.when ? `<time class="akt-drawer__twhen">${esc(v.when)}</time>` : ''}
+                <div class="akt-drawer__ttext">${esc(v.text)}</div>
+              </li>`
                   )
                   .join('')}
             </ul>

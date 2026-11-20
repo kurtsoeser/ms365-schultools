@@ -21,9 +21,9 @@ export const SOURCE_LABEL = {
     schueler: 'Schülerkalender'
 };
 
-/** Welche Persona darf welchen Layer sehen (IT sieht alles). */
+/** Welche Persona darf welchen Layer sehen (IT sieht alles). `self` = angemeldet ohne Portal-Rolle. */
 export const SOURCE_AUDIENCE = {
-    me: ['it', 'lehrer', 'schueler'],
+    me: ['it', 'lehrer', 'schueler', 'self'],
     schul: ['it', 'lehrer', 'schueler'],
     lehrer: ['it', 'lehrer'],
     schueler: ['it', 'schueler']
@@ -32,29 +32,41 @@ export const SOURCE_AUDIENCE = {
 /**
  * Welche Persona darf in welchen Layer schreiben.
  * Schüler: nur eigener Kalender; Schulkalender nur Lehrkraft/IT.
+ * `self`: zumindest eigener Outlook-Kalender (auch ohne Lehrerliste/IT-Rolle).
  */
 export const SOURCE_WRITE_AUDIENCE = {
-    me: ['it', 'lehrer', 'schueler'],
+    me: ['it', 'lehrer', 'schueler', 'self'],
     schul: ['it', 'lehrer'],
     lehrer: ['it', 'lehrer'],
     schueler: ['it', 'schueler']
 };
 
 /**
- * @param {{ isIt?: boolean, isLehrer?: boolean, isSchueler?: boolean, loggedIn?: boolean }|null|undefined} personas
- * @returns {'it'|'lehrer'|'schueler'|''}
+ * @param {{
+ *   isIt?: boolean,
+ *   isLehrer?: boolean,
+ *   isSchueler?: boolean,
+ *   loggedIn?: boolean,
+ *   unknownUser?: boolean
+ * }|null|undefined} personas
+ * @returns {'it'|'lehrer'|'schueler'|'self'|''}
  */
 export function audienceKeyFromPersonas(personas) {
     if (!personas || personas.loggedIn === false) return '';
     if (personas.isIt) return 'it';
     if (personas.isLehrer) return 'lehrer';
+    // „Noch nicht zugeordnet“: Dashboard markiert oft unknownUser + Default-Schüler –
+    // für Termine trotzdem nur Eigenkalender, keine Shared-Layer.
+    if (personas.unknownUser) return 'self';
     if (personas.isSchueler) return 'schueler';
+    // Angemeldet, Portal-Rolle noch nicht zugeordnet → eigener Kalender bleibt nutzbar
+    if (personas.loggedIn) return 'self';
     return '';
 }
 
 /**
  * @param {string} sourceId
- * @param {'it'|'lehrer'|'schueler'|string} audience
+ * @param {'it'|'lehrer'|'schueler'|'self'|string} audience
  */
 export function sourceAllowedForAudience(sourceId, audience) {
     const id = String(sourceId || '').trim();
@@ -67,13 +79,16 @@ export function sourceAllowedForAudience(sourceId, audience) {
 
 /**
  * @param {string} sourceId
- * @param {'it'|'lehrer'|'schueler'|string} audience
+ * @param {'it'|'lehrer'|'schueler'|'self'|string} audience
  */
 export function sourceWritableForAudience(sourceId, audience) {
     const id = String(sourceId || '').trim();
     const aud = String(audience || '').trim().toLowerCase();
     // M365-Gruppenkalender: Schreibrecht steuert Graph/Mitgliedschaft, nicht die Schul-Rolle.
     if (isGroupSourceId(id)) return !!aud;
+    // Eigener Kalender: für jede bekannte Audience inkl. self immer schreibbar,
+    // auch wenn IT den Layer „Mein Kalender“ global ausgeblendet hat.
+    if (id === SOURCE_IDS.ME && aud) return true;
     const allowed = SOURCE_WRITE_AUDIENCE[id];
     if (!allowed) return false;
     if (!aud) return false;
@@ -367,8 +382,8 @@ export function resolveEnabledSources(settings, opts) {
     /** @type {Array<{ id: string, label: string, kind: 'me'|'user'|'group', upn: string, groupId?: string, visible: boolean }>} */
     const out = [];
 
-    function push(id, label, kind, upn, groupId) {
-        if (kind !== 'group' && !enabled.has(id)) return;
+    function push(id, label, kind, upn, groupId, forceEnabled) {
+        if (kind !== 'group' && !forceEnabled && !enabled.has(id)) return;
         if (kind !== 'group' && audience && !sourceAllowedForAudience(id, audience)) return;
         if (kind === 'user' && !upn) return;
         out.push({
@@ -377,15 +392,22 @@ export function resolveEnabledSources(settings, opts) {
             kind,
             upn: upn || '',
             groupId: groupId || '',
-            visible: kind === 'group' ? visible.has(id) || false : visible.has(id)
+            visible:
+                kind === 'group'
+                    ? visible.has(id) || false
+                    : forceEnabled && !enabled.has(id)
+                      ? true
+                      : visible.has(id)
         });
     }
 
-    push(SOURCE_IDS.ME, SOURCE_LABEL.me, 'me', '');
+    // Eigener Kalender immer für jede Audience – auch wenn IT „Mein Kalender“ deaktiviert hat
+    push(SOURCE_IDS.ME, SOURCE_LABEL.me, 'me', '', undefined, !!audience);
     push(SOURCE_IDS.SCHUL, SOURCE_LABEL.schul, 'user', s.schulkalenderUpn);
     push(SOURCE_IDS.LEHRER, SOURCE_LABEL.lehrer, 'user', s.lehrerkalenderUpn);
     push(SOURCE_IDS.SCHUELER, SOURCE_LABEL.schueler, 'user', s.schuelerkalenderUpn);
 
+    // Persönlich gewählte Gruppenkalender bleiben auch ohne Portal-Rolle sichtbar.
     (s.groupCalendars || []).forEach((g) => {
         const sid = groupSourceId(g.id);
         out.push({

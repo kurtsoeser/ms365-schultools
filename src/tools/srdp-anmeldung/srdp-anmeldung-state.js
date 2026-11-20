@@ -6,12 +6,15 @@ import {
     filterAbschlussklassen,
     teacherChoiceLabels,
     parseChoiceLines,
+    looksLikeDemoLfs,
+    wizardConfiguredChoices,
     filterItemsForTeacher,
     filterItemsForKlassen,
     parseCodeList,
     joinCodeList,
     countNacharbeitPending,
-    klassenOhneAnmeldung
+    klassenOhneAnmeldung,
+    preferredSrdpTerminJahr
 } from './srdp-anmeldung-logic.js';
 import {
     resolveSchoolToolSiteUrl,
@@ -27,10 +30,11 @@ export const VIEWS = [
     { id: 'dashboard', label: 'Übersicht', icon: 'bi-house', roles: ['lehrer', 'admin'] },
     { id: 'anmelden', label: 'Anmelden', icon: 'bi-pencil-square', roles: ['schueler'] },
     { id: 'meine', label: 'Meine Anmeldung', icon: 'bi-person-check', roles: ['schueler'] },
+    { id: 'termine', label: 'sRDP-Termine', icon: 'bi-calendar-event', roles: ['schueler', 'lehrer', 'admin'] },
     { id: 'meine-pruefungen', label: 'Meine Prüfungen', icon: 'bi-mortarboard', roles: ['lehrer'] },
     { id: 'meine-klasse', label: 'Meine Klasse', icon: 'bi-people', roles: ['lehrer'] },
     { id: 'liste', label: 'Alle Anmeldungen', icon: 'bi-list-ul', roles: ['lehrer', 'admin'] },
-    { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', roles: ['lehrer', 'admin'] },
+    { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', roles: ['schueler', 'lehrer', 'admin'] },
     { id: 'auswertung', label: 'Auswertung', icon: 'bi-bar-chart', roles: ['admin'] },
     { id: 'system', label: 'Systemadministration', icon: 'bi-gear', roles: ['admin'] }
 ];
@@ -64,7 +68,9 @@ export function navSectionsForRole(role, _availableRoles, opts) {
             {
                 id: 'arbeit',
                 label: 'Arbeit',
-                items: [viewById('dashboard'), viewById('liste'), viewById('kalender')].filter(Boolean)
+                items: [viewById('dashboard'), viewById('liste'), viewById('termine'), viewById('kalender')].filter(
+                    Boolean
+                )
             },
             {
                 id: 'auswertung',
@@ -83,6 +89,7 @@ export function navSectionsForRole(role, _availableRoles, opts) {
         const items = [
             viewById('dashboard'),
             viewById('meine-pruefungen'),
+            viewById('termine'),
             viewById('kalender'),
             ...(kvKlassen.length ? [viewById('meine-klasse')] : []),
             viewById('liste')
@@ -94,7 +101,9 @@ export function navSectionsForRole(role, _availableRoles, opts) {
         {
             id: 'arbeit',
             label: '',
-            items: [viewById('anmelden'), viewById('meine')].filter(Boolean)
+            items: [viewById('anmelden'), viewById('meine'), viewById('termine'), viewById('kalender')].filter(
+                Boolean
+            )
         }
     ];
 }
@@ -108,10 +117,20 @@ export function viewsForRole(role, opts) {
     return navSectionsForRole(role, null, opts).flatMap((s) => s.items || []);
 }
 
-export function roleLabel(role) {
-    if (role === 'admin') return 'Admin / Sekretariat';
+export function roleLabel(role, source) {
+    if (role === 'admin') {
+        const s = String(source || '');
+        if (s === 'designated-it' || s === 'global-admin') return 'Schul-IT';
+        return 'Direktion';
+    }
     if (role === 'lehrer') return 'Lehrkraft';
     return 'Schüler:in';
+}
+
+/** Jahr aus Listentitel „sRDP-Anmeldungen HAK 2027“. */
+export function terminJahrFromListTitle(title) {
+    const m = String(title || '').match(/\b(20\d{2})\b/);
+    return m ? m[1] : '';
 }
 
 /** KV = Capability über Stammdaten, kein Dauer-App-Modus. */
@@ -184,15 +203,114 @@ export function persistSiteUrl(url) {
     }
 }
 
+function studentKlasseFilled(row) {
+    return !!String((row && (row.klasse || row.klasseCode || row.classCode)) || '').trim();
+}
+
+function studentMergeKey(row) {
+    const em = String((row && (row.email || row.mail || row.upn)) || '')
+        .trim()
+        .toLowerCase();
+    if (em) return em;
+    return 'id:' + String((row && (row.id || row.name)) || '');
+}
+
+/** Zeile mit Klasse behalten, wenn dieselbe E-Mail in einem anderen Schuljahr ohne Klasse steht. */
+function mergeStudentsPreferKlasse(lists) {
+    const byKey = new Map();
+    const order = [];
+    (lists || []).forEach((list) => {
+        (Array.isArray(list) ? list : []).forEach((row) => {
+            if (!row || typeof row !== 'object') return;
+            const key = studentMergeKey(row);
+            if (!key || key === 'id:') return;
+            const prev = byKey.get(key);
+            if (!prev) {
+                byKey.set(key, row);
+                order.push(key);
+                return;
+            }
+            if (!studentKlasseFilled(prev) && studentKlasseFilled(row)) byKey.set(key, row);
+        });
+    });
+    return order.map((key) => byKey.get(key)).filter(Boolean);
+}
+
+/** Schüler aus jedem Schuljahr, nicht nur aus years.current. */
+function studentsFromAllYearBuckets() {
+    try {
+        const api = typeof window !== 'undefined' ? window.ms365AppDataV2 : null;
+        if (!api || typeof api.getContainer !== 'function') return [];
+        const container = api.getContainer();
+        const by = container && container.years && container.years.byLabel;
+        if (!by || typeof by !== 'object') return [];
+        const out = [];
+        Object.keys(by).forEach((label) => {
+            const bucket = by[label];
+            (bucket && Array.isArray(bucket.students) ? bucket.students : []).forEach((row) => {
+                out.push(row);
+            });
+        });
+        return out;
+    } catch {
+        return [];
+    }
+}
+
+/** Klassen → Microsoft-365-Gruppe (classTeams und classGroupMatchByKey). */
+export function classGroupLinksFromAppData() {
+    try {
+        const api = typeof window !== 'undefined' ? window.ms365AppDataV2 : null;
+        if (!api || typeof api.getContainer !== 'function') return [];
+        const container = api.getContainer();
+        const teams =
+            typeof api.normalizeCoreClassTeams === 'function'
+                ? api.normalizeCoreClassTeams((container.core && container.core.classTeams) || [])
+                : (container.core && container.core.classTeams) || [];
+        const out = [];
+        (Array.isArray(teams) ? teams : []).forEach((t) => {
+            if (!t) return;
+            const code = String(t.classCode || t.code || '').trim();
+            if (!code) return;
+            out.push({
+                code,
+                groupId: String(t.graphGroupId || t.groupId || '').trim(),
+                displayName: String(t.displayName || '').trim(),
+                mail: String(t.mail || t.gruppenmail || '')
+                    .trim()
+                    .toLowerCase()
+            });
+        });
+        const setup = typeof api.getSetup === 'function' ? api.getSetup() : null;
+        const map = (setup && setup.classGroupMatchByKey) || {};
+        Object.keys(map).forEach((code) => {
+            const entry = map[code];
+            if (!entry || typeof entry !== 'object') return;
+            out.push({
+                code: String(code || '').trim(),
+                groupId: String(entry.groupId || entry.graphGroupId || '').trim(),
+                displayName: String(entry.displayName || entry.name || '').trim(),
+                mail: String(entry.mail || entry.email || '')
+                    .trim()
+                    .toLowerCase()
+            });
+        });
+        return out.filter((row) => row.code);
+    } catch {
+        return [];
+    }
+}
+
 export function loadStammdaten() {
     try {
         const core = window.ms365TenantSettingsLoad && window.ms365TenantSettingsLoad();
         const data = (core && core.data) || core || {};
+        const currentStudents = Array.isArray(data.students) ? data.students : [];
         return {
             classes: Array.isArray(data.classes) ? data.classes : [],
             teachers: Array.isArray(data.teachers) ? data.teachers : [],
             subjects: Array.isArray(data.subjects) ? data.subjects : [],
-            students: Array.isArray(data.students) ? data.students : []
+            students: mergeStudentsPreferKlasse([studentsFromAllYearBuckets(), currentStudents])
         };
     } catch {
         return { classes: [], teachers: [], subjects: [], students: [] };
@@ -252,39 +370,114 @@ export function matchStudentByEmail(students, email) {
         .toLowerCase();
     if (!em) return null;
     const list = Array.isArray(students) ? students : [];
-    return (
-        list.find((s) => String(s.email || '').trim().toLowerCase() === em) ||
-        list.find((s) => String(s.upn || '').trim().toLowerCase() === em) ||
-        null
-    );
+    const hits = list.filter((s) => {
+        const mail = String((s && (s.email || s.mail)) || '')
+            .trim()
+            .toLowerCase();
+        const upn = String((s && (s.upn || s.userPrincipalName)) || '')
+            .trim()
+            .toLowerCase();
+        return (mail && mail === em) || (upn && upn === em);
+    });
+    if (!hits.length) return null;
+    return hits.find((s) => studentKlasseFilled(s)) || hits[0];
+}
+
+/**
+ * Demo-Klassen (5AHAK …) vs. echte Abschlussklassen aus Stammdaten/Liste erkennen.
+ * @param {string[]} klassen
+ */
+export function looksLikeDemoKlassen(klassen) {
+    const list = (Array.isArray(klassen) ? klassen : [])
+        .map((k) => String(k || '').trim())
+        .filter(Boolean);
+    if (!list.length) return false;
+    // Demo-Welt: 5AHAK / 5BHAK / 5CHAK – echte Schulen nutzen i. d. R. 5A / 5B o. Ä.
+    return list.every((k) => /^5[A-C]HAK$/i.test(k));
+}
+
+/** Demo-Wizard: nur DIGBIZ und Wirtschaftsrecht. */
+export function looksLikeDemoSeminare(value) {
+    const list = (Array.isArray(value) ? value : parseChoiceLines(value))
+        .map((s) => String(s || '').trim().toLowerCase())
+        .filter(Boolean)
+        .sort();
+    return list.length === 2 && list[0] === 'digbiz' && list[1] === 'wirtschaftsrecht';
 }
 
 /**
  * Optionen aus Wizard + Profil.
+ * Live-Stammdaten/Listen-Choices schlagen veraltete Demo-Wizard-Klassen.
  */
-export function resolveFormOptions(wizard, stammdaten, profileId) {
+export function resolveFormOptions(wizard, stammdaten, profileId, opts) {
     const wiz = wizard || {};
+    const allowDemoKlassen = !!(opts && opts.allowDemoKlassen);
     const profile = getProfile(profileId || wiz.profileId || 'hak');
-    const jahr = String(wiz.jahr || wiz.terminJahr || new Date().getFullYear()).trim();
+    const jahr = preferredSrdpTerminJahr(new Date(), wiz.jahr || wiz.terminJahr);
     const klassenFromSd = filterAbschlussklassen(stammdaten && stammdaten.classes, jahr);
-    const klassenWiz = Array.isArray(wiz.klassen) ? wiz.klassen.filter(Boolean) : [];
-    const klassen = klassenWiz.length ? klassenWiz : klassenFromSd;
-    const lehrer = teacherChoiceLabels((stammdaten && stammdaten.teachers) || []);
-    const lfs = parseChoiceLines(wiz.lfsText || '').length
-        ? parseChoiceLines(wiz.lfsText)
-        : Array.isArray(wiz.lfs)
-          ? wiz.lfs
-          : (profile.lfsHints || []).slice();
-    const wahlfaecher = parseChoiceLines(wiz.wahlfachText || '').length
-        ? parseChoiceLines(wiz.wahlfachText)
-        : Array.isArray(wiz.wahlfaecher)
-          ? wiz.wahlfaecher
-          : (profile.defaultWahlfaecher || []).slice();
-    const seminare = parseChoiceLines(wiz.seminarText || '').length
-        ? parseChoiceLines(wiz.seminarText)
-        : Array.isArray(wiz.seminare)
-          ? wiz.seminare
-          : (profile.defaultSeminare || []).slice();
+    const klassenWizRaw = Array.isArray(wiz.klassen)
+        ? wiz.klassen.map((k) => String(k || '').trim()).filter(Boolean)
+        : [];
+    const klassenWiz =
+        allowDemoKlassen || !looksLikeDemoKlassen(klassenWizRaw) ? klassenWizRaw : [];
+    const klassenFromList = Array.isArray(wiz.listKlassen)
+        ? wiz.listKlassen.map((k) => String(k || '').trim()).filter(Boolean)
+        : [];
+    let klassen;
+    if (klassenFromSd.length && (!klassenWiz.length || looksLikeDemoKlassen(klassenWiz))) {
+        klassen = klassenFromSd.slice();
+    } else if (klassenFromList.length && (!klassenWiz.length || looksLikeDemoKlassen(klassenWiz))) {
+        klassen = klassenFromList.slice();
+    } else if (klassenWiz.length) {
+        klassen = klassenWiz.slice();
+    } else {
+        klassen = klassenFromSd.length ? klassenFromSd.slice() : klassenFromList.slice();
+    }
+    klassen = [...new Set(klassen)];
+    const lehrerFromStamm = teacherChoiceLabels((stammdaten && stammdaten.teachers) || []);
+    const lehrerFromList = (Array.isArray(wiz.listLehrer) ? wiz.listLehrer : [])
+        .map((k) => String(k || '').trim())
+        .filter((k) => k && k !== '—' && k !== '–');
+    const lehrer = lehrerFromStamm.length
+        ? lehrerFromStamm
+        : [...new Set(lehrerFromList)].sort((a, b) => a.localeCompare(b, 'de'));
+    const listLfs = (Array.isArray(wiz.listLfs) ? wiz.listLfs : [])
+        .map((k) => String(k || '').trim())
+        .filter((k) => k && k !== '—' && k !== '–');
+    const listWahl = (Array.isArray(wiz.listWahlfaecher) ? wiz.listWahlfaecher : [])
+        .map((k) => String(k || '').trim())
+        .filter((k) => k && k !== '—' && k !== '–' && !/bitte wählen/i.test(k));
+    const seminarFromList = (Array.isArray(wiz.listSeminare) ? wiz.listSeminare : [])
+        .map((k) => String(k || '').trim())
+        .filter((k) => k && k !== '—' && k !== '–' && !/bitte wählen/i.test(k));
+    let lfsLines = wizardConfiguredChoices(wiz, 'lfsText', 'lfs');
+    let wahlLines = wizardConfiguredChoices(wiz, 'wahlfachText', 'wahlfach');
+    let seminarLines = wizardConfiguredChoices(wiz, 'seminarText', 'seminar');
+    if (!allowDemoKlassen && looksLikeDemoLfs(lfsLines)) lfsLines = [];
+    if (!allowDemoKlassen && looksLikeDemoSeminare(seminarLines)) seminarLines = [];
+    const lfs = lfsLines.length
+        ? lfsLines
+        : listLfs.length
+          ? listLfs
+          : allowDemoKlassen
+            ? (profile.lfsHints || []).slice()
+            : [];
+    const wahlfaecher = wahlLines.length
+        ? wahlLines
+        : listWahl.length
+          ? listWahl
+          : allowDemoKlassen
+            ? (profile.defaultWahlfaecher || []).slice()
+            : [];
+    const seminare = seminarLines.length
+        ? seminarLines
+        : seminarFromList.length
+          ? seminarFromList
+          : Array.isArray(wiz.seminare) && wiz.seminare.length
+            ? wiz.seminare
+            : allowDemoKlassen
+              ? (profile.defaultSeminare || []).slice()
+              : [];
     return {
         profileId: profile.id,
         profileLabel: profile.label || profile.id,
@@ -293,11 +486,15 @@ export function resolveFormOptions(wizard, stammdaten, profileId) {
         klassen,
         lehrer,
         lfs,
+        lfsFieldLabel: profile.lfsFieldLabel || 'LFS',
         wahlfaecher,
         seminare,
         variants: profile.variants || [],
         anmeldeFrist: String(wiz.anmeldeFrist || '').trim(),
-        haupttermin: String(wiz.haupttermin || '').trim()
+        haupttermin: String(wiz.haupttermin || '').trim(),
+        bfkDatum: String(wiz.bfkDatum || '').match(/20\d{2}-\d{2}-\d{2}/)
+            ? String(wiz.bfkDatum).match(/20\d{2}-\d{2}-\d{2}/)[0]
+            : ''
     };
 }
 
@@ -332,14 +529,16 @@ export function createInitialState() {
         planerRoles: /** @type {string[]} */ ([]),
         demoRoleOverride: false,
         entraGroupsConfigured: true,
+        planerRoleSources: {},
         planerAccessDenied: false,
         roleHint: '',
         accountEmail: '',
         accountName: '',
+        memberGroups: [],
         demoPersonaEmail: '',
         demoPersonaName: '',
         siteUrl: loadSavedSiteUrl(),
-        listId: '',
+        listId: String(wizard.listId || '').trim(),
         listWebUrl: '',
         siteId: '',
         loading: false,
@@ -373,6 +572,7 @@ export function createInitialState() {
         filterVariante: '',
         filterLehrer: '',
         filterQuery: '',
+        groupBy: 'klasse',
         filterMultiOpen: /** @type {Record<string, boolean>} */ ({}),
         filterMultiQuery: /** @type {Record<string, string>} */ ({}),
         detailItemId: '',
@@ -381,7 +581,8 @@ export function createInitialState() {
         calMode: 'month',
         calYear: today.getFullYear(),
         calMonth: today.getMonth() + 1,
-        calWeekAnchor: today.toISOString().slice(0, 10)
+        calWeekAnchor: today.toISOString().slice(0, 10),
+        systemTab: 'site'
     };
 }
 

@@ -72,6 +72,7 @@ import {
     buildPublicUrl,
     encodePublicToken
 } from './einsammler-token.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 const VIEWS = [
     { id: 'uebersicht', label: 'Übersicht', icon: 'bi-speedometer2' },
@@ -79,7 +80,7 @@ const VIEWS = [
     { id: 'neu', label: 'Neu anlegen', icon: 'bi-plus-circle' },
     { id: 'detail', label: 'Antworten', icon: 'bi-people' },
     { id: 'links', label: 'Eltern-Links', icon: 'bi-link-45deg' },
-    { id: 'einstellungen', label: 'Einstellungen', icon: 'bi-gear' }
+    { id: 'einstellungen', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 function esc(s) {
@@ -115,6 +116,7 @@ export function mountApp(root) {
     /** @type {{ view: string, selectedId: string, message: { type: string, text: string }|null, form: object, showAll: boolean, stammdatenHint: string }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         selectedId: '',
         message: null,
         form: emptyForm(),
@@ -1028,57 +1030,108 @@ export function mountApp(root) {
                 syncPanel
             );
         }
+        const sources = getEinsammlerAdminAccessCache();
         return (
-            '<div class="ein-head"><div><h2>Admin-Einstellungen</h2>' +
-            '<p>Schulweite Optionen, Admin-Mails, signierte Magic-Links. Antworten landen in der Schul-SharePoint-Site.</p></div></div>' +
             '<form class="ein-form" id="einSettingsForm">' +
-            '<label>Schulname (auf Elternseite)<input name="schoolName" value="' +
-            esc(settings.schoolName) +
-            '"></label>' +
-            '<label>Link-Gültigkeit (Tage)<input type="number" min="1" name="expDays" value="' +
-            esc(String(settings.expDays)) +
-            '"></label>' +
-            '<p class="ein-hint">Admin „Alle sehen“ kommt aus Schulleitung/Verwaltung (Entra) bzw. Schul-IT. Legacy-Mails nur Fallback.</p>' +
-            '<label>Zusätzliche Admin-E-Mails (Legacy, optional)<textarea name="adminEmails" rows="2" placeholder="direktion@schule.at; it@schule.at">' +
-            esc(settings.adminEmails) +
-            '</textarea></label>' +
-            (getEinsammlerAdminAccessCache().sources.length
-                ? '<p class="ein-hint">Ihre Admin-Quellen: ' +
-                  esc(getEinsammlerAdminAccessCache().sources.join(', ')) +
-                  (getEinsammlerAdminAccessCache().demo ? ' (IT-Vorschau)' : '') +
-                  '</p>'
-                : '') +
-            '<p class="ein-hint">Remote-API ist abgeschaltet (Sicherheit). Elternlinks sind HMAC-signiert und stehen im URL-Fragment (<code>#p=</code>). Ablage: SharePoint der Schule.</p>' +
             '<input type="hidden" name="apiBaseUrl" value="">' +
             '<input type="hidden" name="adminKey" value="">' +
-            '<div class="ein-form__actions"><button type="submit" class="btn btn-success">Einstellungen speichern</button></div>' +
-            '</form>' +
-            syncPanel +
-            '<div class="ein-form" style="margin-top:14px;">' +
-            '<p class="ein-settings-summary">Gesamt-Store: <strong>' +
-            (s.einsammler || []).length +
-            '</strong> · in Ihrer Filter-Sicht: <strong>' +
-            mine +
-            '</strong> · Posteingang: <strong>' +
-            inbox.length +
-            '</strong>' +
-            (einsammlerRemoteConfigured() ? ' · Remote konfiguriert' : '') +
-            '</p>' +
-            '<p class="ein-hint">' +
-            esc(stammdatenSourceHint()) +
-            '</p>' +
-            '<label>Antwortcode einfügen<textarea id="einImportCode" rows="3" placeholder="Code von der Elternseite"></textarea></label>' +
-            '<div class="ein-form__actions">' +
-            '<button type="button" class="btn" data-ein-import-code>Code übernehmen</button>' +
-            '<button type="button" class="btn" data-ein-merge-inbox>Posteingang übernehmen</button>' +
-            '<button type="button" class="btn" data-ein-demo>Demo laden</button>' +
-            '<button type="button" class="btn" data-ein-clear-demo>Demo entfernen</button>' +
-            '<button type="button" class="btn" data-ein-clear>Alles löschen</button>' +
-            '</div></div>'
+            renderSystemAdminPage({
+                prefix: 'ein',
+                activeTab: ui.systemTab,
+                dataAttr: 'data-ein-sys-tab',
+                ariaLabel: 'Systemadministration Einsammler',
+                panels: [
+                    {
+                        id: 'site',
+                        step: '1',
+                        title: 'Datenquelle',
+                        leadHtml: 'Antworten landen in der Schul-SharePoint-Site.',
+                        body: syncPanel
+                    },
+                    {
+                        id: 'perms',
+                        step: '2',
+                        title: 'Berechtigungen',
+                        leadHtml:
+                            'Admin „Alle sehen“ kommt aus Schulleitung/Verwaltung (Entra) bzw. Schul-IT. Legacy-Mails nur Fallback.',
+                        body:
+                            '<label>Zusätzliche Admin-E-Mails (Legacy, optional)<textarea name="adminEmails" rows="2" placeholder="direktion@schule.at; it@schule.at">' +
+                            esc(settings.adminEmails) +
+                            '</textarea></label>' +
+                            (sources.sources.length
+                                ? '<p class="ein-hint">Ihre Admin-Quellen: ' +
+                                  esc(sources.sources.join(', ')) +
+                                  (sources.demo ? ' (IT-Vorschau)' : '') +
+                                  '</p>'
+                                : '') +
+                            '<div class="ein-form__actions"><button type="submit" class="btn btn-success">Einstellungen speichern</button></div>'
+                    },
+                    {
+                        id: 'kalender',
+                        step: '3',
+                        title: 'Kalender',
+                        leadHtml: 'Kein Terminkalender. Die Link-Frist steuert, wie lange Eltern antworten können.',
+                        body:
+                            '<label>Link-Gültigkeit (Tage)<input type="number" min="1" name="expDays" value="' +
+                            esc(String(settings.expDays)) +
+                            '"></label>' +
+                            '<p class="ein-hint">Elternlinks sind HMAC-signiert und stehen im URL-Fragment (<code>#p=</code>).</p>' +
+                            '<div class="ein-form__actions"><button type="submit" class="btn btn-success">Einstellungen speichern</button></div>'
+                    },
+                    {
+                        id: 'wartung',
+                        step: '4',
+                        title: 'Wartung',
+                        leadHtml: 'Schulname auf der Elternseite, Stammdaten und Antwortcodes.',
+                        body:
+                            '<label>Schulname (auf Elternseite)<input name="schoolName" value="' +
+                            esc(settings.schoolName) +
+                            '"></label>' +
+                            '<p class="ein-settings-summary">Gesamt-Store: <strong>' +
+                            (s.einsammler || []).length +
+                            '</strong> · in Ihrer Filter-Sicht: <strong>' +
+                            mine +
+                            '</strong> · Posteingang: <strong>' +
+                            inbox.length +
+                            '</strong>' +
+                            (einsammlerRemoteConfigured() ? ' · Remote konfiguriert' : '') +
+                            '</p>' +
+                            '<p class="ein-hint">' +
+                            esc(stammdatenSourceHint()) +
+                            '</p>' +
+                            '<label>Antwortcode einfügen<textarea id="einImportCode" rows="3" placeholder="Code von der Elternseite"></textarea></label>' +
+                            '<div class="ein-form__actions">' +
+                            '<button type="submit" class="btn btn-success">Einstellungen speichern</button>' +
+                            '<button type="button" class="btn" data-ein-import-code>Code übernehmen</button>' +
+                            '<button type="button" class="btn" data-ein-merge-inbox>Posteingang übernehmen</button>' +
+                            '<button type="button" class="btn" data-ein-demo>Demo laden</button>' +
+                            '</div>'
+                    },
+                    {
+                        id: 'danger',
+                        title: 'Danger Zone',
+                        danger: true,
+                        leadHtml: 'Demo entfernen oder den lokalen Store leeren. SharePoint löscht das nicht automatisch.',
+                        body:
+                            '<div class="ms-sys-actions">' +
+                            '<button type="button" class="btn ms-sys-btn-danger" data-ein-clear-demo>Demo entfernen</button>' +
+                            '<button type="button" class="btn ms-sys-btn-danger" data-ein-clear>Alles löschen</button>' +
+                            '</div>'
+                    }
+                ]
+            }) +
+            '</form>'
         );
     }
 
     function bind(s) {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-ein-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelector('#einShowAll')?.addEventListener('change', (ev) => {
             ui.showAll = !!ev.target.checked && admin();
             setMessage(

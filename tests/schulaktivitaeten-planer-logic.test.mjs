@@ -19,7 +19,23 @@ import {
 
 describe('schulaktivitaeten-planer-logic', () => {
     it('toIsoDateOnly parses dates', () => {
+        expect(toIsoDateOnly('2026-10-05')).toBe('2026-10-05');
         expect(toIsoDateOnly('2026-10-05T12:00:00Z')).toBe('2026-10-05');
+    });
+
+    it('toIsoDateOnly keeps calendar day for SharePoint dateOnly CET midnight', () => {
+        // 30.11.2026 dateOnly → SPO oft 29.11. 23:00 UTC (Mitternacht Wien)
+        expect(toIsoDateOnly('2026-11-29T23:00:00Z')).toBe('2026-11-30');
+        expect(toIsoDateOnly('2026-12-03T23:00:00Z')).toBe('2026-12-04');
+        expect(toIsoDateOnly('2026-11-30T00:00:00+01:00')).toBe('2026-11-30');
+    });
+
+    it('toIsoDateOnly keeps multi-day Wintersportwoche range', () => {
+        const start = toIsoDateOnly('2026-11-29T23:00:00.0000000Z');
+        const end = toIsoDateOnly('2026-12-03T23:00:00.0000000Z');
+        expect(start).toBe('2026-11-30');
+        expect(end).toBe('2026-12-04');
+        expect(daysBetween(start, end)).toBe(4);
     });
 
     it('rangesOverlap detects inclusive overlap', () => {

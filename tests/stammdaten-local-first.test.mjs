@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     STAMMDATEN_LOCAL_FIRST,
     STAMMDATEN_IT_MANUAL_BACKUP,
+    STAMMDATEN_INTRANET_MANUAL_EXPORT,
     isStammdatenLocalFirst,
     isSpoManualBackupAllowed,
     isSpoNetworkSyncAllowed,
@@ -18,11 +19,10 @@ import {
 import { V1_MIRROR_WRITE_ENABLED, isV1MirrorWriteEnabled } from '../src/shared/tenant-storage-mirror.js';
 
 describe('stammdaten-local-first', () => {
-    it('Lokal-First bleibt aktiv: Auto-Sync und Intranet aus', () => {
+    it('Lokal-First bleibt aktiv: Auto-Sync aus', () => {
         expect(STAMMDATEN_LOCAL_FIRST).toBe(true);
         expect(isStammdatenLocalFirst()).toBe(true);
         expect(isSpoNetworkSyncAllowed()).toBe(false);
-        expect(isIntranetExportAllowed()).toBe(false);
         expect(localFirstStatusMessage()).toMatch(/Lokal-First/i);
         expect(localFirstShortLabel()).toMatch(/Lokal-First/i);
     });
@@ -32,6 +32,13 @@ describe('stammdaten-local-first', () => {
         expect(isSpoManualBackupAllowed()).toBe(true);
         expect(localFirstStatusMessage()).toMatch(/manuell/i);
         expect(localFirstStatusMessage()).toMatch(/kein Auto-Abgleich/i);
+    });
+
+    it('Phase 5: manueller Intranet-Listen-Export ist freigeschaltet', () => {
+        expect(STAMMDATEN_INTRANET_MANUAL_EXPORT).toBe(true);
+        expect(isIntranetExportAllowed()).toBe(true);
+        expect(localFirstStatusMessage()).toMatch(/Intranet-Listen/i);
+        expect(localFirstShortLabel()).toMatch(/Intranet/i);
     });
 
     it('v1-Spiegel bleibt aus', () => {

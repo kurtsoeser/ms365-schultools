@@ -4,6 +4,7 @@
 import {
     STATUS_CHOICES,
     TEILNAHME_MODUS_CHOICES,
+    TYP_CHOICES,
     VORLAUF_MODUS_CHOICES,
     GENEHMIGUNG_PFAD_CHOICES
 } from './schulaktivitaeten-planer-schema.js';
@@ -52,33 +53,83 @@ export const DEFAULT_RULES = {
     kostenLimits: []
 };
 
-/** Orientierungskosten je Veranstaltungstyp (€ pro Teilnehmer) – nur Ampel, kein Payment. */
+/**
+ * Orientierungskosten je Antrags-Art (€ pro Teilnehmer) – nur Ampel, kein Payment.
+ * Typ-Codes = TYP_CHOICES (Antrag), damit Ampel und Schwellen 1:1 greifen.
+ */
 export const DEFAULT_KOSTEN_LIMITS = [
-    { typ: 'Projekttage', okBis: 200, warnBis: 300 },
-    { typ: 'Skikurs', okBis: 300, warnBis: 400 },
-    { typ: 'Sportwoche', okBis: 400, warnBis: 500 },
-    { typ: 'Wien-Tage', okBis: 200, warnBis: 300 },
-    { typ: 'Sprachwoche', okBis: 600, warnBis: 1000 },
     { typ: 'Exkursion', okBis: 50, warnBis: 100 },
-    { typ: 'Abschlusstage', okBis: 200, warnBis: 300 }
+    { typ: 'Schulaktivitaet', okBis: 100, warnBis: 200 },
+    { typ: 'Veranstaltung', okBis: 150, warnBis: 300 },
+    { typ: 'Klassenabwesenheit', okBis: 0, warnBis: 50 },
+    { typ: 'Sonstiges', okBis: 100, warnBis: 200 }
 ];
 
 /**
+ * Immer eine Zeile pro Antrags-Art; gespeicherte Beträge werden gemerged.
  * @param {unknown} rules
  * @returns {{ typ: string, okBis: number, warnBis: number }[]}
  */
 export function resolveKostenLimits(rules) {
     const custom = rules && Array.isArray(rules.kostenLimits) ? rules.kostenLimits : [];
-    if (custom.length) {
-        return custom
-            .map((r) => ({
-                typ: String((r && r.typ) || '').trim(),
-                okBis: Number(r && r.okBis) || 0,
-                warnBis: Number(r && r.warnBis) || 0
-            }))
-            .filter((r) => r.typ);
-    }
-    return DEFAULT_KOSTEN_LIMITS.map((r) => ({ ...r }));
+    /** @type {Map<string, { typ: string, okBis: number, warnBis: number }>} */
+    const byTyp = new Map();
+    custom.forEach((r) => {
+        const raw = String((r && r.typ) || '').trim();
+        if (!raw) return;
+        const canon =
+            TYP_CHOICES.find((c) => c.toLowerCase() === raw.toLowerCase()) ||
+            TYP_CHOICES.find(
+                (c) =>
+                    raw.toLowerCase().includes(c.toLowerCase()) ||
+                    c.toLowerCase().includes(raw.toLowerCase())
+            );
+        if (!canon) return;
+        byTyp.set(canon, {
+            typ: canon,
+            okBis: Number(r && r.okBis) || 0,
+            warnBis: Number(r && r.warnBis) || 0
+        });
+    });
+    const defaults = new Map(DEFAULT_KOSTEN_LIMITS.map((r) => [r.typ, r]));
+    return TYP_CHOICES.map((typ) => {
+        if (byTyp.has(typ)) return /** @type {{ typ: string, okBis: number, warnBis: number }} */ (byTyp.get(typ));
+        const def = defaults.get(typ);
+        return def
+            ? { typ: def.typ, okBis: def.okBis, warnBis: def.warnBis }
+            : { typ, okBis: 100, warnBis: 200 };
+    });
+}
+
+/**
+ * Ersten Euro-Betrag aus Freitext (z. B. „ca. 12 € / Schüler:in“).
+ * @param {unknown} raw
+ * @returns {number} NaN wenn nicht parsebar
+ */
+export function parseEuroFromText(raw) {
+    const s = String(raw || '')
+        .trim()
+        .toLowerCase();
+    if (!s) return NaN;
+    if (/^(kostenlos|gratis|keine(\s+kosten)?|frei(willig)?)\b/.test(s)) return 0;
+    const m = s.match(/(\d+(?:[.,]\d+)?)\s*(?:€|eur(?:o)?)?/);
+    if (!m) return NaN;
+    const n = Number(String(m[1]).replace(',', '.'));
+    return Number.isFinite(n) && n >= 0 ? n : NaN;
+}
+
+/**
+ * @param {string} typ
+ * @param {unknown} [rules]
+ * @returns {{ typ: string, okBis: number, warnBis: number }|null}
+ */
+export function kostenLimitForTyp(typ, rules) {
+    const limits = resolveKostenLimits(rules);
+    const t = String(typ || '')
+        .trim()
+        .toLowerCase();
+    if (!t) return null;
+    return limits.find((l) => l.typ.toLowerCase() === t) || null;
 }
 
 /**
@@ -88,17 +139,23 @@ export function resolveKostenLimits(rules) {
  * @returns {'ok'|'warn'|'teuer'|'unknown'}
  */
 export function classifyKostenAmpel(typ, betrag, rules) {
-    const n = Number(betrag);
+    const n = typeof betrag === 'number' ? betrag : Number(betrag);
     if (!Number.isFinite(n) || n < 0) return 'unknown';
-    const limits = resolveKostenLimits(rules);
-    const t = String(typ || '').trim().toLowerCase();
-    const row =
-        limits.find((l) => l.typ.toLowerCase() === t) ||
-        limits.find((l) => t.includes(l.typ.toLowerCase()) || l.typ.toLowerCase().includes(t));
+    const row = kostenLimitForTyp(typ, rules);
     if (!row) return 'unknown';
-    if (n < row.okBis) return 'ok';
+    if (n <= row.okBis) return 'ok';
     if (n <= row.warnBis) return 'warn';
     return 'teuer';
+}
+
+/**
+ * @param {'ok'|'warn'|'teuer'|'unknown'} level
+ */
+export function kostenAmpelLabel(level) {
+    if (level === 'ok') return 'Im Rahmen – ohne Rücksprache';
+    if (level === 'warn') return 'Rücksprache empfohlen';
+    if (level === 'teuer') return 'Besondere Prüfung';
+    return '';
 }
 
 /**
@@ -221,22 +278,62 @@ export function appendAenderungsLog(prev, entry, iso) {
     return old ? `${old}\n${line}` : line;
 }
 
+/** Schulkalender-Zeitzone – dateOnly aus SPO ist Mitternacht in dieser Zone. */
+const AKT_DATE_TZ = 'Europe/Vienna';
+
 /**
+ * Kalenderdatum YYYY-MM-DD aus Date / SharePoint / Graph.
+ * SharePoint dateOnly kommt oft als lokale Mitternacht in UTC
+ * (AT: 30.11. → `2026-11-29T23:00:00Z`). Ein naiver ISO-Prefix wäre dann −1 Tag.
  * @param {unknown} value
  * @returns {string|null}
  */
 export function toIsoDateOnly(value) {
     if (value == null) return null;
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
-        const y = value.getFullYear();
-        const m = String(value.getMonth() + 1).padStart(2, '0');
-        const d = String(value.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        return formatYmdInAppTz(value);
     }
     const s = String(value).trim();
+    if (!s) return null;
+
+    // SharePoint REST: /Date(milliseconds)/
+    const od = /^\/Date\((-?\d+)(?:[+-]\d+)?\)\/$/.exec(s);
+    if (od) {
+        const dt = new Date(Number(od[1]));
+        return Number.isNaN(dt.getTime()) ? null : formatYmdInAppTz(dt);
+    }
+
+    // Reines Kalenderdatum – nie über TZ/Date schicken
+    const pure = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (pure) return `${pure[1]}-${pure[2]}-${pure[3]}`;
+
+    // ISO mit Zeit/Offset: Kalendertag in Europe/Vienna (SPO dateOnly-Quirk)
+    if (/T\d{2}:\d{2}/.test(s) || /[Zz]|[+-]\d{2}:?\d{2}$/.test(s)) {
+        const dt = new Date(s);
+        if (!Number.isNaN(dt.getTime())) return formatYmdInAppTz(dt);
+    }
+
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
     if (!m) return null;
     return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+/** @param {Date} d */
+function formatYmdInAppTz(d) {
+    try {
+        // en-CA → YYYY-MM-DD, unabhängig von der Laufzeit-TZ (CI/UTC vs. AT)
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: AKT_DATE_TZ,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(d);
+    } catch {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
 }
 
 function utcNoonMs(iso) {

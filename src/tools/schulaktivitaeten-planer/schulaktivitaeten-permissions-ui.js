@@ -121,7 +121,7 @@ function htmlEditableGroupPicker(f, vals) {
     const gid = escapeAttr(vals[f.role + 'Id'] || '');
     return `<label class="sr-only" for="${f.labelInputId}">Entra-Gruppe ${escapeAttr(f.dialogTitle)}</label>
           <div class="fr-setup-egp">
-            <input id="${f.labelInputId}" type="text" readonly placeholder="Gruppe in Microsoft 365 suchen …" value="${label}">
+            <input id="${f.labelInputId}" type="text" readonly placeholder="Klicken oder tippen zum Suchen …" value="${label}" title="Öffnet die Microsoft-365-Gruppensuche">
             <input id="${f.idInputId}" type="hidden" value="${gid}">
             <button type="button" class="btn btn-sm" id="${f.pickBtnId}"><i class="bi bi-search"></i>Gruppe</button>
             <button type="button" class="btn btn-sm alt" id="${f.clearBtnId}" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
@@ -131,46 +131,58 @@ function htmlEditableGroupPicker(f, vals) {
 /**
  * @param {'admin'|'einreicher'} which
  * @param {ReturnType<typeof normalizeAktPermissionsConfig>} vals
+ * @param {{ embedded?: boolean }} [opts]
  */
-function htmlPermCard(which, vals) {
+function htmlPermCard(which, vals, opts) {
+    const embedded = !!(opts && opts.embedded);
+    const cardClass = embedded
+        ? 'fr-setup-perm-card fr-setup-perm-card--embedded'
+        : 'fr-setup-perm-card';
     if (which === 'admin') {
         const f = AKT_SETUP_GROUP_FIELDS[0];
         const spec = SETUP_EXTRA_USER_SPECS[0];
-        return `<article class="fr-setup-perm-card">
-          <div class="fr-setup-perm-card__head">
+        const head = embedded
+            ? `<h4 class="fr-setup-perm-card__title">Genehmigung / Direktion</h4>`
+            : `<div class="fr-setup-perm-card__head">
             <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-building"></i></span>
             <div>
               <h4>Genehmigung / Direktion</h4>
               <p>Genehmigt Anträge, pflegt Regelwerk und Stammdaten – Vollzugriff auf alle Paket-Listen.</p>
             </div>
-          </div>
-          <p class="fr-setup-perm-sub">Entra-Gruppe oder mail-aktivierte Sicherheitsgruppe</p>
+          </div>`;
+        return `<article class="${cardClass}">
+          ${head}
+          <p class="fr-setup-perm-sub">Microsoft-365-Gruppe</p>
           ${htmlEditableGroupPicker(f, vals)}
           <p class="fr-setup-perm-sub">Einzelpersonen (optional)</p>
           <ul id="${spec.listId}" class="fr-setup-user-list" aria-label="Genehmigung Einzelpersonen"></ul>
           <div class="fr-setup-egp fr-setup-egp--tight">
-            <button type="button" class="btn btn-sm" id="${spec.addBtnId}"><i class="bi bi-person-plus"></i>Person</button>
-            <button type="button" class="btn btn-sm alt" id="${spec.stammdatenBtnId}" title="Verwaltung aus Stammdaten"><i class="bi bi-journal-text"></i>Aus Stammdaten</button>
+            <button type="button" class="btn btn-sm akt-btn-secondary" id="${spec.addBtnId}"><i class="bi bi-person-plus"></i>Person</button>
+            <button type="button" class="btn btn-sm akt-btn-ghost" id="${spec.stammdatenBtnId}" title="Verwaltung aus Stammdaten"><i class="bi bi-journal-text"></i>Aus Stammdaten</button>
           </div>
         </article>`;
     }
     const f = AKT_SETUP_GROUP_FIELDS[1];
     const spec = SETUP_EXTRA_USER_SPECS[1];
-    return `<article class="fr-setup-perm-card">
-      <div class="fr-setup-perm-card__head">
+    const head = embedded
+        ? `<h4 class="fr-setup-perm-card__title">Einreicher (Lehrkräfte)</h4>
+          <p class="fr-setup-perm-sub">Ohne diese Gruppe sehen Lehrer nach „Listenrechte anwenden“ die Liste nicht.</p>`
+        : `<div class="fr-setup-perm-card__head">
         <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
         <div>
           <h4>Einreicher</h4>
-          <p>Dürfen Schulaktivitäten einreichen und Klassen/Lehrerinnen lesen – typischerweise die Lehrkräfte-Gruppe.</p>
+          <p>Dürfen Schulaktivitäten einreichen, den Schulkalender (alle Termine) lesen und Klassen/Lehrerinnen lesen – typischerweise die Lehrkräfte-Gruppe.</p>
         </div>
-      </div>
-      <p class="fr-setup-perm-sub">Entra-Gruppe oder mail-aktivierte Sicherheitsgruppe</p>
+      </div>`;
+    return `<article class="${cardClass}">
+      ${head}
+      <p class="fr-setup-perm-sub">Microsoft-365-Gruppe</p>
       ${stammdatenEinreicherHintHtml()}
       ${htmlEditableGroupPicker(f, vals)}
       <p class="fr-setup-perm-sub">Einzelpersonen (optional)</p>
       <ul id="${spec.listId}" class="fr-setup-user-list" aria-label="Einreicher Einzelpersonen"></ul>
       <div class="fr-setup-egp fr-setup-egp--tight">
-        <button type="button" class="btn btn-sm" id="${spec.addBtnId}"><i class="bi bi-person-plus"></i>Person</button>
+        <button type="button" class="btn btn-sm akt-btn-secondary" id="${spec.addBtnId}"><i class="bi bi-person-plus"></i>Person</button>
       </div>
     </article>`;
 }
@@ -178,33 +190,65 @@ function htmlPermCard(which, vals) {
 /**
  * @param {ReturnType<typeof normalizeAktPermissionsConfig>} [p]
  * @param {'admin'|'einreicher'|'all'} [which]
+ * @param {{ embedded?: boolean }} [opts]
  */
-export function htmlAktSetupEntraPermGrid(p, which) {
+export function htmlAktSetupEntraPermGrid(p, which, opts) {
     const vals = normalizeAktPermissionsConfig(p || loadEffectiveAktPermissionsConfig());
     const mode = which || 'all';
+    const cardOpts = { embedded: !!(opts && opts.embedded) };
+    const gridClass = cardOpts.embedded
+        ? 'fr-setup-perm-grid fr-setup-perm-grid--single fr-setup-perm-grid--embedded'
+        : 'fr-setup-perm-grid fr-setup-perm-grid--single';
     if (mode === 'admin') {
-        return `<div class="fr-setup-perm-grid fr-setup-perm-grid--single">${htmlPermCard('admin', vals)}</div>`;
+        return `<div class="${gridClass}">${htmlPermCard('admin', vals, cardOpts)}</div>`;
     }
     if (mode === 'einreicher') {
-        return `<div class="fr-setup-perm-grid fr-setup-perm-grid--single">${htmlPermCard(
-            'einreicher',
-            vals
-        )}</div>`;
+        return `<div class="${gridClass}">${htmlPermCard('einreicher', vals, cardOpts)}</div>`;
     }
-    return `<div class="fr-setup-perm-grid">
-      ${htmlPermCard('admin', vals)}
-      ${htmlPermCard('einreicher', vals)}
+    return `<div class="fr-setup-perm-grid fr-setup-perm-grid--two${cardOpts.embedded ? ' fr-setup-perm-grid--embedded' : ''}">
+      ${htmlPermCard('admin', vals, cardOpts)}
+      ${htmlPermCard('einreicher', vals, cardOpts)}
     </div>`;
 }
 
-export function readAktPermissionsFromPickers() {
+/**
+ * Liest nur Felder, die im DOM wirklich gemountet sind.
+ * Sonst würde z. B. die Systemadmin-Karte „nur Genehmiger“ die Einreicher-Gruppe
+ * auf leer überschreiben – danach fehlen Lehrkräften die Listenrechte.
+ * @param {'admin'|'einreicher'|'all'} [which]
+ */
+export function readAktPermissionsFromPickers(which) {
+    const mode = which || 'all';
     const out = { skipPerms: false };
-    AKT_SETUP_GROUP_FIELDS.forEach((f) => {
+    const fields =
+        mode === 'admin'
+            ? AKT_SETUP_GROUP_FIELDS.filter((f) => f.role === 'groupAdmin')
+            : mode === 'einreicher'
+              ? AKT_SETUP_GROUP_FIELDS.filter((f) => f.role === 'groupLehrer')
+              : AKT_SETUP_GROUP_FIELDS;
+    fields.forEach((f) => {
+        // Fehlende Inputs nicht als „Gruppe löschen“ werten
+        if (!document.getElementById(f.labelInputId) && !document.getElementById(f.idInputId)) {
+            return;
+        }
         const r = readGroupPickerField(f);
         out[f.role] = r.label;
         out[f.role + 'Id'] = r.id;
     });
-    Object.assign(out, setupExtraCtrl.readPatch());
+    const usersPatch = setupExtraCtrl.readPatch();
+    const userSpecs =
+        mode === 'admin'
+            ? SETUP_EXTRA_USER_SPECS.filter((s) => s.configKey === 'adminUsers')
+            : mode === 'einreicher'
+              ? SETUP_EXTRA_USER_SPECS.filter((s) => s.configKey === 'lehrerUsers')
+              : SETUP_EXTRA_USER_SPECS;
+    userSpecs.forEach((spec) => {
+        // Liste nicht im DOM → Draft nicht als leeres Array speichern
+        if (!document.getElementById(spec.listId)) return;
+        if (Object.prototype.hasOwnProperty.call(usersPatch, spec.configKey)) {
+            out[spec.configKey] = usersPatch[spec.configKey];
+        }
+    });
     return out;
 }
 
@@ -235,10 +279,28 @@ export function wireAktPermissionGroupPickers(onChange) {
     });
 }
 
-export function persistAktPickersToStorage(skipPerms) {
-    const patch = readAktPermissionsFromPickers();
+/**
+ * @param {boolean|null|undefined} skipPerms
+ * @param {'admin'|'einreicher'|'all'} [which] welcher UI-Ausschnitt gemountet ist
+ */
+export function persistAktPickersToStorage(skipPerms, which) {
+    const patch = readAktPermissionsFromPickers(which || detectMountedAktPermWhich());
     if (skipPerms != null) patch.skipPerms = !!skipPerms;
     return saveAktPermissionsConfig(patch);
+}
+
+/** @returns {'admin'|'einreicher'|'all'} */
+export function detectMountedAktPermWhich() {
+    const hasAdmin = !!(
+        document.getElementById('spaktGroupAdmin') || document.getElementById('spaktAdminUsers')
+    );
+    const hasLehrer = !!(
+        document.getElementById('spaktGroupLehrer') || document.getElementById('spaktLehrerUsers')
+    );
+    if (hasAdmin && hasLehrer) return 'all';
+    if (hasAdmin) return 'admin';
+    if (hasLehrer) return 'einreicher';
+    return 'all';
 }
 
 /**

@@ -804,8 +804,8 @@
                 : 'Schritt 3: Website wählen und „Liste anlegen / prüfen“.';
         } else if (step === 4) {
             el.textContent = permsStepConfigured()
-                ? 'Schritt 4: Berechtigungen gesetzt – optional Outlook-Kalender, dann Flow.'
-                : 'Schritt 4: Entra-Gruppen Lehrkräfte / Direktion wählen und speichern.';
+                ? 'Schritt 4: Rollen gespeichert – „Listenrechte setzen“ schreibt auf SharePoint.'
+                : 'Schritt 4: Genehmigung & Einreicher wählen, dann speichern & Listenrechte setzen.';
         } else {
             el.textContent = g.flowOk
                 ? 'Schritt 5: Flow als importiert markiert – im Planer testen.'
@@ -903,7 +903,7 @@
                     }
                 }
                 if (cur === 4 && !permsStepConfigured()) {
-                    toast('Tipp: Lehrer- und Direktions-Gruppe wählen und speichern.');
+                    toast('Tipp: Genehmigung/Einreicher wählen und „Rollen speichern & Listenrechte setzen“.');
                 }
                 showSetupStep(cur + 1);
             });
@@ -928,14 +928,26 @@
             btnPerms.addEventListener('click', async function () {
                 const cfg = persistFromForm();
                 if (!cfg.siteUrl || !cfg.listName) {
-                    toast('Site-URL und Listenname fehlen.');
+                    toast('Site-URL und Listenname fehlen (Schritt 3).');
                     return;
                 }
+                const permLogEl = $('frPermsLog');
+                const writePerm = function (m) {
+                    if (permLogEl) {
+                        const line = document.createElement('div');
+                        line.textContent = String(m || '');
+                        permLogEl.appendChild(line);
+                        const panel = permLogEl.closest('details');
+                        if (panel) panel.open = true;
+                    }
+                    log(m);
+                };
                 try {
                     if (window.ms365LfrListPerms && window.ms365LfrListPerms.apply) {
                         const listTitle = await resolveListDisplayNameForCfg(cfg);
                         const listId = String(cfg.listId || ($('frListId') && $('frListId').value) || '').trim();
-                        log('Berechtigungen für Liste „' + listTitle + '“ …');
+                        writePerm('Berechtigungen für Liste „' + listTitle + '“ …');
+                        btnPerms.disabled = true;
                         await window.ms365LfrListPerms.apply(
                             cfg.siteUrl,
                             listTitle,
@@ -943,13 +955,15 @@
                                 listId: listId,
                                 flowServiceAccount: effectiveFlowAccount(cfg)
                             },
-                            log
+                            writePerm
                         );
                         if ($('frListName') && listTitle) $('frListName').value = listTitle;
-                        toast('Berechtigungen angewendet – Protokoll prüfen.');
+                        toast('Listenrechte angewendet – Protokoll in Schritt 4 prüfen.');
                     }
                 } catch (e) {
                     toast(String((e && e.message) || e));
+                } finally {
+                    btnPerms.disabled = false;
                 }
             });
         }

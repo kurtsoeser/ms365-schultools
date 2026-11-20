@@ -105,9 +105,17 @@ export function upsertDemoStudentInStudentsList(students, account) {
     if (peopleListHasEmail(list, account.email)) {
         return { students: list, changed: false };
     }
+    const parts = String(account.name || '')
+        .trim()
+        .split(/\s+/);
+    const vorname = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '';
+    const nachname = parts.length > 1 ? parts[parts.length - 1] : '';
     list.push({
         name: account.name,
         email: account.email,
+        vorname,
+        nachname,
+        // Demo-Schüler ohne Klassen-Match: leere Klasse – Tool setzt Fallback aus Wizard
         klasse: String(account.klasse || '').trim()
     });
     return { students: list, changed: true };

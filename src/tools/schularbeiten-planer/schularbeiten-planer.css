@@ -1,7 +1,16 @@
 /* Schularbeiten-Planer – Layout an app.css / tool-modern angelehnt */
 
+.sa-page {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+
 .sa-page .content {
     padding-bottom: 24px;
+}
+
+.sa-page-header > p:not(.header-help-row) {
+    display: none;
 }
 
 .sa-shell {
@@ -51,8 +60,38 @@
 .sa-nav__list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 12px;
     flex: 1;
+    overflow-y: auto;
+}
+
+.sa-nav__section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sa-nav__section-label {
+    display: block;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    padding: 4px 10px 2px;
+}
+
+.sa-nav__btn-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.sa-nav__btn--cta {
+    font-weight: 650;
+}
+
+.sa-nav__role {
+    margin-top: auto;
+    padding-top: 8px;
 }
 
 .sa-nav__btn {
@@ -338,6 +377,107 @@
     display: block;
     color: var(--text-secondary);
     margin-top: 2px;
+}
+
+.sa-top__intro {
+    min-width: 0;
+}
+
+.sa-top__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.sa-top__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sa-klasse-pick {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.sa-klasse-pick select {
+    min-height: 38px;
+    min-width: 10rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.92rem;
+    padding: 6px 10px;
+}
+
+.sa-listbar__meta {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.sa-text-link {
+    border: 0;
+    background: transparent;
+    color: var(--accent, var(--brand1));
+    font: inherit;
+    font-weight: 650;
+    padding: 4px 0;
+    cursor: pointer;
+}
+
+.sa-text-link:hover,
+.sa-text-link:focus-visible {
+    text-decoration: underline;
+}
+
+.sa-empty {
+    padding: 8px 2px 4px;
+}
+
+.sa-empty .btn {
+    margin-top: 10px;
+}
+
+.sa-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.sa-table--rows .sa-table__row {
+    cursor: pointer;
+}
+
+.sa-table--rows .sa-table__row:hover {
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card));
+}
+
+.sa-table--rows .sa-table__row:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--brand1) 50%, transparent);
+    outline-offset: -2px;
+}
+
+.sa-page .ms365-ev--fixiert {
+    --th-ev: #15803d;
+    --th-ev-bg: #f0fdf4;
+}
+
+.sa-cal__admin-bar {
+    margin: 0 0 10px;
 }
 
 .sa-filters {
@@ -1713,7 +1853,8 @@ label.btn.sa-import-btn {
         align-items: center;
     }
 
-    .sa-nav__list {
+    .sa-nav__list,
+    .sa-nav__section {
         flex-direction: row;
         flex-wrap: wrap;
         flex: 1 1 100%;
@@ -1744,6 +1885,7 @@ label.btn.sa-import-btn {
     .sa-nav,
     .sa-top,
     .sa-filters,
+    .sa-listbar,
     .sa-export-cards,
     .toolbar,
     #ms365AuthWidget {

@@ -26,7 +26,7 @@ export const VIEWS = [
     { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', adminOnly: false, staffOnly: false },
     { id: 'neu', label: 'Neue Schularbeit', icon: 'bi-plus-circle', adminOnly: false, staffOnly: true },
     { id: 'meine', label: 'Meine Schularbeiten', icon: 'bi-card-checklist', adminOnly: false, staffOnly: true },
-    { id: 'admin', label: 'Administration', icon: 'bi-shield-check', adminOnly: true, staffOnly: true },
+    { id: 'admin', label: 'Systemadministration', icon: 'bi-shield-check', adminOnly: true, staffOnly: true },
     { id: 'regeln', label: 'Regelwerk', icon: 'bi-book', adminOnly: false, staffOnly: true },
     { id: 'export', label: 'Export', icon: 'bi-download', adminOnly: false, staffOnly: false }
 ];
@@ -51,6 +51,7 @@ export function createInitialState() {
         siteUrl: '',
         ctx: null,
         view: 'dashboard',
+        systemTab: 'site',
         role: 'lehrer',
         schuljahr: loadSchuljahr() || currentSchoolYearFromDate(),
         filters: { klasse: '', fach: '', lehrer: '', status: '' },
@@ -64,7 +65,7 @@ export function createInitialState() {
         rules: { ...DEFAULT_RULES, name: 'Standard', itemId: '', regelwerkId: 'rw-1', aktiv: true },
         settings: loadPlanerSettings(),
         calShow: loadCalShowSettings(),
-        /** @type {'month'|'week'} */
+        /** @type {'agenda'|'week'|'month'} */
         calMode: loadCalModeSettings(),
         /** Montag (ISO) für Kalender-Wochenansicht */
         calWeekMonday: '',
@@ -190,6 +191,7 @@ export function matchTeacherByEmail(email, teachers) {
     return (
         list.find((t) => t.email && String(t.email).trim().toLowerCase() === em) ||
         list.find((t) => t.mail && String(t.mail).trim().toLowerCase() === em) ||
+        list.find((t) => t.upn && String(t.upn).trim().toLowerCase() === em) ||
         null
     );
 }
@@ -380,18 +382,21 @@ export function persistCalShowSettings(patch) {
     return next;
 }
 
-/** @returns {'month'|'week'} */
+const CAL_MODES = ['agenda', 'week', 'month'];
+
+/** @returns {'agenda'|'week'|'month'} */
 export function loadCalModeSettings() {
     try {
-        return localStorage.getItem(CAL_MODE_STORAGE_KEY) === 'week' ? 'week' : 'month';
+        const stored = localStorage.getItem(CAL_MODE_STORAGE_KEY);
+        return CAL_MODES.includes(stored) ? stored : 'month';
     } catch {
         return 'month';
     }
 }
 
-/** @param {'month'|'week'} mode */
+/** @param {'agenda'|'week'|'month'} mode */
 export function persistCalModeSettings(mode) {
-    const next = mode === 'week' ? 'week' : 'month';
+    const next = CAL_MODES.includes(mode) ? mode : 'month';
     try {
         localStorage.setItem(CAL_MODE_STORAGE_KEY, next);
     } catch {

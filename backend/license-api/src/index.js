@@ -7,3 +7,4 @@ require('./functions/httpFeedback');
 require('./functions/httpCatalogKursteam');
 require('./functions/httpCatalogMaterials');
 require('./functions/httpCatalogOnenote');
+require('./functions/httpMaturaTermine');

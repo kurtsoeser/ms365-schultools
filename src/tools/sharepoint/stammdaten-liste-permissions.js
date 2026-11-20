@@ -33,8 +33,8 @@ export const STAMMDATEN_LIST_PERM_PROFILES = {
     arges: { admin: 'fullControl', lehrer: 'contribute', schueler: null },
     /** Klassen inkl. Personenfeld Schülerinnen: Schüler-Gruppe nur Lesen. */
     klassen: { admin: 'fullControl', lehrer: 'contribute', schueler: 'read' },
-    /** Lehrkräfte-Stammliste – für Schüler-Gruppe kein Zugriff. */
-    lehrer: { admin: 'fullControl', lehrer: 'read', schueler: null },
+    /** Lehrkräfte-Stammliste – Schüler lesen die Namen (Betreuungslehrer im Anmeldeformular). */
+    lehrer: { admin: 'fullControl', lehrer: 'read', schueler: 'read' },
     /** Belegung Klasse × Lehrkraft × Fach (Lookups). */
     lehrerJeKlasse: { admin: 'fullControl', lehrer: 'contribute', schueler: null }
 };

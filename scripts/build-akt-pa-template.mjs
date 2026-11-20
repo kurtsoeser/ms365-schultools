@@ -4,17 +4,16 @@
  */
 import fs from 'fs';
 import path from 'path';
+import {
+    AKT_FLOW_ASSET_ID,
+    AKT_FLOW_SOURCE
+} from '../src/tools/power-automate/schulaktivitaeten-setup-package.js';
 
-const FLOW_ID = 'a7f3c91e-2b4d-4e8a-9c1f-6d5e8b0a4f27';
+const FLOW_ID = AKT_FLOW_ASSET_ID;
 const BASE = 'assets/power-automate/schulaktivitaeten';
 
-const SOURCE = {
-    siteUrl: 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools',
-    listId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-    emailDirektion: 'direktor@ms365.schule',
-    emailMailbox: 'automate@ms365.schule',
-    connectionOwner: 'kurt@kurtsoeser.at'
-};
+/** Platzhalter – Setup ersetzt Site/Liste/Mails beim ZIP-Bau (Multitenant). */
+const SOURCE = AKT_FLOW_SOURCE;
 
 function actorExpr() {
     return (
@@ -289,6 +288,15 @@ function buildRootManifest() {
 
     const oldFlowKey = '6c60dd7e-ab68-4cc8-949e-d689badc0993';
     delete manifest.resources[oldFlowKey];
+    // Connections wie Freistellung: Existing (suggestedCreationType New blockiert PA-Import-UI)
+    Object.keys(manifest.resources || {}).forEach((key) => {
+        const r = manifest.resources[key];
+        if (!r) return;
+        if (r.type === 'Microsoft.PowerApps/apis/connections') {
+            r.suggestedCreationType = 'Existing';
+            r.creationType = 'Existing';
+        }
+    });
     manifest.resources[FLOW_ID] = {
         type: 'Microsoft.Flow/flows',
         suggestedCreationType: 'New',

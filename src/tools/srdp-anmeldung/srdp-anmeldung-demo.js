@@ -229,7 +229,8 @@ export function getDemoSeedPackage() {
  */
 export function buildLocalDemoState(base) {
     const pack = getDemoSeedPackage();
-    return Object.assign({}, base || {}, {
+    const prev = base && typeof base === 'object' ? base : {};
+    return Object.assign({}, prev, {
         localDemoOnly: true,
         siteUrl: DEMO_SITE_DEFAULT,
         listId: 'demo-list',
@@ -238,7 +239,8 @@ export function buildLocalDemoState(base) {
         wizard: pack.wizard,
         stammdaten: pack.stammdaten,
         items: pack.items,
-        demoRoleOverride: false,
+        // URL-Flag ?demoRole=1 nicht überschreiben – sonst fehlen die Rollen-Chips.
+        demoRoleOverride: !!prev.demoRoleOverride,
         demoPersonaEmail: '',
         demoPersonaName: '',
         planerRoles: ['schueler', 'lehrer', 'admin'],

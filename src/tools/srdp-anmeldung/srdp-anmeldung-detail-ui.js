@@ -1,7 +1,7 @@
 /**
  * Detail-Drawer für sRDP-Anmeldungen (eine Quelle für Liste/Kalender/Dashboard).
  */
-import { buildAnmeldungSummary, teacherRolesOnItem } from './srdp-anmeldung-logic.js';
+import { buildAnmeldungSummary, buildPruefplanDetail, teacherRolesOnItem } from './srdp-anmeldung-logic.js';
 import { isSrdpStaffRole } from './srdp-anmeldung-state.js';
 
 function esc(s) {
@@ -10,6 +10,36 @@ function esc(s) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+function planDateHtml(row) {
+    if (row && row.datum) return `<time datetime="${esc(row.datumIso)}">${esc(row.datum)}</time>`;
+    if (row && row.datumHinweis) return `<time class="is-school">${esc(row.datumHinweis)}</time>`;
+    return '';
+}
+
+function planSplitHtml(item, profileId, terminJahr, bfkDatum) {
+    const plan = buildPruefplanDetail(item, profileId, { terminJahr, bfkDatum });
+    const col = (title, rows, mod) => {
+        const body = (rows || [])
+            .map((r) => {
+                if (!r.part) return '';
+                return `<li><strong>${esc(r.part)}</strong>${planDateHtml(r)}${
+                    r.detail ? `<span>${esc(r.detail)}</span>` : ''
+                }</li>`;
+            })
+            .join('');
+        return `<section class="srdp-plan-col srdp-plan-col--${mod}">
+          <h4>${esc(title)}</h4>
+          <ul>${body || '<li><span>–</span></li>'}</ul>
+        </section>`;
+    };
+    if (!plan.schriftlich.length && !plan.muendlich.length) return '';
+    return `<div class="srdp-plan-split">${col('Schriftlich', plan.schriftlich, 'schriftlich')}${col(
+        'Mündlich',
+        plan.muendlich,
+        'muendlich'
+    )}</div>`;
 }
 
 /**
@@ -23,6 +53,7 @@ export function renderAnmeldungDrawer(item, state) {
     const staff = isSrdpStaffRole(state.role);
     const confirmed = !!item.bestaetigung;
     const nacharbeit = !!item.nacharbeitErledigt;
+    const profileId = state.options && state.options.profileId;
     return `
     <div class="srdp-drawer-backdrop" data-srdp-drawer-close tabindex="-1"></div>
     <aside class="srdp-drawer" role="dialog" aria-modal="true" aria-label="Anmeldungsdetail">
@@ -30,34 +61,32 @@ export function renderAnmeldungDrawer(item, state) {
         <div>
           <p class="srdp-drawer__eyebrow">${esc(item.klasse || '–')} · ${esc(item.variante || '–')}</p>
           <h2>${esc(summary.title || item.title || 'Anmeldung')}</h2>
+          <div class="srdp-drawer__badges">
+            <span class="srdp-badge ${confirmed ? 'srdp-badge--ok' : 'srdp-badge--warn'}">${
+                confirmed ? 'Bestätigt' : 'Bestätigung offen'
+            }</span>
+            <span class="srdp-badge ${nacharbeit ? 'srdp-badge--ok' : 'srdp-badge--info'}">${
+                nacharbeit ? 'In der Prüfungsliste' : 'Noch nicht in der Prüfungsliste'
+            }</span>
+          </div>
         </div>
         <button type="button" class="btn" data-srdp-drawer-close aria-label="Schließen"><i class="bi bi-x-lg"></i></button>
       </header>
       <div class="srdp-drawer__body">
-        <p class="srdp-panel__hint">${esc(summary.pruefplan || 'Prüfplan folgt der gewählten Variante.')}</p>
-        <div class="srdp-drawer__badges">
-          <span class="srdp-badge ${confirmed ? 'srdp-badge--ok' : 'srdp-badge--warn'}">${
-              confirmed ? 'Bestätigt' : 'Bestätigung offen'
-          }</span>
-          <span class="srdp-badge ${nacharbeit ? 'srdp-badge--ok' : 'srdp-badge--info'}">${
-              nacharbeit ? 'Prüfungsliste erledigt' : 'Nacharbeit offen'
-          }</span>
-        </div>
-        <dl class="srdp-summary" style="border:0;box-shadow:none;margin:0;">
-          ${summary.rows
-              .map((r) => `<dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd>`)
-              .join('')}
-          ${
-              item.schuelerEmail
-                  ? `<dt>Schüler-E-Mail</dt><dd>${esc(item.schuelerEmail)}</dd>`
-                  : ''
-          }
-        </dl>
+        ${planSplitHtml(item, profileId, state.options && state.options.jahr, state.options && state.options.bfkDatum)}
+        ${
+            item.schuelerEmail
+                ? `<p class="srdp-drawer__mail">${esc(item.schuelerEmail)}</p>`
+                : ''
+        }
         ${
             roles.length
-                ? `<p class="muted">Deine Rollen: ${roles
-                      .map((r) => esc(r.label))
-                      .join(', ')}</p>`
+                ? `<p class="muted">Deine Rollen: ${roles.map((r) => esc(r.label)).join(', ')}</p>`
+                : ''
+        }
+        ${
+            staff
+                ? `<p class="srdp-field__hint">Die Prüfungsliste ist die organisatorische Nacharbeit. Sie ist unabhängig davon, ob die Schülerin die Anmeldung bestätigt hat.</p>`
                 : ''
         }
       </div>
@@ -68,7 +97,7 @@ export function renderAnmeldungDrawer(item, state) {
                       item.itemId
                   )}">
             <i class="bi bi-clipboard-check"></i>${
-                nacharbeit ? 'Nacharbeit wieder öffnen' : 'Prüfungsliste erledigt'
+                nacharbeit ? 'Aus der Prüfungsliste nehmen' : 'In die Prüfungsliste übernehmen'
             }
           </button>`
                 : ''

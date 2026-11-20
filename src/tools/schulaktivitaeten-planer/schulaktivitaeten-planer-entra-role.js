@@ -90,6 +90,33 @@ function currentPortalIsSchulIt() {
 }
 
 /**
+ * Dave-Grohl-Demo-Persona nur für echte Schul-IT (Vorschau mit Seed-Daten).
+ * Direktion / Genehmiger (Entra, Einzelperson, Stammdaten) behalten die Admin-Ansicht.
+ * @param {{ planerRoles?: string[], planerRoleSources?: Record<string, string> }|null|undefined} state
+ * @returns {boolean}
+ */
+export function shouldAutoApplyAktDemoTeacherPersona(state) {
+    if (!state) return false;
+    const roles = Array.isArray(state.planerRoles) ? state.planerRoles : [];
+    if (!roles.map((r) => String(r || '').toLowerCase()).includes('admin')) return false;
+    const src = String((state.planerRoleSources && state.planerRoleSources.admin) || '')
+        .trim()
+        .toLowerCase();
+    if (src === 'designated-it' || src === 'global-admin') return true;
+    // Direktion / Genehmiger explizit ausschließen
+    if (
+        src === 'stammdaten-direktion' ||
+        src === 'admin-user' ||
+        src === 'direktion-user' ||
+        src === 'entra'
+    ) {
+        return false;
+    }
+    // Fallback: Portal markiert angemeldete Person als Schul-IT
+    return currentPortalIsSchulIt();
+}
+
+/**
  * Shell-bewusste Standard-App-Rolle bei Mehrfachrollen.
  * Schul-IT: Portal → Lehrer (Alltag), IT-Backend → Admin.
  * Direktion / Genehmiger (Admin, aber nicht Schul-IT): immer Admin – sonst keine Freigabe-Inbox.

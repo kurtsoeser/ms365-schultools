@@ -73,6 +73,7 @@ import {
     readDemoRoleOverrideFromUrl
 } from './projektwochen-entra-role.js';
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import { announcePlannerState } from '../../shared/app-role-chrome.js';
 import {
     toolSiteUrlFromLicenseResult,
     applyToolSiteUrlLocally,
@@ -98,6 +99,7 @@ function toast(msg) {
 
 function paint() {
     if (!root) return;
+    announcePlannerState('projektwochen', state);
     renderApp(state, root);
     bindStatic();
     import('../../shared/frontend-planner-chrome-policy.js')
@@ -113,6 +115,14 @@ function bindStatic() {
     // Ersetzt das frühere onsubmit="return false" am Formular (CSP erlaubt keine Inline-Handler).
     const pwForm = root.querySelector('#pwForm');
     if (pwForm) pwForm.addEventListener('submit', (ev) => ev.preventDefault());
+    root.querySelectorAll('[data-pw-sys-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const id = String(btn.getAttribute('data-pw-sys-tab') || 'site');
+            state.systemTab =
+                id === 'perms' || id === 'kalender' || id === 'wartung' || id === 'danger' ? id : 'site';
+            paint();
+        });
+    });
     root.querySelectorAll('[data-pw-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-pw-view') || 'dashboard';
@@ -161,7 +171,7 @@ function bindStatic() {
             if (!state.siteUrl) {
                 state.view = 'einstellungen';
                 paint();
-                toast('Bitte zuerst unter Einstellungen die SharePoint-Website hinterlegen.');
+                toast('Bitte zuerst unter Systemadministration die SharePoint-Website hinterlegen.');
                 return;
             }
             refreshData().catch((e) => {

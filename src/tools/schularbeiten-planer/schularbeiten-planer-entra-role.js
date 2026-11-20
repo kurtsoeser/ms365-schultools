@@ -145,22 +145,14 @@ export function planerEntraGroupIds(config) {
 }
 
 /**
+ * Direkte Gruppenmitgliedschaften (/me/memberOf) – ohne Verschachtelung.
  * @param {string[]} groupIds
  * @returns {Promise<Set<string>>}
  */
-export async function fetchUserMemberGroupIds(groupIds) {
+export async function fetchUserDirectMemberGroupIds(groupIds) {
     const ids = (groupIds || []).filter((id) => GUID_RE.test(String(id || '').trim()));
     if (!ids.length) return new Set();
     const want = new Set(ids.map((id) => String(id).toLowerCase()));
-    try {
-        const tok = await getGraphToken(CHECK_SCOPES);
-        const data = await graphJson('POST', '/me/checkMemberGroups', tok, { groupIds: ids });
-        const matched = (data && data.value) || [];
-        const out = new Set(matched.map((g) => String(g).toLowerCase()));
-        if (out.size) return out;
-    } catch {
-        /* fallback memberOf */
-    }
     try {
         const tok = await getGraphToken(CHECK_SCOPES);
         const page = await fetchAllPages(
@@ -177,6 +169,30 @@ export async function fetchUserMemberGroupIds(groupIds) {
     } catch {
         return new Set();
     }
+}
+
+/**
+ * @param {string[]} groupIds
+ * @param {{ directOnly?: boolean }} [opts] directOnly: nur /me/memberOf (keine transitive checkMemberGroups)
+ * @returns {Promise<Set<string>>}
+ */
+export async function fetchUserMemberGroupIds(groupIds, opts) {
+    const ids = (groupIds || []).filter((id) => GUID_RE.test(String(id || '').trim()));
+    if (!ids.length) return new Set();
+    if (opts && opts.directOnly) {
+        return fetchUserDirectMemberGroupIds(ids);
+    }
+    const want = new Set(ids.map((id) => String(id).toLowerCase()));
+    try {
+        const tok = await getGraphToken(CHECK_SCOPES);
+        const data = await graphJson('POST', '/me/checkMemberGroups', tok, { groupIds: ids });
+        const matched = (data && data.value) || [];
+        const out = new Set(matched.map((g) => String(g).toLowerCase()));
+        if (out.size) return out;
+    } catch {
+        /* fallback memberOf */
+    }
+    return fetchUserDirectMemberGroupIds(ids);
 }
 
 /**
@@ -451,7 +467,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             state.roleSource = 'entra';
             state.planerAccessDenied = false;
             state.roleHint =
-                'Bitte mit Ihrem Schul-Microsoft-Konto anmelden (links unten). Ihre Rolle im Planer richtet sich nach den Entra-Gruppen unter Administration → SharePoint-Berechtigungen.';
+                'Bitte mit Ihrem Schul-Microsoft-Konto anmelden (links unten). Ihre Rolle im Planer richtet sich nach den Entra-Gruppen unter Systemadministration → Berechtigungen.';
         }
         return;
     }
@@ -468,7 +484,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             applyRolesToState(state, collected.roles, collected.sources, pickOpts);
             state.planerAccessDenied = false;
             state.roleHint =
-                'Entra-Gruppen im Planer-Setup fehlen – Rolle vorläufig aus Stammdaten oder Einzelpersonen. Bitte unter Administration → SharePoint-Berechtigungen Gruppen eintragen.';
+                'Entra-Gruppen im Planer-Setup fehlen – Rolle vorläufig aus Stammdaten oder Einzelpersonen. Bitte unter Systemadministration → Berechtigungen Gruppen eintragen.';
             return;
         }
         state.role = 'lehrer';

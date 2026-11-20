@@ -35,6 +35,7 @@ import {
     pushRaumplanDelete,
     pushRaumplanRaum
 } from './raumplan-sync.js';
+import { bindSystemTabClicks, renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
 const VIEWS = [
     { id: 'uebersicht', label: 'Übersicht', icon: 'bi-speedometer2' },
@@ -42,7 +43,7 @@ const VIEWS = [
     { id: 'import', label: 'Import', icon: 'bi-upload' },
     { id: 'plan', label: 'Plan', icon: 'bi-map' },
     { id: 'technik', label: 'Technik', icon: 'bi-wrench' },
-    { id: 'system', label: 'System', icon: 'bi-gear' }
+    { id: 'system', label: 'Systemadministration', icon: 'bi-gear' }
 ];
 
 const WRITE_VIEWS = new Set(['import', 'system']);
@@ -71,6 +72,7 @@ export function mountApp(root) {
     /** @type {{ view: string, message: {type:string,text:string}|null, filters: object, editId: string }} */
     const ui = {
         view: 'uebersicht',
+        systemTab: 'site',
         message: null,
         filters: { q: '', typ: '', gebaeude: '' },
         editId: ''
@@ -465,37 +467,80 @@ export function mountApp(root) {
         const sync = getRaumplanSyncMeta();
         const site = resolveRaumplanSiteUrl() || sync.siteUrl || '– nicht gesetzt –';
         const s = state();
-        return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">System</h2>' +
-            '<div class="tm-system-panel">' +
-            '<h3>SharePoint (Live)</h3>' +
-            '<p><code>' +
-            esc(site) +
-            '</code></p>' +
-            '<p>Sync: <strong>' +
-            esc(sync.source) +
-            '</strong>' +
-            (sync.listTitle ? ' · Liste „' + esc(sync.listTitle) + '“' : '') +
-            (sync.lastPullAt ? ' · zuletzt ' + esc(formatDeDate(sync.lastPullAt)) : '') +
+        const syncLine =
+            'Sync: ' +
+            sync.source +
+            (sync.listTitle ? ' · Liste „' + sync.listTitle + '“' : '') +
+            (sync.lastPullAt ? ' · zuletzt ' + formatDeDate(sync.lastPullAt) : '') +
             (sync.connected ? ' · verbunden' : ' · nicht verbunden') +
-            (sync.error ? ' · ' + esc(sync.error) : '') +
-            '</p>' +
-            '<p>Lokal: ' +
-            (s.raeume || []).length +
-            ' Räume' +
-            (s.localDemoOnly ? ' · Demo local-first' : '') +
-            ' · mit spoItemId: ' +
-            (s.raeume || []).filter((r) => r.spoItemId).length +
-            '</p>' +
-            '<p class="ag-item__meta">Plan-Bild/PDF bleibt browser-lokal (kein SPO-SoR).</p>' +
-            '<div class="ag-toolbar">' +
-            '<button type="button" class="btn btn-success" data-rp-pull>Von SharePoint laden</button>' +
-            '<button type="button" class="btn" data-rp-demo>Demo laden</button>' +
-            '<button type="button" class="btn" data-rp-clear-seed>Demo-Seed entfernen</button>' +
-            '<button type="button" class="btn" data-rp-clear>Lokal leeren</button>' +
-            '<a class="btn" href="sharepoint-liste-raumplan.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
-            '</div></div>'
-        );
+            (sync.error ? ' · ' + sync.error : '');
+        return renderSystemAdminPage({
+            prefix: 'rp',
+            activeTab: ui.systemTab,
+            dataAttr: 'data-rp-sys-tab',
+            ariaLabel: 'Systemadministration Raumplan',
+            panels: [
+                {
+                    id: 'site',
+                    step: '1',
+                    title: 'Datenquelle',
+                    leadHtml: 'Räume liegen in SharePoint. Plan-Bild und PDF bleiben im Browser.',
+                    body:
+                        '<p><code>' +
+                        esc(site) +
+                        '</code></p><p class="muted">' +
+                        esc(syncLine) +
+                        '</p><p class="muted">Lokal: ' +
+                        (s.raeume || []).length +
+                        ' Räume' +
+                        (s.localDemoOnly ? ' · Demo local-first' : '') +
+                        ' · mit spoItemId: ' +
+                        (s.raeume || []).filter((r) => r.spoItemId).length +
+                        '</p><div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-primary" data-rp-pull>Von SharePoint laden</button>' +
+                        '<a class="btn ms-sys-btn-secondary" href="sharepoint-liste-raumplan.html"><i class="bi bi-list-ul"></i> Listen einrichten</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'perms',
+                    step: '2',
+                    title: 'Berechtigungen',
+                    leadHtml: 'Import und System sind Admin. Die Raumliste lesen alle Berechtigten.',
+                    body:
+                        '<div class="ms-sys-links"><a class="btn ms-sys-btn-secondary" href="sharepoint-liste-raumplan.html"><i class="bi bi-shield-check"></i>Listen-Assistent</a></div>'
+                },
+                {
+                    id: 'kalender',
+                    step: '3',
+                    title: 'Kalender',
+                    leadHtml: 'Kein Terminkalender. Belegung siehst du im Plan-Viewer.',
+                    body:
+                        '<div class="ms-sys-actions"><button type="button" class="btn ms-sys-btn-secondary" data-rp-go="plan"><i class="bi bi-map"></i>Plan öffnen</button></div>'
+                },
+                {
+                    id: 'wartung',
+                    step: '4',
+                    title: 'Wartung',
+                    leadHtml: 'Demo-Räume bleiben lokal.',
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-secondary" data-rp-demo>Demo laden</button>' +
+                        '<a class="btn ms-sys-btn-ghost" href="../hilfe.html"><i class="bi bi-life-preserver"></i>Hilfe</a>' +
+                        '</div>'
+                },
+                {
+                    id: 'danger',
+                    title: 'Danger Zone',
+                    danger: true,
+                    leadHtml: 'Lokal leeren entfernt den Browser-Cache, nicht die SharePoint-Liste.',
+                    body:
+                        '<div class="ms-sys-actions">' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-rp-clear-seed>Demo-Seed entfernen</button>' +
+                        '<button type="button" class="btn ms-sys-btn-danger" data-rp-clear>Lokal leeren</button>' +
+                        '</div>'
+                }
+            ]
+        });
     }
 
     function renderPlan() {
@@ -592,6 +637,13 @@ export function mountApp(root) {
     }
 
     function bind() {
+        bindSystemTabClicks(root, {
+            dataAttr: 'data-rp-sys-tab',
+            onSelect: (tab) => {
+                ui.systemTab = tab;
+                render();
+            }
+        });
         root.querySelectorAll('[data-rp-view]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 ui.view = btn.getAttribute('data-rp-view') || 'uebersicht';

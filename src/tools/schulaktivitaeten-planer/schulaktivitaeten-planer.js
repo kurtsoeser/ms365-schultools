@@ -44,9 +44,21 @@ import {
     applyAktRoleFromEntra,
     isAktDemoRoleUiEnabled,
     readDemoRoleOverrideFromUrl,
-    shellPreferredAktRole
+    shellPreferredAktRole,
+    shouldAutoApplyAktDemoTeacherPersona
 } from './schulaktivitaeten-planer-entra-role.js';
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import { announcePlannerState } from '../../shared/app-role-chrome.js';
+import {
+    saveLiveSchoolStammdatenCache,
+    mergeLiveTeachersIntoLocalTenantIfEmpty,
+    preferRicherTeacherList,
+    isSparseOrDemoOnlyTeacherList
+} from '../../shared/live-school-stammdaten-cache.js';
+import {
+    clearLiveStammdatenEnsureFlag,
+    resolveToolSiteUrlForLiveStammdaten
+} from '../../shared/ensure-live-school-stammdaten.js';
 import {
     toolSiteUrlFromLicenseResult,
     applyToolSiteUrlLocally,
@@ -165,8 +177,55 @@ function toast(msg) {
     else window.alert(msg);
 }
 
+/** Formular aus DOM lesen; bei eintägigem Termin Enddatum = Startdatum. */
+function pullFormFromDom() {
+    state.form = { ...state.form, ...readFormFromDom() };
+    if (!state.multiDay) {
+        const start = String(state.form.startdatum || '').trim();
+        if (start) state.form.enddatum = start;
+    }
+    return state.form;
+}
+
+/** Hinweise aktualisieren ohne Formular neu aufzubauen (kein Einfrieren). */
+let hintRefreshTimer = null;
+function refreshHintsInPlace() {
+    if (!(state.formAttempted || (state.formTouched && Object.keys(state.formTouched).length))) {
+        return;
+    }
+    import('./schulaktivitaeten-planer-wizard-ui.js')
+        .then((m) => {
+            if (m && typeof m.refreshAntragWizardHints === 'function') {
+                m.refreshAntragWizardHints(state);
+            }
+        })
+        .catch(() => {
+            /* ignore */
+        });
+}
+
+function scheduleHintRefresh(immediate) {
+    if (!(state.formAttempted || (state.formTouched && Object.keys(state.formTouched).length))) {
+        return;
+    }
+    if (immediate) {
+        if (hintRefreshTimer) {
+            clearTimeout(hintRefreshTimer);
+            hintRefreshTimer = null;
+        }
+        refreshHintsInPlace();
+        return;
+    }
+    if (hintRefreshTimer) clearTimeout(hintRefreshTimer);
+    hintRefreshTimer = setTimeout(() => {
+        hintRefreshTimer = null;
+        refreshHintsInPlace();
+    }, 200);
+}
+
 function paint() {
     if (!root) return;
+    announcePlannerState('schulaktivitaeten', state);
     renderApp(state, root);
     syncAktPageChrome(state);
     bindStatic();
@@ -261,10 +320,9 @@ function syncAccount() {
     }
     const local = loadStammdaten();
     const cur = state.stammdaten || { teachers: [], classes: [], students: [] };
-    // Live-Listen (nach hydrate) nicht mit localStorage überschreiben
+    // Live-/reichere Liste behalten – Demo-Einzelkonto darf Volliste nicht verdrängen
     state.stammdaten = {
-        teachers:
-            Array.isArray(cur.teachers) && cur.teachers.length ? cur.teachers : local.teachers || [],
+        teachers: preferRicherTeacherList(local.teachers || [], cur.teachers || []),
         classes:
             Array.isArray(cur.classes) && cur.classes.length ? cur.classes : local.classes || [],
         students:
@@ -363,9 +421,18 @@ function ensureDemoPersonaInStammdaten() {
     state.stammdaten = { ...sd, teachers, classes };
 }
 
+/** Dave-Persona nur bei Schul-IT – Direktion/Genehmiger behalten Admin. */
+function clearDemoPersonaUnlessSchulIt() {
+    if (!state.demoPersonaEmail) return;
+    if (shouldAutoApplyAktDemoTeacherPersona(state)) return;
+    state.demoPersonaEmail = '';
+    state.demoPersonaName = '';
+}
+
 /**
  * Wenn IT (Kurt) Demo-Seed auf SharePoint hat und selbst keine Lehrkraft ist:
  * Ansicht automatisch als Dave Grohl – ohne Admin/KV/Lehrer-Chips.
+ * Direktion / Genehmiger dürfen hier nicht landen (sonst nur „Meine Klasse“).
  */
 function maybeAutoDemoPersonaFromSeed() {
     if (state.demoPersonaEmail) return;
@@ -375,7 +442,7 @@ function maybeAutoDemoPersonaFromSeed() {
         .toLowerCase();
     if (!email) return;
     if (matchTeacherByEmail((state.stammdaten && state.stammdaten.teachers) || [], email)) return;
-    if (!(state.planerRoles || []).includes('admin')) return;
+    if (!shouldAutoApplyAktDemoTeacherPersona(state)) return;
     const hasSeed = (state.items || []).some((i) => {
         const note = String(i.notiz || '');
         const id = String(i.aktivitaetId || '');
@@ -413,6 +480,7 @@ async function syncAccountAndRole(opts) {
               ? { preferredActiveRole: null }
               : { preferredActiveRole: state.role })
     });
+    clearDemoPersonaUnlessSchulIt();
     applyDemoTeacherPersona();
     const allowed = viewsForRole(state.role, state.planerRoles, {
         kvKlassen: kvKlasseCodesForState(state)
@@ -465,6 +533,8 @@ async function acquireStammdatenReadToken(api) {
 
 /**
  * Lehrer/Klassen aus SharePoint-Live-Listen (Fallback: lokaler Cache).
+ * Die Tool-Site-Listen „Lehrerinnen“ / „Klassen“ sind die Betriebs-Wahrheit –
+ * nicht der lokale IT-Browser und nicht ein zusätzlicher Intranet-Schritt.
  * @param {string} siteId
  */
 async function hydrateLiveStammdaten(siteId) {
@@ -492,36 +562,129 @@ async function hydrateLiveStammdaten(siteId) {
         return;
     }
     try {
-        const tok = await acquireStammdatenReadToken(api);
-        const result = await hydrateStammdatenFromLiveSite({
+        const siteWebUrl = String(
+            (state.ctx && state.ctx.webUrl) || state.siteUrl || ''
+        )
+            .trim()
+            .replace(/\/+$/, '');
+        const localRaw = loadStammdaten();
+        // „Lehrer01 DEMO“ allein darf die SharePoint-Volliste nicht als Fallback festhalten
+        const local = {
+            ...localRaw,
+            teachers: isSparseOrDemoOnlyTeacherList(localRaw.teachers) ? [] : localRaw.teachers || [],
+            classes: localRaw.classes || []
+        };
+        let tok = await acquireStammdatenReadToken(api);
+        let result = await hydrateStammdatenFromLiveSite({
             token: tok,
             siteId: String(siteId),
-            siteWebUrl: String(state.siteUrl || '').trim(),
+            siteWebUrl,
             graph: api,
-            local: loadStammdaten()
+            local
         });
-        state.stammdaten = result.stammdaten;
+        let liveTeachers = (result.live && result.live.teachers) || [];
+        // Klassen ok, Lehrer leer: nochmals mit Schreib-Scope (oft gleiche Consent-Kette wie „Listen prüfen“)
+        if ((!liveTeachers.length || isSparseOrDemoOnlyTeacherList(liveTeachers)) && siteWebUrl) {
+            try {
+                const rwTok = await api.getGraphToken(STAMM_RW_SCOPES);
+                if (rwTok) {
+                    const retry = await hydrateStammdatenFromLiveSite({
+                        token: rwTok,
+                        siteId: String(siteId),
+                        siteWebUrl,
+                        graph: api,
+                        local: {
+                            teachers: [],
+                            classes: (result.stammdaten && result.stammdaten.classes) || local.classes || [],
+                            students: localRaw.students || []
+                        }
+                    });
+                    const retryTeachers = (retry.live && retry.live.teachers) || [];
+                    if (
+                        retryTeachers.length > liveTeachers.length ||
+                        ((retry.live && retry.live.classes) || []).length
+                    ) {
+                        result = retry;
+                        liveTeachers = retryTeachers;
+                        tok = rwTok;
+                    }
+                }
+            } catch {
+                /* Read-Ergebnis behalten */
+            }
+        }
+        const mergedTeachers = preferRicherTeacherList(
+            (result.stammdaten && result.stammdaten.teachers) || [],
+            liveTeachers
+        );
+        // Live leer → letzten lokalen Stand (auch Demo) behalten, damit UI nicht komplett leer ist
+        state.stammdaten = {
+            ...result.stammdaten,
+            teachers: mergedTeachers.length
+                ? mergedTeachers
+                : preferRicherTeacherList(localRaw.teachers || [], [])
+        };
         const liveClasses = (result.live && result.live.classes) || [];
-        const liveTeachers = (result.live && result.live.teachers) || [];
+        liveTeachers = (result.live && result.live.teachers) || [];
         const missing = (result.live && result.live.missing) || [];
+        const rawLehrer =
+            result.live && result.live.rawLehrerCount != null ? Number(result.live.rawLehrerCount) : 0;
         const usedLive = !!(liveClasses.length || liveTeachers.length);
         const liveSource = (result.live && result.live.source) || '';
         let err = '';
-        if (!result.ok && !liveClasses.length) err = result.error || 'Live-Laden fehlgeschlagen';
-        else if (missing.length && !liveClasses.length) err = 'Listen fehlen: ' + missing.join(', ');
-        else if (!liveClasses.length) {
+        if (!result.ok && !liveClasses.length && !liveTeachers.length) {
+            err = result.error || 'Live-Laden fehlgeschlagen';
+        } else if (missing.length && !liveClasses.length && !liveTeachers.length) {
+            err = 'Listen fehlen: ' + missing.join(', ');
+        } else if (!liveClasses.length) {
             err =
                 'Klassenliste liefert 0 Zeilen – Site: ' +
                 (state.siteUrl || '–') +
                 '. Als Einreicher Leserecht prüfen (IT: „Nur Berechtigungen“ erneut) oder „Klassen neu laden“.';
+        } else if (
+            isSparseOrDemoOnlyTeacherList(state.stammdaten.teachers) &&
+            (!liveTeachers.length || isSparseOrDemoOnlyTeacherList(liveTeachers))
+        ) {
+            err =
+                result.error ||
+                (rawLehrer > 0
+                    ? 'Lehrerinnen: ' +
+                      rawLehrer +
+                      ' SharePoint-Zeilen, aber keine lesbaren Lehrkraft-Felder (Title/Kürzel/E-Mail). IT: „Nur Stammdaten befüllen“ erneut.'
+                    : 'Lehrerinnen-Liste liefert keine Kollegiumsliste (nur Demo/leer). IT: „Nur Berechtigungen“ + Seite neu laden.');
         }
+        // Portal-Persona + andere Tools: Live-Stand cachen / Demo-Mini-Stand überschreiben
+        const persistTeachers = preferRicherTeacherList(
+            liveTeachers,
+            (state.stammdaten && state.stammdaten.teachers) || []
+        );
+        if (persistTeachers.length || liveClasses.length) {
+            saveLiveSchoolStammdatenCache({
+                teachers: persistTeachers,
+                classes: liveClasses.length
+                    ? liveClasses
+                    : (state.stammdaten && state.stammdaten.classes) || [],
+                siteUrl: siteWebUrl,
+                source: liveSource || 'sharepoint'
+            });
+            mergeLiveTeachersIntoLocalTenantIfEmpty(
+                persistTeachers,
+                liveClasses.length
+                    ? liveClasses
+                    : (state.stammdaten && state.stammdaten.classes) || []
+            );
+        }
+        const teacherCount =
+            liveTeachers.length ||
+            ((state.stammdaten && state.stammdaten.teachers) || []).length ||
+            0;
         state.stammdatenLive = {
-            ok: liveClasses.length > 0,
+            ok: liveClasses.length > 0 || teacherCount > 0,
             error: err,
             classCount: liveClasses.length,
-            teacherCount: liveTeachers.length,
+            teacherCount,
             missing,
-            siteUrl: String(state.siteUrl || '').trim(),
+            siteUrl: siteWebUrl,
             source: usedLive
                 ? liveSource === 'spo-rest'
                     ? 'sharepoint-spo'
@@ -550,11 +713,30 @@ async function refreshData() {
     state.error = '';
     paint();
     try {
-        const ctx = await resolveAktContext(state.siteUrl);
+        // IT-Tool-Site (Systemadministration / Lizenz) vor altem LocalStorage-Wert
+        const preferred = String(resolveToolSiteUrlForLiveStammdaten() || '')
+            .trim()
+            .replace(/\/+$/, '');
+        if (preferred) {
+            const cur = String(state.siteUrl || '')
+                .trim()
+                .replace(/\/+$/, '');
+            if (!cur || preferred.toLowerCase() !== cur.toLowerCase()) {
+                state.siteUrl = preferred;
+                persistSiteUrl(preferred);
+            }
+        }
+        let ctx = await resolveAktContext(state.siteUrl);
         state.ctx = ctx;
         state.localDemoOnly = false;
+        // Graph-kanonische Tool-Site merken (sonst trifft SPO ggf. Intranet/Root ohne Lehrerinnen)
+        if (ctx.webUrl && ctx.webUrl !== state.siteUrl) {
+            state.siteUrl = ctx.webUrl;
+            persistSiteUrl(ctx.webUrl);
+        }
         await hydrateLiveStammdaten(ctx.siteId);
-        await syncAccountAndRole();
+        // Direktion/Genehmiger: Shell-Default (Admin), nicht sticky Lehrer aus LocalStorage
+        await syncAccountAndRole({ preferShellDefault: true });
         const data = await loadAllAktData(ctx);
         state.items = data.items || [];
         state.rules = data.rules || { ...DEFAULT_RULES };
@@ -608,6 +790,7 @@ function bindStatic() {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-akt-view') || 'dashboard';
             state.detailId = null;
+            if (state.view === 'system' && !state.systemTab) state.systemTab = 'site';
             if (state.view === 'antrag' && !state.editingItemId) {
                 state.form = emptyForm(prefillTeacher());
                 state.formStep = 1;
@@ -630,6 +813,20 @@ function bindStatic() {
                     if (url) await refreshData().catch(() => {});
                 })();
             }
+        });
+    });
+
+    root.querySelectorAll('[data-akt-sys-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const raw = String(btn.getAttribute('data-akt-sys-tab') || 'site').toLowerCase();
+            state.systemTab =
+                raw === 'perms' ||
+                raw === 'kalender' ||
+                raw === 'wartung' ||
+                raw === 'danger'
+                    ? raw
+                    : 'site';
+            paint();
         });
     });
 
@@ -668,14 +865,26 @@ function bindStatic() {
                     return;
                 }
                 try {
+                    clearLiveStammdatenEnsureFlag();
                     await refreshData();
                     const n = (state.stammdaten.classes || []).length;
-                    if (n) toast(n + ' Klassen geladen.');
-                    else
+                    const t = (state.stammdaten.teachers || []).length;
+                    if (n || t) {
+                        toast(
+                            n +
+                                ' Klassen, ' +
+                                t +
+                                ' Lehrkräfte geladen' +
+                                (state.stammdatenLive && state.stammdatenLive.source
+                                    ? ' (' + state.stammdatenLive.source + ')'
+                                    : '') +
+                                '.'
+                        );
+                    } else
                         toast(
                             state.stammdatenLive && state.stammdatenLive.error
                                 ? state.stammdatenLive.error
-                                : 'Immer noch keine Klassen – Leserecht als Einreicher prüfen.'
+                                : 'Immer noch keine Klassen/Lehrkräfte – Leserecht als Einreicher prüfen.'
                         );
                 } catch (e) {
                     toast(e && e.message ? e.message : String(e));
@@ -756,20 +965,25 @@ function bindStatic() {
     }
 
     const permMount = document.getElementById('aktSysPermAdminMount');
+    const permLehrerMount = document.getElementById('aktSysPermLehrerMount');
     if (permMount && !permMount.dataset.mounted) {
         permMount.dataset.mounted = '1';
+        if (permLehrerMount) permLehrerMount.dataset.mounted = '1';
         void (async () => {
             try {
                 const ui = await import('./schulaktivitaeten-permissions-ui.js');
                 const perms = await import('./schulaktivitaeten-planer-permissions.js');
-                permMount.innerHTML = ui.htmlAktSetupEntraPermGrid(
-                    perms.loadEffectiveAktPermissionsConfig(),
-                    'admin'
-                );
+                const cfg = perms.loadEffectiveAktPermissionsConfig();
+                permMount.innerHTML = ui.htmlAktSetupEntraPermGrid(cfg, 'admin', { embedded: true });
+                if (permLehrerMount) {
+                    permLehrerMount.innerHTML = ui.htmlAktSetupEntraPermGrid(cfg, 'einreicher', {
+                        embedded: true
+                    });
+                }
                 ui.remountAktSetupPermPickers();
             } catch (e) {
                 permMount.innerHTML =
-                    '<p class="muted">Genehmiger-Einstellungen konnten nicht geladen werden.</p>';
+                    '<p class="muted">Berechtigungs-Einstellungen konnten nicht geladen werden.</p>';
             }
         })();
     }
@@ -781,14 +995,14 @@ function bindStatic() {
             void (async () => {
                 try {
                     const ui = await import('./schulaktivitaeten-permissions-ui.js');
-                    ui.persistAktPickersToStorage(false);
+                    ui.persistAktPickersToStorage(false, 'all');
                     const status = document.getElementById('aktSysPermStatus');
                     if (status) {
                         status.hidden = false;
                         status.textContent =
-                            'Genehmiger gespeichert. Seite neu laden bzw. Konto-Sync – Direktion sieht dann „Entscheidungen“.';
+                            'Berechtigungen gespeichert. Danach „Listenrechte anwenden“, damit Lehrkräfte die Liste sehen. Direktion: Seite neu laden → „Entscheidungen“.';
                     }
-                    toast('Genehmiger gespeichert.');
+                    toast('Berechtigungen gespeichert.');
                     await syncAccountAndRole({ preferShellDefault: true });
                     paint();
                 } catch (e) {
@@ -807,7 +1021,7 @@ function bindStatic() {
                 try {
                     const ui = await import('./schulaktivitaeten-permissions-ui.js');
                     const perms = await import('./schulaktivitaeten-planer-permissions.js');
-                    ui.persistAktPickersToStorage(false);
+                    ui.persistAktPickersToStorage(false, 'all');
                     const site = String(state.siteUrl || '').trim();
                     if (!site) {
                         toast('Zuerst SharePoint-URL setzen und Verbindung prüfen.');
@@ -925,39 +1139,58 @@ function bindStatic() {
                 filterCheckListOptions(t.getAttribute('data-akt-mcheck-filter'), t.value);
                 return;
             }
-            state.form = { ...state.form, ...readFormFromDom() };
-            if (!state.multiDay) state.form.enddatum = state.form.startdatum;
+            pullFormFromDom();
+            // Nur Hinweis-DOM patchen – kein paint() (sonst friert das Tippen ein)
+            if (state.formAttempted) {
+                scheduleHintRefresh(false);
+            }
         });
         form.addEventListener('change', (ev) => {
             const t = ev.target;
             if (t && t.getAttribute && t.getAttribute('data-akt-mcheck-filter')) {
                 return;
             }
-            // Checkbox-Liste: State aktualisieren, aber kein paint() (sonst Fokus/Tab weg)
+            // Checkbox-Liste: State aktualisieren; Hinweise bei Bedarf neu
             if (t && t.closest && t.closest('[data-akt-mcheck]')) {
                 const prevCodes = String(state.form.klasseCodes || '');
-                state.form = { ...state.form, ...readFormFromDom() };
-                if (!state.multiDay) state.form.enddatum = state.form.startdatum;
+                pullFormFromDom();
                 const box = t.closest('[data-akt-mcheck]');
                 const name = box && box.getAttribute('data-akt-mcheck');
                 updateCheckListCount(name);
                 if (name === 'klasseCodes' && String(state.form.klasseCodes || '') !== prevCodes) {
                     mergeSuggestedTeachers();
+                    state.formTouched = { ...(state.formTouched || {}), klasseCodes: true };
+                    scheduleHintRefresh(true);
                 }
                 return;
             }
-            state.form = { ...state.form, ...readFormFromDom() };
-            if (!state.multiDay) state.form.enddatum = state.form.startdatum;
-            // Nur bei Layout-Wechsel neu rendern – sonst bricht Tab-Navigation
+            pullFormFromDom();
             const fieldName = t && t.name ? String(t.name) : '';
+            if (fieldName) {
+                state.formTouched = { ...(state.formTouched || {}), [fieldName]: true };
+            }
+            // Nur Layout-Wechsel braucht volles Re-Render
             if (fieldName === 'teilnahmeModus') {
                 paint();
+                return;
+            }
+            // Datum: Vorlauf-Hinweis + Enddatum-Sync → leichtes Hint-Update
+            if (
+                fieldName === 'startdatum' ||
+                fieldName === 'enddatum' ||
+                fieldName === 'klasseCodes' ||
+                fieldName === 'typ' ||
+                fieldName === 'startUe' ||
+                fieldName === 'endUe' ||
+                fieldName === 'ort'
+            ) {
+                scheduleHintRefresh(true);
             }
         });
     }
     root.querySelectorAll('[data-akt-step-next]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             state.formAttempted = true;
             state.formStep = Math.min(4, (Number(state.formStep) || 1) + 1);
             paint();
@@ -965,38 +1198,47 @@ function bindStatic() {
     });
     root.querySelectorAll('[data-akt-step-prev]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             state.formStep = Math.max(1, (Number(state.formStep) || 1) - 1);
             paint();
         });
     });
     root.querySelectorAll('[data-akt-goto-step]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             const n = Number(btn.getAttribute('data-akt-goto-step') || '1');
             state.formStep = Math.min(4, Math.max(1, n || 1));
             paint();
         });
     });
+    root.querySelectorAll('[data-akt-kosten-live]').forEach((el) => {
+        const syncKostenAmpel = () => {
+            state.form = { ...state.form, ...readFormFromDom() };
+            paint();
+        };
+        el.addEventListener('change', syncKostenAmpel);
+        el.addEventListener('blur', syncKostenAmpel);
+    });
+
     root.querySelectorAll('[data-akt-touch]').forEach((el) => {
         el.addEventListener('blur', () => {
             const key = el.getAttribute('data-akt-touch');
             if (!key) return;
             state.formTouched = { ...(state.formTouched || {}), [key]: true };
-            state.form = { ...state.form, ...readFormFromDom() };
-            // Kein paint() auf Blur – sonst springt der Tab-Fokus weg
+            pullFormFromDom();
+            scheduleHintRefresh(true);
         });
     });
     root.querySelectorAll('[data-akt-time-mode]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             state.timeMode = btn.getAttribute('data-akt-time-mode') === 'clock' ? 'clock' : 'ue';
             paint();
         });
     });
     root.querySelectorAll('[data-akt-toggle-begleitung]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             state.begleitungPickerOpen = !state.begleitungPickerOpen;
             paint();
         });
@@ -1006,7 +1248,7 @@ function bindStatic() {
         begPick.addEventListener('change', () => {
             const code = String(begPick.value || '').trim();
             if (!code) return;
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             const cur = parseCodeList(state.form.begleitungCodes || state.form.begleitung);
             if (!cur.includes(code)) cur.push(code);
             state.form.begleitungCodes = joinCodeList(cur);
@@ -1018,7 +1260,7 @@ function bindStatic() {
     root.querySelectorAll('[data-akt-remove-begleitung]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const code = String(btn.getAttribute('data-akt-remove-begleitung') || '').trim();
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             const cur = parseCodeList(state.form.begleitungCodes || state.form.begleitung).filter(
                 (c) => c !== code
             );
@@ -1137,11 +1379,15 @@ function bindStatic() {
     });
     root.querySelectorAll('[data-akt-multiday]').forEach((el) => {
         el.addEventListener('change', () => {
-            state.form = { ...state.form, ...readFormFromDom() };
+            pullFormFromDom();
             state.multiDay = !!el.checked;
             if (!state.multiDay) {
                 state.form.enddatum = state.form.startdatum;
-            } else if (!state.form.enddatum) {
+            } else if (
+                !state.form.enddatum ||
+                state.form.enddatum === state.form.startdatum
+            ) {
+                // Beim Aktivieren sinnvolles Enddatum vorschlagen (= Start), nicht „heute“
                 state.form.enddatum = state.form.startdatum;
             }
             paint();
@@ -1342,14 +1588,51 @@ function bindStatic() {
         });
     }
 
+    root.querySelectorAll('[data-akt-report-breakdown]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const raw = String(btn.getAttribute('data-akt-report-breakdown') || 'typ').toLowerCase();
+            state.reportBreakdown =
+                raw === 'klasse' || raw === 'status' || raw === 'month' ? raw : 'typ';
+            paint();
+        });
+    });
+
+    root.querySelectorAll('[data-akt-report-clear]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            state.reportFilterTyp = '';
+            state.reportFilterStatus = '';
+            state.reportFilterKlasse = '';
+            paint();
+        });
+    });
+
+    root.querySelectorAll('[data-akt-report-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const key = String(btn.getAttribute('data-akt-report-filter') || '').toLowerCase();
+            const value = String(btn.getAttribute('data-akt-report-value') || '').trim();
+            if (key === 'typ') {
+                state.reportFilterTyp =
+                    value && state.reportFilterTyp === value ? '' : value;
+            } else if (key === 'status') {
+                const v = value.toLowerCase();
+                state.reportFilterStatus =
+                    v && state.reportFilterStatus === v ? '' : v;
+            } else if (key === 'klasse') {
+                const v = value.toUpperCase();
+                state.reportFilterKlasse =
+                    v && state.reportFilterKlasse === v ? '' : v;
+            }
+            paint();
+        });
+    });
+
     function downloadVisibleIcs(opts) {
         const o = opts || {};
+        // Kalender-ICS = Schulkalender für alle Lehrkräfte; Liste bleibt rollenabhängig
         const scope = scopeFromState(
             state,
             o.calendar
-                ? state.role === 'admin'
-                    ? { scopeAll: true }
-                    : { onlyMine: true }
+                ? { scopeAll: true }
                 : { scopeAll: state.role === 'admin' }
         );
         let items = filterItems(state.items, state.filters, scope);
@@ -1593,10 +1876,10 @@ async function saveForm(opts) {
         if (!state.form.lehrerEmail) state.form.lehrerEmail = signedInEmail;
         if (!state.form.beantragtVon) state.form.beantragtVon = signedInEmail;
     }
+    pullFormFromDom();
     let draft = enrichDraftForSave(
         {
             ...state.form,
-            ...readFormFromDom(),
             lehrerEmail: signedInEmail,
             beantragtVon: signedInEmail
         },
@@ -2251,6 +2534,15 @@ async function ensureAktSiteFromLicense(opts) {
  * @returns {Promise<string>}
  */
 async function ensureAktSiteUrl(opts) {
+    // IT/Lizenz vor LocalStorage – sonst bleibt ein alter Intranet-/Root-Wert hängen
+    const preferred = String(resolveToolSiteUrlForLiveStammdaten() || '')
+        .trim()
+        .replace(/\/+$/, '');
+    if (preferred) {
+        state.siteUrl = preferred;
+        persistSiteUrl(preferred);
+        return preferred;
+    }
     let url = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
     if (url) {
         state.siteUrl = url;

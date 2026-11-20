@@ -90,9 +90,11 @@ async function fetchAllItemsViaSpoRest(siteWebUrl, listTitle) {
     } catch {
         return [];
     }
+    // Ein Token = eine Ressource (AADSTS28000 bei SPO+Graph gemischt).
+    // Write zuerst: oft schon per Admin-Consent da; Read allein triggert sonst den Lehrer-Dialog.
     const spoScopes = [
-        ['https://' + host + '/AllSites.Read', 'https://graph.microsoft.com/User.Read'],
-        ['https://' + host + '/AllSites.Write', 'https://graph.microsoft.com/User.Read']
+        ['https://' + host + '/AllSites.Write'],
+        ['https://' + host + '/AllSites.Read']
     ];
     let spoToken = '';
     for (let i = 0; i < spoScopes.length; i++) {
@@ -163,8 +165,17 @@ async function fetchAllItemsViaSpoRest(siteWebUrl, listTitle) {
     while (apiPath) {
         const res = await api.spoRestFetch(url, spoToken, digest, 'GET', apiPath);
         if (!res.ok) {
+            const bodyHint = String(res.text || '')
+                .replace(/\s+/g, ' ')
+                .slice(0, 120);
             throw new Error(
-                'SPO „' + title + '": HTTP ' + res.status + ' ' + String(res.text || '').slice(0, 180)
+                'SPO „' +
+                    title +
+                    '": HTTP ' +
+                    res.status +
+                    ' · Site ' +
+                    url +
+                    (bodyHint ? ' · ' + bodyHint : '')
             );
         }
         const rows = (res.data && res.data.value) || [];
@@ -210,16 +221,22 @@ export async function resolveAktContext(webUrl) {
     const site = await G().resolveSiteFromWebUrl(tok, url);
     const siteId = site && site.id ? String(site.id) : '';
     if (!siteId) throw new Error('Site-ID fehlt.');
+    // Kanonische Site-URL aus Graph (nicht Intranet-Root / lokal verfälschte URL)
+    const canonicalWebUrl = String((site && site.webUrl) || url)
+        .trim()
+        .replace(/\/+$/, '');
 
     const aktivitaeten = await findListByTitle(tok, siteId, LIST_TITLES.aktivitaeten);
     const regelwerk = await findListByTitle(tok, siteId, LIST_TITLES.regelwerk);
     if (!aktivitaeten) {
         throw new Error(
-            'Liste „Schulaktivitaeten“ fehlt. Bitte zuerst „Schulaktivitäten-Listen“ anlegen.'
+            'Liste „Schulaktivitaeten“ fehlt oder ist für dich nicht sichtbar (Site: ' +
+                (canonicalWebUrl || url) +
+                '). Wenn Direktion/IT die Liste sieht: IT unter Systemadministration Einreicher-Gruppe setzen und „Listenrechte anwenden“ – nach Vererbungsbruch brauchen Lehrkräfte Contribute.'
         );
     }
     const ctx = {
-        webUrl: url,
+        webUrl: canonicalWebUrl || url,
         siteId,
         siteName: site.displayName || '',
         lists: {
@@ -573,8 +590,9 @@ function mergeCreatedAktivitaet(mapped, akt) {
         begleitung: m.begleitung || a.begleitung || '',
         klasseCodes: m.klasseCodes || a.klasseCodes || '',
         klasseCode: m.klasseCode || a.klasseCode || '',
-        startdatum: m.startdatum || a.startdatum || '',
-        enddatum: m.enddatum || a.enddatum || '',
+        // Geschriebene Kalenderdaten bevorzugen – Graph/SPO liefern dateOnly oft TZ-verschoben zurück
+        startdatum: a.startdatum || m.startdatum || '',
+        enddatum: a.enddatum || m.enddatum || '',
         authorEmail: m.authorEmail || String(a.beantragtVon || a.lehrerEmail || '').toLowerCase()
     };
 }
