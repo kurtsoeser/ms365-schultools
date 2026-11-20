@@ -11001,6 +11001,30 @@ import './schul-organigramm-stammdaten-sync.js';
         }
     }
 
-    bindUi();
+    // Im gebauten Bundle steht dieses Modul im <head> und läuft vor den defer-Skripten
+    // (tenant-settings-core.js). Ohne Warten bricht bindUi() dort still ab und die Reiter bleiben leer.
+    let bindUiDone = false;
+    function tenantCoreReady() {
+        return (
+            typeof window.ms365TenantSettingsLoad === 'function' &&
+            typeof window.ms365TenantSettingsSave === 'function'
+        );
+    }
+    function bindUiWhenReady() {
+        if (bindUiDone) return true;
+        if (document.getElementById('tenantSettingsForm') && !tenantCoreReady()) return false;
+        bindUiDone = true;
+        bindUi();
+        return true;
+    }
+    if (!bindUiWhenReady()) {
+        document.addEventListener('DOMContentLoaded', bindUiWhenReady, { once: true });
+        window.addEventListener('load', bindUiWhenReady, { once: true });
+        let bindUiTries = 0;
+        const bindUiPoll = setInterval(function () {
+            bindUiTries += 1;
+            if (bindUiWhenReady() || bindUiTries > 100) clearInterval(bindUiPoll);
+        }, 100);
+    }
 })();
 
