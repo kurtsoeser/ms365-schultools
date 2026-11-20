@@ -1378,6 +1378,7 @@ import './schul-organigramm-stammdaten-sync.js';
         }
 
         let autoSaveTimer = null;
+        let listsHydrated = false;
         let __syncGuard = 0;
 
         function dispatchTenantSettingsChanged(saved, reason) {
@@ -1401,6 +1402,10 @@ import './schul-organigramm-stammdaten-sync.js';
         }
 
         function autoSaveNow() {
+            // Solange die Textfelder nicht aus dem Speicher gefüllt sind, würde ein
+            // Autosave die gerade importierten Listen mit dem leeren Formular überschreiben
+            // und nur das Organigramm stehen lassen.
+            if (!listsHydrated) return;
             const subjects = typeof parseLinesToSubjects === 'function' ? parseLinesToSubjects(taSubjects ? taSubjects.value : '') : [];
             const arges = typeof parseLinesToArges === 'function' ? parseLinesToArges(taArges ? taArges.value : '') : [];
             const teachers = typeof parseLinesToTeachers === 'function' ? parseLinesToTeachers(taTeachers ? taTeachers.value : '') : [];
@@ -7781,19 +7786,55 @@ import './schul-organigramm-stammdaten-sync.js';
             return result;
         }
 
+        function paintCoreLists(s) {
+            const src = s && typeof s === 'object' ? s : {};
+            if (schoolNameInput) schoolNameInput.value = normStr(src.schoolName || '');
+            if (taSubjects) {
+                delete taSubjects.dataset.ms365UserEdited;
+                taSubjects.value = (src.subjects || []).map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
+            }
+            if (taArges) {
+                delete taArges.dataset.ms365UserEdited;
+                taArges.value = (src.arges || [])
+                    .map((x) => `${x.code};${x.name || ''};${(x.subjects || []).join(',')}`.trim())
+                    .join('\n');
+            }
+            if (taTeachers) {
+                delete taTeachers.dataset.ms365UserEdited;
+                taTeachers.value = teachersToLines(src.teachers || []);
+            }
+            if (taStudents) {
+                delete taStudents.dataset.ms365UserEdited;
+                taStudents.value = studentsToLines(src.students || []);
+            }
+            if (taClasses) {
+                delete taClasses.dataset.ms365UserEdited;
+                taClasses.value = (src.classes || [])
+                    .map((x) => `${x.code || ''};${x.year || ''};${x.name || ''};${x.headName || ''};${x.headEmail || ''}`.trim())
+                    .join('\n');
+            }
+        }
+
         function renderFromStorage() {
+            listsHydrated = false;
             let s = load();
-            const enriched = applyClassEnrichFromLocalLinks(s.classes || [], {
-                persist: true,
-                summary: false,
-                reason: 'class-enrich-on-load'
-            });
-            if (enriched && enriched.classes) s = load();
-            applySubjectEnrichFromSources(s.subjects || [], {
-                persist: true,
-                summary: false,
-                reason: 'subject-enrich-on-load'
-            });
+            paintCoreLists(s);
+            listsHydrated = true;
+            try {
+                const enriched = applyClassEnrichFromLocalLinks(s.classes || [], {
+                    persist: true,
+                    summary: false,
+                    reason: 'class-enrich-on-load'
+                });
+                if (enriched && enriched.classes) s = load();
+                applySubjectEnrichFromSources(s.subjects || [], {
+                    persist: true,
+                    summary: false,
+                    reason: 'subject-enrich-on-load'
+                });
+            } catch {
+                /* Listen bleiben aus dem ersten Paint stehen */
+            }
             s = load();
             // Domain in UI-Feld zurückschreiben (wird auch von school-domain.js genutzt)
             try {
@@ -7876,7 +7917,60 @@ import './schul-organigramm-stammdaten-sync.js';
             renderSchoolYearSelectFromV2();
             renderStatusOverview();
             reloadTenantSchoolProfileForm();
+            const orgNodes = (s.schulOrganigramm && s.schulOrganigramm.nodes) || [];
+            const orgClassCount = orgNodes.filter((n) => {
+                const kind = normStr(n && n.refKind).toLowerCase();
+                const type = normStr(n && n.type).toLowerCase();
+                return kind === 'class' || type === 'class';
+            }).length;
+            if (!(s.teachers || []).length && !(s.classes || []).length && orgClassCount) {
+                setSummary(
+                    'In der Landkarte liegen noch ' +
+                        orgClassCount +
+                        ' Klassen. Die Stammdaten-Listen sind leer. Bitte die Datei ms365-browser-backup-….json erneut importieren.',
+                    'warn'
+                );
+            }
             dispatchTenantSettingsChanged(s, 'render');
+        }
+
+        function fieldBlankAndUntouched(el) {
+            if (!el) return false;
+            if (el.dataset && el.dataset.ms365UserEdited === '1') return false;
+            return !String(el.value || '').trim();
+        }
+
+        /**
+         * Landkarte liest die Listen aus dem Speicher, die Reiter zeigen das Formular.
+         * Wenn das Formular leer ist und der Speicher Zeilen hat, Felder und Tabellen nachziehen.
+         */
+        function refillListsFromStorageIfBlank() {
+            let s = null;
+            try {
+                s = typeof load === 'function' ? load() : null;
+            } catch {
+                return;
+            }
+            if (!s) return;
+            const need =
+                (fieldBlankAndUntouched(taTeachers) && (s.teachers || []).length) ||
+                (fieldBlankAndUntouched(taClasses) && (s.classes || []).length) ||
+                (fieldBlankAndUntouched(taSubjects) && (s.subjects || []).length) ||
+                (fieldBlankAndUntouched(taArges) && (s.arges || []).length) ||
+                (fieldBlankAndUntouched(taStudents) && (s.students || []).length);
+            if (!need) return;
+            listsHydrated = false;
+            paintCoreLists(s);
+            listsHydrated = true;
+            try {
+                renderSubjectsTableFromTextarea();
+                renderArgesTableFromTextarea();
+                renderTeachersTableFromTextarea();
+                renderStudentsTableFromTextarea();
+                renderClassesTableFromTextarea();
+            } catch {
+                /* Tabellen optional */
+            }
         }
 
         function renderSchoolYearSelectFromV2() {
@@ -9019,6 +9113,11 @@ import './schul-organigramm-stammdaten-sync.js';
                         'ok'
                     );
                 } catch (err) {
+                    const written = err && err.details && err.details.written;
+                    if (Array.isArray(written) && written.indexOf('ms365-schooltool-data-v2') >= 0) {
+                        location.reload();
+                        return;
+                    }
                     setSummary('Import fehlgeschlagen: ' + (err?.message || String(err)), 'warn');
                 } finally {
                     fileImport.value = '';
@@ -9049,6 +9148,7 @@ import './schul-organigramm-stammdaten-sync.js';
         // Kein Standard-Abschlussjahr mehr in den Stammdaten
         if (taSubjects) {
             taSubjects.addEventListener('input', () => {
+                taSubjects.dataset.ms365UserEdited = '1';
                 subjectsSortState.key = null;
                 subjectsSortState.dir = 1;
                 renderSubjectsTableFromTextarea();
@@ -9058,6 +9158,7 @@ import './schul-organigramm-stammdaten-sync.js';
 
         if (taArges) {
             taArges.addEventListener('input', () => {
+                taArges.dataset.ms365UserEdited = '1';
                 argesSortState.key = null;
                 argesSortState.dir = 1;
                 renderArgesTableFromTextarea();
@@ -9166,7 +9267,10 @@ import './schul-organigramm-stammdaten-sync.js';
                 renderTeachersTableFromTextarea();
             };
             taTeachers.addEventListener('input', refreshTeachersTableFromTa);
-            taTeachers.addEventListener('input', () => scheduleAutoSave());
+            taTeachers.addEventListener('input', () => {
+                taTeachers.dataset.ms365UserEdited = '1';
+                scheduleAutoSave();
+            });
             // Paste löst in manchen Umgebungen verzögert `input` aus – Tabelle trotzdem sofort aktualisieren.
             taTeachers.addEventListener('paste', () => {
                 requestAnimationFrame(refreshTeachersTableFromTa);
@@ -9356,6 +9460,7 @@ import './schul-organigramm-stammdaten-sync.js';
         if (taStudents) {
             let studentsTableRenderTimer = null;
             taStudents.addEventListener('input', () => {
+                taStudents.dataset.ms365UserEdited = '1';
                 studentsSortState.key = null;
                 studentsSortState.dir = 1;
                 if (studentsTableRenderTimer) clearTimeout(studentsTableRenderTimer);
@@ -9881,6 +9986,7 @@ import './schul-organigramm-stammdaten-sync.js';
 
         if (taClasses) {
             taClasses.addEventListener('input', () => {
+                taClasses.dataset.ms365UserEdited = '1';
                 classesSortState.key = null;
                 classesSortState.dir = 1;
                 renderClassesTableFromTextarea();
@@ -10036,6 +10142,14 @@ import './schul-organigramm-stammdaten-sync.js';
             btnStatusRefresh.addEventListener('click', () => renderStatusOverview());
         }
 
+        window.addEventListener('ms365-browser-backup-applying', function () {
+            listsHydrated = false;
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = null;
+            }
+        });
+
         window.addEventListener('ms365-tenant-settings-changed', function (ev) {
             const d = ev && ev.detail;
             if (!d) return;
@@ -10046,6 +10160,19 @@ import './schul-organigramm-stammdaten-sync.js';
         });
 
         renderFromStorage();
+        refillListsFromStorageIfBlank();
+        setTimeout(refillListsFromStorageIfBlank, 0);
+        setTimeout(refillListsFromStorageIfBlank, 600);
+        const tenantMainTabs = document.getElementById('tenantMainTabs');
+        if (tenantMainTabs && tenantMainTabs.dataset.ms365ListRefillBound !== '1') {
+            tenantMainTabs.dataset.ms365ListRefillBound = '1';
+            tenantMainTabs.addEventListener('click', function () {
+                refillListsFromStorageIfBlank();
+            });
+        }
+        window.addEventListener('hashchange', function () {
+            refillListsFromStorageIfBlank();
+        });
 
         // Schritt 4 / 5: Tenant-IST, Match (Dropdown+Speichern), Differenz + Graph-Anlage
         function setTenantDeltaProgress(visible, text, ratio) {

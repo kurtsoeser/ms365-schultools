@@ -448,6 +448,71 @@ describe('browser-backup', () => {
         sandbox.ms365BrowserBackup.applyBackup(payload, target);
         expect(invalidated).toBe(true);
     });
+
+    it('Config-Bundle mit domain löscht vorhandene Lehrkräfte nicht', async () => {
+        const target = createMemoryStorage({
+            'ms365-schooltool-data-v2': JSON.stringify({
+                version: 4,
+                core: { teachers: [{ code: 'ADA', name: 'Ada' }] },
+                years: { current: '2026/27', byLabel: { '2026/27': { classes: [{ code: '1A' }], students: [] } } }
+            })
+        });
+        const sandbox = loadBackup(target, sessionStore);
+        let saved = false;
+        sandbox.ms365TenantSettingsSave = function () {
+            saved = true;
+        };
+        sandbox.ms365AppDataV2 = {
+            importJson() {
+                saved = true;
+            }
+        };
+        const imported = await sandbox.ms365BrowserBackup.importPayload({
+            bundleKind: 'ms365-spo-config-bundle-v1',
+            domain: 'ms365.schule',
+            localStorage: {
+                'ms365-dashboard-favorites-v1': JSON.stringify(['kursteams'])
+            }
+        }, target);
+        expect(imported.mode).toBe('config-bundle');
+        expect(saved).toBe(false);
+        const v2 = JSON.parse(target.getItem('ms365-schooltool-data-v2'));
+        expect(v2.core.teachers).toEqual([{ code: 'ADA', name: 'Ada' }]);
+        expect(v2.years.byLabel['2026/27'].classes).toEqual([{ code: '1A' }]);
+        expect(target.getItem('ms365-dashboard-favorites-v1')).toContain('kursteams');
+    });
+
+    it('Config-Manifest ohne Listen weist auf die Backup-Datei hin', async () => {
+        await expect(
+            api.importPayload({
+                bundleKind: 'ms365-spo-config-bundle-v1',
+                domain: 'ms365.schule',
+                files: [{ id: 'stammdaten-core', path: 'config/stammdaten-core.json' }]
+            }, store)
+        ).rejects.toThrow(/ms365-browser-backup/);
+    });
+
+    it('IndexedDB-Fehler lassen das geschriebene Backup stehen', async () => {
+        const target = createMemoryStorage();
+        const sandbox = loadBackup(target, sessionStore);
+        sandbox.indexedDB = {
+            open() {
+                throw new Error('idb kaputt');
+            },
+            deleteDatabase() {
+                throw new Error('idb kaputt');
+            }
+        };
+        const payload = sandbox.ms365BrowserBackup.buildBackup(store);
+        payload.indexedDB = {
+            'ms365-einsammler-attachments': {
+                stores: { files: [{ key: 'a', value: { n: 1 } }] }
+            }
+        };
+        const result = await sandbox.ms365BrowserBackup.applyBackupAsync(payload, target);
+        expect(result.warnings.join(' ')).toMatch(/idb kaputt|IndexedDB/);
+        expect(target.getItem('ms365-schooltool-data-v2')).toContain('schule.at');
+    });
 });
 
 describe('browser-backup Seiten', () => {

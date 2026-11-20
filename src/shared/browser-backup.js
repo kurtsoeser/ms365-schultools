@@ -1167,10 +1167,42 @@
         return !!(obj && typeof obj === 'object' && obj.version >= 2 && obj.core && obj.structure && obj.match);
     }
 
+    function notifyBackupApplying() {
+        try {
+            window.dispatchEvent(new CustomEvent('ms365-browser-backup-applying'));
+        } catch {
+            /* ignore */
+        }
+    }
+
+    /**
+     * Organigramm aus einem Config-Teil in den bestehenden v2-Container legen,
+     * ohne Lehrer- oder Klassenlisten zu ersetzen.
+     */
+    function mergeSchulOrganigrammPatch(org, storage) {
+        const store = getStore(storage);
+        if (!store || !org || typeof org !== 'object') return;
+        const key = 'ms365-schooltool-data-v2';
+        let container = null;
+        try {
+            const raw = store.getItem(key);
+            container = raw ? JSON.parse(raw) : null;
+        } catch {
+            container = null;
+        }
+        if (!container || typeof container !== 'object') {
+            container = { version: 4, core: {}, years: { current: '', byLabel: {} } };
+        }
+        if (!container.core || typeof container.core !== 'object') container.core = {};
+        container.core.schulOrganigramm = org;
+        store.setItem(key, JSON.stringify(container));
+    }
+
     function applyBackup(payload, storage, opts) {
         if (!isBackupPayload(payload)) throw new Error('Kein gültiges Browser-Backup.');
         const store = getStore(storage);
         if (!store) throw new Error('localStorage ist nicht verfügbar.');
+        notifyBackupApplying();
         const sessionStore =
             opts && Object.prototype.hasOwnProperty.call(opts, 'sessionStorage')
                 ? getSessionStore(opts.sessionStorage)
@@ -1320,13 +1352,9 @@
             ]);
         }
         if (result.errors && result.errors.length) {
-            const err = new Error(
-                'Backup nur teilweise geschrieben: ' +
-                    result.errors.slice(0, 3).join('; ') +
-                    '. Tipp: Schul-Logo verkleinern oder in einem leeren Browser-Profil importieren.'
-            );
-            err.details = result;
-            throw err;
+            // localStorage ist schon geschrieben. Anhänge dürfen den Reload der
+            // Stammdaten-Listen nicht mehr abbrechen.
+            result.warnings = (result.warnings || []).concat(result.errors);
         }
         return result;
     }
@@ -1338,7 +1366,30 @@
         }
         if (isLegacyAppDataPayload(obj) && window.ms365AppDataV2 && typeof window.ms365AppDataV2.importJson === 'function') {
             window.ms365AppDataV2.importJson(obj);
+            postImportNormalize(storage);
             return { mode: 'app-data-v2' };
+        }
+        if (obj.bundleKind === 'ms365-spo-config-bundle-v1') {
+            const slice =
+                obj.localStorage && typeof obj.localStorage === 'object' && !Array.isArray(obj.localStorage)
+                    ? obj.localStorage
+                    : null;
+            const hasSlice = !!(slice && Object.keys(slice).length);
+            const hasOrg = !!(obj.schulOrganigramm && typeof obj.schulOrganigramm === 'object');
+            if (!hasSlice && !hasOrg) {
+                throw new Error(
+                    'Das ist nur die Inhaltsliste des Config-Ordners. Bitte die Datei ms365-browser-backup-….json importieren – dort stecken Lehrkräfte, Klassen und das Organigramm.'
+                );
+            }
+            let result = null;
+            if (hasSlice) result = mergeLocalStoragePatch(slice, storage);
+            if (hasOrg) mergeSchulOrganigrammPatch(obj.schulOrganigramm, storage);
+            if (!hasSlice) postImportNormalize(storage);
+            return { mode: 'config-bundle', result: result };
+        }
+        if (obj.localStorage && typeof obj.localStorage === 'object' && !Array.isArray(obj.localStorage)) {
+            const result = mergeLocalStoragePatch(obj.localStorage, storage);
+            return { mode: 'storage-patch', result: result };
         }
         const looksLikeTenant =
             Object.prototype.hasOwnProperty.call(obj, 'domain') ||
@@ -1505,7 +1556,17 @@
             danger: true
         });
         if (!ok) return { cancelled: true };
-        const imported = await importPayload(obj);
+        let imported;
+        try {
+            imported = await importPayload(obj);
+        } catch (e) {
+            const written = e && e.details && e.details.written;
+            if (reload && Array.isArray(written) && written.indexOf('ms365-schooltool-data-v2') >= 0) {
+                location.reload();
+                return { mode: 'backup', partial: true };
+            }
+            throw e;
+        }
         if (reload) {
             location.reload();
         }
