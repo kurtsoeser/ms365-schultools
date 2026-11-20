@@ -160,12 +160,14 @@ async function runLoad(btns) {
         const fileName = String((item && item.name) || preview.fileName || 'Backup').trim();
         const when = String((obj && obj.exportedAt) || (item && item.lastModifiedDateTime) || '').trim();
         const school = String((obj && (obj.schoolName || obj.domain)) || '').trim();
+        const summary = String((obj && obj.inventorySummary) || '').trim();
         const ok = await confirmAsync(
             'Dieses Backup aus der IT-Bibliothek jetzt in diesem Browser übernehmen?\n\n' +
                 'Datei: ' +
                 fileName +
                 (when ? '\nStand: ' + when.replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : '') +
                 (school ? '\nSchule: ' + school : '') +
+                (summary ? '\n\nEnthalten: ' + summary : '') +
                 '\n\nAlle lokalen Schuldaten und Werkzeugstände werden ersetzt. ' +
                 'Microsoft-Anmeldung bleibt unberührt. Es findet kein Abgleich statt.',
             {
@@ -186,15 +188,8 @@ async function runLoad(btns) {
                   dirty: false
               })
             : null;
-        await applySharePointBackupLocally(obj, syncMeta, { reload: false });
-        toast('Backup aus IT-Bibliothek übernommen.');
-        const reload = await confirmAsync('Seite jetzt neu laden?', {
-            title: 'Neu laden',
-            confirmLabel: 'Neu laden',
-            cancelLabel: 'Später'
-        });
-        if (reload) window.location.reload();
-        else refreshStatus();
+        await applySharePointBackupLocally(obj, syncMeta, { reload: true });
+        toast('Backup aus IT-Bibliothek übernommen. Die Seite wird neu geladen.');
     } catch (e) {
         if (e && e.code === 'IT_LIBRARY_MISSING') {
             goToSetup(e.message);

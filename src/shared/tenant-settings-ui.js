@@ -1379,6 +1379,8 @@ import './schul-organigramm-stammdaten-sync.js';
 
         let autoSaveTimer = null;
         let listsHydrated = false;
+        /** True nur nach einer echten Eingabe. Seitenwechsel darf leere Felder nicht über volle Listen speichern. */
+        let listEditSincePaint = false;
         let __syncGuard = 0;
 
         function dispatchTenantSettingsChanged(saved, reason) {
@@ -1425,13 +1427,24 @@ import './schul-organigramm-stammdaten-sync.js';
             const verifiedEmailDomains = verifiedDomainsInput ? normStr(verifiedDomainsInput.value || '') : '';
             const administration = getAdministrationEntries();
             const prevSettings = typeof load === 'function' ? load() : {};
+            const keepRows = function (parsed, prev) {
+                const next = Array.isArray(parsed) ? parsed : [];
+                const old = Array.isArray(prev) ? prev : [];
+                if (listEditSincePaint) return next;
+                if (next.length || !old.length) return next;
+                return old;
+            };
+            const schoolNameOut =
+                !listEditSincePaint && !schoolName && prevSettings && prevSettings.schoolName
+                    ? normStr(prevSettings.schoolName)
+                    : schoolName;
             const saved = save({
-                schoolName,
+                schoolName: schoolNameOut,
                 domain,
                 verifiedEmailDomains,
-                subjects,
-                arges,
-                teachers,
+                subjects: keepRows(subjects, prevSettings && prevSettings.subjects),
+                arges: keepRows(arges, prevSettings && prevSettings.arges),
+                teachers: keepRows(teachers, prevSettings && prevSettings.teachers),
                 administration,
                 admin,
                 adminRoles,
@@ -1446,10 +1459,10 @@ import './schul-organigramm-stammdaten-sync.js';
                         ? prevSettings.schulOrganigramm
                         : { version: 1, nodes: [] },
                 sgaMode,
-                sga,
-                students,
-                studentCouncil,
-                classes
+                sga: keepRows(sga, prevSettings && prevSettings.sga),
+                students: keepRows(students, prevSettings && prevSettings.students),
+                studentCouncil: keepRows(studentCouncil, prevSettings && prevSettings.studentCouncil),
+                classes: keepRows(classes, prevSettings && prevSettings.classes)
             });
             dispatchTenantSettingsChanged(saved, 'autosave');
         }
@@ -2024,6 +2037,7 @@ import './schul-organigramm-stammdaten-sync.js';
         }
 
         function scheduleAutoSave() {
+            listEditSincePaint = true;
             if (autoSaveTimer) clearTimeout(autoSaveTimer);
             autoSaveTimer = setTimeout(() => {
                 autoSaveTimer = null;
@@ -7807,6 +7821,7 @@ import './schul-organigramm-stammdaten-sync.js';
                 delete taStudents.dataset.ms365UserEdited;
                 taStudents.value = studentsToLines(src.students || []);
             }
+            listEditSincePaint = false;
             if (taClasses) {
                 delete taClasses.dataset.ms365UserEdited;
                 taClasses.value = (src.classes || [])
@@ -8523,6 +8538,7 @@ import './schul-organigramm-stammdaten-sync.js';
         btnSaves.forEach((btn) => btn.addEventListener('click', onTenantSettingsSaveClick));
 
         window.addEventListener('pagehide', function () {
+            if (!listEditSincePaint && !autoSaveTimer) return;
             if (autoSaveTimer) {
                 clearTimeout(autoSaveTimer);
                 autoSaveTimer = null;
@@ -8535,6 +8551,7 @@ import './schul-organigramm-stammdaten-sync.js';
         });
         document.addEventListener('visibilitychange', function () {
             if (document.visibilityState !== 'hidden') return;
+            if (!listEditSincePaint && !autoSaveTimer) return;
             if (autoSaveTimer) {
                 clearTimeout(autoSaveTimer);
                 autoSaveTimer = null;
