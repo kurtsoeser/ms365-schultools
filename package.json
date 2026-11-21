@@ -19,6 +19,9 @@
     "release:screens": "node scripts/capture-landing-screens.mjs",
     "release:screen-cache": "node scripts/bump-landing-screen-cache.mjs",
     "release:landing-stamp": "node scripts/write-landing-build-info.mjs",
+    "sync:landing-offer": "node scripts/sync-landing-offer-catalog.mjs",
+    "sync:landing-screens": "node scripts/sync-landing-screens-catalog.mjs",
+    "sync:privacy-copy": "node scripts/sync-privacy-copy.mjs",
     "migrate:nextcloud": "node scripts/nextcloud-teams-migrate/migrate.mjs",
     "migrate:nextcloud-helper": "node scripts/nextcloud-teams-migrate/proxy-server.mjs",
     "pack:akt-pa": "node scripts/pack-akt-pa-zip.mjs"

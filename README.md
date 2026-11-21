@@ -1,12 +1,14 @@
 # MS365-Schul-Tools
 
-Einfache **reine Browser-App** (ohne Server): **Dashboard** (`index.html`), **Schul-Grundeinstellungen** (`tenant.html`) und mehrere Werkzeuge unter `tools/` – u. a. **Kursteams** (`tools/kursteams.html`, Logik in `src/tools/kursteams/`), **Jahrgangsgruppen** und **ARGEs** (Archiv). Exportdaten (z. B. WebUntis CSV/Excel) werden aufbereitet; Anlage per **Microsoft Graph** im Browser oder per **PowerShell**-Skripten/CMD-Downloads.
+Einfache **Browser-App** (statische HTML/JS-Oberfläche): **Dashboard** (`index.html`), **Schul-Grundeinstellungen** (`tenant.html`) und mehrere Werkzeuge unter `tools/` – u. a. **Kursteams** (`tools/kursteams.html`, Logik in `src/tools/kursteams/`), **Jahrgangsgruppen** und **ARGEs** (Archiv). Exportdaten (z. B. WebUntis CSV/Excel) werden aufbereitet; Anlage per **Microsoft Graph** im Browser oder per **PowerShell**-Skripten/CMD-Downloads. Schuldaten liegen im Schul-Tenant bzw. lokal – schlanke Betreiber-Dienste nur für Lizenz/Hosting/optionale Portale (siehe Datenschutz unten).
 
 ## Hilfe & Datenschutz
 
 Die Nutzerdokumentation liegt in **`hilfe.html`**: durchsuchbare Anleitungen zu allen Werkzeugen, empfohlene Abläufe, FAQ, Windows-Hinweise (u. a. blockierte `.cmd`) und die Datenschutzerklärung. In der App führt der Link **Hilfe, Datenschutz & Windows-Hinweise** (unten rechts) dorthin.
 
-Es werden **keine Stammdaten an einen App-Server** dieser Software gesendet. Verarbeitung erfolgt **lokal im Browser** (`localStorage`). Über **Browser-Backup** (Dashboard / Stammdaten) lassen sich alle lokalen App-Daten als JSON übertragen; optional sichern Sie denselben Stand in eine **IT-Sicherungsbibliothek auf der schulischen SharePoint-Site** („Nach SharePoint“ / Auto-Sync). Die Microsoft-Anmeldung ist in den Backups nicht enthalten. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz), SharePoint-Übergabe: [hilfe.html#tool-stammdaten-uebergabe](hilfe.html#tool-stammdaten-uebergabe).
+<!-- privacy-copy:readme:start -->
+Sensible Schul- und Schülerdaten liegen im **Microsoft-365-Tenant der Schule** (SharePoint/Teams/Graph) bzw. lokal im Browser (`localStorage`) – **nicht** als Klassenlisten-Datenbank beim Betreiber. Schlanke Betreiber-Dienste (Lizenz-API, statisches Hosting, optionale Portale) speichern nur Minimaldaten für Freischaltung und Betrieb. Über **Browser-Backup** lassen sich lokale App-Daten als JSON übertragen; optional in die **IT-Sicherungsbibliothek auf der schulischen SharePoint-Site**. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz), ausführlich: [landing/datenschutz.html](landing/datenschutz.html).
+<!-- privacy-copy:readme:end -->
 
 ## Planung: Stammdaten über Bildungsportal (EdTech)
 

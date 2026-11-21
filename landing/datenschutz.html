@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Datenschutzerklärung – MS365-Schul-Tools | ms365.schule</title>
-  <meta name="description" content="Datenschutzerklärung MS365-Schul-Tools: Stammdaten lokal, Fachdaten in Ihrem Microsoft-365-Tenant, schlanke Betreiber-Dienste nur für Lizenz und optionale Portale.">
+  <meta name="description" content="Datenschutz MS365-Schul-Tools: sensible Schul- und Schülerdaten im Microsoft-365-Tenant Ihrer Schule; Betreiber speichert nur Minimaldaten für Lizenz und optionale Portale.">
   <meta name="robots" content="index,follow">
   <link rel="icon" href="assets/schooltool.png" type="image/png">
   <link rel="stylesheet" href="styles.css">
@@ -30,15 +30,15 @@
     <div class="legal-inner">
       <p class="eyebrow">Rechtliches</p>
       <h1>Datenschutzerklärung</h1>
+      <!-- privacy-copy:landing-intro:start -->
       <p class="legal-lead">
-        Diese Erklärung gilt für die Website <strong>ms365.schule</strong> und die Browser-App
-        <strong>MS365-Schul-Tools</strong> unter <code>app.ms365.schule</code>
-        (statische HTML/JS-Oberfläche). Sie ergänzt die Datenschutzhinweise Ihrer Schule und
-        von Microsoft&nbsp;365, ersetzt sie aber nicht.
+        Diese Erklärung beschreibt die <strong>Browser-App MS365-Schul-Tools</strong> (statische HTML/JS-Oberfläche) und – auf ms365.schule – die Marketing-Website. Sie ergänzt die Datenschutzhinweise Ihrer Schule und von Microsoft&nbsp;365, ersetzt sie aber nicht.
       </p>
       <p class="legal-note">
-        Stand: November&nbsp;2026. Bei wesentlichen Änderungen der App wird diese Seite angepasst.
+        Stand: November 2026. Bei wesentlichen Änderungen der App wird diese Seite angepasst.
+        Gemeinsame Textquelle mit der App-Hilfe: <code>src/shared/privacy-copy.js</code>.
       </p>
+      <!-- privacy-copy:landing-intro:end -->
 
       <section class="legal-block" aria-labelledby="controller">
         <h2 id="controller">1. Verantwortliche Stelle (Website &amp; App-Bereitstellung)</h2>
@@ -75,45 +75,32 @@
         </p>
       </section>
 
+      <!-- privacy-copy:landing-core:start -->
       <section class="legal-block" aria-labelledby="school-controller">
         <h2 id="school-controller">2. Verantwortlichkeit für Schuldaten in Microsoft&nbsp;365</h2>
         <p>
-          Für personenbezogene Daten im Microsoft-365-Mandanten der Schule (Entra&nbsp;ID, Teams,
-          SharePoint, Exchange usw.) ist die <strong>Schule bzw. der Schulerhalter</strong>
-          Verantwortliche im Sinne der DSGVO. Microsoft ist typischerweise Auftragsverarbeiter
-          für Microsoft&nbsp;365.
+          Für personenbezogene Daten im Microsoft-365-Mandanten der Schule (Entra&nbsp;ID, Teams, SharePoint, Exchange usw.) ist die <strong>Schule bzw. der Schulerhalter</strong> Verantwortliche im Sinne der DSGVO. Microsoft ist typischerweise Auftragsverarbeiter für Microsoft&nbsp;365.
         </p>
         <p>
-          Die MS365-Schul-Tools ist primär ein <strong>Browser-Hilfsmittel</strong>: Stammdaten-Listen
-          werden nicht als Produkt-Datenbank beim Software-Betreiber geführt, sondern im Browser
-          der bedienenden Person und – wenn Sie Aktionen ausführen, SharePoint-Listen nutzen oder
-          die optionale SharePoint-Sicherung aktivieren – im
-          <strong>Microsoft-Mandanten Ihrer Schule</strong>.
+          Sensible Schul- und Schülerdaten werden <strong>nicht</strong> als Produkt-Datenbank beim Software-Betreiber geführt. Arbeitsstand und Stammdaten-Listen liegen im Browser der bedienenden Person; Fachdaten, Planer, Freistellungen, Elternkanal und Betrieb speichern in <strong>SharePoint bzw. Microsoft&nbsp;365 Ihrer Schule</strong>, sobald Sie die entsprechenden Werkzeuge nutzen.
         </p>
         <p>
-          Zusätzlich gibt es <strong>schlanke Betreiber-Dienste</strong> (Azure Functions) für
-          Lizenzfreischaltung und ausgewählte optionale Funktionen (siehe Abschnitt&nbsp;8).
-          Diese Dienste sind nicht dazu da, Ihren gesamten Schülerstamm als Betreiber-Datenbank
-          zu spiegeln.
+          Der Betreiber betreibt bewusst nur <strong>schlanke Minimaldienste</strong> (Lizenzfreischaltung, Auslieferung der App-Dateien, ausgewählte optionale Portale). Dort landet nur das, was für Freischaltung und Betrieb nötig ist – nicht Ihr gesamter Schülerstamm.
         </p>
       </section>
 
       <section class="legal-block" aria-labelledby="no-backend">
-        <h2 id="no-backend">3. Keine Produkt-Datenbank für Schul-Listen, keine App-Analytik</h2>
+        <h2 id="no-backend">3. Kein Anwendungsserver für Schul-Listen, keine App-Analytik</h2>
         <p>
-          Importierte Klassen-, Schüler- und Lehrerlisten werden
-          <strong>in diesem Browser</strong> verarbeitet und – bei Online-Aktionen – in Ihrem
-          Microsoft-365-Tenant (Graph / SharePoint) gespeichert. Es gibt keinen zentralen
-          „Schuldaten-Server“ des Betreibers, der Ihren gesamten Stamm dauerhaft als
-          Produkt-Datenbank führt.
+          Importierte Klassen-, Schüler- und Lehrerlisten werden <strong>in diesem Browser</strong> verarbeitet und – bei Online-Aktionen – in Ihrem Microsoft-365-Tenant (Graph / SharePoint) gespeichert. Es gibt <strong>keinen Anwendungsserver des Betreibers für Ihre Schul-Listen</strong>: keinen zentralen „Schuldaten-Server“, der Ihren gesamten Stamm dauerhaft als Produkt-Datenbank führt.
         </p>
         <p>
-          Die Website und die App-Dateien werden typischerweise von einem statischen Host
-          ausgeliefert (Webspace / CDN). Das Hosting kann übliche Zugriffsprotokolle führen
-          (IP-Adresse, Zeitpunkt, angeforderte Datei) – nicht jedoch Ihre Stammdaten-Listen.
-          Von dieser App werden keine Tracking-Pixel, Werbenetze oder Analyse-Dienste eingebunden.
+          Website und App-Dateien werden typischerweise von einem <strong>statischen Host</strong> ausgeliefert (Webspace / CDN). Das Hosting kann übliche Zugriffsprotokolle führen (IP-Adresse, Zeitpunkt, angeforderte Datei) – nicht jedoch Ihre Stammdaten-Listen. Von dieser App werden keine Tracking-Pixel, Werbenetze oder Analyse-Dienste eingebunden.
         </p>
       </section>
+
+      <!-- privacy-copy:landing-website bleibt manuell (Abschnitt 4) -->
+      <!-- privacy-copy:landing-core:end -->
 
       <section class="legal-block" aria-labelledby="website">
         <h2 id="website">4. Website ms365.schule</h2>
@@ -138,59 +125,48 @@
         </p>
       </section>
 
+      <!-- privacy-copy:landing-core-rest:start -->
       <section class="legal-block" aria-labelledby="local-data">
         <h2 id="local-data">5. Welche Daten lokal in der App liegen</h2>
         <p>
-          Im Speicher dieses Browser-Ursprungs (<code>localStorage</code> /
-          <code>sessionStorage</code>, Keys mit Präfix <code>ms365-</code> bzw.
-          <code>webuntis-</code>) können u. a. liegen:
+          Im Speicher dieses Browser-Ursprungs (<code>localStorage</code> / <code>sessionStorage</code>, Keys mit Präfix <code>ms365-</code> bzw. <code>webuntis-</code>) können u. a. liegen:
         </p>
         <ul class="legal-list">
-          <li>Schul-Domain, Schuljahr, Fächer, ARGE, Lehrkräfte, Verwaltung, Schüler:innen, Klassen</li>
-          <li>Zuordnungen zu Microsoft-365-Gruppen (IDs, Anzeigenamen)</li>
-          <li>Zwischenstände einzelner Werkzeuge, Dashboard-Favoriten und Darstellungseinstellungen (Hell/Dunkel, Designvariante)</li>
-          <li>optional Erziehungsberechtigte (Name/E-Mail) für den Eltern-Verteiler</li>
+          <li>
+            Schul-Domain, Schuljahr, Fächer, ARGE, Lehrkräfte, Verwaltung, Schüler:innen, Klassen
+          </li>
+          <li>
+            Zuordnungen zu Microsoft-365-Gruppen (IDs, Anzeigenamen)
+          </li>
+          <li>
+            Zwischenstände einzelner Werkzeuge, Dashboard-Favoriten und Darstellungseinstellungen
+          </li>
+          <li>
+            optional Erziehungsberechtigte (Name/E-Mail) für den Eltern-Verteiler
+          </li>
         </ul>
         <p>
-          Die Microsoft-Anmeldung (MSAL) legt Zugriffstoken getrennt ab; sie sind
-          <strong>nicht</strong> Teil des Browser-Backups und auch nicht Teil der
-          SharePoint-Sicherungsdatei. Ein optionaler PIN-/Zugangsschutz speichert nur den
-          Session-Status „Zugang gewährt“, nicht die Stammdaten verschlüsselt.
+          Die Microsoft-Anmeldung (MSAL) legt Zugriffstoken getrennt ab; sie sind <strong>nicht</strong> Teil des Browser-Backups und auch nicht Teil der SharePoint-Sicherungsdatei. Ein optionaler PIN-/Zugangsschutz speichert nur den Session-Status „Zugang gewährt“, nicht die Stammdaten verschlüsselt.
         </p>
       </section>
 
       <section class="legal-block" aria-labelledby="backup">
         <h2 id="backup">6. Sicherung: Browser-Backup und schuleigene SharePoint-Bibliothek</h2>
         <p>
-          <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard,
-          Stammdaten, Einrichtung). Damit übertragen Sie den lokalen Stand zwischen Browsern
-          oder PCs. Die Datei liegt in Ihrer Verantwortung.
+          <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard, Stammdaten, Einrichtung). Damit übertragen Sie den lokalen Stand zwischen Browsern oder PCs. Die Datei liegt in Ihrer Verantwortung.
         </p>
         <p>
-          <strong>SharePoint (optional):</strong> Nach Einrichtung der IT-Sicherungsbibliothek
-          schreibt die App denselben vollständigen Stand als JSON in eine Dokumentbibliothek
-          auf der <strong>Intranet-/SharePoint-Site Ihrer Schule</strong>
-          (typisch <code>MS365-IT-Stammdaten</code>, Datei unter <code>Backups/…</code>).
-          Rechte werden auf IT/Verwaltung beschränkt. Die Datei liegt im Mandanten der Schule –
-          nicht beim App-Betreiber. Schüler- und Elternstammdaten werden bewusst
-          <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt, sondern nur in dieser
-          geschützten Backup-Datei (wie im lokalen Speicher).
+          <strong>SharePoint (optional):</strong> Nach Einrichtung der IT-Sicherungsbibliothek schreibt die App denselben vollständigen Stand als JSON in eine Dokumentbibliothek auf der <strong>Intranet-/SharePoint-Site Ihrer Schule</strong> (typisch <code>MS365-IT-Stammdaten</code>, Datei unter <code>Backups/…</code>). Rechte werden auf IT/Verwaltung beschränkt. Die Datei liegt im Mandanten der Schule – nicht beim App-Betreiber. Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt, sondern nur in dieser geschützten Backup-Datei (wie im lokalen Speicher).
         </p>
       </section>
 
       <section class="legal-block" aria-labelledby="microsoft">
         <h2 id="microsoft">7. Welche Daten zu Microsoft gehen</h2>
         <p>
-          Nur wenn Sie sich anmelden und eine Online-Aktion auslösen (einlesen, anlegen, ändern,
-          archivieren, nach SharePoint sichern bzw. von dort laden), sendet der Browser Anfragen
-          an Microsoft Login und Microsoft Graph. Inhalt sind die von Ihnen angestoßenen Vorgänge
-          (z. B. Gruppennamen, Mitglieds-UPNs, Lizenz-SKUs, Backup-Datei in Ihrer Site). Ohne
-          solche Aktionen bleiben die Listen im Browser.
+          Nur wenn Sie sich anmelden und eine Online-Aktion auslösen (einlesen, anlegen, ändern, archivieren, nach SharePoint sichern bzw. von dort laden), sendet der Browser Anfragen an Microsoft Login und Microsoft Graph. Inhalt sind die von Ihnen angestoßenen Vorgänge (z. B. Gruppennamen, Mitglieds-UPNs, Lizenz-SKUs, Backup-Datei in Ihrer Site). Ohne solche Aktionen bleiben die Listen im Browser.
         </p>
         <p>
-          PowerShell-Skripte und CSV-/JSON-Downloads verlassen den Browser als lokale Dateien.
-          Sobald Sie sie ausführen oder weitergeben, gelten die Regeln Ihrer IT und der DSGVO
-          für Dateien mit Personenbezug.
+          PowerShell-Skripte und CSV-/JSON-Downloads verlassen den Browser als lokale Dateien. Sobald Sie sie ausführen oder weitergeben, gelten die Regeln Ihrer IT und der DSGVO für Dateien mit Personenbezug.
         </p>
         <p class="legal-note">
           Weitere Informationen zu Microsoft-Diensten:
@@ -201,35 +177,27 @@
       <section class="legal-block" aria-labelledby="license">
         <h2 id="license">8. Betreiber-Dienste (Lizenz, Portale, optionale APIs)</h2>
         <p>
-          Je nach freigeschaltetem Modul kann die App nach der Microsoft-Anmeldung mit vom
-          Betreiber betriebenen Azure-Functions sprechen. Typische Zwecke:
+          Je nach freigeschaltetem Modul kann die App nach der Microsoft-Anmeldung mit vom Betreiber betriebenen Azure Functions sprechen. Zweck ist Betrieb und Freischaltung – <strong>Minimalprinzip</strong>: nur speichern, was dafür nötig ist.
         </p>
         <ul class="legal-list">
           <li>
-            <strong>Lizenz-API:</strong> Tenant-ID und technische Freischaltungsdaten
-            (Module/Pakete), optional Kontaktdaten der Schule aus der Betreiber-Lizenzliste;
-            optional Feedback-Texte an den Betreiber. Keine Klassen- oder Schülerlisten.
+            <strong>Lizenz-API:</strong> Tenant-ID, technische Freischaltung (Module/Pakete), optional Schulname/Kontaktdaten/Rollen aus der Betreiber-Lizenzliste, optional URL-Zeiger auf die Schul-SharePoint-Site (<code>ToolSiteUrl</code>), optional Feedback-Texte. <strong>Keine</strong> Klassen-, Schüler- oder Planerlisten.
           </li>
           <li>
-            <strong>Schulsprecherwahl (election-api):</strong> Wahldaten (Meta, Wahlberechtigte,
-            Stimmzettel) in Azure Tables – bewusst <em>nicht</em> als SharePoint-Listenzeilen,
-            damit Graph-Autorenfelder die Anonymität der Stimmabgabe nicht unterlaufen.
+            <strong>Statisches App-/Website-Hosting:</strong> Auslieferung der HTML/JS/CSS-Dateien; höchstens übliche Zugriffsprotokolle des Hosts – keine Stammdaten-Listen.
           </li>
           <li>
-            <strong>Eltern-/Ablauf-Links (z. B. Einsammler):</strong> optionale Remote-API für
-            Magic-Link-Antworten; Fachdaten der Vorgänge liegen primär in SharePoint Ihrer Schule
-            bzw. lokal im Absender-Browser.
+            <strong>Schulsprecherwahl (optional):</strong> Wahldaten in Azure Tables – bewusst nicht als SharePoint-Listenzeilen, damit Graph-Autorenfelder die Anonymität der Stimmabgabe nicht unterlaufen.
           </li>
           <li>
-            <strong>Schüler-Stammdaten-Portal (optional):</strong> Gateway für Einschreibe-/
-            Elternformulare; Verarbeitung und Ablage nach Konfiguration der Schule
-            (typisch SharePoint im Schul-Tenant). Zugang über Tenant-Schlüssel / Session,
-            nicht über Microsoft-Login der Eltern.
+            <strong>Eltern-/Ablauf-Links (optional, z. B. Einsammler):</strong> Remote-API für Magic-Link-Antworten; Fachdaten der Vorgänge liegen primär in SharePoint Ihrer Schule bzw. lokal im Absender-Browser.
+          </li>
+          <li>
+            <strong>Schüler-Stammdaten-Portal (optional):</strong> Gateway für Einschreibe-/Elternformulare; Ablage typisch in SharePoint im Schul-Tenant. Zugang über Tenant-Schlüssel / Session, nicht über Microsoft-Login der Eltern.
           </li>
         </ul>
         <p>
-          Ohne Anmeldung bzw. ohne Nutzung dieser Module findet keine solche Übertragung statt.
-          Details zu Listen und Sync-Pfaden stehen in der App-Hilfe und den Tool-Dokumenten.
+          Ohne Anmeldung bzw. ohne Nutzung dieser Module findet keine solche Übertragung statt. Details zu Listen und Sync-Pfaden stehen in der App-Hilfe und den Tool-Dokumenten.
         </p>
       </section>
 
@@ -237,25 +205,16 @@
         <h2 id="retention">9. Speicherdauer</h2>
         <ul class="legal-list">
           <li>
-            <strong>Lokal im Browser:</strong> bis Sie Daten löschen, ein Backup überschreibt
-            oder der Browser den Speicher leert
+            <strong>Lokal im Browser:</strong> bis Sie Daten löschen, ein Backup überschreibt oder der Browser den Speicher leert
           </li>
           <li>
-            <strong>SharePoint-Backup:</strong> bis IT die Datei/Bibliothek löscht oder
-            überschreibt – im Rahmen der Aufbewahrung Ihrer Schule
+            <strong>SharePoint-Backup / Fachlisten im Schul-Tenant:</strong> bis IT löscht oder überschreibt – im Rahmen der Aufbewahrung Ihrer Schule
           </li>
           <li>
-            <strong>Im Microsoft-365-Mandanten:</strong> nach den Aufbewahrungs- und
-            Löschkonzepten der Schule
+            <strong>Host-Zugriffsprotokolle / E-Mail-Anfragen:</strong> nach betrieblicher Notwendigkeit bzw. gesetzlichen Fristen
           </li>
           <li>
-            <strong>Host-Zugriffsprotokolle / E-Mail-Anfragen:</strong> nach betrieblicher
-            Notwendigkeit bzw. gesetzlichen Fristen
-          </li>
-          <li>
-            <strong>Betreiber-Dienste (Lizenz, Wahl, optionale Portale):</strong> so lange wie
-            für Freischaltung, Support und den jeweiligen Schulprozess nötig; Wahldaten nach
-            Ende des Wahlzyklus bzw. nach Löschung durch die Schule/IT
+            <strong>Betreiber-Minimaldienste (Lizenz, Wahl, optionale Portale):</strong> so lange wie für Freischaltung, Support und den jeweiligen Schulprozess nötig; Wahldaten nach Ende des Wahlzyklus bzw. nach Löschung durch die Schule/IT
           </li>
         </ul>
       </section>
@@ -263,14 +222,10 @@
       <section class="legal-block" aria-labelledby="rights">
         <h2 id="rights">10. Betroffenenrechte</h2>
         <p>
-          Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit
-          und Widerspruch richten sich – soweit es um Schulkonten und Gruppen in Microsoft&nbsp;365
-          geht – an die Schule (IT / Datenschutzbeauftragte) und werden dort umgesetzt.
+          Auskunft, Berichtigung und Löschung zu Konten und Gruppen richten sich an die Schule (IT / Datenschutzbeauftragte) und werden in Microsoft&nbsp;365 bzw. den Schulverwaltungsquellen umgesetzt.
         </p>
         <p>
-          Das lokale Browser-Backup, die SharePoint-Sicherungsdatei und Exports (CSV/JSON) sind
-          Kopien: nach einer Korrektur im Mandanten veraltete Dateien löschen, neu sichern oder
-          erneut erzeugen.
+          Das lokale Browser-Backup, die SharePoint-Sicherungsdatei und Exports (CSV/JSON) sind Kopien: nach einer Korrektur im Mandanten veraltete Dateien löschen, neu sichern oder erneut erzeugen.
         </p>
         <p>
           Gegenüber dem Betreiber dieser Website/App können Sie sich in Bezug auf die unter
@@ -285,25 +240,34 @@
       <section class="legal-block" aria-labelledby="tips">
         <h2 id="tips">11. Empfehlungen für den Schulbetrieb</h2>
         <ul class="legal-list">
-          <li>App möglichst nur auf dienstlichen Geräten bzw. dienstlichen Browserprofilen nutzen</li>
-          <li>Browser-Backups, SharePoint-Sicherungsdatei und Skript-Downloads wie andere Dateien mit Schüler- und Elterndaten behandeln</li>
-          <li>IT-Sicherungsbibliothek nur für berechtigte IT-/Verwaltungsgruppen freigeben</li>
-          <li>Eltern nicht als Gäste anlegen, wenn ein Verteiler ausreicht</li>
-          <li>Gast-Exporte und Personen-CSVs nur speichern, wenn Ihre Organisation das erlaubt</li>
-          <li>Konto-Löschen nur nach dem schulischen Offboarding und mit eindeutiger Bestätigung</li>
+          <li>
+            App möglichst nur auf dienstlichen Geräten bzw. dienstlichen Browserprofilen nutzen
+          </li>
+          <li>
+            Browser-Backups, SharePoint-Sicherungsdatei und Skript-Downloads wie andere Dateien mit Schüler- und Elterndaten behandeln
+          </li>
+          <li>
+            IT-Sicherungsbibliothek nur für berechtigte IT-/Verwaltungsgruppen freigeben
+          </li>
+          <li>
+            Eltern nicht als Gäste anlegen, wenn ein Verteiler ausreicht
+          </li>
+          <li>
+            Gast-Exporte und Personen-CSVs nur speichern, wenn Ihre Organisation das erlaubt
+          </li>
+          <li>
+            Konto-Löschen nur nach dem schulischen Offboarding und mit eindeutiger Bestätigung
+          </li>
         </ul>
       </section>
 
       <section class="legal-block" aria-labelledby="summary">
         <h2 id="summary">12. Kurzfassung</h2>
         <p>
-          Stammdaten- und Planer-Listen werden nicht als zentrale Produkt-Datenbank beim
-          Software-Betreiber geführt. Was in Microsoft&nbsp;365 landet – inklusive SharePoint-Listen
-          und optionaler Backup-Datei – landet dort, weil Sie (oder freigeschaltete Automationen)
-          eine Aktion ausgelöst haben. Schlanke Betreiber-APIs dienen Lizenz, optionalen Portalen
-          und Sonderfällen wie anonymer Wahl – nicht dem Spiegeln Ihrer gesamten Klassenlisten.
+          Sensible Schul- und Schülerdaten bleiben in Ihrem Schul-Tenant bzw. lokal im Browser. Der Betreiber führt keine zentrale Produkt-Datenbank Ihrer Klassenlisten. Schlanke Betreiber-Dienste dienen Lizenz, Hosting und optionalen Portalen – nach Minimalprinzip, ohne Ihren gesamten Stamm zu spiegeln. Was in Microsoft&nbsp;365 landet, landet dort, weil Sie (oder freigeschaltete Automationen) eine Aktion ausgelöst haben.
         </p>
       </section>
+      <!-- privacy-copy:landing-core-rest:end -->
 
       <p class="legal-back">
         <a class="btn btn-primary" href="index.html">Zur Startseite</a>

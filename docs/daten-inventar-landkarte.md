@@ -8,6 +8,7 @@
 | [Datenlandkarte](datenlandkarte.md) (App: `tools/datenlandkarte.html`) | Visuelle Blöcke mit **Anzahlen** und Sync-Linien zwischen Listen |
 | [Schul-Landkarte / Organigramm](schul-organigramm-landkarte.md) | **Pflege** der Schulstruktur (schreibt Stammdaten) |
 | [Lokal-First](stammdaten-local-first.md) | Umbau-Status: SPO/Intranet pausiert |
+| Datenschutz-Texte (Hilfe + Landing) | Kanonisch: [`src/shared/privacy-copy.js`](../src/shared/privacy-copy.js) · Sync: `npm run sync:privacy-copy` |
 
 ---
 
@@ -95,7 +96,7 @@ Legacy-Schlüssel `ms365-tenant-settings-v1`: **nur noch lesen/migrieren**, nich
 ## 3. Was lokal noch daneben liegt (kein Stammdaten-Kanon)
 
 Katalog im Code: [`stammdaten-side-state-keys.js`](../src/shared/stammdaten-side-state-keys.js)  
-Vollständiges Backup-Inventar: [`browser-backup.js`](../src/shared/browser-backup.js) (`STORAGE_CATALOG`)
+Vollständiges Backup-Inventar / Storage-Register: [`storage-register.js`](../src/shared/storage-register.js) (einzige Quelle; genutzt von [`browser-backup.js`](../src/shared/browser-backup.js))
 
 ```mermaid
 flowchart TB
