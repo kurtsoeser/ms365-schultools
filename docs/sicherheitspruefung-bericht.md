@@ -1,7 +1,7 @@
 # Sicherheitsprüfbericht – MS365-Schul-Tools
 
 **Art:** Interne Kontrollprüfung / Bereitschaftsbericht (kein Ersatz für einen beauftragten externen Pentest)  
-**Stand:** 21.11.2026  
+**Stand:** 23.11.2026  
 **Gegenstand:** App `app.ms365.schule`, Landing `ms365.schule`, zugehörige Betreiber-APIs und öffentliches Repo  
 **Bezug:** 180-Tage-Plan Initiative I1 (Vertrauensfundament)
 
@@ -9,16 +9,13 @@
 
 ## 1. Kurzfazit
 
-Die Vertrauenskette der Browser-App ist für den aktuellen Reifegrad **tragfähig**: Abhängigkeiten werden gebündelt, CSP erzwingt `script-src 'self'`, Deploy läuft über FTPS mit SHA-gepinnten Actions, Elternlinks sind HMAC-signiert (Remote-API in Demos aus), Datenschutztexte haben eine Quelle, Login-Scopes am Anmelden-Button sind persona-/seitenbezogen.
+Die Vertrauenskette der Browser-App ist für den aktuellen Reifegrad **tragfähig**: Abhängigkeiten werden gebündelt, CSP erzwingt `script-src 'self'`, Deploy läuft über FTPS mit SHA-gepinnten Actions, Elternlinks sind HMAC-signiert (Remote-API in Demos aus), Datenschutztexte haben eine Quelle. Der Anmelden-Button fordert nur die Scopes der geöffneten Seite auf der Portal-App. Schreib- und hochprivilegierte Aufrufe laufen über die zweite Entra-App `ms365-schultools-it`. Die Lizenz ist entschieden: Quellcode sichtbar, Produktivnutzung nur mit Schullizenz (`LICENSE`).
 
 **Offen / empfohlen vor breitem Produktivbetrieb:**
 
 1. Externen Sicherheitstest (Web-App + OAuth-Consent + optionale Azure Functions) beauftragen
-2. WebUntis-Fixtures ohne echte Schul-Mails (`@hak-steyr.at`)
-3. LICENSE / Open-Core-Entscheidung
-4. Dev-/Prod-API-Trennung: getrackte Config ohne `-dev`/ohne Key; Deploy injiziert URLs. Azure hat noch nur `*-dev`-Apps – echte Prod-Function-Apps stehen aus
-5. Staging-Stufe vor Produktion
-6. Zweite Entra-App (c5): Der Code nutzt `ms365-schultools-it` für Schreib- und hochprivilegierte Aufrufe. Login, Lehrkraft, Schüler/in und normale Leseaufrufe bleiben auf der Portal-App. Die Portal-App hat die Schreibscopes noch (in Entra nicht löschen). Zuweisung bleibt aus; andere Schulen stimmen einmalig im Namen der Organisation zu.
+2. Dev-/Prod-API-Trennung: getrackte Config ohne `-dev`/ohne Key; Deploy injiziert URLs. Azure hat noch nur `*-dev`-Apps – echte Prod-Function-Apps stehen aus
+3. Staging-Stufe vor Produktion
 
 ---
 
@@ -30,7 +27,8 @@ Die Vertrauenskette der Browser-App ist für den aktuellen Reifegrad **tragfähi
 | CSP `script-src 'self'` | OK | `scripts/csp-policy.mjs`, `check-csp` |
 | Deploy verschlüsselt + Actions gepinnt | OK | `deploy-ftp.yml`, `deploy-landing-ftp.yml` (FTPS, SHA) |
 | Login ohne Admin-Scope-Bundle | OK | `auth-login-scopes.js`, `msal-auth-ui.js` |
-| R3 Scope-Bündelung (a4 / c5) | teilweise | Login persona-schmal auf der Portal-App. IT-Schreibaufrufe über die zweite Client-ID (`it-app-auth.js`, `ms365-config.js`). Portal-App behält die Schreibscopes. Zuweisung aus, Zustimmung je Schule einmalig. |
+| R3 Scope-Bündelung (a4 / c5) | OK | Login persona-schmal auf der Portal-App. Schreib- und hochprivilegierte Aufrufe über `ms365-schultools-it` (`it-app-auth.js`, `itClientId` in `ms365-config.js`). Die Portal-App behält die Schreibscopes in Entra; der Code fordert sie dort nicht an. Zuweisung aus, Zustimmung je Schule einmalig. |
+| Lizenz | OK | `LICENSE`: Quellcode sichtbar, Produktivnutzung nur mit Schullizenz |
 | Elternlinks HMAC + Fragment | OK | `parent-link-token.js`; Remote-API Demo aus |
 | Datenschutz-SSOT | OK | `privacy-copy.js` + Sync |
 | Storage-Key-Register | OK | `storage-register.js` + Coverage-Test |
@@ -71,6 +69,7 @@ Ergebnis des externen Tests als Anhang an diesen Bericht hängen und Schulen auf
 | | |
 |---|---|
 | Erstellt | 21.11.2026 · interne Kontrolle zum I1-Stand |
+| Fortgeschrieben | 23.11.2026 · R3 (a4 / c5) und Lizenz als umgesetzt geführt |
 | Nächste Prüfung | nach externem Pentest oder vor erstem Produktiv-Schuljahr |
 
 ---
