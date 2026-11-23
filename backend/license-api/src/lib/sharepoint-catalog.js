@@ -559,9 +559,80 @@ function clearCatalogCache() {
     driveCache = null;
 }
 
+/**
+ * Veröffentlichte Neuigkeiten lesen. Fehlende Datei ist kein Fehler.
+ * @returns {Promise<{ notes: Array<object>, updatedAt: string, updatedBy: string, missing: boolean }>}
+ */
+async function readReleaseNotes() {
+    const cfg = getConfig();
+    const token = await getOperatorGraphToken();
+    let drive;
+    try {
+        drive = await resolveCatalogDrive(token, { create: false });
+    } catch (e) {
+        if (isMissingError(e)) {
+            return { notes: [], updatedAt: '', updatedBy: '', missing: true };
+        }
+        throw e;
+    }
+    try {
+        let text = await graphText('GET', contentUrl(drive.driveId, cfg.releaseNotesPath), token);
+        if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+        const parsed = JSON.parse(text);
+        const notes = Array.isArray(parsed) ? parsed : parsed && parsed.notes;
+        return {
+            notes: Array.isArray(notes) ? notes : [],
+            updatedAt: parsed && parsed.updatedAt ? String(parsed.updatedAt) : '',
+            updatedBy: parsed && parsed.updatedBy ? String(parsed.updatedBy) : '',
+            missing: false
+        };
+    } catch (e) {
+        if (e instanceof SyntaxError) {
+            const err = new Error('Die Neuigkeiten-Datei ist kein gültiges JSON.');
+            err.status = 502;
+            throw err;
+        }
+        if (isMissingError(e)) {
+            return { notes: [], updatedAt: '', updatedBy: '', missing: true };
+        }
+        throw e;
+    }
+}
+
+/**
+ * @param {Array<object>} notes
+ * @param {string} updatedBy
+ */
+async function writeReleaseNotes(notes, updatedBy) {
+    const cfg = getConfig();
+    const stored = {
+        updatedAt: new Date().toISOString(),
+        updatedBy: String(updatedBy || '').trim(),
+        notes: Array.isArray(notes) ? notes : []
+    };
+    const json = JSON.stringify(stored);
+    if (json.length > 3_500_000) {
+        const err = new Error('Die Neuigkeiten sind zu groß (max. 3 MB). Weniger oder kleinere Screenshots verwenden.');
+        err.status = 413;
+        throw err;
+    }
+    const token = await getOperatorGraphToken();
+    const drive = await resolveCatalogDrive(token, { create: true });
+    await graphText(
+        'PUT',
+        contentUrl(drive.driveId, cfg.releaseNotesPath),
+        token,
+        json,
+        'application/json'
+    );
+    return stored;
+}
+
 module.exports = {
     readKursteamCatalog,
     writeKursteamCatalog,
+    readReleaseNotes,
+    writeReleaseNotes,
     listMaterials,
     readMaterialFile,
     ensureMaterialFolder,

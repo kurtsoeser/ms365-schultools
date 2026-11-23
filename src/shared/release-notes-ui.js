@@ -10,6 +10,12 @@
         return 'Info';
     }
 
+    function audienceLabel(audience) {
+        if (audience === 'it') return 'Schul-IT';
+        if (audience === 'enduser') return 'Endnutzer';
+        return 'Alle';
+    }
+
     function kindClass(kind) {
         if (kind === 'feature') return 'rn-kind--feature';
         if (kind === 'fix') return 'rn-kind--fix';
@@ -37,7 +43,12 @@
         title.className = 'rn-card__title';
         title.textContent = note.title || '(ohne Titel)';
 
+        const who = document.createElement('span');
+        who.className = 'rn-audience';
+        who.textContent = audienceLabel(note.audience);
+
         head.appendChild(badge);
+        head.appendChild(who);
         head.appendChild(title);
 
         if (opts.editable) {

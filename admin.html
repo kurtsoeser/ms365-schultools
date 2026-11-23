@@ -593,6 +593,22 @@
                                 <label for="adminReleaseTitleInput">Titel</label>
                                 <input type="text" id="adminReleaseTitleInput" placeholder="z.B. Admin mit Lizenz-Tabelle">
                             </div>
+                            <p class="admin-rn-field-label">Zielgruppe</p>
+                            <div class="admin-rn-kind-row" role="group" aria-label="Zielgruppe">
+                                <label class="admin-rn-kind-opt">
+                                    <input type="radio" name="adminRnAudience" value="all" checked>
+                                    <span>Alle</span>
+                                </label>
+                                <label class="admin-rn-kind-opt">
+                                    <input type="radio" name="adminRnAudience" value="it">
+                                    <span>Schul-IT</span>
+                                </label>
+                                <label class="admin-rn-kind-opt">
+                                    <input type="radio" name="adminRnAudience" value="enduser">
+                                    <span>Endnutzer</span>
+                                </label>
+                            </div>
+                            <p class="admin-app__footnote">Alle sehen den Eintrag in der App und auf ms365.schule/neuigkeiten. Schul-IT oder Endnutzer nur in der App, passend zur Rolle.</p>
                             <div class="admin-rn-kind-row" role="group" aria-label="Art">
                                 <label class="admin-rn-kind-opt">
                                     <input type="radio" name="adminRnKind" value="feature" checked>
@@ -639,8 +655,8 @@
                                     </button>
                                 </div>
                                 <div class="admin-rn__actions-secondary">
-                                    <button type="button" class="btn alt" id="adminExportReleaseNotesBtn">
-                                        <i class="bi bi-download"></i>Für Deploy exportieren
+                                    <button type="button" class="btn" id="adminExportReleaseNotesBtn">
+                                        <i class="bi bi-cloud-upload"></i><span id="adminRnPublishLabel">Veröffentlichen</span>
                                     </button>
                                     <button type="button" class="btn alt admin-rn__danger" id="adminClearReleaseNotesBtn">
                                         <i class="bi bi-trash"></i>Lokale löschen
@@ -648,14 +664,14 @@
                                 </div>
                             </div>
                             <p class="admin-app__footnote">
-                                „Für Deploy exportieren“ schreibt die Datei für <code>public/release-notes.json</code>.
+                                Veröffentlichen stellt die Einträge in die App. Zielgruppe Alle erscheint zusätzlich auf ms365.schule/neuigkeiten. Lokal speichern bleibt der Entwurf in diesem Browser.
                             </p>
                         </div>
 
                         <div class="admin-rn__timeline">
                             <header class="admin-rn__timeline-head">
                                 <h2>Timeline</h2>
-                                <p>Veröffentlicht + lokal · sichtbar nach MS365-Login.</p>
+                                <p>Veröffentlicht und lokal. In der App nach der Rolle, öffentlich nur „Alle“.</p>
                             </header>
                             <div id="adminReleaseNotesList" class="admin-app__notes-list"></div>
                         </div>

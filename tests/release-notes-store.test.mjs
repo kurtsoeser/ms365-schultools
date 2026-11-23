@@ -4,6 +4,7 @@ import {
     plainTextToHtml,
     sanitizeReleaseHtml,
     getNewReleaseNotes,
+    filterNotesForViewer,
     toPublishedJson
 } from '../src/shared/release-notes-store.js';
 
@@ -41,6 +42,19 @@ describe('release-notes-store', () => {
         ].map((n, i) => normalizeNote(n, i));
         const neu = getNewReleaseNotes({ notes, lastSeenAtIso: '2026-01-01T00:00:00.000Z' });
         expect(neu.map((n) => n.id)).toEqual(['1']);
+    });
+
+    it('setzt die Zielgruppe und filtert nach Betrachter', () => {
+        expect(normalizeNote({ title: 'A', bodyHtml: '<p>B</p>' }, 0).audience).toBe('all');
+        expect(normalizeNote({ title: 'A', audience: 'Schul-IT' }, 0).audience).toBe('it');
+        const notes = [
+            { id: 'a', audience: 'all', title: 'A', at: '2026-01-03T00:00:00.000Z', bodyHtml: '<p>a</p>' },
+            { id: 'i', audience: 'it', title: 'I', at: '2026-01-02T00:00:00.000Z', bodyHtml: '<p>i</p>' },
+            { id: 'e', audience: 'enduser', title: 'E', at: '2026-01-01T00:00:00.000Z', bodyHtml: '<p>e</p>' }
+        ].map((n, i) => normalizeNote(n, i));
+        expect(filterNotesForViewer(notes, 'public').map((n) => n.id)).toEqual(['a']);
+        expect(filterNotesForViewer(notes, 'it').map((n) => n.id)).toEqual(['a', 'i']);
+        expect(filterNotesForViewer(notes, 'enduser').map((n) => n.id)).toEqual(['a', 'e']);
     });
 
     it('toPublishedJson ist gültiges JSON-Array', () => {

@@ -65,6 +65,7 @@ function getConfig() {
         feedbackListDisplayName: env('LICENSE_FEEDBACK_LIST_NAME', 'MS365schule-Feedback'),
         catalogLibraryName: env('CATALOG_LIBRARY_NAME', 'MS365-Katalog'),
         catalogKursteamPath: env('CATALOG_KURSTEAM_PATH', 'vorlagen/kursteam-kanaele.json'),
+        releaseNotesPath: env('RELEASE_NOTES_PATH', 'neuigkeiten/release-notes.json'),
         catalogMaterialsRoot: env('CATALOG_MATERIALS_ROOT', 'materialien'),
         allowedStatuses: parseCsv(env('LICENSE_ALLOWED_STATUSES', 'trial,active')).map((s) =>
             s.toLowerCase()

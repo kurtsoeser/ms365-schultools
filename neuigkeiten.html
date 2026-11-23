@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script src="src/shared/theme-boot.js?v=4"></script>
+    <meta charset="UTF-8">
+    <script src="access-config.js"></script>
+    <script src="src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuigkeiten – MS365-Schul-Tools</title>
+    <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+    <link rel="stylesheet" href="app.css?v=14">
+</head>
+<body>
+    <main class="news-page">
+        <p class="news-page__nav">
+            <a href="index.html">Zur App</a>
+            <a href="hilfe.html">Hilfe</a>
+        </p>
+        <p class="news-page__kicker">Kommunikation</p>
+        <h1>Neuigkeiten</h1>
+        <p class="news-page__lead" id="newsPageLead">Was sich in den MS365-Schul-Tools geändert hat – passend zu Ihrer Rolle.</p>
+        <div id="newsPageList" class="news-page__list" aria-live="polite">
+            <p>Neuigkeiten werden geladen …</p>
+        </div>
+    </main>
+    <script src="ms365-config.js"></script>
+    <script src="src/shared/release-notes-ui.js"></script>
+    <script type="module" src="src/shared/msal-auth-ui.js?v=20261122e"></script>
+    <script type="module" src="src/shared/release-notes-page.js"></script>
+</body>
+</html>

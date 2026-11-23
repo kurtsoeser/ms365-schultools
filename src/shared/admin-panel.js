@@ -6,8 +6,7 @@ import {
     deleteReleaseNote,
     setLastSeenAt,
     loadMergedReleaseNotes,
-    sanitizeReleaseHtml,
-    toPublishedJson
+    sanitizeReleaseHtml
 } from './release-notes-store.js';
 
 /**
@@ -29,6 +28,18 @@ let refreshNotes = function () {};
 function selectedKind() {
     const el = document.querySelector('input[name="adminRnKind"]:checked');
     return el ? String(el.value) : 'feature';
+}
+
+function selectedAudience() {
+    const el = document.querySelector('input[name="adminRnAudience"]:checked');
+    return el ? String(el.value) : 'all';
+}
+
+function setSelectedAudience(audience) {
+    const want = String(audience || 'all');
+    document.querySelectorAll('input[name="adminRnAudience"]').forEach((input) => {
+        input.checked = input.value === want;
+    });
 }
 
 function setSelectedKind(kind) {
@@ -83,6 +94,7 @@ function resetEditor() {
     draftImages = [];
     renderImagePreviews();
     setSelectedKind('feature');
+    setSelectedAudience('all');
     if ($('adminRnEditingId')) $('adminRnEditingId').value = '';
     const heading = $('adminRnEditorHeading');
     if (heading) heading.textContent = 'Neuer Eintrag';
@@ -98,6 +110,7 @@ function fillEditor(note) {
     draftImages = Array.isArray(note.images) ? note.images.map((x) => ({ src: x.src, alt: x.alt || '' })) : [];
     renderImagePreviews();
     setSelectedKind(note.kind || 'feature');
+    setSelectedAudience(note.audience || 'all');
     if ($('adminRnEditingId')) $('adminRnEditingId').value = note.id || '';
     const heading = $('adminRnEditorHeading');
     if (heading) heading.textContent = 'Eintrag bearbeiten';
@@ -250,18 +263,60 @@ function wireReleaseEditor() {
 
     const exportBtn = $('adminExportReleaseNotesBtn');
     if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            const json = toPublishedJson(notesCache.length ? notesCache : loadReleaseNotes(localStorage));
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'release-notes.json';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 250);
-            alert('Datei speichern als public/release-notes.json und committen – dann sehen alle Schulen die Notes nach dem Deploy.');
+        exportBtn.addEventListener('click', async () => {
+            const title = $('adminReleaseTitleInput') ? $('adminReleaseTitleInput').value : '';
+            const t = String(title || '').trim();
+            const bodyHtml = getEditorHtml();
+            const plain = String(editorEl() ? editorEl().innerText : '').trim();
+            if (t && (bodyHtml || plain || draftImages.length)) {
+                const editingId = $('adminRnEditingId') ? String($('adminRnEditingId').value || '').trim() : '';
+                const payload = {
+                    title: t,
+                    bodyHtml: bodyHtml || '<p>' + plain.replace(/</g, '&lt;') + '</p>',
+                    kind: selectedKind(),
+                    audience: selectedAudience(),
+                    source: 'local',
+                    images: draftImages.slice(),
+                    at: new Date().toISOString()
+                };
+                if (editingId) updateReleaseNote(editingId, payload, localStorage);
+                else appendReleaseNote(payload, localStorage);
+                resetEditor();
+                await refreshNotes();
+            }
+            const notes = notesCache.length ? notesCache : loadReleaseNotes(localStorage);
+            if (!notes.length) {
+                alert('Bitte zuerst einen Eintrag mit Titel schreiben.');
+                return;
+            }
+            const api = window.ms365LicenseApi;
+            const cfg = window.MS365_LICENSE_API;
+            if (!api || !cfg || !String(cfg.baseUrl || '').trim() || typeof api.publishReleaseNotes !== 'function') {
+                alert('Veröffentlichen braucht die verbundene License-API. In dieser Ansicht ist sie nicht erreichbar.');
+                return;
+            }
+            const label = $('adminRnPublishLabel');
+            const previous = label ? label.textContent : 'Veröffentlichen';
+            exportBtn.disabled = true;
+            if (label) label.textContent = 'Wird veröffentlicht …';
+            try {
+                const token = await api.acquireLicenseToken({ popup: true });
+                const result = await api.publishReleaseNotes(token, notes);
+                const count = result && result.count ? result.count : notes.length;
+                const pub = result && result.publicCount != null ? result.publicCount : count;
+                alert(
+                    'Veröffentlicht. ' +
+                        count +
+                        ' Einträge sind in der App. ' +
+                        pub +
+                        ' davon gelten für alle und stehen auf der Homepage.'
+                );
+            } catch (e) {
+                alert('Veröffentlichen fehlgeschlagen: ' + (e && e.message ? e.message : e));
+            } finally {
+                exportBtn.disabled = false;
+                if (label) label.textContent = previous;
+            }
         });
     }
 }
@@ -493,6 +548,7 @@ function init() {
                 title: t,
                 bodyHtml: bodyHtml || '<p>' + plain.replace(/</g, '&lt;') + '</p>',
                 kind: selectedKind(),
+                audience: selectedAudience(),
                 source: 'local',
                 images: draftImages.slice(),
                 at: new Date().toISOString()

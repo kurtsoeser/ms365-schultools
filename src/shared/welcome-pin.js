@@ -14,7 +14,8 @@ import {
     getNewReleaseNotes,
     getLastSeenAt,
     setLastSeenAt,
-    loadMergedReleaseNotes
+    loadMergedReleaseNotes,
+    filterNotesForViewer
 } from './release-notes-store.js';
 
 (function () {
@@ -136,7 +137,8 @@ import {
             return loadReleaseNotes(localStorage);
         });
         const lastSeenAt = getLastSeenAt(localStorage);
-        const newNotes = getNewReleaseNotes({ notes: notes, lastSeenAtIso: lastSeenAt });
+        const gateNotes = filterNotesForViewer(notes, 'public');
+        const newNotes = getNewReleaseNotes({ notes: gateNotes, lastSeenAtIso: lastSeenAt });
 
         const wrap = document.getElementById('welcome-release-notes-wrap');
         const list = document.getElementById('welcome-release-notes-list');

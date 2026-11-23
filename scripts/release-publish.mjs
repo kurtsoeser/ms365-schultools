@@ -94,6 +94,9 @@ async function main() {
     });
   }
 
+  console.log('→ Neuigkeiten für die Homepage kopieren');
+  await run('node', ['scripts/sync-landing-release-notes.mjs']);
+
   console.log('→ test');
   await run('npm', ['test']);
   console.log('→ lint');

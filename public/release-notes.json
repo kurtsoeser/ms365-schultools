@@ -1,10 +1,38 @@
 [
   {
+    "id": "rn_portal_design_2026-11-23",
+    "at": "2026-11-23T15:00:00.000Z",
+    "title": "Neues Portal: Schulalltag und Schul-IT in einer Oberfläche",
+    "kind": "feature",
+    "source": "manual",
+    "audience": "all",
+    "bodyHtml": "<p>Die App zeigt den Schulalltag und die Schul-IT in derselben Oberfläche. Lehrkräfte starten im Portal. Die Schul-IT arbeitet in Stammdaten, Organigramm und Einrichtung. Dieser Beitrag gilt für alle.</p><p><strong>Was sich für den Schulalltag geändert hat</strong></p><ul><li><strong>Portal für Lehrkräfte:</strong> Freistellung, Schularbeiten, Termine und der Elternkanal liegen direkt unter dem eigenen Start.</li><li><strong>Freistellung:</strong> Antrag, Genehmigung und Übersicht in einem Ablauf.</li><li><strong>Schul-IT:</strong> Stammdaten, Organigramm, Mitgliedschaften und die Einrichtung der Tools an einem Ort.</li></ul><p>Die Bilder zeigen das Lehrer-Portal, die IT-Ansicht, eine Freistellung und das Organigramm.</p><p>Neuigkeiten lesen Sie in der App unter <a href=\"https://app.ms365.schule/neuigkeiten.html\">Neuigkeiten</a> und öffentlich unter <a href=\"https://ms365.schule/neuigkeiten.html\">ms365.schule/neuigkeiten</a>. Beim Öffnen der App weist ein Hinweis auf neue Einträge hin.</p><p>Künftige Beiträge können an alle, nur an die Schul-IT oder nur an Endnutzer gehen. Endnutzer sind Lehrkräfte und Schülerinnen und Schüler. Beiträge nur für eine Gruppe bleiben in der App und erscheinen nicht auf der öffentlichen Seite.</p>",
+    "images": [
+      {
+        "src": "release-notes/portal-lehrkraft.png",
+        "alt": "Portal für Lehrkräfte mit Schulalltag"
+      },
+      {
+        "src": "release-notes/portal-it.png",
+        "alt": "Start für die Schul-IT"
+      },
+      {
+        "src": "release-notes/freistellung.png",
+        "alt": "Freistellung mit Antrag und Übersicht"
+      },
+      {
+        "src": "release-notes/organigramm.png",
+        "alt": "Organigramm der Schule"
+      }
+    ]
+  },
+  {
     "id": "rn_schulalltag_planer_playbooks_2026-09-29",
     "at": "2026-09-29T06:00:00.000Z",
     "title": "Neue Planer, Playbooks und Personen-Tools",
     "kind": "feature",
     "source": "manual",
+    "audience": "all",
     "bodyHtml": "<p>Der Schulalltag in Microsoft&nbsp;365 bekommt weitere Bausteine – von Genehmigungen über Lifecycle bis zu geführten Checklisten.</p><ul><li><strong>Schulaktivitäten</strong> und <strong>Freistellungen</strong>: Anträge, Genehmigung und Übersicht (inkl. SharePoint-Listen)</li><li><strong>Schüler-Lifecycle</strong> und <strong>Lizenzverwaltung</strong>: Eintritt, Klassenwechsel und Lizenzen klarer steuern</li><li><strong>Playbooks</strong> für Schuljahresstart, Intranet und Elternkommunikation</li><li><strong>WebUntis-Sync-Monitor</strong>, <strong>Vertretung</strong>, <strong>Räume &amp; Ressourcen</strong> und <strong>Schul-Baseline</strong></li></ul>",
     "images": []
   },
@@ -14,6 +42,7 @@
     "title": "Admin mit Tabs und Lizenzverwaltung",
     "kind": "feature",
     "source": "manual",
+    "audience": "all",
     "bodyHtml": "<p>Der Admin-Bereich ist neu als App-Shell aufgebaut: <strong>Lizenzen</strong>, Zugänge, Setup und Neuigkeiten.</p><ul><li>Schulen direkt in der Tabelle freischalten</li><li>Setup zeigt klar, was noch fehlt (z.&nbsp;B. SharePoint-Spalten)</li></ul>",
     "images": []
   }

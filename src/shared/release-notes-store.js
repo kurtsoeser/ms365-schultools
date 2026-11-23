@@ -2,6 +2,7 @@
  * Release-Notes: lokal + veröffentlicht (public/release-notes.json).
  * Felder: id, at, title, bodyHtml (bevorzugt), body (Plaintext-Fallback),
  * kind: feature|fix|other, source: manual|github|local,
+ * audience: all|it|enduser,
  * images: [{ src, alt }], gitSha (optional, für Auto-Dedup).
  */
 
@@ -131,6 +132,15 @@ function normalizeKind(raw) {
     return 'other';
 }
 
+function normalizeAudience(raw) {
+    const a = String(raw || '')
+        .trim()
+        .toLowerCase();
+    if (a === 'it' || a === 'schul-it' || a === 'schulit') return 'it';
+    if (a === 'enduser' || a === 'endnutzer' || a === 'lehrer' || a === 'lehrkraft') return 'enduser';
+    return 'all';
+}
+
 function normalizeSource(raw) {
     const s = String(raw || '')
         .trim()
@@ -161,6 +171,7 @@ export function normalizeNote(raw, idx) {
         body: body,
         kind: normalizeKind(o.kind),
         source: normalizeSource(o.source),
+        audience: normalizeAudience(o.audience),
         images: images
     };
     const gitSha = String(o.gitSha || '').trim();
@@ -238,6 +249,22 @@ export function setLastSeenAt(atIso, storage = localStorage) {
     return value;
 }
 
+/**
+ * all = jede Zielgruppe und die öffentliche Neuigkeiten-Seite.
+ * it = nur Schul-IT in der App. enduser = Lehrkräfte und Schüler/innen.
+ * viewer „public“ sieht nur Einträge für alle.
+ * @param {Array<object>} notes
+ * @param {'it'|'enduser'|'public'} viewer
+ */
+export function filterNotesForViewer(notes, viewer) {
+    const who = viewer === 'it' || viewer === 'enduser' ? viewer : 'public';
+    return (Array.isArray(notes) ? notes : []).filter((n) => {
+        const audience = n && n.audience ? n.audience : 'all';
+        if (who === 'public') return audience === 'all';
+        return audience === 'all' || audience === who;
+    });
+}
+
 export function getNewReleaseNotes({ notes, lastSeenAtIso }) {
     const lastSeen = normalizeIsoDate(lastSeenAtIso);
     const lastTime = lastSeen ? new Date(lastSeen).getTime() : 0;
@@ -251,20 +278,48 @@ export function getNewReleaseNotes({ notes, lastSeenAtIso }) {
  * Veröffentlichtes JSON (GitHub Pages) laden und mit lokalen Notizen mergen.
  * Lokal gewinnt bei gleicher id.
  */
-export async function loadMergedReleaseNotes(storage = localStorage, fetchImpl = fetch) {
-    const local = loadReleaseNotes(storage);
-    let published = [];
+async function loadStaticReleaseNotes(fetchImpl) {
     try {
         const url = new URL('release-notes.json', typeof window !== 'undefined' ? window.location.href : 'http://local/');
         const res = await fetchImpl(url.href, { cache: 'no-cache' });
-        if (res.ok) {
-            const data = await res.json();
-            const arr = Array.isArray(data) ? data : Array.isArray(data && data.notes) ? data.notes : [];
-            published = arr.map((n, i) => normalizeNote(n, i));
+        if (!res.ok) return [];
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : Array.isArray(data && data.notes) ? data.notes : [];
+        return arr.map((n, i) => normalizeNote(n, i));
+    } catch {
+        return [];
+    }
+}
+
+async function loadRemoteReleaseNotes() {
+    if (typeof window === 'undefined') return null;
+    const api = window.ms365LicenseApi;
+    const cfg = window.MS365_LICENSE_API;
+    if (!api || !cfg || !String(cfg.baseUrl || '').trim() || typeof api.fetchReleaseNotes !== 'function') {
+        return null;
+    }
+    let token = '';
+    try {
+        if (typeof api.acquireLicenseToken === 'function') {
+            token = await api.acquireLicenseToken({ silentOnly: true });
         }
     } catch {
-        published = [];
+        token = '';
     }
+    try {
+        const data = await api.fetchReleaseNotes(token, token ? 'full' : 'public');
+        if (!data || data.missing || !Array.isArray(data.notes)) return null;
+        return data.notes.map((n, i) => normalizeNote(n, i));
+    } catch {
+        return null;
+    }
+}
+
+export async function loadMergedReleaseNotes(storage = localStorage, fetchImpl = fetch) {
+    const local = loadReleaseNotes(storage);
+    const remote = await loadRemoteReleaseNotes();
+    let published = remote;
+    if (!published) published = await loadStaticReleaseNotes(fetchImpl);
 
     const byId = new Map();
     published.forEach((n) => byId.set(n.id, n));

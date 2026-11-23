@@ -243,6 +243,30 @@
         return parseResponse(res);
     }
 
+    async function fetchReleaseNotes(accessToken, view) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const q = view === 'public' ? '?view=public' : '';
+        const headers = accessToken ? authHeaders(accessToken) : { Accept: 'application/json' };
+        const res = await fetch(base + '/release-notes' + q, {
+            method: 'GET',
+            headers: headers,
+            cache: 'no-store'
+        });
+        return parseResponse(res);
+    }
+
+    async function publishReleaseNotes(accessToken, notes) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/release-notes', {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify({ notes: Array.isArray(notes) ? notes : [] })
+        });
+        return parseResponse(res);
+    }
+
     async function publishKursteamCatalog(accessToken, body) {
         const base = baseUrl();
         if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
@@ -549,6 +573,8 @@
         adminFetchFeedbackFile: adminFetchFeedbackFile,
         fetchKursteamCatalog: fetchKursteamCatalog,
         publishKursteamCatalog: publishKursteamCatalog,
+        fetchReleaseNotes: fetchReleaseNotes,
+        publishReleaseNotes: publishReleaseNotes,
         fetchCatalogMaterials: fetchCatalogMaterials,
         fetchCatalogMaterialFile: fetchCatalogMaterialFile,
         createCatalogMaterialFolder: createCatalogMaterialFolder,

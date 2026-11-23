@@ -2562,6 +2562,11 @@
         </div>
         <div id="dashAccessDeniedBanner" class="dash-access-denied" hidden role="alert"></div>
         <div class="content">
+            <aside class="dash-news-strip" id="dashNewsStrip">
+                <p class="dash-news-strip__kicker">Neuigkeiten</p>
+                <p class="dash-news-strip__text" id="dashNewsStripText">Hinweise zum Schulalltag und zur Einrichtung.</p>
+                <a class="dash-news-strip__link" href="neuigkeiten.html">Lesen</a>
+            </aside>
             <div id="dashAppOnlyStack" class="dash-app-only-stack" aria-live="polite"></div>
 
             <div class="dashboard-tasks" id="dashboard-tasks" data-dash-section-audience="it">
@@ -3613,7 +3618,7 @@
         </div>
     </div>
 
-    <p class="header-help-row"><a href="hilfe.html" class="header-help-link" title="Hilfe, Datenschutz &amp; Windows-Hinweise"><i class="bi bi-question-circle"></i><span class="header-help-link__label">Hilfe, Datenschutz &amp; Windows-Hinweise</span></a></p>
+    <p class="header-help-row"><a href="neuigkeiten.html" class="header-help-link" title="Neuigkeiten"><i class="bi bi-megaphone"></i><span class="header-help-link__label">Neuigkeiten</span></a><a href="hilfe.html" class="header-help-link" title="Hilfe, Datenschutz &amp; Windows-Hinweise"><i class="bi bi-question-circle"></i><span class="header-help-link__label">Hilfe, Datenschutz &amp; Windows-Hinweise</span></a></p>
 
     <script src="ms365-config.js"></script>
     <script src="src/shared/graph-unified-groups.js" defer></script>
@@ -3632,6 +3637,7 @@
     <script type="module" src="src/shared/membership-hygiene.js"></script>
     <script type="module" src="src/shared/membership-hygiene-dashboard.js"></script>
     <script type="module" src="src/shared/dashboard-persona-session.js"></script>
+    <script type="module" src="src/shared/release-notes-inbox.js"></script>
     <script type="module" src="src/shared/playbook-schuljahresstart-gates.js"></script>
     <script type="module" src="src/shared/dashboard-main-section.js"></script>
     <script type="module" src="src/shared/dashboard-header-chrome.js"></script>
