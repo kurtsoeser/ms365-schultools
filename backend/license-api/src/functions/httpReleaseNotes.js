@@ -53,12 +53,8 @@ app.http('httpReleaseNotesPut', {
         try {
             const caller = await requireOperatorCaller(bearerTokenFromRequest(request));
             const body = await readJsonBody(request);
-            const notes = normalizeReleaseNotes(body.notes || body);
-            if (!notes.length) {
-                const err = new Error('Mindestens ein Neuigkeiten-Eintrag mit Titel ist nötig.');
-                err.status = 400;
-                throw err;
-            }
+            const rawNotes = Array.isArray(body.notes) ? body.notes : body;
+            const notes = normalizeReleaseNotes(rawNotes);
             const stored = await writeReleaseNotes(notes, caller.upn || '');
             return jsonResponse(200, {
                 ok: true,

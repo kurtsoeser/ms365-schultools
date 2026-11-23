@@ -587,7 +587,7 @@
                         <div class="admin-rn__editor">
                             <header class="admin-rn__editor-head">
                                 <h2 id="adminRnEditorHeading">Neuer Eintrag</h2>
-                                <p>In diesem Browser speichern. Für alle Schulen erst nach dem Export.</p>
+                                <p>Veröffentlichen gilt sofort in der App. Zielgruppe Alle zusätzlich auf der Homepage.</p>
                             </header>
                             <div class="field">
                                 <label for="adminReleaseTitleInput">Titel</label>
@@ -648,30 +648,23 @@
                             <div class="admin-rn__actions">
                                 <div class="admin-rn__actions-primary">
                                     <button type="button" class="btn" id="adminAddReleaseNoteBtn">
-                                        <i class="bi bi-floppy"></i><span id="adminRnSaveLabel">Lokal speichern</span>
+                                        <i class="bi bi-cloud-upload"></i><span id="adminRnSaveLabel">Veröffentlichen</span>
                                     </button>
                                     <button type="button" class="btn alt" id="adminRnCancelEditBtn" hidden>
                                         Abbrechen
                                     </button>
                                 </div>
-                                <div class="admin-rn__actions-secondary">
-                                    <button type="button" class="btn" id="adminExportReleaseNotesBtn">
-                                        <i class="bi bi-cloud-upload"></i><span id="adminRnPublishLabel">Veröffentlichen</span>
-                                    </button>
-                                    <button type="button" class="btn alt admin-rn__danger" id="adminClearReleaseNotesBtn">
-                                        <i class="bi bi-trash"></i>Lokale löschen
-                                    </button>
-                                </div>
                             </div>
+                            <p id="adminRnStatus" class="admin-app__footnote" role="status"></p>
                             <p class="admin-app__footnote">
-                                Veröffentlichen stellt die Einträge in die App. Zielgruppe Alle erscheint zusätzlich auf ms365.schule/neuigkeiten. Lokal speichern bleibt der Entwurf in diesem Browser.
+                                Neu veröffentlichen, eine Änderung speichern oder in der Timeline löschen: App und Homepage übernehmen denselben Stand. Schul-IT und Endnutzer bleiben in der App.
                             </p>
                         </div>
 
                         <div class="admin-rn__timeline">
                             <header class="admin-rn__timeline-head">
                                 <h2>Timeline</h2>
-                                <p>Veröffentlicht und lokal. In der App nach der Rolle, öffentlich nur „Alle“.</p>
+                                <p>Löschen und Bearbeiten gelten sofort auf Homepage und in der App.</p>
                             </header>
                             <div id="adminReleaseNotesList" class="admin-app__notes-list"></div>
                         </div>
