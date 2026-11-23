@@ -90,6 +90,35 @@
         return parseResponse(res);
     }
 
+    /** Schul-IT meldet Tool-Site-URL an Betreiber (SharePoint-Listen-Standort). */
+    async function reportToolSiteUrl(accessToken, toolSiteUrl) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/me', {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify({ toolSiteUrl: String(toolSiteUrl || '').trim() })
+        });
+        return parseResponse(res);
+    }
+
+    /**
+     * Schul-IT meldet Schulprofil-Stammdaten (Adresse/Rollen) an Betreiber-Lizenzliste.
+     * @param {string} accessToken
+     * @param {{ schoolName?: string, schoolStammdaten?: Record<string, string>, toolSiteUrl?: string }} patch
+     */
+    async function reportSchoolProfile(accessToken, patch) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const body = patch && typeof patch === 'object' ? patch : {};
+        const res = await fetch(base + '/me', {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(body)
+        });
+        return parseResponse(res);
+    }
+
     async function fetchAdminMe(accessToken) {
         const base = baseUrl();
         if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
@@ -501,6 +530,8 @@
     global.ms365LicenseApi = {
         acquireLicenseToken: acquireLicenseToken,
         fetchLicenseMe: fetchLicenseMe,
+        reportToolSiteUrl: reportToolSiteUrl,
+        reportSchoolProfile: reportSchoolProfile,
         fetchAdminMe: fetchAdminMe,
         adminListSchools: adminListSchools,
         adminCreateSchool: adminCreateSchool,

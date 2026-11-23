@@ -561,13 +561,13 @@ async function createDocumentLibraryViaSpo(siteWebUrl, title, description) {
     } catch {
         throw new Error('Ungültige Site-URL.');
     }
-    const spoScope = 'https://' + host + '/Sites.FullControl.All';
+    const spoScope = 'https://' + host + '/AllSites.FullControl';
     let spoToken;
     try {
         spoToken = await G.getGraphToken([spoScope]);
     } catch (e) {
         throw new Error(
-            'SharePoint-Token fehlt fürs Anlegen (Zustimmung Sites.FullControl.All / Office 365 SharePoint Online?). ' +
+            'SharePoint-Token fehlt fürs Anlegen (Zustimmung AllSites.FullControl / Office 365 SharePoint Online?). ' +
                 (e && e.message ? e.message : e)
         );
     }
@@ -583,7 +583,7 @@ function explainAccessDenied(err) {
         msg +
         '\n\nTypische Ursachen:\n' +
         '• Sie sind kein Besitzer der SharePoint-Website (nur Mitglied/Besucher).\n' +
-        '• App-Zustimmung fehlt: Sites.ReadWrite.All und Sites.FullControl.All (SharePoint).\n' +
+        '• App-Zustimmung fehlt: Sites.ReadWrite.All und AllSites.FullControl (SharePoint).\n' +
         '• Workaround: Bibliothek in SharePoint manuell anlegen (Dokumentbibliothek „' +
         IT_LIBRARY_TITLE +
         '“), dann hier erneut „einrichten“ – wir verbinden nur und setzen Rechte.'
@@ -633,14 +633,14 @@ async function secureLibraryWithSpo(siteWebUrl, listTitle, groupObjectId) {
     } catch {
         throw new Error('Ungültige Site-URL für SharePoint-Token.');
     }
-    log('Hole SharePoint-Token (Sites.FullControl.All) …');
-    const spoScope = 'https://' + host + '/Sites.FullControl.All';
+    log('Hole SharePoint-Token (AllSites.FullControl) …');
+    const spoScope = 'https://' + host + '/AllSites.FullControl';
     let spoToken;
     try {
         spoToken = await G.getGraphToken([spoScope]);
     } catch (e) {
         throw new Error(
-            'SharePoint-Token fehlgeschlagen (App-Zustimmung für SharePoint / Sites.FullControl.All?). ' +
+            'SharePoint-Token fehlgeschlagen (App-Zustimmung für SharePoint / AllSites.FullControl?). ' +
                 (e && e.message ? e.message : e)
         );
     }
@@ -758,7 +758,7 @@ export async function runSetupItLibrary(opts) {
         if (!list) {
             try {
                 const spoToken = await getG().getGraphToken([
-                    'https://' + new URL(webUrl).hostname + '/Sites.FullControl.All'
+                    'https://' + new URL(webUrl).hostname + '/AllSites.FullControl'
                 ]);
                 const digest = await getG().getSpoRequestDigest(webUrl, spoToken);
                 const spoList = await getG().spoGetListByTitle(webUrl, spoToken, digest, listTitle);

@@ -1004,7 +1004,7 @@ export function mountSchulOrganigramm(host, opts) {
             '<div class="schul-org__search">' +
             '<i class="bi bi-search" aria-hidden="true"></i>' +
             '<label class="visually-hidden" for="schulOrgSearch">Suche</label>' +
-            '<input type="search" id="schulOrgSearch" placeholder="Suche …" autocomplete="off">' +
+            '<input type="search" id="schulOrgSearch" placeholder="Name, Rolle oder Bereich …" autocomplete="off">' +
             '</div>';
         chrome.innerHTML =
             '<div class="schul-org__chrome-top">' +
@@ -1091,12 +1091,34 @@ export function mountSchulOrganigramm(host, opts) {
             const empty = document.createElement('div');
             empty.className = 'schul-org__banner schul-org__banner--hint';
             empty.innerHTML =
-                '<p><strong>Noch keine Stammdaten.</strong> Zuerst Listen pflegen (Rollen, ARGEs, Klassen …), dann hier neu aufbauen.</p>' +
+                '<p><strong>Noch keine Stammdaten für die Landkarte.</strong> Zuerst Rollen und Klassen pflegen – danach erscheint das Organigramm hier.</p>' +
                 '<p class="schul-org__banner-actions">' +
-                '<a class="btn btn-sm" href="' +
-                (embedded ? 'tenant.html#verwaltung' : '../tenant.html#verwaltung') +
-                '"><i class="bi bi-database" aria-hidden="true"></i> Stammdaten öffnen</a></p>';
+                '<a class="btn btn-sm fb-btn fb-btn--ghost" href="' +
+                (embedded ? '#verwaltung' : '../tenant.html#verwaltung') +
+                '"' +
+                (embedded ? ' data-ms365-register-tab-link="tabMainVerwaltung"' : '') +
+                '><i class="bi bi-building" aria-hidden="true"></i> Zur Verwaltung</a>' +
+                '<a class="btn btn-sm fb-btn fb-btn--ghost" href="' +
+                (embedded ? '#klassen' : '../tenant.html#klassen') +
+                '"' +
+                (embedded ? ' data-ms365-register-tab-link="tabMainKlassen"' : '') +
+                '><i class="bi bi-people" aria-hidden="true"></i> Zu den Klassen</a></p>';
             host.appendChild(empty);
+            if (embedded) {
+                empty.querySelectorAll('[data-ms365-register-tab-link]').forEach(function (a) {
+                    a.addEventListener('click', function (ev) {
+                        const id = a.getAttribute('data-ms365-register-tab-link');
+                        if (!id) return;
+                        ev.preventDefault();
+                        if (typeof window.ms365TenantTabActivate === 'function') {
+                            window.ms365TenantTabActivate(id);
+                            return;
+                        }
+                        const btn = document.getElementById(id);
+                        if (btn) btn.click();
+                    });
+                });
+            }
         }
 
         const filterBar = chrome.querySelector('.schul-org__filters');

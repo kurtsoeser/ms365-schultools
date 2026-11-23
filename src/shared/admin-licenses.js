@@ -15,8 +15,17 @@ import {
     renderPackageGrid,
     renderToolEntitlementGroups
 } from './admin-license-packages-ui.js';
-import { entitlementsForSalesBundle } from './sales-bundles-catalog.js';
+import { entitlementsForSalesBundle, matchSalesBundle } from './sales-bundles-catalog.js';
 import { renderSalesBundlesPanel } from './admin-sales-bundles-ui.js';
+import {
+    adoptionCounts,
+    collectContacts,
+    hasContact,
+    isDueWithin,
+    isExpired,
+    licenseCounts,
+    prepareMailHref
+} from './admin-license-overview-logic.js';
 import {
     SCHOOL_STAMMDATEN_FIELDS,
     SCHOOL_STAMMDATEN_GROUPS,
@@ -24,6 +33,7 @@ import {
     isPendingTenantId,
     isRealTenantGuid
 } from './school-stammdaten-catalog.js';
+import { planRolePersonMigrationForSchools } from './school-role-person-migrate-logic.js';
 
 /** @type {Array<object>} */
 var schoolsCache = [];
@@ -42,7 +52,8 @@ var detailToolsSearch = '';
 /** @type {{ key: string, dir: 'asc'|'desc' }} */
 var sortState = { key: 'schoolName', dir: 'asc' };
 /** @type {{ q: string, status: string, tenant: ''|'pending'|'set', quick: 'all'|'pending'|'trial'|'active' }} */
-var listFilter = { q: '', status: '', tenant: '', quick: 'all' };
+var listFilter = { q: '', status: '', tenant: '', quick: 'all', lens: '' };
+var contactFilter = 'all';
 /** @type {'stammdaten'|'lizenz'|'module'|'quellen'} */
 var detailTab = 'stammdaten';
 /** @type {boolean} */
@@ -449,6 +460,10 @@ function $(id) {
             listFilter.status = String(parsed.status || '');
             listFilter.tenant = String(parsed.tenant || '');
             listFilter.quick = String(parsed.quick || 'all');
+            listFilter.lens = String(parsed.lens || '');
+            if (listFilter.lens !== 'due30' && listFilter.lens !== 'expired' && listFilter.lens !== 'nocontact') {
+                listFilter.lens = '';
+            }
             if (
                 listFilter.quick !== 'all' &&
                 listFilter.quick !== 'pending' &&
@@ -470,7 +485,8 @@ function $(id) {
                     q: listFilter.q,
                     status: listFilter.status,
                     tenant: listFilter.tenant,
-                    quick: listFilter.quick
+                    quick: listFilter.quick,
+                    lens: listFilter.lens
                 })
             );
         } catch (e) {
@@ -493,6 +509,7 @@ function $(id) {
 
     function applyQuickFilter(quick) {
         listFilter.quick = quick || 'all';
+        listFilter.lens = '';
         if (listFilter.quick === 'pending') {
             listFilter.tenant = 'pending';
             listFilter.status = '';
@@ -512,7 +529,7 @@ function $(id) {
     }
 
     function resetFilters() {
-        listFilter = { q: '', status: '', tenant: '', quick: 'all' };
+        listFilter = { q: '', status: '', tenant: '', quick: 'all', lens: '' };
         syncFilterControlsFromState();
         saveStoredFilter();
         renderTable(schoolsCache);
@@ -525,6 +542,9 @@ function $(id) {
         if (statusWant && String(school.status || '').toLowerCase() !== statusWant) return false;
         if (listFilter.tenant === 'pending' && !schoolHasPendingTenant(school)) return false;
         if (listFilter.tenant === 'set' && schoolHasPendingTenant(school)) return false;
+        if (listFilter.lens === 'due30' && !isDueWithin(school, new Date(), 30)) return false;
+        if (listFilter.lens === 'expired' && !isExpired(school, new Date())) return false;
+        if (listFilter.lens === 'nocontact' && hasContact(school)) return false;
         var q = String(listFilter.q || '')
             .trim()
             .toLowerCase();
@@ -540,8 +560,11 @@ function $(id) {
             Array.isArray(school.contactEmails) ? school.contactEmails.join(' ') : school.contactEmail,
             Array.isArray(school.domains) ? school.domains.join(' ') : '',
             ex.Direktion,
+            ex.DirektionEmail,
             ex.ItM365Admin,
+            ex.ItM365AdminEmail,
             ex.Schuladministration,
+            ex.SchuladministrationEmail,
             ex.Datenstatus
         ]
             .filter(Boolean)
@@ -572,6 +595,245 @@ function $(id) {
         });
     }
 
+    function toggleQuick(quick) {
+        if (listFilter.quick === quick && !listFilter.lens) applyQuickFilter('all');
+        else applyQuickFilter(quick);
+    }
+
+    function toggleLens(lens) {
+        if (listFilter.lens === lens) {
+            listFilter.lens = '';
+        } else {
+            listFilter.lens = lens;
+            listFilter.quick = 'all';
+            listFilter.status = '';
+            listFilter.tenant = '';
+        }
+        syncFilterControlsFromState();
+        saveStoredFilter();
+        renderTable(schoolsCache);
+    }
+
+    function mailBodyFor(school) {
+        var until = school && school.validUntil ? String(school.validUntil).slice(0, 10) : '';
+        var name = (school && school.schoolName) || 'die Schule';
+        if (until && isDueWithin(school, new Date(), 30)) {
+            return (
+                'Guten Tag,\n\ndie Freischaltung der MS365-Schul-Tools für ' +
+                name +
+                ' ist gültig bis ' +
+                until +
+                '.\n\nViele Grüße'
+            );
+        }
+        return 'Guten Tag,\n\nkurze Nachricht zu den MS365-Schul-Tools für ' + name + '.\n\nViele Grüße';
+    }
+
+    function renderLicenseOverview() {
+        var host = $('adminLicOverview');
+        if (!host) return;
+        var counts = licenseCounts(schoolsCache, new Date(), { isPending: schoolHasPendingTenant });
+        var tiles = [
+            { key: 'quick', id: 'active', value: counts.active, label: 'Aktiv' },
+            { key: 'quick', id: 'trial', value: counts.trial, label: 'Trial' },
+            { key: 'lens', id: 'due30', value: counts.due30, label: 'Läuft in 30 Tagen ab' },
+            { key: 'lens', id: 'expired', value: counts.expired, label: 'Abgelaufen' },
+            { key: 'quick', id: 'pending', value: counts.pending, label: 'Tenant offen' },
+            { key: 'lens', id: 'nocontact', value: counts.nocontact, label: 'Ohne Kontakt' }
+        ];
+        host.replaceChildren();
+        var status = $('adminOverviewStatus');
+        if (status) {
+            status.textContent = schoolsCache.length
+                ? counts.total + ' Schulen'
+                : 'Die Zahlen erscheinen nach der Anmeldung.';
+        }
+        tiles.forEach(function (tile) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            var on =
+                tile.key === 'lens'
+                    ? listFilter.lens === tile.id
+                    : !listFilter.lens && listFilter.quick === tile.id;
+            btn.className = 'admin-lic-tile' + (on ? ' is-active' : '');
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.innerHTML =
+                '<strong>' + escapeHtml(String(tile.value)) + '</strong><span>' + escapeHtml(tile.label) + '</span>';
+            btn.addEventListener('click', function () {
+                if (tile.key === 'lens') toggleLens(tile.id);
+                else toggleQuick(tile.id);
+                if (typeof window.ms365AdminSetTab === 'function') window.ms365AdminSetTab('licenses');
+                showListView();
+            });
+            host.appendChild(btn);
+        });
+        renderLicenseActions();
+        renderContactList();
+    }
+
+    function actionRow(school, mailKind) {
+        var contacts = collectContacts(school);
+        var mail = contacts.length ? contacts[0].email : '';
+        var row = document.createElement('div');
+        row.className = 'admin-lic-action__row';
+        var text = document.createElement('div');
+        text.className = 'admin-lic-action__text';
+        var title = document.createElement('strong');
+        title.textContent = school.schoolName || '–';
+        var meta = document.createElement('span');
+        var bits = [];
+        if (school.validUntil) bits.push(String(school.validUntil).slice(0, 10));
+        if (schoolHasPendingTenant(school)) bits.push('Tenant offen');
+        if (!hasContact(school)) bits.push('ohne Kontakt');
+        else bits.push(mail);
+        meta.textContent = bits.join(' · ');
+        text.appendChild(title);
+        text.appendChild(meta);
+        var actions = document.createElement('div');
+        actions.className = 'admin-lic-action__buttons';
+        if (mail) {
+            var link = document.createElement('a');
+            link.className = 'btn btn-sm alt';
+            link.href = prepareMailHref(
+                [mail],
+                mailKind === 'due' ? 'Lizenz MS365-Schul-Tools läuft bald ab' : 'MS365-Schul-Tools',
+                mailBodyFor(school)
+            );
+            link.textContent = 'Mail vorbereiten';
+            actions.appendChild(link);
+        }
+        var open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'btn btn-sm alt';
+        open.textContent = 'Öffnen';
+        open.addEventListener('click', function () {
+            openSchoolDetail(String(school.id));
+        });
+        actions.appendChild(open);
+        row.appendChild(text);
+        row.appendChild(actions);
+        return row;
+    }
+
+    function renderLicenseActions() {
+        var host = $('adminLicActionStrip');
+        if (!host) return;
+        host.replaceChildren();
+        var due = schoolsCache
+            .filter(function (school) {
+                return isDueWithin(school, new Date(), 30);
+            })
+            .sort(function (a, b) {
+                return String(a.validUntil || '').localeCompare(String(b.validUntil || ''));
+            })
+            .slice(0, 10);
+        var gaps = schoolsCache
+            .filter(function (school) {
+                return schoolHasPendingTenant(school) || !hasContact(school);
+            })
+            .slice(0, 10);
+        host.appendChild(actionGroup('Läuft in 30 Tagen ab', due, 'due', 'Keine Schule läuft in den nächsten 30 Tagen ab.'));
+        host.appendChild(actionGroup('Lücken', gaps, 'gap', 'Kein offener Tenant und kein fehlender Kontakt.'));
+    }
+
+    function actionGroup(title, rows, kind, emptyText) {
+        var section = document.createElement('section');
+        section.className = 'admin-lic-action__group';
+        var heading = document.createElement('h2');
+        heading.className = 'admin-lic-action__title';
+        heading.textContent = title;
+        section.appendChild(heading);
+        if (!schoolsCache.length) {
+            var wait = document.createElement('p');
+            wait.className = 'admin-lic-action__empty';
+            wait.textContent = 'Die Liste erscheint nach der Anmeldung.';
+            section.appendChild(wait);
+            return section;
+        }
+        if (!rows.length) {
+            var empty = document.createElement('p');
+            empty.className = 'admin-lic-action__empty';
+            empty.textContent = emptyText;
+            section.appendChild(empty);
+            return section;
+        }
+        rows.forEach(function (school) {
+            section.appendChild(actionRow(school, kind));
+        });
+        return section;
+    }
+
+    function contactMatches(school) {
+        if (contactFilter === 'trial') return String(school.status || '').toLowerCase() === 'trial';
+        if (contactFilter === 'due30') return isDueWithin(school, new Date(), 30);
+        return true;
+    }
+
+    function renderContactList() {
+        var host = $('adminLicContactsList');
+        if (!host) return;
+        document.querySelectorAll('[data-contact-filter]').forEach(function (btn) {
+            var id = btn.getAttribute('data-contact-filter') || 'all';
+            btn.classList.toggle('is-active', id === contactFilter);
+        });
+        var lines = [];
+        schoolsCache.forEach(function (school) {
+            if (!contactMatches(school)) return;
+            collectContacts(school).forEach(function (contact) {
+                lines.push({
+                    school: school.schoolName || '–',
+                    role: contact.role,
+                    email: contact.email,
+                    id: school.id
+                });
+            });
+        });
+        host.replaceChildren();
+        if (!schoolsCache.length) {
+            host.textContent = 'Kontakte erscheinen nach der Anmeldung.';
+            return;
+        }
+        if (!lines.length) {
+            host.textContent = 'Keine Kontakte für diesen Filter.';
+            return;
+        }
+        var table = document.createElement('table');
+        table.className = 'admin-lic-contacts__table';
+        table.innerHTML = '<thead><tr><th>Schule</th><th>Rolle</th><th>Mail</th><th></th></tr></thead>';
+        var body = document.createElement('tbody');
+        lines.forEach(function (line) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td>' +
+                escapeHtml(line.school) +
+                '</td><td>' +
+                escapeHtml(line.role) +
+                '</td><td>' +
+                escapeHtml(line.email) +
+                '</td>';
+            var td = document.createElement('td');
+            var link = document.createElement('a');
+            link.className = 'admin-lic-contacts__mail';
+            link.href = prepareMailHref([line.email], 'MS365-Schul-Tools', 'Guten Tag,\n\n');
+            link.textContent = 'Mail';
+            td.appendChild(link);
+            tr.appendChild(td);
+            body.appendChild(tr);
+        });
+        table.appendChild(body);
+        host.appendChild(table);
+    }
+
+    function publishSchools() {
+        var snapshot = schoolsCache.slice();
+        window.ms365AdminSchoolSnapshot = snapshot;
+        try {
+            window.dispatchEvent(new CustomEvent('ms365-admin-schools', { detail: { schools: snapshot } }));
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
     function updateFilterMeta() {
         var el = $('adminLicFilterMeta');
         if (!el) return;
@@ -579,7 +841,13 @@ function $(id) {
         var shown = filteredSchools(schoolsCache).length;
         var pending = schoolsCache.filter(schoolHasPendingTenant).length;
         var parts = [];
-        if (listFilter.q || listFilter.status || listFilter.tenant || listFilter.quick !== 'all') {
+        if (
+            listFilter.q ||
+            listFilter.status ||
+            listFilter.tenant ||
+            listFilter.lens ||
+            listFilter.quick !== 'all'
+        ) {
             parts.push(shown + ' von ' + total);
         } else {
             parts.push(total + ' Schulen');
@@ -587,6 +855,7 @@ function $(id) {
         if (pending) parts.push(pending + ' Tenant offen');
         el.textContent = parts.join(' · ');
         updateQuickFilterCounts();
+        renderLicenseOverview();
         syncFilterControlsFromState();
     }
 
@@ -711,15 +980,17 @@ function $(id) {
         var actions = tr.querySelector('.admin-lic-actions');
         var btnOpen = document.createElement('button');
         btnOpen.type = 'button';
-        btnOpen.className = 'btn btn-sm admin-lic-icon-btn';
-        btnOpen.innerHTML = '<i class="bi bi-box-arrow-up-right"></i>';
+        btnOpen.className = 'btn btn-sm alt admin-lic-icon-btn';
+        btnOpen.innerHTML = '<i class="bi bi-chevron-right" aria-hidden="true"></i>';
         btnOpen.title = 'Öffnen';
+        btnOpen.setAttribute('aria-label', 'Schule öffnen');
         btnOpen.addEventListener('click', open);
         var btnDel = document.createElement('button');
         btnDel.type = 'button';
-        btnDel.className = 'btn btn-sm btn-danger admin-lic-icon-btn';
-        btnDel.innerHTML = '<i class="bi bi-trash"></i>';
+        btnDel.className = 'btn btn-sm alt admin-lic-icon-btn admin-lic-icon-btn--danger';
+        btnDel.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
         btnDel.title = 'Löschen';
+        btnDel.setAttribute('aria-label', 'Schule löschen');
         btnDel.addEventListener('click', function () {
             removeSchool(s);
         });
@@ -842,7 +1113,8 @@ function $(id) {
         if (!list.length && editingId !== '') {
             var empty = document.createElement('tr');
             var emptyMsg =
-                schoolsCache.length && (listFilter.q || listFilter.status || listFilter.tenant)
+                schoolsCache.length &&
+                (listFilter.q || listFilter.status || listFilter.tenant || listFilter.lens)
                     ? 'Keine Schule entspricht dem Filter.'
                     : 'Noch keine Schulen – mit „+ Neue Schule“ anlegen.';
             empty.innerHTML =
@@ -943,11 +1215,39 @@ function $(id) {
         setStatus('Aktualisiere Schema …');
         try {
             var token = await getToken();
-            var result = await window.ms365LicenseApi.adminEnsureSchema(token);
+            var result = null;
+            if (typeof window.ms365LicenseApi.adminEnsureSchema === 'function') {
+                try {
+                    result = await window.ms365LicenseApi.adminEnsureSchema(token);
+                } catch (schemaErr) {
+                    console.warn('[admin-licenses] ensure-schema API:', schemaErr);
+                }
+            }
+            if (typeof window.ms365LicenseApi.adminListColumns === 'function') {
+                try {
+                    var colRes = await window.ms365LicenseApi.adminListColumns(token);
+                    var nextCols =
+                        colRes && Array.isArray(colRes.columns)
+                            ? colRes.columns
+                            : Array.isArray(colRes)
+                              ? colRes
+                              : null;
+                    if (nextCols) columnsCache = nextCols;
+                } catch (colErr) {
+                    console.warn('[admin-licenses] columns vor Stammdaten-Ensure:', colErr);
+                }
+            }
+            // Auch ohne neuen API-Katalog: Rollen-E-Mail-Spalten per adminCreateColumn anlegen
+            var curated = await ensureCuratedStammdatenColumns(token);
             var created =
                 result && result.stammdaten && Array.isArray(result.stammdaten.created)
                     ? result.stammdaten.created.slice()
                     : [];
+            if (curated && Array.isArray(curated.created)) {
+                curated.created.forEach(function (n) {
+                    if (created.indexOf(n) < 0) created.push(n);
+                });
+            }
             var extras = [];
             if (result && result.toolSiteUrlColumn && result.toolSiteUrlColumn.created) {
                 extras.push('ToolSiteUrl');
@@ -959,11 +1259,20 @@ function $(id) {
                 extras.push('LicenseEntitlements');
             }
             var allNew = created.concat(extras);
-            toast(
-                allNew.length
-                    ? 'Schema aktualisiert – neu: ' + allNew.join(', ')
-                    : 'Schema aktuell – inkl. ToolSiteUrl vorhanden.'
-            );
+            var failed = curated && Array.isArray(curated.failed) ? curated.failed : [];
+            if (failed.length) {
+                toast(
+                    (allNew.length ? 'Teilweise aktualisiert – neu: ' + allNew.join(', ') + '. ' : '') +
+                        'Nicht angelegt: ' +
+                        failed.join(', ')
+                );
+            } else {
+                toast(
+                    allNew.length
+                        ? 'Schema aktualisiert – neu: ' + allNew.join(', ')
+                        : 'Schema aktuell – inkl. Rollen-E-Mail-Spalten.'
+                );
+            }
             await reload();
             renderColumnsPanel();
         } catch (e) {
@@ -1025,6 +1334,7 @@ function $(id) {
             var data = await window.ms365LicenseApi.adminListSchools(token);
             schoolsCache = data.schools || [];
             columnsCache = data.columns || [];
+            publishSchools();
             if ($('adminLicColumnsPanel') && !$('adminLicColumnsPanel').hidden) {
                 renderColumnsPanel();
             }
@@ -1217,9 +1527,9 @@ function $(id) {
         var title = $('adminAppTitle');
         var subtitle = $('adminAppSubtitle');
         if (title && (!$('adminTabLicenses') || $('adminTabLicenses').getAttribute('aria-selected') === 'true')) {
-            title.textContent = 'Schulen & Lizenzen';
+            title.textContent = 'Schulen';
         }
-        if (subtitle) {
+        if (subtitle && (!$('adminTabLicenses') || $('adminTabLicenses').getAttribute('aria-selected') === 'true')) {
             subtitle.textContent = 'Schulen finden, öffnen und freischalten.';
         }
     }
@@ -1233,6 +1543,7 @@ function $(id) {
     }
 
     function openSchoolDetail(id) {
+        if (typeof window.ms365AdminSetTab === 'function') window.ms365AdminSetTab('licenses');
         var school = findSchoolById(id);
         if (!school) {
             toast('Schule nicht gefunden – Liste aktualisieren.');
@@ -1280,6 +1591,91 @@ function $(id) {
         host.appendChild(wrap);
     }
 
+    function resolveStammdatenCol(field, byName) {
+        var live = byName[String(field.name || '').toLowerCase()];
+        if (live) return live;
+        return {
+            name: field.name,
+            displayName: field.displayName || field.name,
+            type: field.type || 'text'
+        };
+    }
+
+    function appendRollenPairField(host, fields, byName, school, used) {
+        var pairs = {};
+        var order = [];
+        var singles = [];
+        fields.forEach(function (f) {
+            var key = String(f.pairKey || '').trim();
+            if (!key) {
+                singles.push(f);
+                return;
+            }
+            if (!pairs[key]) {
+                pairs[key] = {
+                    label: f.pairLabel || f.displayName || key,
+                    nameField: null,
+                    emailField: null
+                };
+                order.push(key);
+            }
+            if (f.pairPart === 'email') {
+                pairs[key].emailField = f;
+                if (f.pairLabel) pairs[key].label = f.pairLabel;
+            } else {
+                pairs[key].nameField = f;
+                pairs[key].label = f.displayName || pairs[key].label;
+            }
+        });
+        order.forEach(function (key) {
+            var slot = pairs[key];
+            var wrap = document.createElement('div');
+            wrap.className = 'admin-lic-detail__role-pair admin-lic-detail__field--wide';
+            wrap.innerHTML =
+                '<span class="admin-lic-detail__role-pair-label">' +
+                escapeHtml(slot.label) +
+                '</span>';
+            var row = document.createElement('div');
+            row.className = 'admin-lic-detail__role-pair-fields';
+            if (slot.nameField) {
+                var nameCol = resolveStammdatenCol(slot.nameField, byName);
+                used[String(nameCol.name).toLowerCase()] = true;
+                var nameLabel = document.createElement('label');
+                nameLabel.className = 'admin-lic-detail__field';
+                nameLabel.innerHTML =
+                    '<span>Name</span>' +
+                    extraInputHtml(nameCol, extraOf(school)[nameCol.name]).replace(
+                        'data-extra="' + escapeHtml(nameCol.name) + '"',
+                        'data-df-extra="' + escapeHtml(nameCol.name) + '"'
+                    );
+                row.appendChild(nameLabel);
+            }
+            if (slot.emailField) {
+                var emailCol = resolveStammdatenCol(slot.emailField, byName);
+                used[String(emailCol.name).toLowerCase()] = true;
+                var emailLabel = document.createElement('label');
+                emailLabel.className = 'admin-lic-detail__field';
+                emailLabel.innerHTML =
+                    '<span>E-Mail</span>' +
+                    extraInputHtml(
+                        Object.assign({}, emailCol, { type: 'text' }),
+                        extraOf(school)[emailCol.name]
+                    ).replace(
+                        'data-extra="' + escapeHtml(emailCol.name) + '"',
+                        'data-df-extra="' + escapeHtml(emailCol.name) + '"'
+                    );
+                row.appendChild(emailLabel);
+            }
+            wrap.appendChild(row);
+            host.appendChild(wrap);
+        });
+        singles.forEach(function (f) {
+            var col = resolveStammdatenCol(f, byName);
+            used[String(col.name).toLowerCase()] = true;
+            appendDetailExtraField(host, col, school);
+        });
+    }
+
     function appendStammdatenGroups(host, school, groupIds) {
         if (!host) return;
         host.replaceChildren();
@@ -1290,7 +1686,7 @@ function $(id) {
         var used = {};
         (groupIds || []).forEach(function (groupId) {
             var fields = SCHOOL_STAMMDATEN_FIELDS.filter(function (f) {
-                return f.group === groupId && byName[String(f.name).toLowerCase()];
+                return f.group === groupId;
             });
             if (!fields.length) return;
             var section = document.createElement('div');
@@ -1301,11 +1697,15 @@ function $(id) {
                 '</h4>';
             var grid = document.createElement('div');
             grid.className = 'admin-lic-detail__group-grid';
-            fields.forEach(function (f) {
-                var col = byName[String(f.name).toLowerCase()];
-                used[String(f.name).toLowerCase()] = true;
-                appendDetailExtraField(grid, col, school);
-            });
+            if (groupId === 'rollen') {
+                appendRollenPairField(grid, fields, byName, school, used);
+            } else {
+                fields.forEach(function (f) {
+                    var col = resolveStammdatenCol(f, byName);
+                    used[String(col.name).toLowerCase()] = true;
+                    appendDetailExtraField(grid, col, school);
+                });
+            }
             section.appendChild(grid);
             host.appendChild(section);
         });
@@ -1635,14 +2035,97 @@ function $(id) {
         }
     }
 
+    function stammdatenCatalogNameSet() {
+        var set = {};
+        SCHOOL_STAMMDATEN_FIELDS.forEach(function (f) {
+            var n = String((f && f.name) || '')
+                .trim()
+                .toLowerCase();
+            if (n) set[n] = String(f.name);
+        });
+        return set;
+    }
+
+    /**
+     * Fehlende kuratierte Stammdaten-Spalten (Name/E-Mail) in SharePoint anlegen.
+     * Funktioniert auch, wenn die License-API noch keinen neuen Katalog hat.
+     * @param {string} token
+     */
+    async function ensureCuratedStammdatenColumns(token) {
+        var have = {};
+        (columnsCache || []).forEach(function (col) {
+            var n = String((col && col.name) || '')
+                .trim()
+                .toLowerCase();
+            if (n) have[n] = true;
+        });
+        var created = [];
+        var failed = [];
+        if (typeof window.ms365LicenseApi.adminCreateColumn !== 'function') {
+            return { created: created, failed: failed };
+        }
+        for (var i = 0; i < SCHOOL_STAMMDATEN_FIELDS.length; i++) {
+            var f = SCHOOL_STAMMDATEN_FIELDS[i];
+            var key = String((f && f.name) || '')
+                .trim()
+                .toLowerCase();
+            if (!key || have[key]) continue;
+            try {
+                await window.ms365LicenseApi.adminCreateColumn(token, {
+                    name: f.name,
+                    displayName: f.displayName || f.name,
+                    type: f.type || 'text'
+                });
+                have[key] = true;
+                created.push(f.name);
+            } catch (e) {
+                var msg = String((e && e.message) || e || '');
+                var status = e && e.status;
+                if (status === 409 || /existiert bereits|already exists/i.test(msg)) {
+                    have[key] = true;
+                } else {
+                    failed.push(f.name);
+                    console.warn('[admin-licenses] Spalte anlegen fehlgeschlagen:', f.name, e);
+                }
+            }
+        }
+        if (created.length || failed.length < SCHOOL_STAMMDATEN_FIELDS.length) {
+            try {
+                var colRes = await window.ms365LicenseApi.adminListColumns(token);
+                var nextCols =
+                    colRes && Array.isArray(colRes.columns)
+                        ? colRes.columns
+                        : Array.isArray(colRes)
+                          ? colRes
+                          : null;
+                if (nextCols) columnsCache = nextCols;
+            } catch (colErr) {
+                console.warn('[admin-licenses] columns nach Spalten-Anlage:', colErr);
+            }
+        }
+        return { created: created, failed: failed };
+    }
+
     function readDetailBody() {
         var root = $('adminLicDetailView') || document;
         var domainsEl = root.querySelector('[data-df="domains"]');
         var domains = parseDomainsInput(domainsEl ? domainsEl.value : '');
         var extra = {};
+        var knownExtra = {};
+        (columnsCache || []).forEach(function (col) {
+            var n = String((col && col.name) || '')
+                .trim()
+                .toLowerCase();
+            if (n) knownExtra[n] = String(col.name);
+        });
+        var catalogExtra = stammdatenCatalogNameSet();
         root.querySelectorAll('[data-df-extra]').forEach(function (el) {
             var key = el.getAttribute('data-df-extra');
             if (!key) return;
+            var low = String(key).toLowerCase();
+            // Kuratierte Stammdaten (inkl. Rollen-E-Mails) immer mitsenden;
+            // sonst nur echte SharePoint-Spalten.
+            if (!knownExtra[low] && !catalogExtra[low]) return;
             if (el.type === 'checkbox') extra[key] = !!el.checked;
             else if (el.type === 'number') {
                 var raw = String(el.value || '').trim();
@@ -1674,28 +2157,51 @@ function $(id) {
 
     async function saveDetailView() {
         if (!detailSchoolId) return;
-        var body = readDetailBody();
-        if (!body.schoolName) {
-            toast('Schulname ist erforderlich.');
-            return;
-        }
-        try {
-            body.tenantId = assertTenantIdAllowed(body.tenantId, body.schoolName);
-        } catch (e) {
-            toast((e && e.message) || 'Tenant-ID ungültig.');
-            return;
-        }
-        var wantToolUrl = String(body.toolSiteUrl || '').trim();
         setStatus('Speichere Schildetail …');
         try {
             var token = await getToken();
-            if (wantToolUrl && typeof window.ms365LicenseApi.adminEnsureSchema === 'function') {
+            // Schema zuerst (neue Rollen-E-Mail-Spalten), dann Body lesen – sonst fehlen die Spalten in columnsCache.
+            if (typeof window.ms365LicenseApi.adminEnsureSchema === 'function') {
                 try {
                     await window.ms365LicenseApi.adminEnsureSchema(token);
                 } catch (schemaErr) {
                     console.warn('[admin-licenses] ensure-schema vor Speichern:', schemaErr);
                 }
             }
+            if (typeof window.ms365LicenseApi.adminListColumns === 'function') {
+                try {
+                    var colRes = await window.ms365LicenseApi.adminListColumns(token);
+                    var nextCols =
+                        colRes && Array.isArray(colRes.columns)
+                            ? colRes.columns
+                            : Array.isArray(colRes)
+                              ? colRes
+                              : null;
+                    if (nextCols) columnsCache = nextCols;
+                } catch (colErr) {
+                    console.warn('[admin-licenses] columns nach Schema:', colErr);
+                }
+            }
+            var colEnsure = await ensureCuratedStammdatenColumns(token);
+            var body = readDetailBody();
+            if (!body.schoolName) {
+                toast('Schulname ist erforderlich.');
+                return;
+            }
+            try {
+                body.tenantId = assertTenantIdAllowed(body.tenantId, body.schoolName);
+            } catch (e) {
+                toast((e && e.message) || 'Tenant-ID ungültig.');
+                return;
+            }
+            var wantToolUrl = String(body.toolSiteUrl || '').trim();
+            var wantEmails = {
+                DirektionEmail: String((body.extra && body.extra.DirektionEmail) || '').trim(),
+                SchuladministrationEmail: String(
+                    (body.extra && body.extra.SchuladministrationEmail) || ''
+                ).trim(),
+                ItM365AdminEmail: String((body.extra && body.extra.ItM365AdminEmail) || '').trim()
+            };
             var saved = await window.ms365LicenseApi.adminUpdateSchool(token, detailSchoolId, body);
             var savedSchool = saved && saved.school ? saved.school : saved;
             await reload();
@@ -1711,6 +2217,10 @@ function $(id) {
                     : defaultNewSchoolEntitlements();
                 renderDetailView(school);
             }
+            var gotExtra = (school && school.extra) || (savedSchool && savedSchool.extra) || {};
+            var missingEmails = Object.keys(wantEmails).filter(function (k) {
+                return wantEmails[k] && String(gotExtra[k] || '').trim().toLowerCase() !== wantEmails[k].toLowerCase();
+            });
             var gotToolUrl = String(
                 (school && school.toolSiteUrl) ||
                     (savedSchool && savedSchool.toolSiteUrl) ||
@@ -1721,8 +2231,20 @@ function $(id) {
                 toast(
                     'Tool-Site-URL nicht übernommen. Richtige Liste ist die License-Liste (z. B. „MS365-Schultools-Lizenzen“), Spalte ToolSiteUrl – nicht „Übersicht-Tenants“.'
                 );
+            } else if (missingEmails.length) {
+                setStatus('Gespeichert – E-Mail-Spalten ggf. noch nicht übernommen.');
+                toast(
+                    'Schule gespeichert, aber E-Mail-Felder fehlen noch in SharePoint (' +
+                        missingEmails.join(', ') +
+                        '). Bitte „Schema sicherstellen“ und erneut speichern.' +
+                        (colEnsure && colEnsure.failed && colEnsure.failed.length
+                            ? ' Spalten-Fehler: ' + colEnsure.failed.join(', ')
+                            : '')
+                );
             } else if (wantToolUrl) {
                 toast('Schule gespeichert – Tool-Site-URL gesetzt.');
+            } else if (colEnsure && colEnsure.created && colEnsure.created.length) {
+                toast('Schule gespeichert – neue Spalten: ' + colEnsure.created.join(', '));
             } else {
                 toast('Schule gespeichert.');
             }
@@ -1794,6 +2316,72 @@ function $(id) {
         }
         var btnReload = $('adminLicReloadBtn');
         if (btnReload) btnReload.addEventListener('click', reload);
+        var btnMigrateRoles = $('adminLicMigrateRolesBtn');
+        if (btnMigrateRoles) {
+            btnMigrateRoles.addEventListener('click', async function () {
+                var preview = planRolePersonMigrationForSchools(schoolsCache);
+                if (!preview.candidates) {
+                    toast('Keine Schule braucht eine Rollen-Anpassung (Name/E-Mail).');
+                    return;
+                }
+                var sample = preview.plans
+                    .slice(0, 5)
+                    .map(function (p) {
+                        return p.schoolName + ': ' + p.notes.join('; ');
+                    })
+                    .join('\n');
+                if (
+                    !window.confirm(
+                        preview.candidates +
+                            ' Schule(n) anpassen (Name/E-Mail trennen, IT-Mail aus Kontakten füllen)?\n\nBeispiele:\n' +
+                            sample +
+                            (preview.candidates > 5 ? '\n…' : '')
+                    )
+                ) {
+                    return;
+                }
+                setStatus('Migriere Rollen Name/E-Mail …');
+                try {
+                    var token = await getToken();
+                    if (typeof window.ms365LicenseApi.adminEnsureSchema === 'function') {
+                        try {
+                            await window.ms365LicenseApi.adminEnsureSchema(token);
+                        } catch (schemaErr) {
+                            console.warn('[admin-licenses] schema vor Rollen-Migration:', schemaErr);
+                        }
+                    }
+                    await ensureCuratedStammdatenColumns(token);
+                    var updated = 0;
+                    var errors = 0;
+                    for (var i = 0; i < preview.plans.length; i++) {
+                        var plan = preview.plans[i];
+                        try {
+                            await window.ms365LicenseApi.adminUpdateSchool(token, plan.id, {
+                                extra: plan.extra
+                            });
+                            updated += 1;
+                            setStatus(
+                                'Rollen-Migration ' + updated + '/' + preview.candidates + ' …'
+                            );
+                        } catch (oneErr) {
+                            errors += 1;
+                            console.warn('[admin-licenses] Rollen-Migration', plan.schoolName, oneErr);
+                        }
+                    }
+                    await reload();
+                    toast(
+                        'Rollen Name/E-Mail: ' +
+                            updated +
+                            ' Schule(n) aktualisiert' +
+                            (errors ? ', ' + errors + ' Fehler' : '') +
+                            '.'
+                    );
+                } catch (e) {
+                    setStatus('Fehler: ' + ((e && e.message) || e));
+                    toast('Rollen-Migration fehlgeschlagen: ' + ((e && e.message) || e));
+                }
+            });
+        }
         var btnMigrate = $('adminLicMigrateBtn');
         if (btnMigrate) {
             btnMigrate.addEventListener('click', async function () {
@@ -1911,6 +2499,7 @@ function $(id) {
             statusFilterEl.addEventListener('change', function () {
                 listFilter.status = String(statusFilterEl.value || '');
                 listFilter.quick = 'all';
+                listFilter.lens = '';
                 saveStoredFilter();
                 syncFilterControlsFromState();
                 renderTable(schoolsCache);
@@ -1922,6 +2511,7 @@ function $(id) {
             tenantFilterEl.addEventListener('change', function () {
                 listFilter.tenant = String(tenantFilterEl.value || '');
                 listFilter.quick = 'all';
+                listFilter.lens = '';
                 saveStoredFilter();
                 syncFilterControlsFromState();
                 renderTable(schoolsCache);
@@ -1987,6 +2577,14 @@ function $(id) {
                 if (detailEntitlementView === 'tools') renderDetailEntitlements();
             });
         }
+        document.querySelectorAll('[data-contact-filter]').forEach(function (btn) {
+            if (btn.dataset.wired === '1') return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', function () {
+                contactFilter = btn.getAttribute('data-contact-filter') || 'all';
+                renderContactList();
+            });
+        });
         syncChoiceFieldVisibility();
         setLicensesViewMode('list');
         renderHead();

@@ -391,6 +391,29 @@ export function patchSchoolToolSitesSetup(patch) {
         applyDefaultToEmptyToolStorage(payload);
     }
 
+    // Primär-Site → Betreiber (ToolSiteUrl), damit Lehrkräfte die Listen finden
+    try {
+        const reported = trimUrl(payload.planerDefaultSiteUrl);
+        if (reported && typeof window !== 'undefined') {
+            const run = function () {
+                if (typeof window.ms365ReportToolSiteUrl === 'function') {
+                    void window.ms365ReportToolSiteUrl(reported, { source: 'planer-sites-setup' });
+                    return;
+                }
+                import('./report-tool-site-url.js')
+                    .then(function (m) {
+                        if (m && typeof m.reportSchoolToolSiteUrl === 'function') {
+                            return m.reportSchoolToolSiteUrl(reported, { source: 'planer-sites-setup' });
+                        }
+                    })
+                    .catch(function () {});
+            };
+            window.setTimeout(run, 0);
+        }
+    } catch {
+        /* ignore */
+    }
+
     return payload;
 }
 

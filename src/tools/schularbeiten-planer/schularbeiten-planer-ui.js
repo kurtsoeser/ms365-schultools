@@ -65,17 +65,25 @@ function esc(s) {
 
 function statusBadge(status) {
     const s = String(status || 'beantragt').toLowerCase();
-    const cls =
-        s === 'fixiert' ? 'sa-badge sa-badge--ok' : s === 'abgelehnt' ? 'sa-badge sa-badge--bad' : 'sa-badge sa-badge--warn';
-    return `<span class="${cls}">${esc(statusLabel(s))}</span>`;
+    const mod = s === 'fixiert' ? 'ok' : s === 'abgelehnt' ? 'bad' : 'warn';
+    return `<span class="fb-pill fb-pill--${mod}">${esc(statusLabel(s))}</span>`;
+}
+
+export function isSchularbeitenAccountBusy(state) {
+    return !!(state && (state.loading || state.authRolePending || state.kontoOffen));
+}
+
+export function isSchularbeitenSignedOutAfterBoot(state) {
+    if (isSchularbeitenAccountBusy(state)) return false;
+    if (!state || !state.authSettled) return false;
+    if (state.demoRoleOverride || state.localDemoOnly) return false;
+    return !String(state.accountEmail || '').trim();
 }
 
 function renderSaRoleBlock(state, demoRoleUi) {
+    if (isSchularbeitenAccountBusy(state) || isSchularbeitenSignedOutAfterBoot(state)) return '';
     const showRoleSwitcher = canUsePlanerRoleSwitcher(state.planerRoles || [], demoRoleUi);
     if (!showRoleSwitcher) {
-        if (state.planerAccessDenied) {
-            return `<p class="sa-nav__hint">${esc(state.roleHint || 'Kein Zugang.')}</p>`;
-        }
         return '';
     }
     const switchable = demoRoleUi ? PLANER_ROLE_ORDER : sortPlanerRoles(state.planerRoles || []);
@@ -127,29 +135,38 @@ function groupNav(views) {
 }
 
 function renderSaTop(state, klasseLabel) {
+    if (
+        isSchularbeitenAccountBusy(state) ||
+        isSchularbeitenSignedOutAfterBoot(state) ||
+        state.planerAccessDenied
+    ) {
+        return '';
+    }
+    const selfTitled =
+        state.view === 'dashboard' ||
+        state.view === 'liste' ||
+        state.view === 'meine' ||
+        state.view === 'neu';
+    if (selfTitled) {
+        const pick = renderStudentKlassePick(state);
+        return pick
+            ? `<div class="sa-top-refresh sa-top-refresh--pick">${pick}</div>`
+            : '';
+    }
     const titles = {
-        dashboard:
-            state.role === 'schueler' ? 'Meine Klasse' : state.role === 'admin' ? 'Überblick' : 'Meine Schularbeiten',
-        liste: 'Liste',
         kalender: 'Kalender',
-        neu: state.editingItemId ? 'Schularbeit bearbeiten' : 'Neue Schularbeit',
-        meine: 'Meine Schularbeiten',
         admin: 'Systemadministration',
         regeln: 'Regelwerk',
         export: 'Export'
     };
     const title = titles[state.view] || 'Schularbeiten';
     let lead = '';
-    if (state.role === 'schueler' && ['dashboard', 'liste', 'kalender', 'export'].includes(state.view)) {
+    if (state.role === 'schueler' && ['kalender', 'export'].includes(state.view)) {
         lead = klasseLabel
             ? 'Klasse ' + klasseLabel + ' · nur fixierte Termine'
             : 'Klasse wählen, damit die Termine erscheinen.';
-    } else if (state.role === 'admin' && state.view === 'dashboard') {
-        lead = 'Alle Klassen im Schuljahr.';
-    } else if (state.role === 'lehrer' && state.view === 'dashboard') {
-        lead = 'Eigene Termine dieser Woche.';
     }
-    const showCta = state.role !== 'schueler' && state.view !== 'neu' && state.view !== 'admin';
+    const showCta = state.role !== 'schueler' && state.view !== 'admin';
     return `
     <header class="sa-top">
       <div class="sa-top__intro">
@@ -160,7 +177,7 @@ function renderSaTop(state, klasseLabel) {
         ${renderStudentKlassePick(state)}
         ${
             showCta
-                ? '<button type="button" class="btn sa-top__cta" data-sa-view="neu"><i class="bi bi-plus-lg" aria-hidden="true"></i>Neue Schularbeit</button>'
+                ? '<button type="button" class="fb-btn sa-top__cta" data-sa-view="neu">Neue Schularbeit</button>'
                 : ''
         }
       </div>
@@ -194,6 +211,8 @@ export function renderApp(state, root) {
     } catch {
         /* ignore */
     }
+    const busy = isSchularbeitenAccountBusy(state);
+    const signedOutAfterBoot = isSchularbeitenSignedOutAfterBoot(state);
     const views = viewsForRole(state.role);
     const demoRoleUi = isPlanerDemoRoleUiEnabled(
         state.entraGroupsConfigured || entraGroupsConfigured(loadPermissionsConfig()),
@@ -242,18 +261,20 @@ export function renderApp(state, root) {
       <div class="sa-main">
         ${renderSaTop(state, klasseLabel)}
         ${
+            !busy &&
+            !signedOutAfterBoot &&
             state.error &&
             !(state.localDemoOnly && /403|Zugriff|Forbidden/i.test(String(state.error)))
                 ? `<div class="sa-alert sa-alert--bad" role="alert">${esc(state.error)}</div>`
                 : ''
         }
         ${
-            state.softError
+            !busy && !signedOutAfterBoot && state.softError
                 ? `<div class="sa-alert sa-alert--info" role="status">${esc(state.softError)}</div>`
                 : ''
         }
         ${
-            state.roleHint
+            !busy && !signedOutAfterBoot && !state.planerAccessDenied && state.roleHint
                 ? `<div class="sa-alert sa-alert--info" role="status">${esc(state.roleHint)}
             ${
                 state.role !== 'schueler' && demoRoleUi
@@ -262,9 +283,9 @@ export function renderApp(state, root) {
             }</div>`
                 : ''
         }
-        ${state.loading ? skeletonBlock() : ''}
-        <div id="saView" class="sa-view${state.loading ? ' is-loading' : ''}">
-          ${state.loading ? '' : renderView(state)}
+        ${busy ? skeletonBlock() : ''}
+        <div id="saView" class="sa-view${busy ? ' is-loading' : ''}">
+          ${busy ? '' : renderView(state)}
         </div>
       </div>
     </div>
@@ -273,8 +294,8 @@ export function renderApp(state, root) {
 }
 
 function skeletonBlock() {
-    return `<div class="sa-skel" aria-busy="true" aria-live="polite">
-      <div class="sa-skel__card"></div><div class="sa-skel__card"></div><div class="sa-skel__card"></div>
+    return `<div class="sa-skel" role="status" aria-busy="true" aria-live="polite" aria-label="Konto und Berechtigungen werden geprüft">
+      <div class="sa-skel__card"></div><div class="sa-skel__card"></div>
     </div>`;
 }
 
@@ -384,11 +405,28 @@ function filterBar(state, opts) {
 }
 
 function renderView(state) {
+    if (isSchularbeitenSignedOutAfterBoot(state)) {
+        return `<section class="tm-panel sa-status-panel" aria-live="polite">
+      <h2 class="sa-h2">Anmeldung erforderlich</h2>
+      <p>Bitte melden Sie sich mit Ihrem Schul-Konto (Microsoft 365) an, um Ihre Berechtigung und Schularbeitstermine zu laden.</p>
+      <div class="sa-status-panel__actions">
+        <button type="button" class="btn btn-primary" data-sa-auth-login><i class="bi bi-box-arrow-in-right"></i> Mit Microsoft 365 anmelden</button>
+      </div>
+    </section>`;
+    }
     if (state.planerAccessDenied) {
-        return `<section class="tm-panel">
+        return `<section class="tm-panel sa-status-panel" role="alert">
       <h2 class="sa-h2">Kein Zugriff auf den Schularbeiten-Planer</h2>
       <p>Ihr Microsoft-Konto ist keiner der konfigurierten Entra-Gruppen zugeordnet und nicht als Einzelperson eingetragen (Verwaltung, Lehrkräfte oder Schüler).</p>
       <p>Bitte wenden Sie sich an die Schul-IT. Gruppen und Einzelpersonen legen Sie unter <strong>Systemadministration → Berechtigungen</strong> fest.</p>
+      ${
+          state.accountEmail
+              ? `<p class="muted sa-status-panel__meta">Geprüftes Konto: <strong>${esc(state.accountEmail)}</strong></p>`
+              : ''
+      }
+      <div class="sa-status-panel__actions">
+        <button type="button" class="btn" data-sa-auth-switch><i class="bi bi-arrow-left-right"></i> Anderes Konto wählen</button>
+      </div>
     </section>`;
     }
     if (!state.bootstrapped && !state.ctx && !state.localDemoOnly) {
@@ -493,10 +531,26 @@ function renderDashboard(state) {
             : scopedItems(state, true);
     const weekMonday =
         state.dashboardWeekMonday || mondayOfWeekContaining(toIsoDateOnly(new Date()));
+    const n = items.length;
+    const headline =
+        n === 1
+            ? '<span class="fb-num">1</span> Schularbeit in der Woche.'
+            : `<span class="fb-num">${n}</span> Schularbeiten in der Übersicht.`;
+    const sub =
+        state.role === 'admin'
+            ? 'Alle Klassen im Schuljahr · Woche antippen für Details.'
+            : 'Eigene Termine · Woche antippen für Details.';
 
     return `
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
     ${filterBar(state, { scopeAll: state.role === 'admin' })}
-    ${renderWeekCalendar(items, state, weekMonday)}`;
+    ${renderWeekCalendar(items, state, weekMonday)}
+    <div class="fb-actions-row">
+      <button type="button" class="fb-btn" data-sa-view="neu">Neue Schularbeit</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-sa-view="liste">Liste</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-sa-view="kalender">Kalender</button>
+    </div>`;
 }
 
 function renderListe(state) {
@@ -511,13 +565,19 @@ function renderListe(state) {
               : scopedItems(state, true);
     const labels = labelMaps(state.stammdaten);
     const listItems = items.slice().sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+    const headline =
+        listItems.length === 1
+            ? '<span class="fb-num">1</span> Termin im Überblick.'
+            : `<span class="fb-num">${listItems.length}</span> Termine im Überblick.`;
     const empty =
         state.role === 'schueler'
-            ? `<div class="sa-empty"><p><strong>Keine fixierten Termine</strong></p><p class="muted">Sobald eine Schularbeit fixiert ist, erscheint sie hier.</p></div>`
-            : `<div class="sa-empty"><p><strong>Keine Schularbeiten</strong></p><p class="muted">Für diesen Filter gibt es keine Einträge.</p>
-            <button type="button" class="btn" data-sa-view="neu">Neue Schularbeit</button></div>`;
+            ? `<p class="sa-quiet-status" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i><span>Keine fixierten Termine.</span></p>`
+            : `<p class="sa-quiet-status" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i><span>Keine Einträge für diesen Filter.</span></p>
+            <div class="fb-actions-row"><button type="button" class="fb-btn" data-sa-view="neu">Neue Schularbeit</button></div>`;
 
     return `
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">Zeile anklicken öffnet das Detail.</p>
     ${filterBar(state, { scopeAll: state.role === 'admin' })}
     ${
         listItems.length
@@ -537,8 +597,14 @@ function renderSchuelerDashboard(state) {
     const items = scopedItems(state, false);
     const weekMonday =
         state.dashboardWeekMonday || mondayOfWeekContaining(toIsoDateOnly(new Date()));
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> fixierter Termin.'
+            : `<span class="fb-num">${items.length}</span> fixierte Termine.`;
 
     return `
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">Nur freigegebene Schularbeiten Ihrer Klasse.</p>
     ${filterBar(state, {})}
     ${renderWeekCalendar(items, state, weekMonday)}`;
 }
@@ -843,27 +909,29 @@ function renderMeine(state) {
     const labels = labelMaps(state.stammdaten);
     const items = scopedItems(state, true).slice().sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
     const ownSyncable = personalCalendarSyncItems(state);
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> eigener Termin.'
+            : `<span class="fb-num">${items.length}</span> eigene Termine.`;
     let emptyHint = '';
     if (!items.length && state.items.length) {
         emptyHint = state.teacherMatch
             ? `<p class="muted">Keine eigenen Einträge für ${esc(state.teacherMatch.name || state.teacherMatch.code)}.</p>`
             : `<p class="muted">Keine Einträge zu Ihrer Anmeldung (${esc(state.accountEmail || '—')}).
-            „Meine Schularbeiten“ zeigt nur Anträge Ihrer Lehrkraft-Zuordnung.
-            Alle Termine: <button type="button" class="sa-link" data-sa-view="dashboard">Dashboard</button>
-            ${state.role === 'admin' ? ' bzw. Systemadministration.' : ''}
-            Für die Lehrer-Ansicht: Rolle „Lehrer“ und E-Mail in den Stammdaten pflegen.</p>`;
+            Alle Termine: <button type="button" class="sa-link" data-sa-view="dashboard">Dashboard</button>.</p>`;
     } else if (!items.length) {
         emptyHint = '<p class="muted">Keine Einträge.</p>';
     }
     return `
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">Nur Anträge Ihrer Lehrkraft-Zuordnung.</p>
     ${filterBar(state, { onlyMine: true, scopeAll: false })}
     ${
         ownSyncable.length
             ? `<div class="sa-meine-cal-bar">
-        <button type="button" class="btn btn-sm" data-sa-sync-my-cal>
-          <i class="bi bi-calendar-plus"></i>In meinen Outlook-Kalender (${ownSyncable.length})
+        <button type="button" class="fb-btn fb-btn--ghost" data-sa-sync-my-cal>
+          In meinen Outlook-Kalender (${ownSyncable.length})
         </button>
-        <span class="muted">Fixierte und beantragte eigene Termine · Filter oben beachten</span>
       </div>`
             : ''
     }
@@ -871,7 +939,11 @@ function renderMeine(state) {
         items.length
             ? tableSchularbeiten(items, labels, { interactive: true, fachMeta: state.fachMeta })
             : emptyHint
-    }`;
+    }
+    <div class="fb-actions-row">
+      <button type="button" class="fb-btn" data-sa-view="neu">Neue Schularbeit</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-sa-view="liste">Liste</button>
+    </div>`;
 }
 
 function tableSchularbeiten(items, labels, opts) {
@@ -1198,7 +1270,7 @@ function renderAdmin(state) {
         Empfohlen auf einer <strong>Administrations-Site</strong> (z. B. <code>/sites/administration</code>).
         Schularbeiten: Lehrer <em>Beitragen</em>, Schüler <em>Lesen</em>, Verwaltung <em>Vollzugriff</em>.
         Regelwerk/Terminfenster/FachMeta: Lehrer Lesen, Schüler kein Zugriff.
-        Voraussetzung: <code>Sites.FullControl.All</code> und <code>Group.Read.All</code>.
+        Voraussetzung: <code>AllSites.FullControl</code> und <code>Group.Read.All</code>.
       </p>
       ${htmlSchularbeitenEntraPermGrid(p, { delegated: true, mode: 'planer' })}
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">

@@ -245,6 +245,17 @@ export function monthGridDays(year, month) {
 }
 
 /**
+ * Leertext für Agenda/Woche/Monat – verhindert „lädt nicht“-Eindruck.
+ * @param {'agenda'|'week'|'month'|string} mode
+ */
+export function emptyPeriodLabel(mode) {
+    const m = String(mode || '').trim();
+    if (m === 'week') return 'Keine Termine in dieser Woche.';
+    if (m === 'month') return 'Keine Termine in diesem Monat.';
+    return 'Keine Termine in diesem Zeitraum.';
+}
+
+/**
  * @param {Date} weekStart
  */
 export function weekRangeLabelDe(weekStart) {

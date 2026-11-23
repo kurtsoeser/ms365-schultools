@@ -109,7 +109,37 @@ function optionList(items, selected, emptyLabel, valueKey, labelKey) {
     return opts.join('');
 }
 
+export function isFreistellungAccountBusy(state) {
+    return !!(state && (state.loading || state.authRolePending || state.kontoOffen));
+}
+
+export function isFreistellungSignedOutAfterBoot(state) {
+    if (isFreistellungAccountBusy(state)) return false;
+    if (!state || !state.authSettled) return false;
+    if (state.demoRoleOverride || state.localDemoOnly) return false;
+    return !String(state.accountEmail || '').trim();
+}
+
 function renderNavSession(state) {
+    if (
+        isFreistellungAccountBusy(state) &&
+        !String((state && state.accountEmail) || '').trim() &&
+        !(state && state.demoRoleOverride) &&
+        !(state && state.localDemoOnly)
+    ) {
+        return `
+        <div class="fr-nav__session" aria-label="Anmeldung">
+          <span class="fr-nav__role-label">Anmeldung</span>
+          <p class="fr-nav__hint muted">Konto wird geprüft …</p>
+        </div>`;
+    }
+    if (isFreistellungSignedOutAfterBoot(state)) {
+        return `
+        <div class="fr-nav__session" aria-label="Anmeldung">
+          <span class="fr-nav__role-label">Anmeldung</span>
+          <p class="fr-nav__hint">Nicht angemeldet</p>
+        </div>`;
+    }
     const studentChrome = useStudentPlanerChrome(state);
     const demoRoleUi = isPlanerDemoRoleUiEnabled(state.entraGroupsConfigured, state.demoRoleOverride);
     const switchable = demoRoleUi ? PLANER_ROLE_ORDER : sortPlanerRoles(state.planerRoles || []);
@@ -284,12 +314,48 @@ function viewLead(state) {
     return 'Übersicht, Anträge und Genehmigungen. Technik liegt unter Systemadministration.';
 }
 
-function renderWorkTop(state) {
-    const denied = state.planerAccessDenied;
+function renderAuthRequiredPanel() {
+    return `<section class="tm-panel fr-status-panel" aria-live="polite">
+      <h2 class="fr-h2">Anmeldung erforderlich</h2>
+      <p>Bitte melden Sie sich mit Ihrem Schul-Konto (Microsoft 365) an, um Ihre Berechtigung und Freistellungsanträge zu laden.</p>
+      <div class="fr-status-panel__actions">
+        <button type="button" class="btn btn-primary" data-fr-auth-login><i class="bi bi-box-arrow-in-right"></i> Mit Microsoft 365 anmelden</button>
+      </div>
+    </section>`;
+}
+
+function renderAccessDeniedPanel(state) {
     const hint = state.roleHintPublic || state.roleHintStaff || state.roleHint || '';
-    const onAdmin = state.view === 'administration';
-    const onAntrag = state.view === 'antrag';
     const student = useStudentPlanerChrome(state);
+    const kv = useKvPlanerChrome(state);
+    const deniedFallback = student
+        ? 'Derzeit kein Zugriff auf Ihre Freistellungsanträge.'
+        : kv
+          ? 'Derzeit kein Zugriff auf die Freistellungsanträge Ihrer Klasse.'
+          : 'Kein Zugriff auf den Freistellungs-Planer für dieses Konto.';
+    return `<section class="tm-panel fr-status-panel" role="alert">
+      <h2 class="fr-h2">Kein Zugriff auf den Freistellungs-Planer</h2>
+      <p>${esc(hint || deniedFallback)}</p>
+      ${
+          state.accountEmail
+              ? `<p class="muted fr-status-panel__meta">Geprüftes Konto: <strong>${esc(state.accountEmail)}</strong></p>`
+              : ''
+      }
+      <div class="fr-status-panel__actions">
+        <button type="button" class="btn" data-fr-auth-switch><i class="bi bi-arrow-left-right"></i> Anderes Konto wählen</button>
+      </div>
+    </section>`;
+}
+
+function renderWorkTop(state) {
+    if (
+        isFreistellungAccountBusy(state) ||
+        isFreistellungSignedOutAfterBoot(state) ||
+        state.planerAccessDenied
+    ) {
+        return '';
+    }
+    const onAdmin = state.view === 'administration';
     const kv = useKvPlanerChrome(state);
     const kvClasses = kv
         ? (state.stammdaten.classes || []).filter((c) => {
@@ -300,11 +366,29 @@ function renderWorkTop(state) {
           })
         : [];
     const classLabels = kvClasses.map((c) => c.name || c.code).filter(Boolean);
-    const deniedFallback = student
-        ? 'Derzeit kein Zugriff auf Ihre Freistellungsanträge.'
-        : kv
-          ? 'Derzeit kein Zugriff auf die Freistellungsanträge Ihrer Klasse.'
-          : 'Kein Zugriff auf den Freistellungs-Planer für dieses Konto.';
+    const selfTitled =
+        state.view === 'dashboard' ||
+        state.view === 'freigabe' ||
+        state.view === 'liste' ||
+        state.view === 'meine' ||
+        state.view === 'bericht' ||
+        state.view === 'antrag' ||
+        !state.view;
+    if (selfTitled) {
+        if (!state.accountEmail && !classLabels.length) return '';
+        return `<div class="fr-top-refresh">
+            ${
+                classLabels.length
+                    ? `<span class="fb-pill">Klasse ${esc(classLabels.join(', '))}</span>`
+                    : ''
+            }
+            ${
+                state.accountEmail
+                    ? `<button type="button" class="fb-btn fb-btn--ghost" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
+                    : ''
+            }
+        </div>`;
+    }
     return `
         <header class="fr-top fr-top--student">
           <div class="fr-top__copy">
@@ -312,7 +396,7 @@ function renderWorkTop(state) {
             <p class="fr-top__lead">${esc(viewLead(state))}</p>
             ${
                 classLabels.length
-                    ? `<p class="fr-top__lead">Klassen: <span class="fr-badge fr-nav__account-klasse">${esc(
+                    ? `<p class="fr-top__lead">Klassen: <span class="fb-pill">${esc(
                           classLabels.join(', ')
                       )}</span></p>`
                     : ''
@@ -320,22 +404,12 @@ function renderWorkTop(state) {
           </div>
           <div class="fr-top__user">
             ${
-                student && state.accountEmail && !denied && !onAntrag && !onAdmin
-                    ? `<button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>`
-                    : ''
-            }
-            ${
                 state.accountEmail && !onAdmin
-                    ? `<button type="button" class="btn" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
+                    ? `<button type="button" class="fb-btn fb-btn--ghost" id="frBtnLoad" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
                     : ''
             }
           </div>
-        </header>
-        ${
-            denied
-                ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(hint || deniedFallback)}</div>`
-                : ''
-        }`;
+        </header>`;
 }
 
 function renderAdministration(state) {
@@ -523,6 +597,8 @@ export function renderApp(state, root) {
         ${personaBanner}
         ${showAccessDebug ? renderFreistellungAccessDebugEntry(state) : ''}
         ${
+            !isFreistellungAccountBusy(state) &&
+            !isFreistellungSignedOutAfterBoot(state) &&
             !state.demoPersonaEmail &&
             state.localDemoOnly &&
             state.view === 'administration'
@@ -530,14 +606,33 @@ export function renderApp(state, root) {
                 : ''
         }
         ${
+            !isFreistellungAccountBusy(state) &&
+            !isFreistellungSignedOutAfterBoot(state) &&
+            !state.planerAccessDenied &&
             state.info
                 ? `<div class="fr-alert fr-alert--info" role="status">${esc(state.info)}</div>`
                 : ''
         }
-        ${state.error ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(state.error)}</div>` : ''}
-        ${state.loading ? '<div class="fr-skel" aria-busy="true"><div class="fr-skel__card"></div><div class="fr-skel__card"></div></div>' : ''}
-        <div id="frView" class="fr-view${state.loading ? ' is-loading' : ''}">
-          ${state.loading || state.planerAccessDenied ? '' : renderView(state)}
+        ${
+            !isFreistellungAccountBusy(state) && !isFreistellungSignedOutAfterBoot(state) && state.error
+                ? `<div class="fr-alert fr-alert--bad" role="alert">${esc(state.error)}</div>`
+                : ''
+        }
+        ${
+            isFreistellungAccountBusy(state)
+                ? '<div class="fr-skel" role="status" aria-busy="true" aria-label="Konto und Berechtigungen werden geprüft"><div class="fr-skel__card"></div><div class="fr-skel__card"></div></div>'
+                : ''
+        }
+        <div id="frView" class="fr-view${isFreistellungAccountBusy(state) ? ' is-loading' : ''}">
+          ${
+              isFreistellungAccountBusy(state)
+                  ? ''
+                  : isFreistellungSignedOutAfterBoot(state)
+                    ? renderAuthRequiredPanel()
+                    : state.planerAccessDenied
+                      ? renderAccessDeniedPanel(state)
+                      : renderView(state)
+          }
         </div>
       </div>
     </div>
@@ -792,14 +887,24 @@ function renderView(state) {
     }
 }
 
-function renderNextFreistellungCard(it) {
-    return `
-    <button type="button" class="fr-next-card" data-fr-detail="${esc(it.itemId)}">
-      <span class="fr-next-card__when">${esc(formatDeDateTime(it.beginn))}</span>
-      <span class="fr-next-card__title">${esc(it.schuelerName || it.titel || 'Antrag')}</span>
-      <span class="fr-next-card__meta muted">${esc(it.klasse || '')}${
-          it.kategorie ? ' · ' + esc(it.kategorie) : ''
-      } · ${statusBadge(it.status)}</span>
+function renderFrDecisionRow(it) {
+    const id = it.itemId || it.antragId;
+    const s = String(it.status || 'Ausstehend').trim();
+    const pillMod = s === 'Genehmigt' ? 'ok' : s === 'Abgelehnt' ? 'bad' : 'warn';
+    const pillLabel = s === 'Ausstehend' ? 'Offen' : statusLabel(s);
+    const title = it.schuelerName || it.titel || 'Antrag';
+    const metaParts = [it.klasse, it.kategorie].filter(Boolean);
+    const range =
+        it.ende && it.ende !== it.beginn
+            ? `${formatDeDateTime(it.beginn)} – ${formatDeDateTime(it.ende)}`
+            : formatDeDateTime(it.beginn);
+    return `<button type="button" class="fb-rowbtn" data-fr-detail="${esc(id)}">
+      <div class="fb-rowbtn__main">
+        <div class="fb-rowbtn__title">${esc(title)}</div>
+        <div class="fb-rowbtn__meta">${esc(metaParts.join(' · ') || 'Freistellung')}</div>
+      </div>
+      <div class="fb-rowbtn__date">${esc(range)}</div>
+      <span class="fb-pill fb-pill--${pillMod}">${esc(pillLabel)}</span>
     </button>`;
 }
 
@@ -808,58 +913,39 @@ function renderDashboard(state) {
     const scope = scopeFromState(state, { scopeAll: state.role === 'direktion' });
     const items = filterItems(state.items, {}, scope);
     const offen = items.filter((i) => String(i.status) === 'Ausstehend');
-    const first = offen[0];
     const today = toIsoDateOnly(new Date()) || '';
 
-    const attention = offen.length
-        ? `<section class="fr-calm-banner fr-calm-banner--action" role="status">
-      <div class="fr-calm-banner__text">
-        <p class="fr-calm-banner__eyebrow">Was braucht deine Aufmerksamkeit?</p>
-        <p><strong>${
-            offen.length === 1
-                ? '1 Antrag wartet auf Entscheidung'
-                : offen.length + ' Anträge warten auf Entscheidung'
-        }</strong></p>
-        ${
-            first
-                ? `<p class="muted">${esc(first.schuelerName || first.titel || 'Antrag')}${
-                      first.klasse ? ' · ' + esc(first.klasse) : ''
-                  } · ${esc(formatDeDateTime(first.beginn))}</p>`
-                : ''
-        }
-      </div>
-      <button type="button" class="btn fr-btn-primary" data-fr-view-jump="freigabe" data-fr-filter-status="Ausstehend">${
-          offen.length === 1 ? 'Antrag prüfen' : 'Genehmigungen öffnen'
-      } →</button>
-    </section>`
-        : `<p class="fr-quiet-status" role="status">
-      <i class="bi bi-check-circle" aria-hidden="true"></i>
-      <span><strong>Aktuell wartet keine Entscheidung auf dich.</strong></span>
-    </p>`;
+    const headline =
+        offen.length === 1
+            ? '<span class="fb-num">1</span> Antrag ohne Entscheidung.'
+            : `<span class="fb-num">${offen.length}</span> ohne Entscheidung.`;
+    const sub = offen.length
+        ? 'Zeile anklicken, Details prüfen. Freigaben laufen über Microsoft Approvals oder direkt im Detailfeld.'
+        : 'Aktuell wartet keine Entscheidung auf Sie.';
 
     if (kvChrome) {
         const sorted = [...items].sort((a, b) => String(b.beginn || '').localeCompare(String(a.beginn || '')));
         return `
-    <section class="fr-panel fr-panel--calm">
-      <h2 class="fr-sr-only">Aufmerksamkeit</h2>
-      ${attention}
-      ${
-          offen.length
-              ? '<p class="muted" style="margin-top:8px;">Freigaben laufen über Microsoft Approvals (Teams/Outlook).</p>'
-              : ''
-      }
-    </section>
-    <section class="fr-panel fr-panel--calm">
-      <h2>Anträge Ihrer Klasse</h2>
-      ${
-          sorted.length
-              ? renderTable(sorted.slice(0, 12), state)
-              : (state.items || []).length
-                ? '<p class="muted">In der Liste liegen Anträge, aber keiner passt zu Ihrer Klasse/KV-Zuordnung. IT: Stammdaten <code>headEmail</code> prüfen.</p>'
-                : '<p class="fr-quiet-status" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i><span>Aktuell keine Anträge für Ihre Klasse.</span></p>'
-      }
-      <button type="button" class="fr-text-link" data-fr-view-jump="kalender">Zum Kalender <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
-    </section>`;
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${
+        offen.length
+            ? `<div class="fb-sec-label">OFFEN IN IHRER KLASSE</div>
+               <div class="fb-rowlist">${offen.slice(0, 8).map(renderFrDecisionRow).join('')}</div>`
+            : ''
+    }
+    <div class="fb-sec-label">ANTRÄGE IHRER KLASSE</div>
+    ${
+        sorted.length
+            ? renderTable(sorted.slice(0, 12), state)
+            : (state.items || []).length
+              ? '<p class="muted">In der Liste liegen Anträge, aber keiner passt zu Ihrer Klasse/KV-Zuordnung. IT: Stammdaten <code>headEmail</code> prüfen.</p>'
+              : '<p class="muted">Aktuell keine Anträge für Ihre Klasse.</p>'
+    }
+    <div class="fb-actions-row">
+      <button type="button" class="fb-btn" data-fr-view-jump="antrag">Neuer Antrag</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-fr-view-jump="kalender">Kalender</button>
+    </div>`;
     }
 
     const nextItems = items
@@ -870,35 +956,49 @@ function renderDashboard(state) {
             return start && today && start >= today;
         })
         .sort((a, b) => String(a.beginn || '').localeCompare(String(b.beginn || '')))
-        .slice(0, 3);
+        .slice(0, 5);
 
     return `
-    <section class="fr-panel fr-panel--calm">
-      <h2 class="fr-sr-only">Aufmerksamkeit</h2>
-      ${attention}
-    </section>
-    <section class="fr-panel fr-panel--calm">
-      <h2>Als Nächstes</h2>
-      <p class="muted" style="margin-top:0">Genehmigte Freistellungen demnächst.</p>
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${
+        offen.length
+            ? `<div class="fb-sec-label">OFFEN</div>
+               <div class="fb-rowlist">${offen.slice(0, 8).map(renderFrDecisionRow).join('')}</div>`
+            : ''
+    }
+    <div class="fb-sec-label">DEMNÄCHST GENEHMIGT</div>
+    ${
+        nextItems.length
+            ? `<div class="fb-rowlist">${nextItems.map(renderFrDecisionRow).join('')}</div>`
+            : '<p class="muted" style="margin:6px 0 0;">Keine kommenden genehmigten Freistellungen.</p>'
+    }
+    <div class="fb-actions-row">
       ${
-          nextItems.length
-              ? `<div class="fr-next-list">${nextItems.map((it) => renderNextFreistellungCard(it)).join('')}</div>`
-              : '<p class="muted">Keine kommenden genehmigten Freistellungen.</p>'
+          offen.length
+              ? '<button type="button" class="fb-btn" data-fr-view-jump="freigabe" data-fr-filter-status="Ausstehend">Entscheidungen öffnen</button>'
+              : '<button type="button" class="fb-btn" data-fr-view-jump="antrag">Neuer Antrag</button>'
       }
-      <div class="fr-actions" style="margin-top:8px">
-        <button type="button" class="btn fr-btn-primary" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Neuer Antrag</button>
-        <button type="button" class="fr-text-link" data-fr-view-jump="liste">Alle anzeigen <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
-        <button type="button" class="fr-text-link" data-fr-view-jump="kalender">Kalender <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
-      </div>
-    </section>`;
+      <button type="button" class="fb-btn fb-btn--ghost" data-fr-view-jump="liste">Alle Anträge</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-fr-view-jump="kalender">Kalender</button>
+    </div>`;
 }
 
 function renderListe(state) {
     const scope = scopeFromState(state, { scopeAll: state.role === 'direktion' });
     const items = filterItems(state.items, state.filters, scope);
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> Antrag im Überblick.'
+            : `<span class="fb-num">${items.length}</span> Anträge im Überblick.`;
+    const sub =
+        state.role === 'direktion'
+            ? 'Gefiltert oder durchsucht. Zeile anklicken öffnet das Detail.'
+            : 'Anträge Ihrer Klasse. Zeile anklicken öffnet das Detail.';
     return `
     <section class="fr-panel fr-panel--calm fr-panel--list">
-      <h2 class="fr-sr-only">Liste</h2>
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">${esc(sub)}</p>
       ${filterBar(state)}
       ${
           items.length
@@ -952,26 +1052,31 @@ function renderMeine(state) {
         onlyMine: true,
         accountEmail: mineEmail
     });
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> eigener Antrag.'
+            : `<span class="fb-num">${items.length}</span> eigene Anträge.`;
+    const sub = studentChrome
+        ? 'Eingereichte Freistellungen und aktueller Status.'
+        : 'Ihre eingereichten Freistellungen. Zeile anklicken öffnet das Detail.';
     const empty = `<p class="fr-quiet-status" role="status">
       <i class="bi bi-check-circle" aria-hidden="true"></i>
       <span>${
           studentChrome
-              ? 'Noch keine Anträge. Stellen Sie Ihren ersten Antrag über die Navigation oder den Button unten.'
+              ? 'Noch keine Anträge. Stellen Sie Ihren ersten Antrag über den Knopf unten.'
               : 'Noch keine eigenen Anträge.'
       }</span>
     </p>`;
     return `
     <section class="fr-panel fr-panel--calm fr-panel--list${studentChrome ? ' fr-panel--student-meine' : ''}">
-      <h2 class="fr-sr-only">Meine Anträge</h2>
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">${esc(sub)}</p>
       ${studentChrome ? '' : filterBar(state)}
-      ${items.length ? renderTable(items, state) : empty}
-      ${
-          studentChrome && !items.length
-              ? `<div class="fr-actions" style="margin-top:12px">
-        <button type="button" class="btn fr-btn-primary" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>
-      </div>`
-              : ''
-      }
+      ${items.length ? `<div class="fb-rowlist">${items.map(renderFrDecisionRow).join('')}</div>` : empty}
+      <div class="fb-actions-row">
+        <button type="button" class="fb-btn" data-fr-view-jump="antrag">Antrag stellen</button>
+        ${studentChrome ? '<button type="button" class="fb-btn fb-btn--ghost" data-fr-view-jump="kalender">Kalender</button>' : ''}
+      </div>
     </section>`;
 }
 
@@ -985,13 +1090,17 @@ function renderFreigabe(state) {
             ? { accountEmail: email }
             : { onlyKv: true, accountEmail: email };
     const items = filterItems(state.items, { status: 'Ausstehend' }, scope);
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> Antrag ohne Entscheidung.'
+            : `<span class="fb-num">${items.length}</span> ohne Entscheidung.`;
     return `
     <section class="fr-panel fr-panel--calm fr-panel--list">
-      <h2 class="fr-sr-only">Offene Genehmigungen</h2>
-      <p class="muted">Freigabe in <strong>Microsoft Approvals</strong> (Teams/Handy). Manuelles ✓/✗ nur Fallback ohne Flow.</p>
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">Zeile anklicken, Nachweise und Zeitraum prüfen, rechts im Detailfeld entscheiden. In Produktion übernimmt Microsoft Approvals automatisch.</p>
       ${
           items.length
-              ? renderTable(items, state, { showDecide: true })
+              ? `<div class="fb-rowlist">${items.map(renderFrDecisionRow).join('')}</div>`
               : `<p class="fr-quiet-status" role="status">
         <i class="bi bi-check-circle" aria-hidden="true"></i>
         <span>Keine offenen Anträge.</span>
@@ -1015,21 +1124,16 @@ function renderBericht(state) {
         .join('');
     return `
     <section class="fr-panel">
-      <h2>Berichte</h2>
+      <h1 class="fb-greet"><span class="fb-num">${kpi.gesamt}</span> ${kpi.gesamt === 1 ? 'Antrag' : 'Anträge'} ausgewertet.</h1>
+      <p class="fb-sub">${kpi.genehmigt} genehmigt · ${kpi.abgelehnt} abgelehnt · ${kpi.mehrtage} mehrtägig.</p>
       ${filterBar(state)}
-      <div class="fr-kpi-row">
-        <div class="fr-kpi"><strong>${kpi.gesamt}</strong><span>Gesamt</span></div>
-        <div class="fr-kpi"><strong>${kpi.genehmigt}</strong><span>Genehmigt</span></div>
-        <div class="fr-kpi"><strong>${kpi.abgelehnt}</strong><span>Abgelehnt</span></div>
-        <div class="fr-kpi"><strong>${kpi.mehrtage}</strong><span>Mehrtägig</span></div>
-      </div>
-      <h3>Nach Klasse</h3>
+      <div class="fb-sec-label">NACH KLASSE</div>
       <table class="fr-table">
         <thead><tr><th>Klasse</th><th>Anzahl</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="2" class="muted">Keine Daten</td></tr>'}</tbody>
       </table>
-      <div class="fr-actions" style="margin-top:12px">
-        <button type="button" class="btn" id="frBtnCsvInline"><i class="bi bi-download"></i>CSV exportieren</button>
+      <div class="fb-actions-row">
+        <button type="button" class="fb-btn fb-btn--ghost" id="frBtnCsvInline">CSV exportieren</button>
       </div>
     </section>`;
 }
@@ -1259,14 +1363,12 @@ function renderAntrag(state) {
 
     return `
     <section class="fr-panel fr-panel--antrag fr-panel--calm">
-      ${
+      <h1 class="fb-greet">Antrag stellen</h1>
+      <p class="fb-sub">${
           studentChrome
-              ? `<p class="fr-antrag-lead">In wenigen Schritten absenden. Die Genehmigung läuft danach automatisch über Microsoft Approvals.</p>`
-              : `<header class="fr-antrag-head">
-          <h2 class="fr-sr-only">Neuer Freistellungsantrag</h2>
-          <p class="muted">Schritt für Schritt – Speichern schreibt in SharePoint und startet den Genehmigungsflow.</p>
-        </header>`
-      }
+              ? 'In wenigen Schritten absenden. Die Genehmigung läuft danach automatisch über Microsoft Approvals.'
+              : 'Schritt für Schritt – Speichern schreibt in SharePoint und startet den Genehmigungsflow.'
+      }</p>
       <form id="frAntragForm" class="fr-form fr-form--antrag fr-form--wizard" autocomplete="on" data-fr-step="${formStep}" novalidate>
         <ol class="fr-antrag-toc" aria-label="Antragsschritte">
           ${tocStep(1, 'Person')}
@@ -1278,15 +1380,15 @@ function renderAntrag(state) {
         <div class="fr-wizard-actions">
           ${
               formStep > 1
-                  ? '<button type="button" class="btn fr-btn-ghost" data-fr-step-prev>← Zurück</button>'
+                  ? '<button type="button" class="fb-btn fb-btn--ghost" data-fr-step-prev>← Zurück</button>'
                   : '<span></span>'
           }
           <div class="fr-wizard-actions__primary">
             ${
                 formStep < 4
-                    ? '<button type="button" class="btn fr-btn-primary" data-fr-step-next>Weiter →</button>'
-                    : `<button type="submit" class="btn fr-btn-primary" id="frBtnSubmit"><i class="bi bi-send"></i>Antrag einreichen</button>
-                       <button type="button" class="btn" id="frBtnFormReset">Zurücksetzen</button>`
+                    ? '<button type="button" class="fb-btn" data-fr-step-next>Weiter →</button>'
+                    : `<button type="submit" class="fb-btn" id="frBtnSubmit">Antrag einreichen</button>
+                       <button type="button" class="fb-btn fb-btn--ghost" id="frBtnFormReset">Zurücksetzen</button>`
             }
           </div>
         </div>
@@ -1294,22 +1396,18 @@ function renderAntrag(state) {
     </section>`;
 }
 
-function renderTable(items, state, opts) {
+function renderTable(items, _state, opts) {
     const o = opts || {};
-    const allowDelete = canDeleteFreistellung(state);
     const rows = items
         .map((it) => {
             const days = inclusiveDayCount(it.beginn, it.ende);
             const decide =
                 o.showDecide && String(it.status) === 'Ausstehend'
-                    ? `<button type="button" class="btn btn-sm" data-fr-approve="${esc(it.itemId)}" title="Status Genehmigt (Fallback)">✓</button>
-                       <button type="button" class="btn btn-sm" data-fr-reject="${esc(it.itemId)}" title="Status Abgelehnt (Fallback)">✗</button>`
+                    ? `<td class="fr-td-actions">
+                       <button type="button" class="fb-btn" data-fr-approve="${esc(it.itemId)}" title="Status Genehmigt (Fallback)">Genehmigen</button>
+                       <button type="button" class="fb-btn fb-btn--ghost" data-fr-reject="${esc(it.itemId)}" title="Status Abgelehnt (Fallback)">Ablehnen</button>
+                       </td>`
                     : '';
-            const del = allowDelete
-                ? `<button type="button" class="btn btn-sm fr-btn-delete" data-fr-delete="${esc(
-                      it.itemId
-                  )}" title="Antrag löschen" aria-label="Antrag löschen"><i class="bi bi-trash"></i></button>`
-                : '';
             const id = it.itemId || it.antragId;
             return `<tr class="fr-table__row" tabindex="0" role="link" data-fr-detail="${esc(
                 id
@@ -1323,7 +1421,7 @@ function renderTable(items, state, opts) {
           <td>${statusBadge(it.status)}</td>
           <td>${esc(it.kategorie)}</td>
           <td>${esc(it.kvName || it.kvEmail || '–')}</td>
-          <td class="fr-td-actions">${decide}${del}</td>
+          ${decide}
           <td class="fr-table__chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></td>
         </tr>`;
         })
@@ -1334,7 +1432,7 @@ function renderTable(items, state, opts) {
         <thead>
           <tr>
             <th>Schüler/in</th><th>Klasse</th><th>Zeitraum</th><th>Tage</th>
-            <th>Status</th><th>Kategorie</th><th>KV</th><th></th>
+            <th>Status</th><th>Kategorie</th><th>KV</th>${o.showDecide ? '<th></th>' : ''}
             <th class="fr-table__chevron"><span class="fr-sr-only">Öffnen</span></th>
           </tr>
         </thead>

@@ -1,6 +1,9 @@
 /**
  * Graph: Teams suchen, Kanäle lesen/anlegen/umbenennen (delegiert).
+ * Transport: shared/graph-client.js (R22 / b11); Gruppen-Suche weiter über Unified-Groups.
  */
+
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
 
 export const GRAPH_SCOPES = [
     'https://graph.microsoft.com/User.Read',
@@ -38,7 +41,7 @@ export async function getToken() {
  * @param {object} [body]
  */
 export async function graphJson(method, path, token, body) {
-    return G().graphJson(method, path, token, body);
+    return sharedGraphJson(method, path, token, body);
 }
 
 function guidLike(s) {
@@ -298,37 +301,25 @@ export async function uploadFileToChannel(teamId, channelId, file) {
         ':/' +
         encodeURIComponent(name) +
         ':/content';
-    const url = 'https://graph.microsoft.com/v1.0' + path;
-    const res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            Authorization: 'Bearer ' + token,
-            'Content-Type': (file && file.contentType) || 'application/octet-stream'
-        },
-        body: bytes
-    });
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = { raw: text };
-        }
+    try {
+        const data = await sharedGraphJson(
+            'PUT',
+            path,
+            token,
+            bytes,
+            { 'Content-Type': (file && file.contentType) || 'application/octet-stream' },
+            { rawBody: true }
+        );
+        return {
+            id: data && data.id ? String(data.id) : '',
+            name: data && data.name ? String(data.name) : name,
+            webUrl: (data && data.webUrl) || folder.webUrl || '',
+            size: Number(data && data.size) || bytes.byteLength
+        };
+    } catch (e) {
+        const msg = String((e && e.message) || e);
+        throw new Error(msg.indexOf('Upload:') === 0 ? msg : 'Upload: ' + msg);
     }
-    if (!res.ok) {
-        const msg =
-            data && data.error && data.error.message
-                ? data.error.message
-                : text || 'HTTP ' + res.status;
-        throw new Error('Upload: ' + msg);
-    }
-    return {
-        id: data && data.id ? String(data.id) : '',
-        name: data && data.name ? String(data.name) : name,
-        webUrl: (data && data.webUrl) || folder.webUrl || '',
-        size: Number(data && data.size) || bytes.byteLength
-    };
 }
 
 

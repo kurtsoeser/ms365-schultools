@@ -38,6 +38,8 @@ src/
 │  │  ├─ storage.js         ← loadJson/saveJson/removeKey
 │  │  ├─ dom.js             ← getEl, …
 │  │  └─ index.js           ← Barrel-Re-Export
+│  ├─ storage-register.js   ← einzige Quelle bekannter ms365-/webuntis-Keys (c7/R21)
+│  ├─ browser-backup.js     ← Export/Import/Clear; liest das Storage-Register
 │  ├─ app-dialog.js         ← konkrete Dialog-Implementierung (UI)
 │  ├─ graph-unified-groups.js
 │  ├─ msal-auth-ui.js
@@ -203,12 +205,16 @@ Diese Tools wurden bereits auf ESM umgestellt und nutzen `shared/utils/*`:
 Multi-File-Tools wie `arge` zieht Vite alle 6 Submodule **gemeinsam** in
 einen Tool-Bundle, mit `modulepreload` für die shared Chunks.
 
+### Schul-Organigramm Edit (c6 / R20, 2026-11)
+
+`schul-organigramm-edit.js`: **~8113 → ~325 Zeilen** Entry. Öffentliche Named Exports bleiben am Entry-Pfad; UI-Factories erhalten `ctx`. Split u. a. in `-utils`, `-html`, `-people`/`-people-node`, `-ops`/`-ops-place`/`-ops-heal`/`-ops-ref`, `-find`, `-overlay`, sowie `-role-ui`, `-arge-ui`, `-class-ui`, `-person-list-ui`/`-board-ui`, `-area-*`, `-canvas-ui` (alle &lt; 600 Zeilen).
+
 ### Übrige Monolithen
 
 | Tool | Hauptdatei (Zeilen) | Schon gesplittet? | Modul-Typ |
 |---|---:|---|---|
 | setup-wizard | 3485 | teilweise (`-admin-model.js`) | ESM |
-| tenant-settings-ui | 2450 | teilweise (`-core.js`) | IIFE |
+| tenant-settings-ui | **~6** (Entry) | **ja** (Tabs/Panels, siehe unten) | ESM |
 | gast-einlader | 1388 | nein | IIFE |
 | schueler-lehrer-gruppen | 1377 | teilweise (`slg-…`) | IIFE |
 | gast-zugaenge | 1366 | nein | IIFE |
@@ -220,6 +226,62 @@ einen Tool-Bundle, mit `modulepreload` für die shared Chunks.
 
 `kursteams/` ist die **Referenz-Implementierung** für gut gesplittete
 Tools. Die ESM-Migration steht für die meisten Tools noch aus.
+
+### 6b. tenant-settings-ui (Analyse 02 Phase C / R20-c6, 2026-11-21)
+
+**Done-Kriterium:** Entry dünn; **kein** `tenant-settings-ui*.js` > **600** Zeilen
+(Move-only `install*(ctx)` + Utils-Barrel). HTML unverändert
+(`tenant.html` / `webuntis-stammdaten-import.html` → `type="module"` Entry).
+
+| Modul | ~Z. | Rolle |
+|---|---:|---|
+| `tenant-settings-ui.js` | 5 | Entry (Side-Effect-Import) |
+| `tenant-settings-ui-bind.js` | 262 | Orchestrierung, `createCtx`, Early-Mounts |
+| `tenant-settings-ui-utils.js` | 68 | Barrel: dlg/norm/CSV/XLSX-Helfer |
+| `tenant-settings-ui-utils-dialog.js` | 100 | dlg*/norm*/getField |
+| `tenant-settings-ui-utils-spreadsheet.js` | 238 | XLSX/CSV IO |
+| `tenant-settings-ui-utils-teachers-lines.js` | 146 | Lehrer-Zeilen, Subject-Catalog-Guard |
+| `tenant-settings-ui-utils-email-pattern.js` | 115 | Schul-E-Mail-Muster |
+| `tenant-settings-ui-utils-students-lines.js` | 253 | Schüler-Sheets/Zeilen |
+| `tenant-settings-ui-utils-list-lines.js` | 62 | Admin/Fächer/ARGE/Klassen JSON→Lines |
+| `tenant-settings-ui-import.js` | 302 | `window.ms365*ListImport` / File-IO-Bridges |
+| `tenant-settings-ui-bind-setup.js` | 293 | DOM-Refs, Parser, Autosave-Grundlagen |
+| `tenant-settings-ui-arges.js` | 563 | ARGE-Tabelle / M365-Match |
+| `tenant-settings-ui-status.js` | 393 | Status-Übersicht, Autosave-Flush |
+| `tenant-settings-ui-directory.js` | 13 | Orchestrierung Directory-Helfer |
+| `tenant-settings-ui-directory-users.js` | 272 | Entra-User / Verwaltung-Verify |
+| `tenant-settings-ui-directory-classes.js` | 333 | Klassen-Gruppen Match/Create |
+| `tenant-settings-ui-directory-arges.js` | 199 | ARGE-Gruppen + Admin-User-Create |
+| `tenant-settings-ui-subjects-panel.js` | 104 | Fächer-Tabelle |
+| `tenant-settings-ui-teachers.js` | 11 | Orchestrierung Lehrer-Panel |
+| `tenant-settings-ui-teachers-admin.js` | 414 | Admin/Audience-Helfer |
+| `tenant-settings-ui-teachers-table.js` | 357 | Lehrer-Tabelle / Sort / Edit |
+| `tenant-settings-ui-admin.js` | 208 | Verwaltung Rollen/Personen-Tabellen |
+| `tenant-settings-ui-sga.js` | 436 | SGA Board/Tabelle |
+| `tenant-settings-ui-student-council.js` | 297 | Schülervertretung |
+| `tenant-settings-ui-school-groups.js` | 13 | Orchestrierung schulweite Gruppen |
+| `tenant-settings-ui-school-groups-match.js` | 283 | Match/Search/Status |
+| `tenant-settings-ui-school-groups-naming.js` | 315 | Naming + SGA/SV Create |
+| `tenant-settings-ui-school-groups-lehrer.js` | 275 | Lehrer-Sammelgruppe |
+| `tenant-settings-ui-teachers-lifecycle.js` | 587 | Lehrer-Lifecycle / Sammelgruppe |
+| `tenant-settings-ui-import-flows.js` | 378 | SIS/WebUntis-Diff-Flows |
+| `tenant-settings-ui-students-panel.js` | 584 | Schüler-Tabelle / Lifecycle-UI |
+| `tenant-settings-ui-classes-panel.js` | 441 | Klassen-Tabelle |
+| `tenant-settings-ui-render.js` | 13 | Orchestrierung Render/Import |
+| `tenant-settings-ui-render-storage.js` | 223 | `renderFromStorage`, Paint |
+| `tenant-settings-ui-render-import-route.js` | 259 | Register-Import-Router |
+| `tenant-settings-ui-render-import-rows.js` | 300 | Import-Rows (ARGE/Lehrer/…) |
+| `tenant-settings-ui-bind-events.js` | 21 | Orchestrierung Event-Binding |
+| `tenant-settings-ui-bind-events-writeback.js` | 97 | Merge/Writeback |
+| `tenant-settings-ui-bind-events-files.js` | 513 | File/Template/Export/Clear |
+| `tenant-settings-ui-bind-events-catalog.js` | 217 | Fächer/ARGE/Lehrer-Events |
+| `tenant-settings-ui-bind-events-people.js` | 427 | Admin/SGA/SV/Gruppen-Buttons |
+| `tenant-settings-ui-bind-events-groups.js` | 403 | Lehrer/Schüler-Gruppen + Klassen |
+| `tenant-settings-ui-bind-events-inventory.js` | 582 | Inventory/Delta/Batch |
+| `tenant-settings-ui-bind-events-webuntis.js` | 236 | WebUntis-Merge + Klassen-Hub |
+
+**R20/c6:** keines der Module > 600 Zeilen. Pure-Helfer bleiben:
+`-classes.js`, `-students.js`, `-subjects.js`, `-core.js`.
 
 ---
 
@@ -241,7 +303,7 @@ Tools. Die ESM-Migration steht für die meisten Tools noch aus.
      Vorlage für mittelgroße Tools)
   2. `personen-verwaltung` (analog Schulstruktur-Sync, mittlere Größe)
   3. `schueler-lehrer-gruppen` (bereits Teil-Split, Rest finishen)
-  4. `tenant-settings-ui` (IIFE → ESM, größerer Schritt)
+  4. ~~`tenant-settings-ui`~~ **fertig** (Tabs → `install*(ctx)`; R20/c6: alle Module ≤ 600)
   5. `setup-wizard` (IIFE → ESM, mit HTML-`type="module"`-Migration)
 - **Phase 3** – Mittelgewichte (500–1100 Z.) konsequent nach Schema
 - **Phase 4** – Restliche Legacy-IIFE-Tools auf ESM heben
@@ -353,7 +415,7 @@ aber gut planbar.
 
 ### Langfristig
 - IIFE-Migration der **shared Module** auf ESM:
-  - `tenant-settings-ui.js` (2450 Z.) – größter Hebel, aber komplex
+  - ~~`tenant-settings-ui.js`~~ **gesplittet** (alle Module ≤ 600; siehe Abschnitt 6b)
   - `tenant-settings-core.js` (314 Z.) – Vorstufe
   - `app-data-v2.js` (638 Z.)
   - `graph-unified-groups.js` (448 Z.)

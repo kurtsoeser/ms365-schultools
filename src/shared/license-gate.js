@@ -51,11 +51,21 @@
         if (!wrap) return;
         wrap.replaceChildren();
         (buttons || []).forEach(function (b) {
+            if (b && b.href) {
+                var a = document.createElement('a');
+                a.className = b.primary ? 'btn' : 'btn alt';
+                a.href = String(b.href);
+                a.target = b.target || '_blank';
+                a.rel = b.rel || 'noopener noreferrer';
+                a.innerHTML = b.html || b.label || '';
+                wrap.appendChild(a);
+                return;
+            }
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = b.primary ? 'btn' : 'btn alt';
             btn.innerHTML = b.html || b.label;
-            btn.addEventListener('click', b.onClick);
+            if (typeof b.onClick === 'function') btn.addEventListener('click', b.onClick);
             wrap.appendChild(btn);
         });
     }
@@ -181,19 +191,25 @@
         var reason = result && result.reason ? String(result.reason) : '';
         var deniedText =
             (result && result.message) ||
-            'Dieser Mandant ist nicht für die MS365-Schultools freigeschaltet.';
+            'Ihre Schule ist für MS365-Schul-Tools noch nicht freigeschaltet. Bitte informieren Sie Ihren IT-Admin oder stellen Sie hier eine Anfrage.';
         if (reason === 'not_registered') {
             deniedText =
-                'Dieser Mandant ist noch nicht freigeschaltet. Bitte die Tenant-ID unten kopieren und an den Betreiber senden – danach kann die Schule zugeordnet werden.';
+                'Ihre Schule ist noch nicht freigeschaltet. Bitte informieren Sie Ihren IT-Admin – oder stellen Sie eine Anfrage über die Homepage. Die Tenant-ID unten hilft bei der Zuordnung.';
         }
         showOverlay({
             mode: 'denied',
-            title: 'Kein Zugang',
+            title: 'Schule noch nicht freigeschaltet',
             text: deniedText,
             metaHtml: metaFromResult(result),
             actions: [
                 {
                     primary: true,
+                    html: '<i class="bi bi-envelope"></i> Anfrage stellen',
+                    href: 'https://ms365.schule/#kontakt',
+                    target: '_blank',
+                    rel: 'noopener noreferrer'
+                },
+                {
                     html: '<i class="bi bi-arrow-clockwise"></i> Erneut prüfen',
                     onClick: function () {
                         core.clearCache();
@@ -344,6 +360,34 @@
         }
     }
 
+    async function waitForAuthReadyBeforeNeedLogin() {
+        var waitMs = function (ms) {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, ms);
+            });
+        };
+        try {
+            if (typeof window.ms365AuthEnsureInitialized === 'function') {
+                await Promise.race([Promise.resolve(window.ms365AuthEnsureInitialized()), waitMs(4000)]);
+            }
+        } catch (e) {
+            /* ignore */
+        }
+        if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
+            return;
+        }
+        try {
+            if (
+                typeof window.ms365AuthEnsureBootSettled === 'function' &&
+                !(typeof window.ms365AuthIsBootSettled === 'function' && window.ms365AuthIsBootSettled())
+            ) {
+                await Promise.race([Promise.resolve(window.ms365AuthEnsureBootSettled()), waitMs(4000)]);
+            }
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
     async function runCheck(opts) {
         if (!core.isLicenseApiConfigured()) {
             hideOverlay();
@@ -354,6 +398,11 @@
         try {
             var loggedIn =
                 typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+            if (!loggedIn) {
+                await waitForAuthReadyBeforeNeedLogin();
+                loggedIn =
+                    typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+            }
             if (!loggedIn) {
                 showNeedLogin();
                 return;
@@ -397,6 +446,12 @@
         var loggedIn =
             typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
         if (!loggedIn) {
+            if (
+                typeof window.ms365AuthIsBootSettled === 'function' &&
+                !window.ms365AuthIsBootSettled()
+            ) {
+                return;
+            }
             core.clearCache();
             showNeedLogin();
             return;
@@ -412,7 +467,7 @@
         ensureOverlay();
 
         window.addEventListener('ms365-auth-state-changed', onAuthChanged);
-        window.addEventListener('ms365-auth-widget-ready', function () {
+        window.addEventListener('ms365-auth-boot-settled', function () {
             scheduleCheck(false);
         });
 

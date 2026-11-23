@@ -24,10 +24,12 @@ import {
     getElternbriefAccount,
     getElternbriefAdminAccessCache,
     isElternbriefAdmin,
-    isOwnedBy
+    isOwnedBy,
+    setElternbriefAdminAccessCache
 } from './elternbrief-scope.js';
 import { resolveElternbriefAdmin } from './elternbrief-entra-role.js';
 import { readDemoRoleOverrideFromUrl } from '../../shared/app-role-switcher-policy.js';
+import { renderToolOpsStatusCard } from '../../shared/tool-ops-status.js';
 import {
     loadElternbriefSettings,
     resolveElternbriefSiteUrl,
@@ -120,9 +122,41 @@ export function mountApp(root) {
         pendingFile: null
     };
 
-    const demoUiEnabled = readDemoRoleOverrideFromUrl(false);
+    const landingShot =
+        typeof location !== 'undefined' &&
+        new URLSearchParams(location.search || '').get('landingShot') === '1';
+    const demoUiEnabled = readDemoRoleOverrideFromUrl(false) || landingShot;
 
     seedDemoIfEmpty();
+    if (landingShot) {
+        try {
+            const shotAcc = {
+                username: 'mueller@schule.demo',
+                name: 'Maria Müller',
+                localAccountId: 'landing-shot-demo',
+                tenantId: 'demo-tenant'
+            };
+            window.ms365AuthIsLoggedIn = function () {
+                return true;
+            };
+            window.ms365AuthGetAccountInfo = function () {
+                return shotAcc;
+            };
+            window.ms365AuthGetAccount = function () {
+                return shotAcc;
+            };
+            loadDemoData({ email: shotAcc.username, name: shotAcc.name });
+            setElternbriefAdminAccessCache({
+                email: shotAcc.username,
+                isAdmin: true,
+                sources: ['landingShot'],
+                demo: true
+            });
+            ui.showAll = true;
+        } catch {
+            /* ignore */
+        }
+    }
     try {
         mergeInboxIntoStore();
     } catch {
@@ -210,34 +244,6 @@ export function mountApp(root) {
         return loadState();
     }
 
-    function renderSyncHint() {
-        const sync = getElternbriefSyncMeta();
-        if (sync.source === 'live' && sync.ok) return '';
-        if (!sync.siteUrl && sync.source !== 'demo') {
-            return (
-                '<section class="eb-calm-banner eb-calm-banner--ops" role="status">' +
-                '<div class="eb-calm-banner__text">' +
-                '<p class="eb-calm-banner__eyebrow">SharePoint</p>' +
-                '<p>Noch keine Site – IT richtet die Listen ein. Bis dahin lokal/Demo.</p>' +
-                '</div></section>'
-            );
-        }
-        if (sync.source === 'demo' || sync.source === 'local') {
-            return (
-                '<section class="eb-calm-banner eb-calm-banner--ops" role="status">' +
-                '<div class="eb-calm-banner__text">' +
-                '<p class="eb-calm-banner__eyebrow">Lokal / Demo</p>' +
-                '<p>' +
-                esc(
-                    sync.error ||
-                        'SharePoint nicht verbunden – Briefe bleiben lokal, bis die Listen greifen.'
-                ) +
-                '</p></div></section>'
-            );
-        }
-        return '';
-    }
-
     function account() {
         return getElternbriefAccount();
     }
@@ -268,30 +274,26 @@ export function mountApp(root) {
         return brief;
     }
 
-    function scopeBanner() {
+    function statusCard() {
         const acc = account();
-        if (!acc.loggedIn) {
-            return (
-                '<p class="eb-msg eb-msg--warn">Bitte mit Microsoft-Konto anmelden – dann sehen Sie nur <strong>Ihre</strong> Elternbriefe.</p>'
-            );
-        }
-        const who = esc(acc.name || acc.email);
         const adm = admin();
-        return (
-            '<div class="eb-scope-bar">' +
-            '<span>Angemeldet: <strong>' +
-            who +
-            '</strong>' +
-            (adm ? ' · Admin' : ' · Lehrkraft') +
-            (ui.showAll && adm ? ' · <em>alle Briefe</em>' : ' · nur eigene') +
-            '</span>' +
-            (adm
-                ? '<label class="eb-scope-toggle"><input type="checkbox" id="ebShowAll"' +
-                  (ui.showAll ? ' checked' : '') +
-                  '> Alle Elternbriefe (Admin)</label>'
-                : '') +
-            '</div>'
-        );
+        return renderToolOpsStatusCard({
+            nounPlural: 'Elternbriefe',
+            listWord: 'Listen',
+            requireLogin: true,
+            loggedIn: !!acc.loggedIn,
+            accountLabel: acc.name || acc.email || '',
+            isAdmin: adm,
+            showAll: ui.showAll,
+            scopeOwnLabel: 'nur eigene',
+            scopeAllLabel: 'alle Briefe',
+            scopeToggleId: 'ebShowAll',
+            scopeToggleLabel: 'Alle Elternbriefe (Admin)',
+            sync: getElternbriefSyncMeta(),
+            setupHref: 'sharepoint-liste-elternbrief.html',
+            setupLabel: 'Listen einrichten',
+            esc
+        });
     }
 
     function render() {
@@ -305,8 +307,7 @@ export function mountApp(root) {
             '<div class="eb-shell">' +
             renderNav() +
             '<div class="eb-main">' +
-            scopeBanner() +
-            renderSyncHint() +
+            statusCard() +
             renderMessage() +
             renderView(s) +
             '</div></div>';
@@ -545,14 +546,26 @@ export function mountApp(root) {
             })
             .join('');
 
+        const greetNum = offen;
+        const greetText =
+            greetNum === 1 ? 'offene Lesebestätigung' : 'offene Lesebestätigungen';
         return (
             actionBanner(briefe, emp) +
-            '<div class="eb-head"><div><h2>Übersicht</h2>' +
-            '<p>Elternbriefe mit Vorlagen, Anhang und Lesebestätigung – Versand als persönlicher Link.</p></div>' +
+            '<div class="eb-head"><div>' +
+            '<h1 class="fb-greet"><span class="fb-num">' +
+            greetNum +
+            '</span> ' +
+            greetText +
+            '</h1>' +
+            '<p class="fb-sub">Elternbriefe mit Vorlagen und persönlichem Link – ' +
+            briefe.length +
+            (briefe.length === 1 ? ' Brief' : ' Briefe') +
+            (aktiv ? ', ' + aktiv + ' aktiv' : '') +
+            '.</p></div>' +
             '<div class="eb-actions">' +
-            '<button type="button" class="btn btn-success" data-eb-view="neu"><i class="bi bi-plus-lg"></i> Neu</button>' +
+            '<button type="button" class="btn btn-success fb-btn" data-eb-view="neu"><i class="bi bi-plus-lg"></i> Neu</button>' +
             '</div></div>' +
-            '<div class="eb-cards">' +
+            '<div class="eb-cards eb-cards--quiet" aria-label="Kennzahlen">' +
             card('Meine Briefe', String(briefe.length)) +
             card('Aktiv / gesendet', String(aktiv)) +
             card('Offene Lesebestätigungen', String(offen)) +
@@ -572,8 +585,8 @@ export function mountApp(root) {
                         'Neu anlegen'
                     )
                   : quietEmpty(
-                        'Anmeldung nötig',
-                        'Bitte mit Microsoft-Konto anmelden, um Ihre Elternbriefe zu sehen.',
+                        'Noch nichts sichtbar',
+                        'Nach der Anmeldung erscheinen hier Ihre Elternbriefe.',
                         '',
                         ''
                     ))

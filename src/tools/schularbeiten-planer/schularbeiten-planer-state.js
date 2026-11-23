@@ -104,6 +104,9 @@ export function createInitialState() {
         entraGroupsConfigured: false,
         demoRoleOverride: false,
         planerAccessDenied: false,
+        authRolePending: false,
+        authSettled: false,
+        kontoOffen: false,
         /** Zugewiesene Planer-Rollen (admin/lehrer/schueler) */
         planerRoles: [],
         /** @type {Record<string, string>} */

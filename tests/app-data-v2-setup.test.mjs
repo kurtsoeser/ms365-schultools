@@ -40,6 +40,17 @@ describe('app-data-v2 setup', () => {
         expect(ctx.ms365AppDataV2.VERSION).toBe(4);
     });
 
+    it('normalizeSetup und patchSetup behalten portalReleasedAt (b6)', () => {
+        const ctx = loadAppDataV2(store);
+        expect(ctx.ms365AppDataV2.normalizeSetup({}).portalReleasedAt).toBe('');
+        const at = '2026-11-22T15:00:00.000Z';
+        expect(ctx.ms365AppDataV2.normalizeSetup({ portalReleasedAt: at }).portalReleasedAt).toBe(at);
+        ctx.ms365AppDataV2.patchSetup({ portalReleasedAt: at });
+        expect(ctx.ms365AppDataV2.getSetup().portalReleasedAt).toBe(at);
+        ctx.ms365AppDataV2.patchSetup({ portalReleasedAt: '' });
+        expect(ctx.ms365AppDataV2.getSetup().portalReleasedAt).toBe('');
+    });
+
     it('normalizeSetup merges catalog links uniquely', () => {
         const ctx = loadAppDataV2(store);
         const n = ctx.ms365AppDataV2.normalizeSetup({

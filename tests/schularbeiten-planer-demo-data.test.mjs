@@ -6,7 +6,10 @@ import { getDemoSeedPackage, DEMO_SITE_DEFAULT, buildDemoSchularbeiten } from '.
 import { mapSchularbeitToFields } from '../src/tools/schularbeiten-planer/schularbeiten-planer-graph.js';
 import { parseDemoImportJson } from '../src/tools/schularbeiten-planer/schularbeiten-planer-demo-seed.js';
 
-const hakJsonPath = join(dirname(fileURLToPath(import.meta.url)), '../docs/demo-data/schularbeiten-hak-steyr-2026-27.json');
+const hakJsonPath = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../docs/demo-data/schularbeiten-demo-schule-2026-27.json'
+);
 
 describe('schularbeiten demo 2026/27', () => {
     it('liefert umfassendes Paket', () => {
@@ -30,7 +33,7 @@ describe('schularbeiten demo 2026/27', () => {
         expect(rows.some((r) => r.Semester === 'SS')).toBe(true);
     });
 
-    it('HAK-Import: leeres FixiertAm wird nicht an Graph gesendet', () => {
+    it('Demo-Import: leeres FixiertAm wird nicht an Graph gesendet', () => {
         const pack = parseDemoImportJson(readFileSync(hakJsonPath, 'utf8'));
         const row = pack.schularbeiten[0];
         expect(row.FixiertAm).toBe('');

@@ -233,8 +233,11 @@
         msgEl.textContent = String(message ?? '');
         promptWrap.style.display = 'none';
         cancelBtn.style.display = '';
-        cancelBtn.textContent = (options && options.cancelText) || 'Abbrechen';
-        okBtn.textContent = (options && options.okText) || 'OK';
+        // Aliase: confirmLabel/cancelLabel (ältere Aufrufer) + okText/cancelText
+        cancelBtn.textContent =
+            (options && (options.cancelText || options.cancelLabel)) || 'Abbrechen';
+        okBtn.textContent =
+            (options && (options.okText || options.confirmLabel)) || 'OK';
         okBtn.className = danger || kind === 'error' ? 'btn btn-danger' : 'btn btn-success';
         return new Promise(function (resolve) {
             resolver = function (v) {

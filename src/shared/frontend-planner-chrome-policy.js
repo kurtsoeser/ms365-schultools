@@ -7,7 +7,7 @@ import { getDashboardPersonas } from './dashboard-persona-session.js';
 import { readItShellChoice } from './dashboard-layout-mode.js';
 
 const FRONTEND_PLANNER_RE =
-    /\/tools\/(?:freistellung-planer|lehrer-freistellung-planer|schularbeiten-planer|schulaktivitaeten-planer|projektwochen|srdp-anmeldung)\.html(?:\?|#|$)/i;
+    /\/tools\/(?:freistellung-planer|lehrer-freistellung-planer|schularbeiten-planer|schulaktivitaeten-planer|projektwochen|srdp-anmeldung|termine-hub)\.html(?:\?|#|$)/i;
 
 /**
  * @param {string} [pathname]
@@ -171,6 +171,12 @@ export function bootFrontendPlannerChromePolicy() {
     const run = function () {
         refreshFrontendPlannerChromeAudience();
     };
+
+    // Portal-Schale (b5): kompakte Kopfzeile, kein IT-Flash
+    if (typeof document !== 'undefined' && document.body && isFrontendPlannerPage()) {
+        document.body.classList.add('ms365-portal-shell');
+        document.documentElement.setAttribute('data-ms365-portal-shell', '1');
+    }
 
     // Portal-first: sofort IT-Chrome verstecken, bis Persona + Shell geklärt sind
     if (isToolChromePage()) applyFrontendPlannerItChrome(false);

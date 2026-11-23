@@ -1,7 +1,9 @@
-import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * KlassenChats-Wizard: Gruppenchats oder private Kanäle für Lehrkräfte einer Klasse.
+ * Transport: shared/graph-client.js (R22 / b11).
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
+import { escapeHtml } from '../../shared/utils/strings.js';
 import {
     calcYearPrefix,
     defaultChatNamePattern,
@@ -1142,7 +1144,7 @@ async function runProvision() {
     try {
         log('Anmeldung bei Microsoft …');
         const token = await getToken();
-        const me = await G().graphJson('GET', '/me?$select=id,mail,userPrincipalName', token, undefined);
+        const me = await sharedGraphJson('GET', '/me?$select=id,mail,userPrincipalName', token, undefined);
         const meId = me && me.id ? String(me.id) : '';
         const noun = targetKind === 'privateChannel' ? 'Kanal/Kanäle' : 'Chat(s)';
         log(

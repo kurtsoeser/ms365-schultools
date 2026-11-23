@@ -109,27 +109,34 @@
         if (!box) return;
         var c = countByStatus(items);
         var open = c.Neu + c['In Bearbeitung'];
+        var filterEl = $('adminFeedbackStatusFilter');
+        var current =
+            filterEl && filterEl.dataset.openOnly === '1'
+                ? '__open'
+                : (filterEl && filterEl.value) || '';
+        function stat(quick, count, label, extra) {
+            var on = current === quick;
+            return (
+                '<button type="button" class="admin-fb__stat' +
+                (extra ? ' ' + extra : '') +
+                (on ? ' is-active' : '') +
+                '" data-fb-quick="' +
+                escapeHtml(quick) +
+                '" aria-pressed="' +
+                (on ? 'true' : 'false') +
+                '"><strong>' +
+                count +
+                '</strong><span>' +
+                escapeHtml(label) +
+                '</span></button>'
+            );
+        }
         box.innerHTML =
-            '<button type="button" class="admin-fb__stat admin-fb__stat--new" data-fb-quick="">' +
-            '<strong>' +
-            (items || []).length +
-            '</strong><span>Gesamt</span></button>' +
-            '<button type="button" class="admin-fb__stat admin-fb__stat--new" data-fb-quick="Neu">' +
-            '<strong>' +
-            c.Neu +
-            '</strong><span>Neu</span></button>' +
-            '<button type="button" class="admin-fb__stat admin-fb__stat--progress" data-fb-quick="In Bearbeitung">' +
-            '<strong>' +
-            c['In Bearbeitung'] +
-            '</strong><span>In Prüfung</span></button>' +
-            '<button type="button" class="admin-fb__stat admin-fb__stat--open" data-fb-quick="__open">' +
-            '<strong>' +
-            open +
-            '</strong><span>Offen</span></button>' +
-            '<button type="button" class="admin-fb__stat admin-fb__stat--done" data-fb-quick="Erledigt">' +
-            '<strong>' +
-            c.Erledigt +
-            '</strong><span>Erledigt</span></button>';
+            stat('', (items || []).length, 'Gesamt', 'admin-fb__stat--new') +
+            stat('Neu', c.Neu, 'Neu', 'admin-fb__stat--new') +
+            stat('In Bearbeitung', c['In Bearbeitung'], 'In Prüfung', 'admin-fb__stat--progress') +
+            stat('__open', open, 'Offen', 'admin-fb__stat--open') +
+            stat('Erledigt', c.Erledigt, 'Erledigt', 'admin-fb__stat--done');
         box.querySelectorAll('[data-fb-quick]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var v = btn.getAttribute('data-fb-quick') || '';
@@ -262,16 +269,14 @@
         var src = previewSrc(first);
         var more = list.length > 1 ? '<span class="admin-fb__thumb-more">+' + (list.length - 1) + '</span>' : '';
         return (
-            '<a class="admin-fb__thumb" href="' +
-            escapeHtml(first.url || src) +
-            '" target="_blank" rel="noopener" title="' +
+            '<span class="admin-fb__thumb" title="' +
             escapeHtml(first.name || 'Screenshot') +
             '">' +
             (src
                 ? '<img src="' + escapeHtml(src) + '" alt="" loading="lazy">'
                 : '<i class="bi bi-image"></i>') +
             more +
-            '</a>'
+            '</span>'
         );
     }
 
@@ -282,21 +287,39 @@
         renderStats(cache);
         ensurePreviews(cache);
         var rows = filteredRows();
-
-        $('adminFeedbackCount') &&
-            ($('adminFeedbackCount').textContent = rows.length + ' sichtbar · ' + cache.length + ' gesamt');
+        var layout = box.closest('.admin-fb__layout');
+        var loggedIn =
+            typeof global.ms365AuthIsLoggedIn === 'function' && !!global.ms365AuthIsLoggedIn();
+        var statusEl = $('adminFeedbackCount');
+        var filterEl = $('adminFeedbackStatusFilter');
+        var filterActive = !!(
+            (filterEl && (filterEl.value || filterEl.dataset.openOnly === '1')) ||
+            String(($('adminFeedbackSearch') && $('adminFeedbackSearch').value) || '').trim()
+        );
 
         if (!rows.length) {
             selectedId = '';
+            var sentence = filterActive
+                ? 'Keine Einträge für diesen Filter.'
+                : !loggedIn
+                  ? 'Mit dem Betreiber-Konto anmelden, dann erscheint die Inbox.'
+                  : 'Noch kein Feedback.';
+            if (statusEl) {
+                statusEl.hidden = true;
+                statusEl.textContent = '';
+            }
+            if (layout) layout.classList.add('is-empty');
             box.innerHTML =
-                '<div class="admin-fb__empty">' +
-                '<i class="bi bi-inbox" aria-hidden="true"></i>' +
-                '<p>Keine Einträge' +
-                (rows !== cache ? ' für diesen Filter' : '') +
-                '.</p></div>';
+                '<div class="admin-fb__empty"><p>' + escapeHtml(sentence) + '</p></div>';
             renderDetail(null);
             return;
         }
+
+        if (statusEl) {
+            statusEl.hidden = false;
+            statusEl.textContent = rows.length + ' sichtbar · ' + cache.length + ' gesamt';
+        }
+        if (layout) layout.classList.remove('is-empty');
 
         if (!selectedId || !rows.some(function (r) {
             return String(r.id) === String(selectedId);
@@ -509,8 +532,8 @@
                 return it;
             });
             selectedId = String(id);
-            setBanner('Status → ' + ((STATUS_META[status] && STATUS_META[status].label) || status), 'ok');
             renderList(cache);
+            setBanner('');
         } catch (e) {
             setBanner((e && e.message) || 'Status konnte nicht gespeichert werden.', 'err');
             if (sel) {
@@ -532,12 +555,7 @@
                 statuses = data.statuses.slice();
             }
             renderList(data.items || []);
-            setBanner(
-                (data.items || []).length
-                    ? 'Aktualisiert · ' + (data.listDisplayName || 'Feedback')
-                    : 'Liste leer – ggf. „Liste sicherstellen“.',
-                'ok'
-            );
+            setBanner('');
         } catch (e) {
             setBanner((e && e.message) || 'Feedback konnte nicht geladen werden.', 'err');
             renderList([]);
@@ -599,6 +617,13 @@
     }
 
     function onTabActivated() {
+        var loggedIn =
+            typeof global.ms365AuthIsLoggedIn === 'function' && !!global.ms365AuthIsLoggedIn();
+        if (!loggedIn) {
+            setBanner('');
+            renderList(cache);
+            return;
+        }
         if (!cache.length) void reload();
         else renderList(cache);
     }

@@ -67,12 +67,43 @@ import {
     stripDemoSeedItems,
     isDemoSeedItem
 } from './srdp-anmeldung-demo.js';
+import {
+    parseAbaPortalRows,
+    findAbschlussarbeitenForPerson,
+    abschlussarbeitPrefillFields
+} from './srdp-abschlussarbeiten-parse.js';
+import {
+    ensureAbschlussarbeitenList,
+    loadAbschlussarbeiten,
+    replaceAbschlussarbeiten
+} from './srdp-abschlussarbeiten-graph.js';
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
 import { announcePlannerState } from '../../shared/app-role-chrome.js';
 import { toIsoDateOnly, startOfWeekMonday } from '../../shared/ms365-calendar-shell.js';
 
 const state = createInitialState();
 let root = null;
+
+/**
+ * ABA-/Diplomarbeit-Treffer für das aktuelle Formular setzen und ggf. vorfüllen.
+ */
+function applyAbschlussarbeitPrefill() {
+    const hits = findAbschlussarbeitenForPerson(state.abschlussarbeiten || [], {
+        vorname: state.form && state.form.vorname,
+        nachname: state.form && state.form.nachname,
+        klasse: state.form && state.form.klasse
+    });
+    state.abschlussarbeitHits = hits;
+    if (!hits.length) return;
+    if (hits.length === 1 && !(state.form && state.form.abaPrefill)) {
+        const fields = abschlussarbeitPrefillFields(
+            hits[0],
+            state.options && state.options.profileId,
+            (state.options && state.options.lehrer) || []
+        );
+        state.form = emptyForm({ ...state.form, ...fields });
+    }
+}
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -773,14 +804,17 @@ async function submitAnmeldung() {
         return;
     }
     const validation = validateAnmeldungDraft({
+        ...draft,
         profileId: state.options.profileId,
         variante: draft.variante,
         nachname: draft.nachname,
         vorname: draft.vorname,
         wahlfach: draft.wahlfachMuendlich,
+        wahlfachMuendlich: draft.wahlfachMuendlich,
         seminar: draft.seminar,
         lfs: draft.lfs,
         lehrerLfs: draft.lehrerLFS,
+        lehrerLFS: draft.lehrerLFS,
         bestaetigung: draft.bestaetigung
     });
     if (!validation.ok) {
@@ -1031,6 +1065,9 @@ function onClick(ev) {
                     return;
                 }
             }
+            if (step === 1) {
+                applyAbschlussarbeitPrefill();
+            }
             if (step === 2 && !state.form.variante) {
                 state.formErrors = ['Bitte eine Variante wählen.'];
                 paint();
@@ -1053,6 +1090,17 @@ function onClick(ev) {
 
     if (t.closest('[data-srdp-submit]')) {
         submitAnmeldung();
+        return;
+    }
+
+    if (t.closest('[data-srdp-aba-pick-file]')) {
+        const input = document.getElementById('srdpAbaFile');
+        if (input) input.click();
+        return;
+    }
+
+    if (t.closest('[data-srdp-aba-reload]')) {
+        void reloadAbschlussarbeitenFromSharePoint();
         return;
     }
 
@@ -1168,9 +1216,125 @@ function onClick(ev) {
     }
 }
 
+function syncTeacherHiddenFromChecks(fieldName) {
+    const boxes = document.querySelectorAll(
+        'input[type="checkbox"][data-srdp-teacher-field="' + fieldName + '"]'
+    );
+    const picked = [];
+    boxes.forEach((el) => {
+        if (el.checked) picked.push(String(el.value || '').trim());
+    });
+    const hidden = document.querySelector(
+        '.srdp-teacher-multi[data-srdp-teacher-group="' + fieldName + '"] input[type="hidden"]'
+    );
+    if (hidden) hidden.value = picked.filter(Boolean).join('; ');
+}
+
+async function importAbaFile(file) {
+    if (!file) return;
+    const XLSX = typeof window !== 'undefined' ? window.XLSX : null;
+    if (!XLSX) {
+        toast('Excel-Bibliothek (SheetJS) nicht geladen – Seite neu laden.');
+        return;
+    }
+    try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        const parsed = parseAbaPortalRows(jsonRows, {
+            terminJahr: state.options && state.options.jahr
+        });
+        if (!parsed.rows.length) {
+            toast(
+                'Keine Zeilen erkannt (Titel/Schüler/in). Übersprungen Jahr: ' +
+                    parsed.summary.skippedYear +
+                    ', leer: ' +
+                    parsed.summary.skippedEmpty
+            );
+            return;
+        }
+        if (state.localDemoOnly) {
+            state.abschlussarbeiten = parsed.rows;
+            state.abschlussarbeitenMeta = {
+                listTitle: 'Demo ABA-Portal',
+                count: parsed.rows.length,
+                lastImportAt: new Date().toISOString()
+            };
+            toast(
+                'ABA-Import (Demo): ' +
+                    parsed.rows.length +
+                    ' Personen · genehmigt ' +
+                    parsed.summary.genehmigt
+            );
+            paint();
+            return;
+        }
+        const url = String(state.siteUrl || loadSavedSiteUrl() || '').trim();
+        if (!url) {
+            toast('Bitte zuerst SharePoint-URL setzen.');
+            return;
+        }
+        const ctx = await ensureAbschlussarbeitenList(url, {
+            jahr: state.options.jahr,
+            profileId: state.options.profileId
+        });
+        const result = await replaceAbschlussarbeiten(ctx, parsed.rows, {
+            jahr: state.options.jahr,
+            profileId: state.options.profileId
+        });
+        state.abschlussarbeiten = result.items;
+        state.abschlussarbeitenMeta = {
+            listTitle: ctx.list.title,
+            count: result.count,
+            lastImportAt: new Date().toISOString()
+        };
+        toast('ABA-Import gespeichert: ' + result.count + ' Personen in „' + ctx.list.title + '“.');
+        paint();
+    } catch (e) {
+        toast('ABA-Import fehlgeschlagen: ' + ((e && e.message) || e));
+    }
+}
+
+async function reloadAbschlussarbeitenFromSharePoint() {
+    if (state.localDemoOnly) {
+        toast('Im Demo-Modus gibt es keine SharePoint-Abschlussarbeiten-Liste.');
+        return;
+    }
+    try {
+        const url = String(state.siteUrl || loadSavedSiteUrl() || '').trim();
+        if (!url) {
+            toast('Bitte zuerst SharePoint-URL setzen.');
+            return;
+        }
+        const ctx = await ensureAbschlussarbeitenList(url, {
+            jahr: state.options.jahr,
+            profileId: state.options.profileId
+        });
+        const rows = await loadAbschlussarbeiten(ctx);
+        state.abschlussarbeiten = rows;
+        state.abschlussarbeitenMeta = {
+            listTitle: ctx.list.title,
+            count: rows.length,
+            lastImportAt: new Date().toISOString()
+        };
+        toast('Abschlussarbeiten geladen: ' + rows.length);
+        paint();
+    } catch (e) {
+        toast('Laden fehlgeschlagen: ' + ((e && e.message) || e));
+    }
+}
+
 function onChange(ev) {
     const t = ev.target;
     if (!(t instanceof Element)) return;
+
+    if (t.id === 'srdpAbaFile' && t.files && t.files[0]) {
+        void importAbaFile(t.files[0]).finally(() => {
+            t.value = '';
+        });
+        return;
+    }
 
     if (t.matches('input[data-srdp-filter-multi-item]')) {
         const key = t.getAttribute('data-srdp-filter-multi-item');
@@ -1186,16 +1350,45 @@ function onChange(ev) {
         return;
     }
 
+    if (t.matches('input[data-srdp-teacher-field]')) {
+        const field = t.getAttribute('data-srdp-teacher-field');
+        if (field) syncTeacherHiddenFromChecks(field);
+        state.form = readFormFromDom(state.form);
+        return;
+    }
+
+    if (t.matches('input[data-srdp-variante-card]') || t.getAttribute('name') === 'variante') {
+        state.form = readFormFromDom(state.form);
+        paint();
+        return;
+    }
+
+    if (t.matches('[data-srdp-aba-pick]')) {
+        const idx = Number(t.value);
+        const hit = (state.abschlussarbeitHits || [])[idx];
+        if (hit) {
+            const fields = abschlussarbeitPrefillFields(
+                hit,
+                state.options && state.options.profileId,
+                (state.options && state.options.lehrer) || []
+            );
+            state.form = emptyForm({ ...readFormFromDom(state.form), ...fields });
+            paint();
+        }
+        return;
+    }
+
     if (
         t.id === 'srdpWahlfach' ||
         t.id === 'srdpVariante' ||
         t.id === 'srdpLfs' ||
         t.id === 'srdpSeminar' ||
-        t.id === 'srdpSeminarText'
+        t.id === 'srdpSeminarText' ||
+        t.hasAttribute('data-srdp-wahlfach')
     ) {
         state.form = readFormFromDom(state.form);
         const wrap = document.getElementById('srdpSeminarWrap');
-        if (wrap && t.id === 'srdpWahlfach') {
+        if (wrap && (t.id === 'srdpWahlfach' || t.hasAttribute('data-srdp-wahlfach'))) {
             wrap.hidden = !isSeminarWahlfach(state.form.wahlfachMuendlich);
         }
         if (t.id === 'srdpSeminar') {
@@ -1203,23 +1396,9 @@ function onChange(ev) {
             if (text) text.value = String(t.value || '');
             state.form.seminar = String(t.value || '').trim();
         }
-        const live = document.getElementById('srdpLivePlan');
-        if (live && (t.id === 'srdpVariante' || t.id === 'srdpLfs')) {
-            const plan = buildPruefplanDetail(state.form, state.options.profileId, {
-                terminJahr: state.options.jahr,
-                bfkDatum: state.options.bfkDatum || ''
-            });
-            const bits = plan.schriftlich
-                .map((row) => row.part + (row.datum ? ' · ' + row.datum : row.datumHinweis ? ' · ' + row.datumHinweis : ''))
-                .filter(Boolean);
-            if (bits.length) {
-                live.hidden = false;
-                live.textContent = 'Schriftlich: ' + bits.join(', ');
-            } else {
-                live.hidden = true;
-            }
+        if (t.id === 'srdpVariante' || t.id === 'srdpLfs' || t.matches('input[data-srdp-variante-card]')) {
+            paint();
         }
-        if (t.id === 'srdpVariante' || t.id === 'srdpLfs') paint();
     }
 }
 

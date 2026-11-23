@@ -99,6 +99,9 @@ async function getPca() {
 }
 
 async function getGraphToken() {
+    const itMod = await import('../../shared/it-app-auth.js');
+    const itToken = await itMod.acquireItTokenIfRequired(GRAPH_SCOPES, { mode: 'interactive' });
+    if (itToken) return itToken;
     const instance = await getPca();
     let accounts = instance.getAllAccounts();
     if (!accounts.length) {

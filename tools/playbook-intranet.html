@@ -8,50 +8,110 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Playbook Intranet</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <style>
-        .cp-steps{display:grid;gap:14px;margin-top:8px}
-        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
-        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
-        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
-        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
-        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
-        @media (max-width:720px){.cp-step{grid-template-columns:40px 1fr}.cp-step .btn{grid-column:1/-1;justify-self:start}}
-    </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-house-door"></i>Playbook Intranet</span>
             </div>
-            <p>Intranet einmalig aufsetzen: Hub, Listen, dann Planer nutzen.</p>
+            <p>Hub und Listen einmal aufsetzen – danach Planer nutzen. Primär-Site und Blaupause sollten stehen; SA/PW haben eigene Playbooks für den Feinschliff.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-playbook-intranet" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
                 <a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Intranet-Hub</a>
+                <a class="btn" href="../tenant.html#spo-hub"><i class="bi bi-link-45deg"></i>Hub-URL</a>
             </div>
         </div>
         <div class="content">
             <section class="tm-panel">
                 <div class="tm-panel__head">
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
-                    <div><h3>Einrichten</h3><p id="cpProgress" class="muted" style="margin:0;">0 / 7 erledigt</p></div>
+                    <div><h3>Schritte</h3><p id="cpProgress" class="pb-progress">0 / 7 erledigt</p></div>
                 </div>
-                <div class="cp-steps">
-                    <article class="cp-step"><div class="cp-step__n">1</div><div><h3>Schul-Intranet / Hub</h3><p>Kommunikationssite und Hub anlegen oder verbinden.</p><label class="cp-check"><input type="checkbox" data-cp-check="hub"> Erledigt</label></div><a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Hub</a></article>
-                    <article class="cp-step"><div class="cp-step__n">2</div><div><h3>Lehrerliste</h3><p>Lehrkräfte aus Stammdaten als Liste.</p><label class="cp-check"><input type="checkbox" data-cp-check="lehrer"> Erledigt</label></div><a class="btn" href="sharepoint-liste-lehrer.html"><i class="bi bi-table"></i>Lehrerliste</a></article>
-                    <article class="cp-step"><div class="cp-step__n">3</div><div><h3>Schultermine</h3><p>Terminliste inkl. Sync-Hinweise.</p><label class="cp-check"><input type="checkbox" data-cp-check="termine"> Erledigt</label></div><a class="btn" href="sharepoint-liste-schultermine.html"><i class="bi bi-calendar3"></i>Termine</a></article>
-                    <article class="cp-step"><div class="cp-step__n">4</div><div><h3>Schularbeiten-Listen</h3><p>Regelwerk, Fenster, Schularbeiten-Paket.</p><label class="cp-check"><input type="checkbox" data-cp-check="sa"> Erledigt</label></div><a class="btn" href="sharepoint-liste-schularbeiten.html"><i class="bi bi-list-ul"></i>SA-Listen</a></article>
-                    <article class="cp-step"><div class="cp-step__n">5</div><div><h3>Projektwochen-Listen</h3><p>Aktionen und Angebote anlegen.</p><label class="cp-check"><input type="checkbox" data-cp-check="pw"> Erledigt</label></div><a class="btn" href="sharepoint-liste-projektwochen.html"><i class="bi bi-calendar2-week"></i>PW-Listen</a></article>
-                    <article class="cp-step"><div class="cp-step__n">6</div><div><h3>Vertretungsplan-Liste</h3><p>Tägliche Kurzinfo für Lehrkräfte.</p><label class="cp-check"><input type="checkbox" data-cp-check="vertretung"> Erledigt</label></div><a class="btn" href="sharepoint-liste-vertretung.html"><i class="bi bi-arrow-repeat"></i>Vertretung</a></article>
-                    <article class="cp-step"><div class="cp-step__n">7</div><div><h3>Planer nutzen</h3><p>Schularbeiten-Planer und Projektwochen im Alltag.</p><label class="cp-check"><input type="checkbox" data-cp-check="nutzen"> Erledigt</label></div><a class="btn" href="schularbeiten-planer.html"><i class="bi bi-journal-check"></i>Planer</a></article>
+                <p class="pb-lead">Empfohlen nach Blaupause: Hub → Basislisten → optional SA/PW-Listen → Planer öffnen.</p>
+                <div class="pb-steps">
+                    <article class="pb-step cp-step" data-cp-step="hub">
+                        <div class="pb-step__n">1</div>
+                        <div>
+                            <h3>Schul-Intranet / Hub <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Kommunikationssite und Hub anlegen oder verbinden – Einstieg für News und Links.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="hub"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Hub</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="lehrer">
+                        <div class="pb-step__n">2</div>
+                        <div>
+                            <h3>Lehrerliste <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Lehrkräfte aus Stammdaten als SharePoint-Liste für Intranet und Planer.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="lehrer"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-liste-lehrer.html"><i class="bi bi-table"></i>Lehrerliste</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="termine">
+                        <div class="pb-step__n">3</div>
+                        <div>
+                            <h3>Schultermine <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Terminliste inkl. Sync-Hinweise – Grundlage für Kalender und Sprechtag.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="termine"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-liste-schultermine.html"><i class="bi bi-calendar3"></i>Termine</a>
+                    </article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="sa">
+                        <div class="pb-step__n">4</div>
+                        <div>
+                            <h3>Schularbeiten-Listen <span class="pb-pill pb-pill--later">Optional</span></h3>
+                            <p>Paket anlegen – Detail-Setup im Schularbeiten-Playbook.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="sa"> Erledigt</label>
+                        </div>
+                        <div class="pb-step__actions"><a class="btn btn-primary" href="sharepoint-liste-schularbeiten.html"><i class="bi bi-list-ul"></i>SA-Listen</a><a class="btn" href="playbook-schularbeiten-planer.html"><i class="bi bi-journal-check"></i>SA-Playbook</a></div>
+                    </article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="pw">
+                        <div class="pb-step__n">5</div>
+                        <div>
+                            <h3>Projektwochen-Listen <span class="pb-pill pb-pill--later">Optional</span></h3>
+                            <p>Aktionen/Angebote – Feinschliff im Projektwochen-Playbook.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="pw"> Erledigt</label>
+                        </div>
+                        <div class="pb-step__actions"><a class="btn btn-primary" href="sharepoint-liste-projektwochen.html"><i class="bi bi-calendar2-week"></i>PW-Listen</a><a class="btn" href="playbook-projektwochen.html"><i class="bi bi-journal-check"></i>PW-Playbook</a></div>
+                    </article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="vertretung">
+                        <div class="pb-step__n">6</div>
+                        <div>
+                            <h3>Vertretungsplan-Liste <span class="pb-pill pb-pill--later">Optional</span></h3>
+                            <p>Tägliche Kurzinfo für Lehrkräfte, falls die Schule das nutzt.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="vertretung"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-liste-vertretung.html"><i class="bi bi-arrow-repeat"></i>Vertretung</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="nutzen">
+                        <div class="pb-step__n">7</div>
+                        <div>
+                            <h3>Planer öffnen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Nach den Listen: Schularbeiten- oder Projektwochen-Planer im Alltag nutzen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="nutzen"> Erledigt</label>
+                        </div>
+                        <div class="pb-step__actions"><a class="btn btn-primary" href="schularbeiten-planer.html"><i class="bi bi-journal-check"></i>SA-Planer</a><a class="btn" href="projektwochen.html"><i class="bi bi-calendar2-week"></i>Projektwochen</a></div>
+                    </article>
                 </div>
-                <div class="tm-actions" style="margin-top:16px;">
-                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
                 </div>
             </section>
         </div>
@@ -60,9 +120,25 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module">
         import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        import { evaluateAppPlaybookReadyChecks } from '../src/shared/playbook-tool-ready.js';
+
+        function loadTenantSettings() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        }
+
         wirePlaybookPage({
             storageKey: 'ms365-playbook-intranet-v1',
-            stepIds: ['hub', 'lehrer', 'termine', 'sa', 'pw', 'vertretung', 'nutzen']
+            stepIds: ["hub","lehrer","termine","sa","pw","vertretung","nutzen"],
+            evaluateReadyChecks: function () {
+                return evaluateAppPlaybookReadyChecks(loadTenantSettings());
+            }
         });
     </script>
 </body>

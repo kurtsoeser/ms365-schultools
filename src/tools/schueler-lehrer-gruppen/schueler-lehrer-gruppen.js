@@ -15,6 +15,16 @@
 
     let msalMod = null;
     let pca = null;
+    const IT_AUTH_URL = (function () {
+        try {
+            if (document.currentScript && document.currentScript.src) {
+                return new URL('../../shared/it-app-auth.js', document.currentScript.src).href;
+            }
+        } catch {
+            /* ignore */
+        }
+        return '';
+    })();
     let slgCurrentStep = 1;
 
     /** @type {string | null} */
@@ -111,6 +121,14 @@
     }
 
     async function getGraphToken() {
+        if (!IT_AUTH_URL) {
+            throw new Error(
+                'Die IT-App ms365-schultools-it ist nicht erreichbar (Modulpfad). Schreibzugriffe laufen nicht über die Portal-App.'
+            );
+        }
+        const itMod = await import(IT_AUTH_URL);
+        const itToken = await itMod.acquireItTokenIfRequired(GRAPH_SCOPES, { mode: 'interactive' });
+        if (itToken) return itToken;
         const instance = await getPca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {

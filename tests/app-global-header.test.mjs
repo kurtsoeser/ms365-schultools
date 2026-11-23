@@ -15,7 +15,7 @@ describe('app-global-header', () => {
         const html = buildAppChromeHeaderHtml('tool');
         expect(html).toContain('id="dashCompactHeader"');
         expect(html).toContain('id="adminAppTopActions"');
-        expect(html).toContain('dash-compact-header__nav--spacer');
+        expect(html).toContain('dash-compact-header__center');
         expect(html).toContain('dash-compact-header__search-dash-link');
     });
 });

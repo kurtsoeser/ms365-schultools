@@ -1,6 +1,6 @@
 /**
  * Entra-Gruppen (mehrere) + Einzelpersonen für sRDP-Listenrechte
- * (Admin / Lehrkräfte / Kandidat:innen).
+ * (Vollzugriff / Lesende Rechte / Kandidat:innen).
  */
 import { pickEntraGroup } from '../../shared/entra-group-picker.js';
 import { createPlannerExtraUsersController } from '../../shared/planner-extra-users-ui.js';
@@ -21,19 +21,19 @@ const GROUP_SPECS = [
         configKey: 'adminGroups',
         listId: 'srsAdminGroups',
         addBtnId: 'srsAdminGroupAdd',
-        pickTitle: 'Gruppe für Admin / Direktion',
+        pickTitle: 'Gruppe für Vollzugriff',
         pickHint: 'Microsoft-365-Gruppe mit Vollzugriff auf die Anmeldeliste.',
         emptyHint: 'Noch keine Gruppe – Gruppe hinzufügen oder Person wählen.',
-        ariaLabel: 'Admin-Gruppen'
+        ariaLabel: 'Vollzugriff-Gruppen'
     },
     {
         configKey: 'lehrerGroups',
         listId: 'srsLehrerGroups',
         addBtnId: 'srsLehrerGroupAdd',
-        pickTitle: 'Gruppe für Lehrkräfte',
-        pickHint: 'Microsoft-365-Gruppe mit Leserecht auf die Anmeldeliste.',
+        pickTitle: 'Gruppe für Lesende Rechte',
+        pickHint: 'Gruppe, die alle Anmeldungen sehen darf (z. B. Lehrkräfte, Sekretariat).',
         emptyHint: 'Noch keine Gruppe.',
-        ariaLabel: 'Lehrkräfte-Gruppen'
+        ariaLabel: 'Lesende-Rechte-Gruppen'
     },
     {
         configKey: 'kandidatenGroups',
@@ -52,7 +52,7 @@ const EXTRA_USER_SPECS = [
         listId: 'srsAdminUsers',
         addBtnId: 'srsAdminUserAdd',
         stammdatenBtnId: 'srsAdminStammdaten',
-        pickTitle: 'Person für Admin / Direktion',
+        pickTitle: 'Person mit Vollzugriff',
         pickHint: 'Vollzugriff auf die sRDP-Liste (zusätzlich zu den Gruppen).',
         emptyHint: 'Noch keine Einzelpersonen – Gruppe wählen oder Person hinzufügen.'
     },
@@ -60,8 +60,8 @@ const EXTRA_USER_SPECS = [
         configKey: 'lehrerUsers',
         listId: 'srsLehrerUsers',
         addBtnId: 'srsLehrerUserAdd',
-        pickTitle: 'Lehrkraft einzeln',
-        pickHint: 'Sieht alle Anmeldungen (Gestaltung – zusätzlich zu den Lehrkräfte-Gruppen).',
+        pickTitle: 'Person mit Lesenden Rechten',
+        pickHint: 'Sieht alle Anmeldungen (z. B. Sekretariat, einzelne Lehrkräfte).',
         emptyHint: 'Noch keine Einzelpersonen.'
     },
     {
@@ -182,8 +182,8 @@ function htmlPermCard(which) {
           <div class="fr-setup-perm-card__head">
             <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-building"></i></span>
             <div>
-              <h4>Admin / Direktion</h4>
-              <p>Vollzugriff auf die Anmeldeliste – Verwaltung und Genehmigung.</p>
+              <h4>Vollzugriff</h4>
+              <p>Volle Rechte auf die Anmeldeliste – z. B. Direktion, IT, Verwaltung.</p>
             </div>
           </div>
           <p class="fr-setup-perm-sub">Microsoft 365-Gruppen (mehrere möglich)</p>
@@ -192,7 +192,7 @@ function htmlPermCard(which) {
             <button type="button" class="btn btn-sm" id="${gSpec.addBtnId}"><i class="bi bi-people"></i>Gruppe</button>
           </div>
           <p class="fr-setup-perm-sub">Einzelpersonen (optional)</p>
-          <ul id="${uSpec.listId}" class="fr-setup-user-list" aria-label="Admin Einzelpersonen"></ul>
+          <ul id="${uSpec.listId}" class="fr-setup-user-list" aria-label="Vollzugriff Einzelpersonen"></ul>
           <div class="fr-setup-egp fr-setup-egp--tight">
             <button type="button" class="btn btn-sm" id="${uSpec.addBtnId}"><i class="bi bi-person-plus"></i>Person</button>
             <button type="button" class="btn btn-sm alt" id="${uSpec.stammdatenBtnId}" title="Verwaltung aus Stammdaten"><i class="bi bi-journal-text"></i>Aus Stammdaten</button>
@@ -202,10 +202,10 @@ function htmlPermCard(which) {
     if (which === 'lehrer') {
         return `<article class="fr-setup-perm-card">
           <div class="fr-setup-perm-card__head">
-            <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-person-badge"></i></span>
+            <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
             <div>
-              <h4>Lehrkräfte</h4>
-              <p>Sieht alle Anmeldungen. Kandidat:innen sehen in SharePoint nur die eigene Zeile.</p>
+              <h4>Lesende Rechte</h4>
+              <p>Alle Anmeldungen sehen – z. B. Lehrkräfte, Sekretariat. Kandidat:innen sehen nur die eigene Zeile.</p>
             </div>
           </div>
           <p class="fr-setup-perm-sub">Microsoft 365-Gruppen (mehrere möglich)</p>
@@ -214,7 +214,7 @@ function htmlPermCard(which) {
             <button type="button" class="btn btn-sm" id="${gSpec.addBtnId}"><i class="bi bi-people"></i>Gruppe</button>
           </div>
           <p class="fr-setup-perm-sub">Einzelpersonen (optional)</p>
-          <ul id="${uSpec.listId}" class="fr-setup-user-list" aria-label="Lehrkräfte Einzelpersonen"></ul>
+          <ul id="${uSpec.listId}" class="fr-setup-user-list" aria-label="Lesende Rechte Einzelpersonen"></ul>
           <div class="fr-setup-egp fr-setup-egp--tight">
             <button type="button" class="btn btn-sm" id="${uSpec.addBtnId}"><i class="bi bi-person-plus"></i>Person</button>
           </div>

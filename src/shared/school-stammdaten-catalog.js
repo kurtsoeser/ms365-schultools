@@ -53,24 +53,63 @@ export const SCHOOL_STAMMDATEN_FIELDS = [
         displayName: 'Direktion',
         type: 'text',
         group: 'rollen',
+        pairKey: 'direktion',
+        pairPart: 'name',
         tableDefault: true,
         excelKeys: ['Direktion']
     },
     {
+        name: 'DirektionEmail',
+        displayName: 'Direktion E-Mail',
+        type: 'text',
+        group: 'rollen',
+        pairKey: 'direktion',
+        pairPart: 'email',
+        pairLabel: 'Direktion',
+        tableDefault: false,
+        excelKeys: ['Direktion E-Mail', 'Direktion Email']
+    },
+    {
         name: 'Schuladministration',
         displayName: 'Schuladministration',
-        type: 'multiline',
+        type: 'text',
         group: 'rollen',
+        pairKey: 'schuladmin',
+        pairPart: 'name',
         tableDefault: false,
         excelKeys: ['Schuladministration']
     },
     {
+        name: 'SchuladministrationEmail',
+        displayName: 'Schuladministration E-Mail',
+        type: 'text',
+        group: 'rollen',
+        pairKey: 'schuladmin',
+        pairPart: 'email',
+        pairLabel: 'Schuladministration',
+        tableDefault: false,
+        excelKeys: ['Schuladministration E-Mail', 'Schuladministration Email']
+    },
+    {
         name: 'ItM365Admin',
         displayName: 'IT-/M365-Administration',
-        type: 'multiline',
+        type: 'text',
         group: 'rollen',
+        pairKey: 'itadmin',
+        pairPart: 'name',
         tableDefault: false,
         excelKeys: ['IT-/M365-Administration', 'IT/M365-Administration']
+    },
+    {
+        name: 'ItM365AdminEmail',
+        displayName: 'IT-/M365-Administration E-Mail',
+        type: 'text',
+        group: 'rollen',
+        pairKey: 'itadmin',
+        pairPart: 'email',
+        pairLabel: 'IT-/M365-Administration',
+        tableDefault: false,
+        excelKeys: ['IT-/M365-Administration E-Mail', 'IT/M365-Administration E-Mail']
     },
     {
         name: 'WeitereKontakte',

@@ -51,12 +51,12 @@ export function renderFreistellungDrawer(state) {
 
     if (allowDecide) {
         primaryActions.push(
-            `<button type="button" class="btn fr-btn-primary" data-fr-approve="${esc(
+            `<button type="button" class="fb-btn" data-fr-approve="${esc(
                 it.itemId
             )}" title="Status Genehmigt (Fallback)">Genehmigen</button>`
         );
         secondaryActions.push(
-            `<button type="button" class="btn" data-fr-reject="${esc(
+            `<button type="button" class="fb-btn fb-btn--ghost" data-fr-reject="${esc(
                 it.itemId
             )}" title="Status Abgelehnt (Fallback)">Ablehnen</button>`
         );

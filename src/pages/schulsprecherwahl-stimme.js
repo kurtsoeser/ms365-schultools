@@ -4,4 +4,4 @@
  * Content-Security-Policy ohne 'unsafe-inline' auskommt.
  */
 // Schüler-App: schmale Login-Scopes
-window.MS365_AUTH_LOGIN_SCOPES = ['User.Read'];
+window.MS365_AUTH_LOGIN_SCOPES = ['https://graph.microsoft.com/User.Read'];

@@ -1264,4 +1264,161 @@
     .srdp-summary dd {
         padding-top: 2px;
     }
+
+    .srdp-variant-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .srdp-plan-split {
+        grid-template-columns: 1fr;
+    }
 }
+
+/* Varianten-Karten & Multi-Lehrer */
+.srdp-variant-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.srdp-variant-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted, var(--bg-soft));
+    cursor: pointer;
+    min-height: 100%;
+}
+
+.srdp-variant-card input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.srdp-variant-card.is-active,
+.srdp-variant-card:has(input:checked) {
+    border-color: var(--brand1);
+    box-shadow: 0 0 0 1px var(--brand1);
+    background: var(--card);
+}
+
+.srdp-variant-card--v1 {
+    border-top: 3px solid #c45c4a;
+}
+.srdp-variant-card--v2 {
+    border-top: 3px solid #d18a2b;
+}
+.srdp-variant-card--v3 {
+    border-top: 3px solid #2a9b8f;
+}
+
+.srdp-variant-card__title {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.srdp-variant-card__block {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+.srdp-variant-card__block strong {
+    display: block;
+    color: var(--fg);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+}
+
+.srdp-exam-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--card);
+}
+
+.srdp-exam-card h4 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+}
+
+.srdp-exam-card--written {
+    background: var(--surface-muted, var(--bg-soft));
+}
+
+.srdp-exam-list {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.srdp-exam-list li {
+    margin: 0 0 6px;
+}
+
+.srdp-pill {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    background: var(--surface-muted, var(--bg-soft));
+    color: var(--muted);
+}
+
+.srdp-teacher-multi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.srdp-teacher-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.srdp-teacher-chip:has(input:checked) {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+}
+
+.srdp-field__label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.srdp-alert--ok {
+    border: 1px solid color-mix(in srgb, #0f6b4c 35%, var(--border));
+    background: color-mix(in srgb, #0f6b4c 10%, var(--card));
+    color: inherit;
+    padding: 10px 12px;
+    border-radius: 10px;
+}
+
+/* ===== Welle 3 UI chrome ===== */
+.page-card.tm-page {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.fb-greet { margin: 0 0 6px; }
+.fb-sub { margin: 0 0 16px; }
+.fb-actions-row { margin-top: 16px; }

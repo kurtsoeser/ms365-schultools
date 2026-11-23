@@ -1,8 +1,8 @@
 /**
  * Zugangskonfiguration (öffentlich ausgeliefert).
- * User-Tools: Tenant-Lizenz nach MS365-Login (License-API).
- * PIN-Sperre aus – keine PINs in dieser Datei.
- * Admin: Betreiber nur serverseitig (LICENSE_OPERATOR_UPNS / OIDS in Azure).
+ * User-Tools: Tenant-Lizenz nach MS365-Login (License-API) – kein PIN im Alltag.
+ * PIN-Sperre aus (enabled: false); Legacy-Override nur noch in pin-gate, nicht im Admin-UI.
+ * Betreiber-Admin: nur serverseitig (LICENSE_OPERATOR_UPNS / OIDS) – Tab „Zugänge“ entfernt.
  */
 window.MS365_ACCESS_CONFIG = {
     /** false = keine PIN-Abfrage */

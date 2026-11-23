@@ -9,26 +9,14 @@ import {
     sanitizeReleaseHtml,
     toPublishedJson
 } from './release-notes-store.js';
-import { loadAccessOverride, saveAccessOverride, getActiveUserAccessConfig } from './access-override-store.js';
 
-// Note: Die Imports oben wirken unhandlich; sie werden hier absichtlich getrennt gehalten,
-// damit Vite/ESM sicher die Modulfunktionalität beibehält.
+/**
+ * Betreiber-Admin: Zugang nur License-API (Operator-UPN/OID).
+ * Schulen: Tenant-Lizenz nach MS365-Login. Legacy-Tab #access → Lizenzen.
+ */
 
 function $(id) {
     return document.getElementById(id);
-}
-
-function parsePinsFromTextarea(text) {
-    return String(text || '')
-        .split(/\r\n|\n|\r/)
-        .map((x) => String(x || '').trim())
-        .filter(Boolean);
-}
-
-function renderPins(pins) {
-    const el = $('adminUserPinsText');
-    if (!el) return;
-    el.value = Array.isArray(pins) ? pins.join('\n') : '';
 }
 
 /** @type {Array<{ src: string, alt: string }>} */
@@ -99,7 +87,7 @@ function resetEditor() {
     const heading = $('adminRnEditorHeading');
     if (heading) heading.textContent = 'Neuer Eintrag';
     const saveLabel = $('adminRnSaveLabel');
-    if (saveLabel) saveLabel.textContent = 'Speichern';
+    if (saveLabel) saveLabel.textContent = 'Lokal speichern';
     const cancel = $('adminRnCancelEditBtn');
     if (cancel) cancel.hidden = true;
 }
@@ -114,7 +102,7 @@ function fillEditor(note) {
     const heading = $('adminRnEditorHeading');
     if (heading) heading.textContent = 'Eintrag bearbeiten';
     const saveLabel = $('adminRnSaveLabel');
-    if (saveLabel) saveLabel.textContent = 'Aktualisieren';
+    if (saveLabel) saveLabel.textContent = 'Lokal aktualisieren';
     const cancel = $('adminRnCancelEditBtn');
     if (cancel) cancel.hidden = false;
 }
@@ -279,25 +267,20 @@ function wireReleaseEditor() {
 }
 
 const ADMIN_TAB_META = {
+    overview: {
+        eyebrow: 'Betreiber',
+        title: 'Überblick',
+        subtitle: 'Ablauf, Lücken und Kontakte der Schulen.'
+    },
     licenses: {
         eyebrow: 'Betreiber',
-        title: 'Schulen & Lizenzen',
-        subtitle: 'Freischaltungen direkt in der Tabelle verwalten.'
+        title: 'Schulen',
+        subtitle: 'Schulen finden, öffnen und freischalten.'
     },
     modules: {
         eyebrow: 'Produkt',
-        title: 'Module & Pakete',
-        subtitle: 'Paket wählen und Werkzeuge zuordnen – Schulen schalten Pakete unter Lizenzen frei.'
-    },
-    access: {
-        eyebrow: 'Zugang',
-        title: 'User-Zugänge',
-        subtitle: 'PIN optional – Freischaltung über Tenant-Lizenz; Admin nur per Betreiber-Konto.'
-    },
-    setup: {
-        eyebrow: 'Technik',
-        title: 'Setup & Diagnose',
-        subtitle: 'Was noch fehlt: SharePoint-Spalten und API – Freischaltungen laufen über Lizenzen.'
+        title: 'Pakete',
+        subtitle: 'Paket wählen und Werkzeuge zuordnen. Schulen schalten Pakete unter Lizenzen frei.'
     },
     templates: {
         eyebrow: 'Katalog',
@@ -313,30 +296,56 @@ const ADMIN_TAB_META = {
         eyebrow: 'Support',
         title: 'Feedback',
         subtitle: 'Inbox mit Screenshots – Status führen, optional per Mail antworten.'
+    },
+    setup: {
+        eyebrow: 'Technik',
+        title: 'Setup & Diagnose',
+        subtitle: 'SharePoint-Schema und License-API prüfen – Freischaltungen unter Lizenzen.'
     }
 };
 
+/** Legacy PIN-Tab (#access) – entfernt in Welle 0. */
+const ADMIN_TAB_ALIASES = { access: 'licenses' };
+
 const ADMIN_TAB_STORAGE_KEY = 'ms365-admin-active-tab-v1';
+
+/**
+ * @param {string} tabId
+ * @returns {string}
+ */
+function normalizeAdminTab(tabId) {
+    const raw = String(tabId || '')
+        .trim()
+        .toLowerCase();
+    const mapped = ADMIN_TAB_ALIASES[raw] || raw;
+    return ADMIN_TAB_META[mapped] ? mapped : 'licenses';
+}
 
 /**
  * @param {string} tabId
  * @param {{ resetNested?: boolean }} [opts] resetNested: Nested-Hash (#licenses/school/…) auf Tab-Wurzel
  */
 function setAdminTab(tabId, opts) {
-    const id = ADMIN_TAB_META[tabId] ? tabId : 'licenses';
+    const id = normalizeAdminTab(tabId);
     const meta = ADMIN_TAB_META[id];
     const resetNested = !!(opts && opts.resetNested);
 
     document.querySelectorAll('.admin-app__nav-btn[data-admin-tab]').forEach((btn) => {
         const selected = btn.getAttribute('data-admin-tab') === id;
         btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        btn.setAttribute('tabindex', selected ? '0' : '-1');
     });
 
     document.querySelectorAll('.admin-app__panel[data-admin-panel]').forEach((panel) => {
         const active = panel.getAttribute('data-admin-panel') === id;
         panel.classList.toggle('active', active);
-        if (active) panel.removeAttribute('hidden');
-        else panel.setAttribute('hidden', '');
+        if (active) {
+            panel.removeAttribute('hidden');
+            panel.setAttribute('tabindex', '-1');
+        } else {
+            panel.setAttribute('hidden', '');
+            panel.removeAttribute('tabindex');
+        }
     });
 
     const eyebrow = $('adminAppEyebrow');
@@ -397,11 +406,10 @@ function tabFromLocation() {
             .toLowerCase();
         if (hash) {
             const root = hash.split('/')[0];
-            if (root && ADMIN_TAB_META[root]) return root;
-            if (ADMIN_TAB_META[hash]) return hash;
+            if (root) return normalizeAdminTab(root);
         }
         const q = new URLSearchParams(location.search).get('tab');
-        if (q && ADMIN_TAB_META[q]) return q;
+        if (q) return normalizeAdminTab(q);
     } catch {
         // ignore
     }
@@ -439,11 +447,11 @@ function initAdminTabs() {
         if (fromHash) setAdminTab(fromHash);
     });
 
-    let initial = tabFromLocation() || 'licenses';
+    let initial = tabFromLocation() || 'overview';
     if (!tabFromLocation()) {
         try {
             const stored = localStorage.getItem(ADMIN_TAB_STORAGE_KEY);
-            if (stored && ADMIN_TAB_META[stored]) initial = stored;
+            if (stored) initial = normalizeAdminTab(stored);
         } catch {
             // ignore
         }
@@ -453,57 +461,20 @@ function initAdminTabs() {
 
 window.ms365AdminSetTab = setAdminTab;
 
+function syncAdminSessionChrome() {
+    let loggedIn = false;
+    try {
+        loggedIn = typeof window.ms365AuthIsLoggedIn === 'function' && !!window.ms365AuthIsLoggedIn();
+    } catch {
+        loggedIn = false;
+    }
+    document.body.classList.toggle('admin-session', loggedIn);
+}
+
 function init() {
     initAdminTabs();
-    const config = typeof window !== 'undefined' ? window.MS365_ACCESS_CONFIG : null;
-    const override = loadAccessOverride(localStorage) || null;
-
-    const enabledBox = $('adminAccessEnabled');
-    if (enabledBox) {
-        const active = getActiveUserAccessConfig(config);
-        enabledBox.checked = !!active.enabled;
-    }
-
-    const initialPins = override && Array.isArray(override.pins) ? override.pins : Array.isArray(config && config.pins) ? config.pins : [];
-    renderPins(initialPins);
-
-    const btnSavePins = $('adminSavePinsBtn');
-    if (btnSavePins) {
-        btnSavePins.addEventListener('click', function () {
-            const pins = parsePinsFromTextarea($('adminUserPinsText') && $('adminUserPinsText').value);
-            const enabled = $('adminAccessEnabled') ? $('adminAccessEnabled').checked : true;
-            saveAccessOverride({ enabled: enabled, pins: pins }, localStorage);
-            renderPins(pins);
-            alert('User-PINs gespeichert (lokal in diesem Browserprofil).');
-        });
-    }
-
-    function downloadJson(payload, filename) {
-        try {
-            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename || 'ms365-schooltool-admin-export.json';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(function () {
-                URL.revokeObjectURL(url);
-            }, 250);
-        } catch {
-            alert('Export fehlgeschlagen.');
-        }
-    }
-
-    function refreshPins() {
-        if (!$('adminUserPinsText')) return;
-        const ov = loadAccessOverride(localStorage);
-        const effectivePins = ov && Array.isArray(ov.pins) && ov.pins.length ? ov.pins : Array.isArray(config?.pins) ? config.pins : [];
-        renderPins(effectivePins);
-        if ($('adminAccessEnabled') && ov && typeof ov.enabled === 'boolean') $('adminAccessEnabled').checked = ov.enabled;
-    }
-
+    syncAdminSessionChrome();
+    window.addEventListener('ms365-auth-state-changed', syncAdminSessionChrome);
     wireReleaseEditor();
 
     const btnAddNote = $('adminAddReleaseNoteBtn');
@@ -566,57 +537,8 @@ function init() {
             notesCache = loadReleaseNotes(localStorage);
         }
         renderNotesList(notesCache);
-        refreshPins();
     }
     refreshNotes = refresh;
-
-    const btnExportAccess = $('adminExportAccessBtn');
-    if (btnExportAccess) {
-        btnExportAccess.addEventListener('click', function () {
-            const enabled = $('adminAccessEnabled') ? $('adminAccessEnabled').checked : true;
-            const pins = parsePinsFromTextarea($('adminUserPinsText') && $('adminUserPinsText').value);
-            const releaseNotes = loadReleaseNotes(localStorage);
-            downloadJson(
-                {
-                    exportedAt: new Date().toISOString(),
-                    accessOverride: { enabled: enabled, pins: pins },
-                    releaseNotes: releaseNotes
-                },
-                'ms365-schooltool-access-and-release-notes.json'
-            );
-        });
-    }
-
-    const fileInput = $('adminImportAccessFile');
-    const btnImport = $('adminImportAccessBtn');
-    if (btnImport && fileInput) {
-        btnImport.addEventListener('click', function () {
-            const file = fileInput.files && fileInput.files[0];
-            if (!file) {
-                alert('Bitte zuerst eine JSON-Datei auswählen.');
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function () {
-                try {
-                    const text = String(reader.result || '');
-                    const data = JSON.parse(text);
-                    if (data && data.accessOverride) {
-                        saveAccessOverride(data.accessOverride, localStorage);
-                    }
-                    if (data && data.releaseNotes) {
-                        saveReleaseNotes(data.releaseNotes, localStorage);
-                        setLastSeenAt('', localStorage);
-                    }
-                    alert('Import abgeschlossen.');
-                    refresh();
-                } catch {
-                    alert('Import fehlgeschlagen: Ungültiges JSON-Format.');
-                }
-            };
-            reader.readAsText(file);
-        });
-    }
 
     refresh();
 }

@@ -6,37 +6,29 @@
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schul-Tools – Daten importieren und Verknüpfen</title>
+    <title>MS365-Schul-Tools – Erste Einrichtung (Blaupause)</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <style>
-        .cp-phases{display:grid;gap:22px;margin-top:8px}
-        .cp-phase-head{margin:0 0 10px;font-size:.78em;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#7a8194}
-        .cp-steps{display:grid;gap:14px}
-        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
-        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
-        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
-        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
-        .cp-step ul{margin:8px 0 0;padding-left:1.15em;color:var(--muted,#6c757d);font-size:.88em;line-height:1.45}
-        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
-        .cp-step__actions{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;justify-content:flex-end}
-        .cp-step--optional{border-style:dashed}
-        @media (max-width:720px){
-            .cp-step{grid-template-columns:40px 1fr}
-            .cp-step__actions{grid-column:1/-1;justify-content:flex-start}
-        }
-    </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-box-arrow-in-down"></i>Daten importieren und Verknüpfen</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-flag"></i>Erste Einrichtung · Blaupause</span>
             </div>
-            <p>Geführter Ablauf: Stammdaten <strong>beschaffen</strong> (Datei-Export oder später Bildungsportal), <strong>prüfen</strong> und mit Microsoft&nbsp;365 <strong>verknüpfen</strong>. Haken pro Schritt – bei reinem Datei-Import sind Schritte&nbsp;4–5 optional (Bildungsportal-Vorbereitung).</p>
+            <p>
+                Das ist die <strong>Blaupause</strong> für neue Schul-Tenants – keine Zwangsführung, sondern die Checkliste,
+                in welcher Reihenfolge Stammdaten, SharePoint-Tool-Site, Import und Microsoft&nbsp;365-Verknüpfung Sinn ergeben.
+                Haken setzen, wenn ein Schritt erledigt ist; Ready-Hinweise prüfen Profil, Primär-Site und Stammdaten.
+                Die First-Run-Tour zeigt nur die Orientierung – hier arbeiten Sie den Betrieb ab.
+            </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-playbook-daten-import-verknuepfen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -49,145 +41,178 @@
                 <div class="tm-panel__head">
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
                     <div>
-                        <h3>Checkliste</h3>
-                        <p id="cpProgress" class="muted" style="margin:0;">0 / 10 erledigt</p>
+                        <h3>Checkliste Erste Einrichtung</h3>
+                        <p id="cpProgress" class="pb-progress">0 / 11 erledigt</p>
                     </div>
                 </div>
-                <div class="cp-phases">
+                <p class="pb-lead">
+                    Empfohlener Kernpfad heute: <strong>Schulprofil → Primär-Site → WebUntis/M365-Import → prüfen → SLG/Klassen → Sicherung</strong>.
+                    Bildungsportal ist absichtlich optional und für später – für den Start nicht nötig.
+                </p>
+                <div class="pb-phases">
                     <div>
-                        <p class="cp-phase-head">Phase 1 · Vorbereitung</p>
-                        <div class="cp-steps">
-                            <article class="cp-step">
-                                <div class="cp-step__n">1</div>
+                        <p class="pb-phase__head">Phase 1 · Fundament</p>
+                        <div class="pb-steps">
+                            <article class="pb-step cp-step" data-cp-step="register">
+                                <div class="pb-step__n">1</div>
                                 <div>
-                                    <h3>Stammdaten vorbereiten</h3>
-                                    <p>Schulname, <strong>Schuldomain</strong>, E-Mail-Muster und aktives Schuljahr – ohne Domain bleiben WebUntis-Schülermails oft leer.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="register"> Erledigt</label>
+                                    <h3>Schulprofil &amp; Domain <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                                    <p>Schulname, <strong>Schuldomain</strong>, E-Mail-Muster und aktives Schuljahr. Ohne Domain bleiben Import-Mails und Vorschläge oft leer.</p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="register"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
-                                    <a class="btn btn-primary" href="../tenant.html#stammdaten"><i class="bi bi-journal-bookmark"></i>Stammdaten</a>
+                                <div class="pb-step__actions">
+                                    <a class="btn btn-primary" href="../tenant.html#profile"><i class="bi bi-journal-bookmark"></i>Schulprofil</a>
+                                </div>
+                            </article>
+                            <article class="pb-step cp-step" data-cp-step="tool-site">
+                                <div class="pb-step__n">2</div>
+                                <div>
+                                    <h3>Primär-Site (Tool-SharePoint) <span class="pb-pill pb-pill--must">Pflicht für Apps</span></h3>
+                                    <p>
+                                        SharePoint-Website <strong>in Ihrem Schul-Tenant</strong>, auf der die Listen der Schul-Tools liegen
+                                        (z. B. Schulaktivitäten). Unter Stammdaten → Planer &amp; Apps eintragen und prüfen –
+                                        die URL wird dem Betreiber als Tool-Site gemeldet, damit Lehrkräfte die richtige Site finden.
+                                    </p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="tool-site"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="btn btn-primary" href="../tenant.html#spo-planer"><i class="bi bi-grid-1x2"></i>Planer &amp; Apps</a>
                                 </div>
                             </article>
                         </div>
                     </div>
                     <div>
-                        <p class="cp-phase-head">Phase 2 · Stammdaten beschaffen</p>
-                        <div class="cp-steps">
-                            <article class="cp-step">
-                                <div class="cp-step__n">2</div>
+                        <p class="pb-phase__head">Phase 2 · Stammdaten beschaffen</p>
+                        <div class="pb-steps">
+                            <article class="pb-step cp-step" data-cp-step="quelle">
+                                <div class="pb-step__n">3</div>
                                 <div>
                                     <h3>Datenquelle wählen</h3>
-                                    <p><strong>Empfohlen: WebUntis-Gesamtpaket.</strong> Alternative: Sokrates/Excel über Stammdaten → Schüler. Bildungsportal noch nicht produktiv.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="quelle"> Erledigt</label>
+                                    <p><strong>Empfohlen: WebUntis-Gesamtpaket.</strong> Alternative: Sokrates/Excel über Stammdaten → Schüler, oder Lehrkräfte direkt aus Microsoft&nbsp;365.</p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="quelle"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn btn-primary" href="stammdaten-quelle-waehlen.html"><i class="bi bi-signpost-split"></i>Quelle wählen</a>
                                 </div>
                             </article>
-                            <article class="cp-step">
-                                <div class="cp-step__n">3</div>
+                            <article class="pb-step cp-step" data-cp-step="import-datei">
+                                <div class="pb-step__n">4</div>
                                 <div>
-                                    <h3>Dateien hochladen &amp; übernehmen</h3>
-                                    <p><strong>WebUntis (empfohlen):</strong> Assistent öffnen, <code>Student_*</code> + <code>LegalGuardian_*</code> + <code>Teacher_*</code> ablegen, auswerten, markieren, übernehmen.</p>
-                                    <p style="margin-top:.5em"><strong>Lehrer schon in M365?</strong> Stammdaten → Tab Lehrer → <strong>Aus Microsoft&nbsp;365 einlesen</strong> (A1/A3/A5 Lehrpersonal).</p>
-                                    <p style="margin-top:.5em"><strong>Sokrates / Vorlage:</strong> Stammdaten → Tab Schüler (nicht den WebUntis-Assistenten).</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="import-datei"> Erledigt</label>
+                                    <h3>Importieren &amp; übernehmen</h3>
+                                    <p><strong>WebUntis:</strong> Assistent öffnen, <code>Student_*</code> + <code>LegalGuardian_*</code> + <code>Teacher_*</code> ablegen, auswerten, übernehmen.</p>
+                                    <p style="margin-top:.5em"><strong>Lehrer schon in M365?</strong> Stammdaten → Lehrer → <strong>Aus Microsoft&nbsp;365 einlesen</strong>.</p>
+                                    <p style="margin-top:.5em"><strong>Sokrates / Vorlage:</strong> Stammdaten → Schüler (nicht den WebUntis-Assistenten).</p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="import-datei"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn btn-primary" href="webuntis-stammdaten-import.html?from=playbook-daten-import"><i class="bi bi-cloud-upload"></i>WebUntis-Assistent</a>
                                     <a class="btn" href="../tenant.html#lehrer"><i class="bi bi-microsoft"></i>Lehrer aus M365</a>
                                     <a class="btn" href="../tenant.html#schueler"><i class="bi bi-people"></i>Sokrates / Vorlage</a>
                                 </div>
                             </article>
-                            <article class="cp-step cp-step--optional">
-                                <div class="cp-step__n">4</div>
+                            <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="bildungsportal-info">
+                                <div class="pb-step__n">5</div>
                                 <div>
-                                    <h3>Bildungsportal (Vorschau)</h3>
-                                    <p>Optional: Roadmap zur EdTech-Anbindung lesen – wenn Sie später ohne Datei-Export synchronisieren wollen. Überspringen, wenn Sie nur Datei-Import nutzen.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="bildungsportal-info"> Gelesen / geplant</label>
+                                    <h3>Bildungsportal <span class="pb-pill pb-pill--later">Später · optional</span></h3>
+                                    <p>
+                                        <strong>Für den Start überspringen.</strong> EdTech-/Bildungsportal-Anbindung ist geplant, aber noch nicht der produktive Weg.
+                                        Nur lesen, wenn Sie später ohne Datei-Export synchronisieren wollen – sonst Haken weglassen und mit Phase&nbsp;3 weiter.
+                                    </p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="bildungsportal-info"> Später / gelesen</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn" href="bildungsportal-stammdaten.html"><i class="bi bi-building"></i>Roadmap</a>
                                 </div>
                             </article>
                         </div>
                     </div>
                     <div>
-                        <p class="cp-phase-head">Phase 3 · Prüfen &amp; Microsoft&nbsp;365 verknüpfen</p>
-                        <div class="cp-steps">
-                            <article class="cp-step">
-                                <div class="cp-step__n">5</div>
+                        <p class="pb-phase__head">Phase 3 · Prüfen &amp; Microsoft&nbsp;365 verknüpfen</p>
+                        <div class="pb-steps">
+                            <article class="pb-step cp-step" data-cp-step="review">
+                                <div class="pb-step__n">6</div>
                                 <div>
                                     <h3>Import in den Stammdaten prüfen</h3>
-                                    <p>Klassen, Schüler:innen, Lehrkräfte und Fächer gegen Ihre Erwartung kontrollieren – Korrekturen vor Entra-Zuordnung.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="review"> Erledigt</label>
+                                    <p>Klassen, Schüler:innen, Lehrkräfte und Fächer gegen Ihre Erwartung – Korrekturen <strong>vor</strong> der Entra-Zuordnung.</p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="review"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
-                                    <a class="btn" href="../tenant.html#klassen"><i class="bi bi-pencil-square"></i>Prüfen</a>
+                                <div class="pb-step__actions">
+                                    <a class="btn btn-primary" href="../tenant.html#klassen"><i class="bi bi-pencil-square"></i>Prüfen</a>
                                 </div>
                             </article>
-                            <article class="cp-step">
-                                <div class="cp-step__n">6</div>
+                            <article class="pb-step cp-step" data-cp-step="slg">
+                                <div class="pb-step__n">7</div>
                                 <div>
                                     <h3>Sammelgruppen verknüpfen</h3>
-                                    <p>Schüler- und Lehrkräfte-SLG sowie <strong>Schulleitung</strong> und <strong>Verwaltung (Personal)</strong> den passenden Microsoft&nbsp;365-Gruppen zuordnen (Zielgruppe pro Rolle in den Stammdaten).</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="slg"> Erledigt</label>
+                                    <p>Schüler- und Lehrkräfte-SLG sowie <strong>Schulleitung</strong> und <strong>Verwaltung</strong> den passenden Microsoft&nbsp;365-Gruppen zuordnen.</p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="slg"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn" href="schueler-sammelgruppe.html"><i class="bi bi-mortarboard"></i>Schüler</a>
                                     <a class="btn" href="lehrer-sammelgruppe.html"><i class="bi bi-person-workspace"></i>Lehrkräfte</a>
                                     <a class="btn" href="verwaltung.html"><i class="bi bi-building-gear"></i>Verwaltung</a>
                                 </div>
                             </article>
-                            <article class="cp-step">
-                                <div class="cp-step__n">7</div>
+                            <article class="pb-step cp-step" data-cp-step="klassen">
+                                <div class="pb-step__n">8</div>
                                 <div>
                                     <h3>Klassengruppen</h3>
                                     <p>Jahrgangs- und Klassenteams anlegen oder in den Stammdaten mit Entra-Gruppen verknüpfen.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="klassen"> Erledigt</label>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="klassen"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn" href="jahrgangsgruppen.html"><i class="bi bi-collection"></i>Klassengruppen</a>
                                 </div>
                             </article>
-                            <article class="cp-step">
-                                <div class="cp-step__n">8</div>
+                            <article class="pb-step cp-step" data-cp-step="faecher">
+                                <div class="pb-step__n">9</div>
                                 <div>
                                     <h3>Fächer &amp; ARGE-Gruppen</h3>
-                                    <p>Fach- und ARGE-Codes den Entra-Gruppen zuordnen.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="faecher"> Erledigt</label>
+                                    <p>Fach- und ARGE-Codes den Entra-Gruppen zuordnen (wo Sie Fachteams nutzen).</p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="faecher"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn" href="arge-fachgruppen.html"><i class="bi bi-book"></i>Fächer/ARGEs</a>
                                 </div>
                             </article>
-                            <article class="cp-step">
-                                <div class="cp-step__n">9</div>
+                            <article class="pb-step cp-step" data-cp-step="hygiene">
+                                <div class="pb-step__n">10</div>
                                 <div>
                                     <h3>Datenhygiene</h3>
                                     <p>Stammlisten vs. Mitgliedschaften abgleichen – Abweichungen vor dem Alltag beheben.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="hygiene"> Erledigt</label>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="hygiene"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
+                                <div class="pb-step__actions">
                                     <a class="btn" href="datenhygiene.html"><i class="bi bi-shield-check"></i>Hygiene</a>
                                 </div>
                             </article>
-                            <article class="cp-step">
-                                <div class="cp-step__n">10</div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="pb-phase__head">Phase 4 · Absichern &amp; weiter</p>
+                        <div class="pb-steps">
+                            <article class="pb-step cp-step" data-cp-step="backup">
+                                <div class="pb-step__n">11</div>
                                 <div>
-                                    <h3>Sicherung</h3>
-                                    <p>Browser-Backup exportieren oder IT-Bibliothek in SharePoint einrichten.</p>
-                                    <label class="cp-check"><input type="checkbox" data-cp-check="backup"> Erledigt</label>
+                                    <h3>Sicherung <span class="pb-pill pb-pill--must">Wichtig</span></h3>
+                                    <p>
+                                        Stammdaten liegen zuerst im Browser. <strong>IT-Sicherungsbibliothek</strong> in SharePoint einrichten
+                                        (Floppy oben → „IT-Sicherungsbibliothek einrichten“) und/oder Browser-Backup exportieren.
+                                        Danach: erste Schul-App (z. B. Schulaktivitäten-Listen) auf der Primär-Site anlegen.
+                                    </p>
+                                    <p class="pb-step__ready" data-cp-ready-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="backup"> Erledigt</label>
                                 </div>
-                                <div class="cp-step__actions">
-                                    <a class="btn" href="stammdaten-uebergabe.html"><i class="bi bi-shield-lock"></i>IT-Sicherung</a>
+                                <div class="pb-step__actions">
+                                    <a class="btn btn-primary" href="stammdaten-uebergabe.html#setup"><i class="bi bi-shield-lock"></i>IT-Sicherung</a>
+                                    <a class="btn" href="sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-list-check"></i>Beispiel: AKT-Listen</a>
                                 </div>
                             </article>
                         </div>
                     </div>
                 </div>
-                <div class="tm-actions" style="margin-top:16px;">
-                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                    <a class="btn" href="../index.html"><i class="bi bi-house"></i>Zum Dashboard</a>
                 </div>
             </section>
         </div>
@@ -196,10 +221,27 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module">
         import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        import {
+            blaupauseCountsFromSettings,
+            evaluateBlaupauseReadyChecks
+        } from '../src/shared/playbook-blaupause-ready.js';
+
+        function loadTenantSettings() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        }
+
         wirePlaybookPage({
             storageKey: 'ms365-playbook-daten-import-verknuepfen-v2',
             stepIds: [
                 'register',
+                'tool-site',
                 'quelle',
                 'import-datei',
                 'bildungsportal-info',
@@ -209,7 +251,10 @@
                 'faecher',
                 'hygiene',
                 'backup'
-            ]
+            ],
+            evaluateReadyChecks: function () {
+                return evaluateBlaupauseReadyChecks(blaupauseCountsFromSettings(loadTenantSettings()));
+            }
         });
     </script>
 </body>

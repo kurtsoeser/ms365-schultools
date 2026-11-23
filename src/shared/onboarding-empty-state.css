@@ -120,6 +120,208 @@
     margin-left: auto;
 }
 
+/* Product Tour / Spotlight (First-Run) */
+html.ms365-product-tour-active {
+    overflow: hidden;
+}
+
+.ms365-product-tour {
+    position: fixed;
+    inset: 0;
+    z-index: 10060;
+    pointer-events: none;
+}
+
+.ms365-product-tour__mask {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+}
+
+.ms365-product-tour__hole {
+    position: fixed;
+    border-radius: 14px;
+    box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--brand1, #0d9f8a) 85%, #fff),
+        0 0 0 9999px rgba(15, 18, 32, 0.58);
+    transition:
+        top 180ms ease,
+        left 180ms ease,
+        width 180ms ease,
+        height 180ms ease,
+        opacity 120ms ease;
+    pointer-events: none;
+}
+
+.ms365-product-tour__tip {
+    position: fixed;
+    z-index: 10070;
+    width: min(360px, calc(100vw - 24px));
+    padding: 16px 18px 14px;
+    border-radius: 16px;
+    background: var(--card, #fff);
+    color: var(--text, #32325d);
+    box-shadow: 0 18px 48px rgba(15, 18, 32, 0.28);
+    border: 1px solid color-mix(in srgb, var(--brand1, #0d9f8a) 22%, var(--border, #dee2e6));
+    pointer-events: auto;
+}
+
+.ms365-product-tour__tip.is-orphan {
+    box-shadow: 0 18px 48px rgba(15, 18, 32, 0.35);
+}
+
+.ms365-product-tour__progress {
+    margin: 0 0 6px;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted, #6c757d);
+}
+
+.ms365-product-tour__tip h3 {
+    margin: 0 0 8px;
+    font-size: 1.05em;
+    font-weight: 800;
+    color: var(--heading, #32325d);
+}
+
+.ms365-product-tour__body {
+    font-size: 0.92em;
+    line-height: 1.5;
+    color: #495057;
+}
+
+.ms365-product-tour__body p {
+    margin: 0 0 8px;
+}
+
+.ms365-product-tour__body p:last-child {
+    margin-bottom: 0;
+}
+
+.ms365-product-tour__body strong {
+    color: var(--heading, #32325d);
+}
+
+.ms365-product-tour__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.ms365-product-tour__skip {
+    border: none;
+    background: transparent;
+    color: var(--muted, #6c757d);
+    font: inherit;
+    font-size: 0.88em;
+    cursor: pointer;
+    padding: 6px 2px;
+    text-decoration: underline;
+}
+
+.ms365-product-tour__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.ms365-product-tour__nav .btn {
+    margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ms365-product-tour__hole {
+        transition: none;
+    }
+}
+
+/* IT First-Run: Fortschritts-Chip */
+.ms365-it-first-run-chip {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10040;
+    display: flex;
+    align-items: stretch;
+    max-width: min(420px, calc(100vw - 24px));
+    border-radius: 14px;
+    background: var(--card, #fff);
+    border: 1px solid color-mix(in srgb, var(--brand1, #0d9f8a) 28%, var(--border, #dee2e6));
+    box-shadow: 0 12px 32px rgba(15, 18, 32, 0.18);
+    overflow: hidden;
+}
+
+.ms365-it-first-run-chip[hidden] {
+    display: none !important;
+}
+
+.ms365-it-first-run-chip__go {
+    flex: 1 1 auto;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 12px 14px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--heading, #32325d);
+}
+
+.ms365-it-first-run-chip__go:hover,
+.ms365-it-first-run-chip__go:focus-visible {
+    background: color-mix(in srgb, var(--brand1, #0d9f8a) 8%, transparent);
+    outline: none;
+}
+
+.ms365-it-first-run-chip__kicker {
+    display: block;
+    font-size: 0.72em;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted, #6c757d);
+    margin-bottom: 2px;
+}
+
+.ms365-it-first-run-chip__label {
+    display: block;
+    font-size: 0.95em;
+    font-weight: 750;
+    line-height: 1.3;
+}
+
+.ms365-it-first-run-chip__dismiss {
+    flex: 0 0 auto;
+    appearance: none;
+    border: 0;
+    border-left: 1px solid color-mix(in srgb, var(--brand1, #0d9f8a) 16%, var(--border, #dee2e6));
+    background: transparent;
+    color: var(--muted, #6c757d);
+    padding: 0 12px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 1.1em;
+    line-height: 1;
+}
+
+.ms365-it-first-run-chip__dismiss:hover,
+.ms365-it-first-run-chip__dismiss:focus-visible {
+    color: var(--heading, #32325d);
+    background: color-mix(in srgb, var(--brand1, #0d9f8a) 8%, transparent);
+    outline: none;
+}
+
+html[data-theme='dark'] .ms365-it-first-run-chip {
+    background: var(--card);
+    border-color: var(--border-strong, var(--border));
+}
+
 /* Leere Zustände (Banner) */
 .ms365-empty-state-banner {
     margin: 0 0 16px;

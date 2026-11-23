@@ -37,7 +37,11 @@ import {
     effectiveAccountEmail
 } from './freistellung-planer-state.js';
 import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
-import { announcePlannerState } from '../../shared/app-role-chrome.js';
+import {
+    announcePlannerState,
+    readAuthAccountSnapshot,
+    waitForAuthAccountRead
+} from '../../shared/app-role-chrome.js';
 import {
     toolSiteUrlFromLicenseResult,
     applyToolSiteUrlLocally,
@@ -217,6 +221,7 @@ function currentAccount() {
 
 function syncAccount() {
     try {
+        const snap = readAuthAccountSnapshot();
         const info =
             typeof window.ms365AuthGetAccountInfo === 'function' ? window.ms365AuthGetAccountInfo() : null;
         const upn =
@@ -224,10 +229,12 @@ function syncAccount() {
                 ? window.ms365AuthGetUserPrincipalName()
                 : '';
         const a = currentAccount();
-        state.accountEmail = String((info && (info.username || info.mail)) || a.email || upn || '')
+        state.accountEmail = String(
+            snap.email || (info && (info.email || info.username || info.mail || info.upn)) || a.email || upn || ''
+        )
             .trim()
             .toLowerCase();
-        state.accountName = String((info && info.name) || a.name || '').trim();
+        state.accountName = String(snap.name || (info && info.name) || a.name || '').trim();
     } catch {
         state.accountEmail = '';
         state.accountName = '';
@@ -765,6 +772,7 @@ async function refreshData() {
             state.ctx = null;
         }
     } finally {
+        state.authRolePending = false;
         state.loading = false;
         paint();
     }
@@ -783,6 +791,9 @@ function applyLocalDemo(pack) {
     if (stamOk) state.stammdaten = loadStammdaten();
     ensureDemoPersonaInStammdaten();
     state.localDemoOnly = true;
+    state.authRolePending = false;
+    state.kontoOffen = false;
+    state.planerAccessDenied = false;
     state.ctx = null;
     state.error = '';
     state.demoPersonaEmail = DEMO_KV_PERSONA.email;
@@ -1542,6 +1553,17 @@ function bindStatic() {
             deleteAntrag(id).catch((e) => toast(String((e && e.message) || e)));
         });
     });
+    root.querySelectorAll('[data-fr-auth-login]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (typeof window.ms365AuthLogin === 'function') window.ms365AuthLogin();
+        });
+    });
+    root.querySelectorAll('[data-fr-auth-switch]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (typeof window.ms365AuthSwitchAccount === 'function') window.ms365AuthSwitchAccount();
+            else if (typeof window.ms365AuthLogin === 'function') window.ms365AuthLogin();
+        });
+    });
 }
 
 function boot() {
@@ -1550,7 +1572,10 @@ function boot() {
     if (!root) return;
 
     const params = new URLSearchParams(window.location.search || '');
-    state.demoRoleOverride = params.get('demoRole') === '1';
+    const landingShot = params.get('landingShot') === '1';
+    state.demoRoleOverride = params.get('demoRole') === '1' || landingShot;
+    state.authRolePending = !state.demoRoleOverride;
+    state.authSettled = !!state.demoRoleOverride;
     state.entraGroupsConfigured = entraGroupsConfigured(loadPermissionsConfig());
     state.demoKlasseCode = loadDemoKlasseCode();
     const roleQ = params.get('role');
@@ -1560,6 +1585,11 @@ function boot() {
             persistRole(roleQ);
             state.roleSource = 'demo';
         }
+    }
+    if (landingShot && !roleQ) {
+        state.role = 'direktion';
+        persistRole('direktion');
+        state.roleSource = 'demo';
     }
     const klasseQ = params.get('klasse');
     if (klasseQ) {
@@ -1578,18 +1608,38 @@ function boot() {
         }
     }
 
-    resolvePlanerRole()
-        .then(() => paint())
-        .catch(() => paint());
+    // Erster Paint zeigt sofort das ruhige Skeleton während Konto & Rolle geprüft werden.
+    if (!landingShot) paint();
 
     window.addEventListener('ms365-auth-state-changed', () => {
         void (async () => {
+            state.authRolePending = !state.demoRoleOverride && !state.localDemoOnly;
+            state.error = '';
+            paint();
             try {
+                const snap = await waitForAuthAccountRead();
+                state.authSettled = true;
+                syncAccount();
+                if (!snap.loggedIn && !state.accountEmail && !state.demoRoleOverride && !state.localDemoOnly) {
+                    await applyPlanerRoleFromEntra(state, {
+                        demoRoleOverride: false,
+                        preferredActiveRole: state.role
+                    });
+                    state.authRolePending = false;
+                    paint();
+                    return;
+                }
+                paint();
                 await resolvePlanerRole();
                 const url = await ensureFrSiteUrl();
-                if (url && !state.planerAccessDenied) await refreshData();
-                else paint();
+                if (url && !state.planerAccessDenied && !state.kontoOffen) {
+                    await refreshData();
+                } else {
+                    state.authRolePending = false;
+                    paint();
+                }
             } catch (e) {
+                state.authRolePending = false;
                 if (!(state.localDemoOnly && (state.items || []).length)) {
                     state.error = friendlySpoError(e) || 'Laden fehlgeschlagen';
                 }
@@ -1620,16 +1670,67 @@ function boot() {
     });
 
     void (async () => {
-        const url = await ensureFrSiteUrl();
-        if (url) {
-            refreshData();
-        } else {
-            if (!useMinimalPlanerChrome(state)) {
-                state.info =
-                    state.roleHint ||
-                    'SharePoint-Site fehlt in diesem Browser. IT: Tool-Site-URL in der Lizenz setzen – oder Demo laden.';
+        if (landingShot) {
+            try {
+                applyLocalDemo(getDemoSeedPackage());
+                const viewQ = params.get('view');
+                const allowedViews = ['dashboard', 'meine', 'liste', 'kalender', 'antrag', 'freigabe', 'bericht'];
+                state.view =
+                    viewQ && allowedViews.indexOf(viewQ) >= 0
+                        ? viewQ
+                        : state.role === 'schueler'
+                          ? 'antrag'
+                          : 'liste';
+                state.error = '';
+                state.planerAccessDenied = false;
+                state.authRolePending = false;
+                state.authSettled = true;
+                paint();
+                await Promise.race([
+                    resolvePlanerRole(),
+                    new Promise((resolve) => setTimeout(resolve, 400))
+                ]);
+                paint();
+            } catch (e) {
+                console.warn('[fr-landingShot]', e);
+                state.authRolePending = false;
+                paint();
             }
-            resolvePlanerRole().then(() => paint());
+            return;
+        }
+        try {
+            const snap = await waitForAuthAccountRead();
+            state.authSettled = true;
+            syncAccount();
+            if (!snap.loggedIn && !state.accountEmail && !state.demoRoleOverride && !state.localDemoOnly) {
+                await applyPlanerRoleFromEntra(state, {
+                    demoRoleOverride: false,
+                    preferredActiveRole: state.role
+                });
+                state.authRolePending = false;
+                paint();
+                return;
+            }
+            paint();
+            const url = await ensureFrSiteUrl();
+            if (url) {
+                await refreshData();
+            } else {
+                await resolvePlanerRole();
+                state.authRolePending = false;
+                if (!state.planerAccessDenied && !state.kontoOffen && !useMinimalPlanerChrome(state)) {
+                    state.info =
+                        state.roleHint ||
+                        'SharePoint-Site fehlt in diesem Browser. IT: Tool-Site-URL in der Lizenz setzen – oder Demo laden.';
+                }
+                paint();
+            }
+        } catch (e) {
+            state.authRolePending = false;
+            if (!(state.localDemoOnly && (state.items || []).length)) {
+                state.error = friendlySpoError(e) || 'Laden fehlgeschlagen';
+            }
+            paint();
         }
     })();
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     evaluateSchuljahresstartPrerequisites,
+    evaluateSchuljahresstartReadyChecks,
     evaluateStepUnlock,
     schuljahresstartPlaybookProgress,
     nextSchuljahresstartGateHint,
@@ -52,5 +53,19 @@ describe('playbook-schuljahresstart-gates', () => {
         });
         const hint = nextSchuljahresstartGateHint({}, counts);
         expect(hint).toMatch(/Klasse|Schuljahr/i);
+    });
+
+    it('mappt Gates auf Ready-Checks', () => {
+        const ready = evaluateSchuljahresstartReadyChecks({
+            year: '',
+            classes: 0,
+            students: 0,
+            teachers: 0,
+            subjects: 0,
+            domain: '',
+            schoolName: ''
+        });
+        expect(ready.stammdaten.status).toBe('missing');
+        expect(ready.cleanup.status).toBe('ok');
     });
 });

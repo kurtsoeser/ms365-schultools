@@ -1,0 +1,213 @@
+/* IT-Arbeitsfläche: bleibende linke Leiste auf Werkzeugseiten */
+
+body.it-workspace-shell {
+    margin: 0;
+}
+
+body.it-workspace-shell > .it-workspace-shell {
+    display: grid;
+    grid-template-columns: 256px minmax(0, 1fr);
+    min-height: 100vh;
+    align-items: stretch;
+}
+
+body.it-workspace-shell .it-workspace-shell__rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow: auto;
+    padding: 12px 10px 88px;
+    background: var(--rail-bg, color-mix(in srgb, var(--soft) 55%, var(--card)));
+    border-right: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+body.it-workspace-shell .it-workspace-shell__main {
+    min-width: 0;
+}
+
+body.it-workspace-shell .it-workspace-shell__main > .container.page-card,
+body.it-workspace-shell .it-workspace-shell__main > .container {
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+}
+
+body.it-workspace-shell .it-workspace-shell__brand {
+    margin: 0 4px 12px;
+    padding: 0 0 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+
+body.it-workspace-shell .it-workspace-shell__home {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--heading);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13.5px;
+}
+
+body.it-workspace-shell .it-workspace-shell__home:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.it-workspace-shell .it-workspace-shell__block {
+    margin: 0 0 6px;
+}
+
+body.it-workspace-shell .it-workspace-shell__item,
+body.it-workspace-shell .it-workspace-shell__subitem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: auto;
+    margin: 2px 4px;
+    padding: 8px 10px 8px 12px;
+    border-left: 3px solid transparent;
+    border-radius: 0 8px 8px 0;
+    color: var(--heading);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 450;
+}
+
+body.it-workspace-shell .it-workspace-shell__item {
+    position: relative;
+    padding-right: 28px;
+}
+
+body.it-workspace-shell .it-workspace-shell__chevron {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    margin-top: -0.5em;
+    font-size: 0.75rem;
+    opacity: 0.55;
+    transition: transform 0.15s ease;
+}
+
+body.it-workspace-shell .it-workspace-shell__item[aria-expanded='false'] .it-workspace-shell__chevron,
+body.it-workspace-shell .it-workspace-shell__block.is-collapsed .it-workspace-shell__chevron {
+    transform: rotate(-90deg);
+}
+
+body.it-workspace-shell .it-workspace-shell__item:hover,
+body.it-workspace-shell .it-workspace-shell__subitem:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.it-workspace-shell .it-workspace-shell__item[aria-current='page'],
+body.it-workspace-shell .it-workspace-shell__subitem[aria-current='page'] {
+    background: var(--rail-active, rgba(0, 0, 0, 0.06));
+    border-left-color: var(--brand1, #0d9488);
+    font-weight: 600;
+}
+
+body.it-workspace-shell .it-workspace-shell__sub {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0 0 4px 8px;
+    padding: 0 0 4px;
+}
+
+body.it-workspace-shell .it-workspace-shell__sec {
+    margin: 8px 4px 2px 12px;
+    padding: 0;
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* tenant.html: zweite Stammdaten-Rail weg – IT-Menü bleibt das eine, gleiche Leiste */
+body.it-workspace-stammdaten-embed .ts-admin-rail,
+body.ts-admin-page.it-workspace-stammdaten-embed .ts-admin-rail {
+    display: none !important;
+}
+body.it-workspace-stammdaten-embed .ts-register-shell.ts-admin-shell,
+body.ts-admin-page.it-workspace-shell.it-workspace-stammdaten-embed .ts-register-shell.ts-admin-shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+body.it-workspace-stammdaten-embed .ts-admin-main,
+body.it-workspace-stammdaten-embed .ts-register-shell__content {
+    min-width: 0;
+    width: 100%;
+}
+
+body.it-workspace-shell .it-workspace-shell__sub[hidden] {
+    display: none !important;
+}
+
+body.it-workspace-shell .it-workspace-shell__more {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 4px 4px 2px;
+}
+body.it-workspace-shell .it-workspace-shell__more-btn {
+    display: flex;
+    align-items: center;
+    margin: 2px 4px;
+    padding: 6px 10px 6px 14px;
+    border: 0;
+    border-radius: 0 8px 8px 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+}
+body.it-workspace-shell .it-workspace-shell__more-btn:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+    color: var(--heading);
+}
+body.it-workspace-shell .it-workspace-shell__more-body[hidden] {
+    display: none !important;
+}
+
+body.it-workspace-shell .it-workspace-shell__subitem {
+    padding: 7px 10px 7px 14px;
+    font-size: 12.75px;
+    font-weight: 450;
+    color: color-mix(in srgb, var(--heading) 88%, var(--muted));
+}
+
+body.it-workspace-shell .it-workspace-shell__icon {
+    flex: 0 0 18px;
+    width: 18px;
+    text-align: center;
+    opacity: 0.85;
+}
+
+body.it-workspace-shell .it-workspace-shell__label {
+    min-width: 0;
+    line-height: 1.25;
+}
+
+body.it-workspace-shell a[data-it-workspace-hidden-back='1'] {
+    display: none !important;
+}
+
+@media (max-width: 900px) {
+    body.it-workspace-shell > .it-workspace-shell {
+        grid-template-columns: 1fr;
+    }
+
+    body.it-workspace-shell .it-workspace-shell__rail {
+        position: relative;
+        height: auto;
+        max-height: 42vh;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+}

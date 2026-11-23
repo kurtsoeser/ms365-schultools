@@ -34,8 +34,37 @@ function ensureMounted(opts) {
     } catch (err) {
         console.error('Schul-Organigramm (Stammdaten): Mount fehlgeschlagen', err);
         mount.innerHTML =
-            '<p class="muted" role="alert">Organigramm konnte nicht geladen werden. Bitte Seite neu laden.</p>';
+            '<div class="ts-org-empty" role="status">' +
+            '<p><strong>Organigramm noch nicht bereit.</strong></p>' +
+            '<p class="muted">Oft fehlen noch Rollen oder Klassen in den Stammdaten – das ist kein Seitenfehler.</p>' +
+            '<p class="ts-org-empty__actions">' +
+            '<a class="btn fb-btn fb-btn--ghost" href="#verwaltung" data-ms365-register-tab-link="tabMainVerwaltung">' +
+            '<i class="bi bi-building" aria-hidden="true"></i> Zur Verwaltung</a>' +
+            '<a class="btn fb-btn fb-btn--ghost" href="#klassen" data-ms365-register-tab-link="tabMainKlassen">' +
+            '<i class="bi bi-people" aria-hidden="true"></i> Zu den Klassen</a>' +
+            '</p></div>';
+        bindOrgEmptyTabLinks(mount);
     }
+}
+
+/**
+ * @param {HTMLElement} mount
+ */
+function bindOrgEmptyTabLinks(mount) {
+    if (!mount) return;
+    mount.querySelectorAll('[data-ms365-register-tab-link]').forEach(function (a) {
+        a.addEventListener('click', function (ev) {
+            const id = a.getAttribute('data-ms365-register-tab-link');
+            if (!id) return;
+            ev.preventDefault();
+            if (typeof window.ms365TenantTabActivate === 'function') {
+                window.ms365TenantTabActivate(id);
+                return;
+            }
+            const btn = document.getElementById(id);
+            if (btn) btn.click();
+        });
+    });
 }
 
 function afterShow() {

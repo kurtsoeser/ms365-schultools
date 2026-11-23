@@ -1,0 +1,32 @@
+Copyright (c) 2024–2026 Kurt Söser, Steyr, Österreich
+Marke / Produkt: MS365-Schul-Tools (ms365.schule / app.ms365.schule)
+
+PROPRIETARY – SOURCE AVAILABLE (NICHT FREI NUTZBAR)
+
+Dieses Repository macht den Quellcode bewusst sichtbar (Transparenz,
+Vertrauen, Nachvollziehbarkeit). Das ist keine Open-Source-Lizenz und
+keine Einladung zur freien Nutzung, Weitergabe oder zum Betrieb als
+eigenes Produkt.
+
+1. Alle Rechte am Code, an Texten, Assets und Marken bleiben beim
+   Rechteinhaber, soweit nicht ausdrücklich anders vereinbart.
+
+2. Ohne schriftliche Vereinbarung (Schullizenz / Vertrag) ist insbesondere
+   untersagt:
+   - Nutzung in Produktion an Schulen oder anderen Organisationen
+   - Hosting, Weitergabe oder Vermarktung als eigenes Angebot
+   - Entfernen von Urheber- oder Herkunftshinweisen
+
+3. Gestattet ohne gesonderte Lizenz:
+   - Ansehen des Codes zu Informations- und Bewertungszwecken
+   - Lokales Ausführen ausschließlich zur eigenen Evaluation /
+     technischen Prüfung, nicht als produktiver Schulbetrieb
+
+4. Produktivnutzung, Support und Freischaltung erfolgen über die
+   Schullizenz des Anbieters (siehe ms365.schule und die Lizenz-API).
+
+5. Drittanbieter-Bibliotheken (z. B. in node_modules / vendor) unterliegen
+   ihren jeweiligen Lizenzen; diese bleiben unberührt.
+
+Anfragen zu Lizenzen und Nutzungsrechten:
+kontakt@kurtrocks.com · https://ms365.schule/

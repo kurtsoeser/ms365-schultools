@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    emptyPeriodLabel,
     listForDay,
     layoutTimedEventsForDay,
     startOfWeekMonday,
@@ -36,6 +37,12 @@ describe('Kalender und Termine Outlook helpers', () => {
         expect(days).toHaveLength(7);
         expect(days[0].getDay()).toBe(1);
         expect(days[6].getDay()).toBe(0);
+    });
+
+    it('emptyPeriodLabel erklärt leeres Raster', () => {
+        expect(emptyPeriodLabel('week')).toBe('Keine Termine in dieser Woche.');
+        expect(emptyPeriodLabel('month')).toBe('Keine Termine in diesem Monat.');
+        expect(emptyPeriodLabel('agenda')).toBe('Keine Termine in diesem Zeitraum.');
     });
 
     it('monthGridDays liefert 42 Zellen', () => {

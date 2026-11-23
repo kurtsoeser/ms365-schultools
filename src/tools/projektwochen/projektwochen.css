@@ -1342,3 +1342,16 @@
     font-size: 0.8rem;
     opacity: 0.8;
 }
+
+/* Welle 3 quiet */
+.pw-kpi-grid--quiet { gap: 10px; }
+.pw-kpi-grid--quiet .pw-kpi {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 6px 8px 10px 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--hairline, var(--border));
+}
+.pw-view__head .fb-greet { margin: 0 0 4px; }
+.pw-view__head .fb-sub { margin: 0; }

@@ -1,7 +1,7 @@
 /**
- * Lokale Override-Konfiguration (ohne Server).
- * - Admin kann damit User-PINs und aktiv/deaktiviert für die PIN-Sperre setzen.
- * - Gilt nur für diesen Browser/Profil (localStorage), weil es keinen Server gibt.
+ * Legacy: lokaler PIN-Override für pin-gate (Admin-Tab „Zugänge“ entfernt).
+ * - Gilt nur für diesen Browser/Profil (localStorage).
+ * - Alltag: access-config.js enabled:false + Tenant-Lizenz.
  */
 
 export const ACCESS_OVERRIDE_KEY = 'ms365-schooltool-access-override-v1';

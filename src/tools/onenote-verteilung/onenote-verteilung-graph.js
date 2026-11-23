@@ -2,7 +2,13 @@
  * Graph: Teams suchen + OneNote Kursnotizbuch-Verteilung (delegiert).
  * Quelle: eigenes OneDrive (/me), zentrales Site-Notizbuch (MS365-Schultools)
  * oder License-/Katalog-API (Schul-Tenants ohne Site-Zugriff).
+ * Transport: shared/graph-client.js (R22 / b11); Gruppen-Suche/Sleep weiter über Unified-Groups.
  */
+
+import {
+    graphJson as sharedGraphJson,
+    graphRequest as sharedGraphRequest
+} from '../../shared/graph-client.js';
 
 /** Betreiber-SharePoint mit MS365-Katalog / notebooks */
 export const CENTRAL_CATALOG_SITE_WEB_URL =
@@ -65,7 +71,7 @@ export async function getToken() {
  * @param {object} [body]
  */
 export async function graphJson(method, path, token, body) {
-    return G().graphJson(method, path, token, body);
+    return sharedGraphJson(method, path, token, body);
 }
 
 function guidLike(s) {
@@ -480,12 +486,11 @@ export async function loadOnenoteNotebookTree(notebookId, scope) {
 }
 
 async function pollOnenoteOperation(operationUrl, token, onProgress) {
-    const api = G();
     const started = Date.now();
     const maxMs = 120000;
     let delay = 1500;
     while (Date.now() - started < maxMs) {
-        const data = await api.graphJson('GET', operationUrl, token);
+        const data = await graphJson('GET', operationUrl, token);
         const status = String((data && data.status) || '').toLowerCase();
         if (onProgress) onProgress(data);
         if (status === 'completed') return data;
@@ -495,7 +500,7 @@ async function pollOnenoteOperation(operationUrl, token, onProgress) {
                 'OneNote-Kopieren fehlgeschlagen.';
             throw new Error(err);
         }
-        await api.sleep(delay);
+        await G().sleep(delay);
         delay = Math.min(5000, delay + 500);
     }
     throw new Error('OneNote-Kopieren: Zeitüberschreitung (Status wird asynchron weiterlaufen).');
@@ -1065,7 +1070,6 @@ export async function copySectionToGroupSectionGroup(
     if (!groupId) throw new Error('Ziel-Team/Gruppe fehlt.');
 
     const token = await getToken();
-    const api = G();
     const path = onenoteBase(sc, 'sections/' + encodeURIComponent(sectionId) + '/copyToSectionGroup');
     const body = {
         id: sectionGroupId,
@@ -1074,7 +1078,7 @@ export async function copySectionToGroupSectionGroup(
     const renameAs = dest && dest.renameAs ? String(dest.renameAs).trim() : '';
     if (renameAs) body.renameAs = renameAs;
 
-    const res = await api.graphRequest('POST', path, token, body);
+    const res = await sharedGraphRequest('POST', path, token, body);
     const text = await res.text();
     let data = null;
     if (text) {

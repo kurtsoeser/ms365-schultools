@@ -1,0 +1,748 @@
+/**
+ * Welle 1 — gemeinsame Hülle.
+ * Volle Breite, keine schwebende Karte, neutrale Leiste, Konto unten links.
+ */
+
+:root {
+    --rail-bg: #f6f7f7;
+    --rail-active: #eceeee;
+    --on-accent: #04211d;
+}
+
+html[data-theme='dark'] {
+    --paper: #181818;
+    --card: #1f1f1f;
+    --soft: #181818;
+    --rail-bg: #1b1b1b;
+    --rail-active: #2e2e2e;
+    --on-accent: #04211d;
+    --heading: #f5f5f5;
+    --text: #f5f5f5;
+    --muted: #adadad;
+    --border: rgba(255, 255, 255, 0.1);
+}
+
+html:has(body.app-shell-chrome) {
+    background: var(--paper);
+    background-image: none;
+}
+
+body.app-shell-chrome {
+    padding: 0;
+    align-items: stretch;
+    background: var(--paper);
+}
+
+body.app-shell-chrome > .container,
+body.app-shell-chrome > .container.page-card,
+body.app-shell-chrome > .page-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 100vh;
+}
+
+body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell) {
+    padding-bottom: 0;
+}
+
+body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell) > .header:not(.dash-compact-header) {
+    display: none !important;
+}
+
+body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell) > .content {
+    padding: 0 !important;
+}
+
+body.app-shell-chrome .sa-shell,
+body.app-shell-chrome .pw-shell,
+body.app-shell-chrome .akt-shell,
+body.app-shell-chrome .fr-shell,
+body.app-shell-chrome .lfr-shell,
+body.app-shell-chrome .ku-shell,
+body.app-shell-chrome .eb-shell,
+body.app-shell-chrome .km-shell,
+body.app-shell-chrome .ein-shell,
+body.app-shell-chrome .ag-shell,
+body.app-shell-chrome .srdp-shell {
+    grid-template-columns: 256px minmax(0, 1fr) !important;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: calc(100vh - 56px);
+    background: var(--card);
+}
+
+body.app-shell-chrome .sa-main,
+body.app-shell-chrome .pw-main,
+body.app-shell-chrome .akt-main,
+body.app-shell-chrome .fr-main,
+body.app-shell-chrome .lfr-main,
+body.app-shell-chrome .ku-main,
+body.app-shell-chrome .eb-main,
+body.app-shell-chrome .km-main,
+body.app-shell-chrome .ein-main,
+body.app-shell-chrome .ag-main,
+body.app-shell-chrome .srdp-main {
+    background: var(--card) !important;
+    color: var(--heading);
+    padding: 32px 44px 56px;
+}
+
+body.app-shell-chrome [class$='-nav__brand'],
+body.app-shell-chrome [class$='-nav__session'] {
+    border-color: var(--border);
+}
+
+body.app-shell-chrome [class$='-nav__btn']:hover {
+    background: var(--planner-nav-hover);
+}
+
+body.page-dashboard.app-shell-chrome .dash-portal-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+    min-height: calc(100vh - 56px);
+}
+
+body.page-dashboard.app-shell-chrome .dash-portal-shell__nav {
+    position: sticky;
+    top: 56px;
+    align-self: stretch;
+    min-height: calc(100vh - 56px);
+    padding: 16px 12px 84px;
+    border-right: 1px solid var(--border);
+    background: var(--rail-bg, color-mix(in srgb, var(--soft) 55%, var(--card)));
+}
+
+body.page-dashboard .dash-portal-shell__nav.dashboard-tablist {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 16px 12px 84px;
+    gap: 2px;
+}
+
+body.page-dashboard .dash-portal-shell__nav .dashboard-tab {
+    color: var(--heading);
+    font-size: 14px;
+    font-weight: 450;
+    padding: 8px 10px;
+    margin: 2px 4px;
+    border-radius: 10px;
+    border: 0 !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+}
+
+body.page-dashboard .dash-portal-shell__nav .dashboard-tab .bi {
+    color: var(--heading) !important;
+    opacity: 0.92;
+}
+
+body.page-dashboard .dash-portal-shell__nav .dashboard-tab:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+    color: var(--heading);
+}
+
+body.page-dashboard .dash-portal-shell__nav .dashboard-tab[aria-selected='true'] {
+    background: var(--rail-active, #eceeee) !important;
+    color: var(--heading) !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    font-weight: 600;
+}
+
+body.page-dashboard .dash-portal-shell__nav .dashboard-tab {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: calc(100% - 8px);
+    text-align: left;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+}
+
+body.page-dashboard .dash-portal-shell__tab-label {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+body.page-dashboard .dash-portal-shell__chevron {
+    margin-left: auto;
+    font-size: 0.75rem;
+    opacity: 0.55;
+    transition: transform 0.15s ease;
+}
+
+body.page-dashboard .dash-portal-shell__tab[aria-expanded='false'] .dash-portal-shell__chevron {
+    transform: rotate(-90deg);
+}
+
+body.page-dashboard .dash-portal-shell__sub {
+    display: flex;
+    flex-direction: column;
+    margin: 0 0 6px 14px;
+}
+
+body.page-dashboard .dash-portal-shell__sub[hidden] {
+    display: none !important;
+}
+
+body.page-dashboard .dash-portal-shell__subitem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 1px 8px 1px 4px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: color-mix(in srgb, var(--heading) 88%, var(--muted));
+    font-size: 13px;
+    line-height: 1.3;
+    text-decoration: none;
+}
+
+body.page-dashboard .dash-portal-shell__subitem:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+    color: var(--heading);
+}
+
+body.page-dashboard .dash-portal-shell__subitem .bi {
+    width: 16px;
+    text-align: center;
+    opacity: 0.85;
+}
+
+body.page-dashboard .dash-portal-shell__main {
+    padding: 28px 40px 64px;
+}
+
+body.page-dashboard .dash-portal-hero--section {
+    display: block;
+}
+
+body.page-dashboard .dash-portal-hero--section .dash-portal-hero__lead {
+    margin-top: 6px;
+}
+
+body.page-dashboard .dash-portal-hero--section .dash-portal-hero__title {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+}
+
+body.page-dashboard .dash-portal-rows {
+    display: flex;
+    flex-direction: column;
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+body.page-dashboard button.dash-portal-row {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+body.page-dashboard .dash-portal-row {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 8px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+}
+
+body.page-dashboard .dash-portal-row:hover,
+body.page-dashboard .dash-portal-row:focus-visible {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.page-dashboard .dash-portal-row__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+    color: var(--brand1);
+}
+
+body.page-dashboard .dash-portal-row__text strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 650;
+}
+
+body.page-dashboard .dash-portal-row__text small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 450;
+    line-height: 1.35;
+}
+
+html[data-theme='dark'] body.page-dashboard .dash-portal-school,
+html[data-theme='dark'] body.page-dashboard .dash-quick-apps__card,
+html[data-theme='dark'] body.page-dashboard .dash-portal-links__chip,
+html[data-theme='dark'] body.page-dashboard .dash-portal-links__edit-btn,
+html[data-theme='dark'] .header.dash-compact-header {
+    background: var(--card);
+    color: var(--heading);
+    border-color: var(--border);
+}
+
+html[data-theme='dark'] body.page-dashboard .dash-portal-school__date,
+html[data-theme='dark'] body.page-dashboard .dash-portal-hero__lead,
+html[data-theme='dark'] body.page-dashboard .dash-quick-apps__card-desc {
+    color: var(--muted);
+}
+
+html[data-theme='dark'] body.page-dashboard .dash-portal-school__clock {
+    border-bottom-color: var(--border);
+}
+
+body.page-dashboard .dash-portal-row__go {
+    color: var(--brand1);
+    font-size: 13px;
+    font-weight: 650;
+}
+
+body.page-dashboard.app-shell-chrome .content {
+    padding: 0;
+}
+
+body.page-dashboard.app-shell-chrome #dashGreetingBand,
+body.page-dashboard.app-shell-chrome .dashboard-tasks-head-row,
+body.page-dashboard.app-shell-chrome .dash-playbooks-title,
+body.page-dashboard.app-shell-chrome .dash-playbooks-lead {
+    display: none !important;
+}
+
+body.page-dashboard.app-shell-chrome .dashboard-tasks-head {
+    margin: 0;
+}
+
+body.page-dashboard.app-shell-chrome .dashboard-empty-state:not([hidden]) {
+    margin: 20px 28px 0;
+}
+
+body.app-shell-chrome .container > .header.app-tool-subheader:not(.app-tool-chrome),
+body.app-shell-chrome .container > .header:not(.dash-compact-header) {
+    background: transparent;
+    color: var(--heading);
+    text-align: left;
+    padding: 12px 28px 0;
+    box-shadow: none;
+}
+
+body.app-shell-chrome .header-tool-indicator,
+body.app-shell-chrome .header-tool-indicator__name {
+    align-items: flex-start;
+    text-align: left;
+    margin-left: 0;
+    color: var(--heading);
+}
+
+body.app-shell-chrome .header.dash-compact-header {
+    color: var(--heading);
+    background: var(--card);
+    box-shadow: none;
+    border-bottom: 1px solid var(--border);
+}
+
+body.app-shell-chrome .dash-compact-header__brand,
+body.app-shell-chrome .dash-compact-header__brand span {
+    color: var(--heading) !important;
+}
+
+body.app-shell-chrome .dash-compact-header__nav .header-nav,
+body.app-shell-chrome .dash-compact-header__nav .dash-main-section-toggle {
+    background: var(--soft);
+}
+
+body.app-shell-chrome .dash-compact-header__nav .dash-main-section-toggle__btn,
+body.app-shell-chrome .dash-compact-header__nav .nav-tab {
+    color: var(--muted);
+}
+
+body.app-shell-chrome .dash-compact-header__nav .dash-main-section-toggle__btn:hover,
+body.app-shell-chrome .dash-compact-header__nav .nav-tab:hover {
+    color: var(--heading);
+    background: transparent;
+}
+
+body.app-shell-chrome .dash-compact-header__nav .dash-main-section-toggle__btn[aria-pressed='true'],
+body.app-shell-chrome .dash-compact-header__nav .nav-tab.active {
+    background: var(--card);
+    color: var(--heading);
+    box-shadow: 0 1px 2px rgba(12, 18, 34, 0.08);
+}
+
+body.app-shell-chrome .dash-compact-header__search .dashboard-search-wrap input,
+body.app-shell-chrome .dash-compact-header__search-dash-link,
+body.app-shell-chrome .dash-compact-header__actions .ms365-backup-header__btn,
+body.app-shell-chrome .dash-compact-header__actions #ms365AuthWidget .btn {
+    border: 1px solid var(--border) !important;
+    background: var(--paper) !important;
+    color: var(--heading) !important;
+}
+
+body.app-shell-chrome .dash-compact-header__actions .ms365-header-school-switch,
+html[data-theme='dark'] body.app-shell-chrome .dash-compact-header__actions .ms365-header-school-switch {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    box-shadow: none;
+}
+
+body.app-shell-chrome .dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister,
+html[data-theme='dark'] body.app-shell-chrome .dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister {
+    background: transparent;
+    color: var(--heading) !important;
+}
+
+body.app-shell-chrome .dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister .bi,
+html[data-theme='dark'] body.app-shell-chrome .dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister .bi {
+    color: var(--muted);
+}
+
+body.app-shell-chrome .dash-greeting-band,
+html[data-theme='dark'] body.app-shell-chrome .dash-greeting-band {
+    color: var(--heading);
+    background: transparent;
+    border-bottom: 0;
+    padding: 22px 8px 0;
+}
+
+body.app-shell-chrome .dash-greeting-band__text {
+    color: var(--heading);
+    text-align: left;
+    font-size: 1.65rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    max-width: none;
+}
+
+body.app-shell-chrome .ag-nav,
+body.app-shell-chrome .sa-nav,
+body.app-shell-chrome .fr-nav,
+body.app-shell-chrome .pw-nav,
+body.app-shell-chrome .akt-nav,
+body.app-shell-chrome .ku-nav,
+body.app-shell-chrome .eb-nav,
+body.app-shell-chrome .km-nav,
+body.app-shell-chrome .ein-nav,
+body.app-shell-chrome .srdp-nav,
+body.app-shell-chrome .lfr-nav {
+    background: var(--rail-bg, var(--soft)) !important;
+    color: var(--heading) !important;
+    border-right: 1px solid var(--border);
+    padding: 16px 12px 84px;
+}
+
+body.app-shell-chrome [class$='-nav__section-label'] {
+    display: block;
+    margin: 16px 10px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted) !important;
+    opacity: 1;
+}
+
+body.app-shell-chrome [class$='-nav__badge'] {
+    margin-left: auto;
+    background: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+    padding: 1px 7px;
+    height: auto;
+    min-width: 0;
+    border-radius: 999px;
+}
+
+body.app-shell-chrome .ag-nav__btn,
+body.app-shell-chrome .sa-nav__btn,
+body.app-shell-chrome .fr-nav__btn,
+body.app-shell-chrome .pw-nav__btn,
+body.app-shell-chrome .akt-nav__btn,
+body.app-shell-chrome .ku-nav__btn,
+body.app-shell-chrome .eb-nav__btn,
+body.app-shell-chrome .km-nav__btn,
+body.app-shell-chrome .ein-nav__btn,
+body.app-shell-chrome .srdp-nav__btn,
+body.app-shell-chrome .lfr-nav__btn {
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 450;
+    color: var(--heading) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+body.app-shell-chrome .ag-nav__btn i,
+body.app-shell-chrome .sa-nav__btn i,
+body.app-shell-chrome .fr-nav__btn i,
+body.app-shell-chrome .pw-nav__btn i,
+body.app-shell-chrome .akt-nav__btn i,
+body.app-shell-chrome .ku-nav__btn i,
+body.app-shell-chrome .eb-nav__btn i,
+body.app-shell-chrome .km-nav__btn i,
+body.app-shell-chrome .ein-nav__btn i,
+body.app-shell-chrome .srdp-nav__btn i,
+body.app-shell-chrome .lfr-nav__btn i {
+    color: var(--heading) !important;
+}
+
+body.app-shell-chrome .ag-nav__btn.is-active,
+body.app-shell-chrome .sa-nav__btn.is-active,
+body.app-shell-chrome .fr-nav__btn.is-active,
+body.app-shell-chrome .pw-nav__btn.is-active,
+body.app-shell-chrome .akt-nav__btn.is-active,
+body.app-shell-chrome .ku-nav__btn.is-active,
+body.app-shell-chrome .eb-nav__btn.is-active,
+body.app-shell-chrome .km-nav__btn.is-active,
+body.app-shell-chrome .ein-nav__btn.is-active,
+body.app-shell-chrome .srdp-nav__btn.is-active,
+body.app-shell-chrome .lfr-nav__btn.is-active {
+    background: var(--rail-active, #eceeee) !important;
+    color: var(--heading) !important;
+    font-weight: 600 !important;
+}
+
+body.app-shell-chrome #ms365AuthMenu,
+body.app-shell-chrome .ms365-auth-menu:not([hidden]) {
+    position: fixed !important;
+    left: 12px !important;
+    bottom: 12px !important;
+    top: auto !important;
+    right: auto !important;
+    z-index: 80;
+    width: min(268px, calc(100vw - 24px));
+}
+
+body.app-shell-chrome .ms365-auth-menu__trigger {
+    max-width: 268px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--heading);
+    box-shadow: 0 8px 24px rgba(12, 18, 34, 0.1);
+}
+
+/* Kompaktes einspaltiges Kontomenü */
+body.app-shell-chrome #ms365AuthDropdown,
+body.app-shell-chrome .ms365-auth-menu__panel {
+    top: auto !important;
+    bottom: calc(100% + 8px) !important;
+    left: 0 !important;
+    right: auto !important;
+    width: min(268px, calc(100vw - 24px)) !important;
+    min-width: min(248px, calc(100vw - 24px));
+    max-width: min(268px, calc(100vw - 24px)) !important;
+    max-height: min(calc(100vh - 56px), 520px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding: 6px 6px 4px;
+    background: var(--card);
+    color: var(--heading);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+    flex-direction: column;
+    gap: 0;
+    columns: 1;
+    column-count: 1;
+    font-size: 12px;
+    line-height: 1.25;
+}
+
+body.app-shell-chrome .ms365-auth-menu.is-open #ms365AuthDropdown:not([hidden]),
+body.app-shell-chrome .ms365-auth-menu.is-open .ms365-auth-menu__panel:not([hidden]) {
+    display: flex !important;
+}
+
+body.app-shell-chrome #ms365AuthDropdown[hidden],
+body.app-shell-chrome .ms365-auth-menu__panel[hidden] {
+    display: none !important;
+}
+
+body.app-shell-chrome .ms365-auth-menu__meta {
+    padding: 1px 4px 6px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+}
+
+body.app-shell-chrome .ms365-auth-menu__body {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    gap: 0 !important;
+    width: 100%;
+    columns: 1 !important;
+    column-count: 1 !important;
+    grid-template-columns: none !important;
+}
+
+body.app-shell-chrome .ms365-auth-menu__section {
+    display: block !important;
+    width: 100%;
+    float: none !important;
+    break-inside: avoid;
+    padding: 4px 1px 3px;
+    border-bottom: 1px solid var(--border);
+}
+
+body.app-shell-chrome .ms365-auth-menu__section:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+body.app-shell-chrome .ms365-auth-menu__actions,
+body.app-shell-chrome .ms365-auth-menu__section--actions .ms365-auth-menu__actions,
+body.app-shell-chrome .ms365-auth-menu__section--links,
+body.app-shell-chrome .ms365-auth-menu__section--account {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0;
+    width: 100%;
+}
+
+body.app-shell-chrome .ms365-auth-menu__item {
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+    padding: 4px 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+}
+
+body.app-shell-chrome .ms365-auth-menu__item span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.app-shell-chrome .ms365-auth-menu__ctx-row {
+    align-items: center;
+}
+
+body.app-shell-chrome .ms365-auth-menu__year-select {
+    max-width: none;
+    min-width: 8.5rem;
+    width: 100%;
+    flex: 1 1 auto;
+    font-size: 12px;
+    padding: 6px 8px;
+}
+
+body.app-shell-chrome .ms365-auth-menu__year-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+}
+
+body.app-shell-chrome .ms365-auth-menu__ctx-row--tenant,
+body.app-shell-chrome .ms365-auth-menu__year-add {
+    display: none !important;
+}
+
+body.app-shell-chrome .ms365-auth-menu__tenant code {
+    display: block;
+    max-width: 9.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.app-shell-chrome .ms365-auth-menu__dash-seg {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+}
+
+body.app-shell-chrome .ms365-auth-menu__dash-seg-btn {
+    flex-direction: row;
+    gap: 3px;
+    padding: 4px 3px;
+    font-size: 10.5px;
+    background: var(--soft);
+    border-color: transparent;
+    min-width: 0;
+}
+
+body.app-shell-chrome .ms365-auth-menu__dash-seg-btn .bi {
+    font-size: 0.8rem;
+}
+
+body.app-shell-chrome .ms365-auth-menu__dash-seg-k {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.app-shell-chrome .ms365-auth-menu__design-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+body.app-shell-chrome .ms365-auth-menu__theme-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+body.app-shell-chrome .ms365-auth-menu__section-label {
+    padding: 0 4px 2px;
+    font-size: 9.5px;
+}
+
+body.app-shell-chrome .ms365-auth-menu__meta-name {
+    font-size: 12px;
+}
+
+body.app-shell-chrome .ms365-auth-menu__meta-mail {
+    font-size: 10.5px;
+}
+
+@media (max-width: 520px) {
+    body.app-shell-chrome #ms365AuthDropdown,
+    body.app-shell-chrome .ms365-auth-menu__panel {
+        width: min(260px, calc(100vw - 20px)) !important;
+        min-width: 0;
+        max-width: min(260px, calc(100vw - 20px)) !important;
+    }
+}
+
+body.app-shell-chrome .container.page-card {
+    padding-bottom: 76px;
+}
+
+@media (max-width: 640px) {
+    body.app-shell-chrome .ms365-auth-menu:not([hidden]) {
+        left: 10px;
+        bottom: 10px;
+    }
+}

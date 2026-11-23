@@ -2,6 +2,7 @@
  * Stammdaten: Logo (Upload oder HTTPS-URL), Adresse, Kontakt (setup.schoolProfile).
  */
 import {
+    compressSchoolLogoToDataUrl,
     emptySchoolProfile,
     normalizeSchoolLogoUrl,
     normalizeSchoolProfile,
@@ -9,6 +10,10 @@ import {
     SCHOOL_LOGO_MAX_BYTES
 } from './school-profile-logic.js';
 import { notifyAppLocalDataChanged } from './app-local-data-notify.js';
+import {
+    mountSchoolProfileLicenseSync,
+    schedulePushSchoolProfileToLicense
+} from './school-profile-license-sync.js';
 
 function toast(msg) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
@@ -16,12 +21,29 @@ function toast(msg) {
 }
 
 function patchSchoolProfile(partial) {
-    if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.patchSetup !== 'function') return;
+    if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.patchSetup !== 'function') return false;
     const setup =
         typeof window.ms365AppDataV2.getSetup === 'function' ? window.ms365AppDataV2.getSetup() : {};
     const cur = normalizeSchoolProfile(setup && setup.schoolProfile);
     const next = normalizeSchoolProfile(Object.assign({}, cur, partial || {}));
     window.ms365AppDataV2.patchSetup({ schoolProfile: next });
+    // Persistenz prüfen (Quota kann Logo still verwerfen)
+    let persisted = next;
+    try {
+        const again =
+            typeof window.ms365AppDataV2.getSetup === 'function' ? window.ms365AppDataV2.getSetup() : null;
+        persisted = normalizeSchoolProfile(again && again.schoolProfile);
+    } catch {
+        /* ignore */
+    }
+    const wantedLogo = !!(next.logoDataUrl || next.logoUrl);
+    const gotLogo = !!(persisted.logoDataUrl || persisted.logoUrl);
+    if (wantedLogo && !gotLogo) {
+        toast(
+            'Schullogo konnte nicht dauerhaft gespeichert werden (Speicher voll). Bitte kleinere Datei oder HTTPS-URL nutzen – dann Browser-Backup / IT-Bibliothek erneut sichern.'
+        );
+        return false;
+    }
     notifyAppLocalDataChanged('school-profile');
     try {
         window.dispatchEvent(
@@ -32,6 +54,8 @@ function patchSchoolProfile(partial) {
     } catch {
         /* ignore */
     }
+    schedulePushSchoolProfileToLicense({ toast: false });
+    return true;
 }
 
 function readCoreSchoolIdentity() {
@@ -125,6 +149,7 @@ function loadSchoolProfileIntoForm() {
     const p = readSchoolProfileFromSetup();
     const map = {
         tenantSchoolCode: 'schoolCode',
+        tenantSchoolStandort: 'standort',
         tenantSchoolStreet: 'street',
         tenantSchoolPostalCode: 'postalCode',
         tenantSchoolCity: 'city',
@@ -132,7 +157,14 @@ function loadSchoolProfileIntoForm() {
         tenantSchoolPhone: 'phone',
         tenantSchoolPhoneAlt: 'phoneAlt',
         tenantSchoolOfficeEmail: 'email',
-        tenantSchoolWebsite: 'website'
+        tenantSchoolWebsite: 'website',
+        tenantSchoolDirektion: 'direktion',
+        tenantSchoolDirektionEmail: 'direktionEmail',
+        tenantSchoolSchuladmin: 'schuladministration',
+        tenantSchoolSchuladminEmail: 'schuladministrationEmail',
+        tenantSchoolItAdmin: 'itM365Admin',
+        tenantSchoolItAdminEmail: 'itM365AdminEmail',
+        tenantSchoolWeitereKontakte: 'weitereKontakte'
     };
     Object.keys(map).forEach(function (id) {
         const el = document.getElementById(id);
@@ -183,23 +215,31 @@ function bindLogoUpload() {
             return;
         }
         if (file.size > SCHOOL_LOGO_MAX_BYTES) {
-            toast('Das Logo ist zu groß (max. ca. 400 KB). Besser: öffentliche HTTPS-URL nutzen.');
+            toast('Das Logo ist zu groß (max. ca. 2 MB). Bitte verkleinern oder eine HTTPS-URL nutzen.');
             return;
         }
-        const reader = new FileReader();
-        reader.onload = function () {
-            const dataUrl = String(reader.result || '');
-            patchSchoolProfile({
-                logoDataUrl: dataUrl,
-                logoFileName: file.name || 'logo',
-                logoUrl: ''
+        compressSchoolLogoToDataUrl(file)
+            .then(function (out) {
+                const ok = patchSchoolProfile({
+                    logoDataUrl: out.dataUrl,
+                    logoFileName: out.fileName || 'schullogo.jpg',
+                    logoUrl: ''
+                });
+                updateLogoPreview(readSchoolProfileFromSetup());
+                if (ok) {
+                    toast(
+                        'Schullogo gespeichert – ist im Browser und im nächsten Browser-Backup / IT-Bibliothek-Export enthalten.'
+                    );
+                }
+            })
+            .catch(function (err) {
+                const code = err && err.message ? String(err.message) : '';
+                if (code === 'too-large') {
+                    toast('Logo bleibt zu groß nach Kompression. Bitte HTTPS-URL nutzen oder kleineres Bild.');
+                } else {
+                    toast('Logo konnte nicht gelesen oder komprimiert werden.');
+                }
             });
-            updateLogoPreview(readSchoolProfileFromSetup());
-        };
-        reader.onerror = function () {
-            toast('Logo konnte nicht gelesen werden.');
-        };
-        reader.readAsDataURL(file);
     });
 
     if (btnRemove && btnRemove.dataset.schoolProfileBound !== '1') {
@@ -216,7 +256,20 @@ export function mountTenantSchoolProfileUi() {
     loadSchoolProfileIntoForm();
     bindLogoUpload();
     bindLogoUrl();
+    if (typeof window !== 'undefined' && !window.__ms365SchoolLogoStorageWired) {
+        window.__ms365SchoolLogoStorageWired = true;
+        window.addEventListener('ms365-storage-write-failed', function (ev) {
+            const d = ev && ev.detail ? ev.detail : {};
+            if (d && d.logoDropped) {
+                toast(
+                    'Speicher voll: Schullogo wurde nicht mitgesichert. Bitte kleinere Datei oder HTTPS-URL – danach Browser-Backup / IT-Bibliothek erneut exportieren.'
+                );
+                updateLogoPreview(readSchoolProfileFromSetup());
+            }
+        });
+    }
     bindTextField('tenantSchoolCode', 'schoolCode');
+    bindTextField('tenantSchoolStandort', 'standort');
     bindTextField('tenantSchoolStreet', 'street');
     bindTextField('tenantSchoolPostalCode', 'postalCode');
     bindTextField('tenantSchoolCity', 'city');
@@ -225,6 +278,23 @@ export function mountTenantSchoolProfileUi() {
     bindTextField('tenantSchoolPhoneAlt', 'phoneAlt');
     bindTextField('tenantSchoolOfficeEmail', 'email');
     bindTextField('tenantSchoolWebsite', 'website');
+    bindTextField('tenantSchoolDirektion', 'direktion');
+    bindTextField('tenantSchoolDirektionEmail', 'direktionEmail');
+    bindTextField('tenantSchoolSchuladmin', 'schuladministration');
+    bindTextField('tenantSchoolSchuladminEmail', 'schuladministrationEmail');
+    bindTextField('tenantSchoolItAdmin', 'itM365Admin');
+    bindTextField('tenantSchoolItAdminEmail', 'itM365AdminEmail');
+    bindTextField('tenantSchoolWeitereKontakte', 'weitereKontakte');
+    const nameEl = document.getElementById('schoolName');
+    if (nameEl && nameEl.dataset.licenseSyncBound !== '1') {
+        nameEl.dataset.licenseSyncBound = '1';
+        nameEl.addEventListener('change', function () {
+            schedulePushSchoolProfileToLicense({ toast: false });
+        });
+    }
+    mountSchoolProfileLicenseSync({ reloadForm: loadSchoolProfileIntoForm }).catch(function () {
+        /* Lizenz-API optional */
+    });
 }
 
 export function readSchoolProfileForApp() {

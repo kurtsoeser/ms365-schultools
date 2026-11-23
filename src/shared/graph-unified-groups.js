@@ -1,18 +1,88 @@
 (function () {
     'use strict';
 
-    const GRAPH_SCOPES = [
-        'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/User.Read.All',
-        'https://graph.microsoft.com/User.ReadWrite.All',
-        'https://graph.microsoft.com/Group.ReadWrite.All',
-        'https://graph.microsoft.com/GroupMember.Read.All',
-        'https://graph.microsoft.com/Group.Read.All',
-        'https://graph.microsoft.com/RoleManagement.Read.Directory',
-        'https://graph.microsoft.com/Organization.Read.All',
-        'https://graph.microsoft.com/Team.Create',
-        'https://graph.microsoft.com/TeamSettings.ReadWrite.All'
-    ];
+    /**
+     * Default für getGraphToken() ohne Argument: nur User.Read (a4 / R3).
+     * Write.All hängt nicht mehr an diesem Bundle. Konkrete Aufrufe holen
+     * Lese- oder Schreibscopes über scopesForGraphCall (auth-login-scopes.js).
+     * Schreibscopes gehen an die IT-App (it-app-auth.js), nicht an diese clientId.
+     * Die Portal-App behält ihre Schreibscopes in Entra; hier werden sie nicht angefordert.
+     */
+    const GRAPH_SCOPES = ['https://graph.microsoft.com/User.Read'];
+
+    let scopeMod = null;
+    let scopeModUrl = '';
+    let itModUrl = '';
+    try {
+        if (typeof document !== 'undefined' && document.currentScript && document.currentScript.src) {
+            scopeModUrl = new URL('./auth-login-scopes.js', document.currentScript.src).href;
+            itModUrl = new URL('./it-app-auth.js', document.currentScript.src).href;
+        }
+    } catch {
+        scopeModUrl = '';
+        itModUrl = '';
+    }
+
+    async function loadItMod() {
+        try {
+            return await import('./it-app-auth.js');
+        } catch {
+            /* klassisches Script: Import ist relativ zur HTML-Seite */
+        }
+        if (itModUrl) return import(itModUrl);
+        throw new Error('IT-App-Modul nicht geladen (it-app-auth.js).');
+    }
+
+    async function loadScopeMod() {
+        if (scopeMod && typeof scopeMod.scopesForGraphCall === 'function') return scopeMod;
+        try {
+            const cached = typeof window !== 'undefined' ? window.__ms365AuthLoginScopesMod : null;
+            if (cached && typeof cached.scopesForGraphCall === 'function') {
+                scopeMod = cached;
+                return scopeMod;
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            scopeMod = await import('./auth-login-scopes.js');
+            return scopeMod;
+        } catch {
+            /* klassisches Script: relativ zur HTML-Seite, nicht zu dieser Datei */
+        }
+        if (scopeModUrl) {
+            try {
+                scopeMod = await import(scopeModUrl);
+                return scopeMod;
+            } catch {
+                /* ignore */
+            }
+        }
+        return null;
+    }
+
+    async function ensureTokenForGraphCall(method, path, token) {
+        let mod = null;
+        try {
+            mod = await loadScopeMod();
+        } catch {
+            return token;
+        }
+        if (!mod || typeof mod.scopesForGraphCall !== 'function') return token;
+        const needed = mod.scopesForGraphCall(method, path);
+        if (!needed || !needed.length) return token;
+        if (typeof mod.scopesRequireItApp === 'function' && mod.scopesRequireItApp(needed)) {
+            return getGraphToken(needed);
+        }
+        if (
+            token &&
+            typeof mod.accessTokenIncludesScopes === 'function' &&
+            mod.accessTokenIncludesScopes(token, needed)
+        ) {
+            return token;
+        }
+        return getGraphToken(needed);
+    }
 
     const PERSON_SELECT = 'id,displayName,mail,userPrincipalName,otherMails,mailNickname';
     const USER_LICENSE_SELECT =
@@ -210,8 +280,27 @@
         return null;
     }
 
+    async function getGraphTokenFor(kind) {
+        const mod = await loadScopeMod();
+        if (!mod || typeof mod.scopesForGraphKind !== 'function') {
+            throw new Error('Scope-Katalog nicht geladen (auth-login-scopes.js).');
+        }
+        return getGraphToken(mod.scopesForGraphKind(kind));
+    }
+
     async function getGraphToken(scopes) {
         const scopeList = Array.isArray(scopes) && scopes.length ? scopes : GRAPH_SCOPES;
+        let needsIt = false;
+        try {
+            const scopeMod = await loadScopeMod();
+            needsIt = !!(scopeMod && scopeMod.scopesRequireItApp && scopeMod.scopesRequireItApp(scopeList));
+        } catch {
+            needsIt = false;
+        }
+        if (needsIt) {
+            const itMod = await loadItMod();
+            return itMod.acquireItAppToken(scopeList, { mode: 'interactive' });
+        }
         await waitForMs365AuthUi();
         const viaUi = await acquireGraphTokenViaAuthUi(scopeList);
         if (viaUi) return viaUi;
@@ -267,6 +356,7 @@
     }
 
     async function graphRequest(method, path, token, body, extraHeaders) {
+        token = await ensureTokenForGraphCall(method, path, token);
         const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
         let attempt = 0;
         while (true) {
@@ -319,6 +409,7 @@
     }
 
     async function graphRawRequest(method, path, token, body, extraHeaders) {
+        token = await ensureTokenForGraphCall(method, path, token);
         const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
         let attempt = 0;
         while (true) {
@@ -1342,7 +1433,7 @@
                 const looksLikeReplication = msg.indexOf('404') !== -1 || msg.indexOf('Request_ResourceNotFound') !== -1;
                 if (i < 7 && looksLikeReplication) {
                     await sleep(10000);
-                    token = await getGraphToken();
+                    token = await getGraphTokenFor('team-write');
                     continue;
                 }
                 throw e;
@@ -1489,6 +1580,7 @@
 
     window.ms365GraphUnifiedGroups = {
         GRAPH_SCOPES,
+        getGraphTokenFor,
         PERSON_SELECT,
         USER_LICENSE_SELECT,
         getGraphToken,

@@ -9,6 +9,16 @@ import { loadEinsammlerSettings } from './einsammler-settings.js';
  */
 export function getEinsammlerAccount() {
     try {
+        if (typeof window !== 'undefined') {
+            const q = new URLSearchParams(window.location.search || '');
+            if (q.get('landingShot') === '1') {
+                return {
+                    email: 'mueller@schule.demo',
+                    name: 'Maria Müller',
+                    loggedIn: true
+                };
+            }
+        }
         if (typeof window !== 'undefined' && typeof window.ms365AuthGetAccountInfo === 'function') {
             const info = window.ms365AuthGetAccountInfo();
             if (info) {

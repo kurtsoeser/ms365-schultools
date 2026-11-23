@@ -1,6 +1,10 @@
 /**
  * Voraussetzungen für das Playbook Schuljahresstart (Stammdaten-Gates).
+ * Wave 0: Gates bleiben Unlock-Quelle; Ready-Checks spiegeln dieselben Daten
+ * (gatesToReadyMap / evaluateSchuljahresstartReadyChecks).
  */
+import { gatesToReadyMap } from './playbook-ready.js';
+
 export const SCHULJAHRSTART_PLAYBOOK_STORAGE_KEY = 'ms365-playbook-schuljahresstart-v1';
 
 export const SCHULJAHRSTART_STEP_IDS = [
@@ -35,7 +39,7 @@ export function tenantCountsFromSettings(settings) {
     const students = Array.isArray(s.students) ? s.students.length : 0;
     const teachers = Array.isArray(s.teachers) ? s.teachers.length : 0;
     const subjects = Array.isArray(s.subjects) ? s.subjects.length : 0;
-    const domain = String(s.domain || '').trim();
+    const domain = String(s.domain || s.schoolEmailDomain || '').trim();
     const schoolName = String(s.schoolName || '').trim();
     return { year, classes, students, teachers, subjects, domain, schoolName };
 }
@@ -150,12 +154,45 @@ export function nextSchuljahresstartGateHint(state, counts, stepIds) {
     return null;
 }
 
+/**
+ * Ready-Checks für den Schuljahresstart (Wave 0 live).
+ * @param {ReturnType<typeof tenantCountsFromSettings>} counts
+ */
+export function evaluateSchuljahresstartReadyChecks(counts) {
+    const gates = evaluateSchuljahresstartPrerequisites(counts);
+    const map = gatesToReadyMap(gates);
+    // Klarere Ready-Texte wenn ok
+    if (map.stammdaten && map.stammdaten.status === 'ok') {
+        map.stammdaten = { status: 'ok', message: 'Schuljahr und Klasse vorhanden' };
+    }
+    if (map.klassen && map.klassen.status === 'ok') {
+        map.klassen = { status: 'ok', message: 'Klassenliste vorhanden' };
+    }
+    if (map.slg && map.slg.status === 'ok') {
+        map.slg = { status: 'ok', message: 'Personen in Stammdaten' };
+    }
+    if (map.kursteams && map.kursteams.status === 'ok') {
+        map.kursteams = { status: 'ok', message: 'Klassen und Fächer vorhanden' };
+    }
+    if (map.cleanup) {
+        map.cleanup = { status: 'ok', message: 'Kein Stammdaten-Voraussetzung' };
+    }
+    if (map.org && map.org.status === 'ok') {
+        map.org = {
+            status: 'ok',
+            message: 'Assistent verfügbar (unterstützend, nicht primärer Einstieg)'
+        };
+    }
+    return map;
+}
+
 if (typeof window !== 'undefined') {
     window.ms365SchuljahresstartPlaybook = {
         SCHULJAHRSTART_PLAYBOOK_STORAGE_KEY,
         SCHULJAHRSTART_STEP_IDS,
         tenantCountsFromSettings,
         evaluateSchuljahresstartPrerequisites,
+        evaluateSchuljahresstartReadyChecks,
         evaluateStepUnlock,
         schuljahresstartPlaybookProgress,
         nextSchuljahresstartGateHint

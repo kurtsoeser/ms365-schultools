@@ -43,7 +43,11 @@ import {
     isSaAccessDeniedError
 } from './schularbeiten-planer-graph.js';
 import { upsertSchulterminFromSchularbeit } from './schularbeiten-planer-sync.js';
-import { announcePlannerState } from '../../shared/app-role-chrome.js';
+import {
+    announcePlannerState,
+    readAuthAccountSnapshot,
+    waitForAuthAccountRead
+} from '../../shared/app-role-chrome.js';
 import {
     upsertGroupCalendarEvent,
     removeGroupCalendarEventForSa,
@@ -65,7 +69,7 @@ import {
     FACH_META_COLOR_PALETTE
 } from './schularbeiten-planer-schema.js';
 import { addDays, mondayOfWeekContaining, toIsoDateOnly } from './schularbeiten-planer-logic.js';
-import { DEMO_SITE_DEFAULT } from './schularbeiten-planer-demo-data.js';
+import { DEMO_SITE_DEFAULT, getDemoSeedPackage } from './schularbeiten-planer-demo-data.js';
 import {
     applySchularbeitenPackagePermissions,
     savePermissionsConfig,
@@ -252,6 +256,18 @@ function bindStatic() {
             paint();
         });
     }
+
+    root.querySelectorAll('[data-sa-auth-login]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (typeof window.ms365AuthLogin === 'function') window.ms365AuthLogin();
+        });
+    });
+    root.querySelectorAll('[data-sa-auth-switch]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (typeof window.ms365AuthSwitchAccount === 'function') window.ms365AuthSwitchAccount();
+            else if (typeof window.ms365AuthLogin === 'function') window.ms365AuthLogin();
+        });
+    });
 
     bindFormLive();
     bindMeineActions();
@@ -1401,12 +1417,12 @@ function bindJsonImport() {
 }
 
 /**
- * @param {string} text
+ * Lokale Demo ohne SharePoint-Confirm (Landing-Screenshots / Vorschau).
+ * @param {object} pack
+ * @param {{ skipToast?: boolean }} [opts]
  */
-async function importDemoJsonText(text) {
-    const pack = parseDemoImportJson(text);
-    const local = packToLocalPlanerState(pack);
-
+function applyLocalDemoPack(pack, opts) {
+    const local = packToLocalPlanerState(parseDemoImportJson(pack));
     const stamOk = applyDemoStammdatenLocal(local.stammdaten);
     state.stammdaten = loadStammdaten();
     if (!state.stammdaten.subjects.length && local.stammdaten) {
@@ -1418,18 +1434,17 @@ async function importDemoJsonText(text) {
         };
     }
     syncAccount();
-
-    // Demo: als Admin, sonst sieht man ohne passende Lehrer-E-Mail nichts
-    state.role = 'admin';
-    persistRole('admin');
+    const keepRole =
+        state.role === 'admin' || state.role === 'lehrer' || state.role === 'schueler'
+            ? state.role
+            : 'admin';
+    state.role = keepRole;
+    persistRole(keepRole);
     state.roleHint = '';
-
     if (!state.siteUrl && local.siteDefault) {
         state.siteUrl = local.siteDefault;
         persistSiteUrl(state.siteUrl);
     }
-
-    // Immer lokal anzeigen (Demo nicht blind nach SPO pushen)
     state.items = local.items;
     state.windows = local.windows;
     state.windowsAll = local.windows || [];
@@ -1440,23 +1455,42 @@ async function importDemoJsonText(text) {
     state.error = '';
     state.softError = '';
     state.localDemoOnly = true;
+    state.authRolePending = false;
+    state.kontoOffen = false;
+    state.planerAccessDenied = false;
     state.syncMeta = {
         source: 'demo',
         lastPullAt: '',
         connected: false,
         listTitle: LIST_TITLES.schularbeiten || 'SAP-Schularbeiten'
     };
-    state.view = 'dashboard';
+    const viewPref = opts && opts.view;
+    if (viewPref && viewsForRole(state.role).some((v) => v.id === viewPref)) {
+        state.view = viewPref;
+    } else {
+        state.view = state.role === 'schueler' ? 'dashboard' : 'liste';
+    }
     paint();
+    if (!(opts && opts.skipToast)) {
+        const n = (local.counts && local.counts.schularbeiten) || local.items.length;
+        toast(
+            'Demo geladen (' +
+                n +
+                ' Schularbeiten)' +
+                (stamOk ? ', Stammdaten übernommen' : '') +
+                '.'
+        );
+    }
+    return { local, stamOk };
+}
 
-    const n = (local.counts && local.counts.schularbeiten) || local.items.length;
-    toast(
-        'Demo geladen (' +
-            n +
-            ' Schularbeiten)' +
-            (stamOk ? ', Stammdaten übernommen' : '') +
-            '.'
-    );
+/**
+ * @param {string} text
+ */
+async function importDemoJsonText(text) {
+    const pack = parseDemoImportJson(text);
+    const { local, stamOk } = applyLocalDemoPack(pack);
+    void stamOk;
 
     const writeSp = window.confirm(
         'Demo lokal geladen (local-first).\n\n' +
@@ -1526,6 +1560,7 @@ function bindDetail() {
 
 function syncAccount() {
     try {
+        const snap = readAuthAccountSnapshot();
         const info =
             typeof window.ms365AuthGetAccountInfo === 'function' ? window.ms365AuthGetAccountInfo() : null;
         const upn =
@@ -1533,11 +1568,11 @@ function syncAccount() {
                 ? window.ms365AuthGetUserPrincipalName()
                 : '';
         state.accountEmail = String(
-            (info && (info.username || info.mail || info.upn)) || upn || ''
+            snap.email || (info && (info.email || info.username || info.mail || info.upn)) || upn || ''
         )
             .trim()
             .toLowerCase();
-        state.accountName = String((info && info.name) || '').trim();
+        state.accountName = String(snap.name || (info && info.name) || '').trim();
     } catch {
         state.accountEmail = '';
         state.accountName = '';
@@ -1547,17 +1582,6 @@ function syncAccount() {
     if (!state.form.lehrerCode && state.teacherMatch) {
         state.form = emptyForm(defaultTeacherForm());
     }
-}
-
-function resyncAccountAndPaint() {
-    resolvePlanerRole()
-        .then(() => {
-            paint();
-        })
-        .catch(() => {
-            syncAccount();
-            paint();
-        });
 }
 
 async function ensurePlannerPermissionsConfig() {
@@ -1645,9 +1669,16 @@ async function refreshData(opts) {
         state.stammdaten = loadStammdaten();
         syncAccount();
         if (!state.siteUrl) throw new Error('SharePoint-Site-URL fehlt.');
+        await resolvePlanerRole();
+        if (state.planerAccessDenied || state.kontoOffen) {
+            return;
+        }
         state.ctx = await resolvePlanerContext(state.siteUrl);
         await ensurePlannerPermissionsConfig();
         await resolvePlanerRole();
+        if (state.planerAccessDenied || state.kontoOffen) {
+            return;
+        }
         if (!state.schuljahr) state.schuljahr = loadSchuljahr() || state.schuljahr;
         const data = await loadAllPlanerData(state.ctx, { schuljahr: state.schuljahr });
         state.items = data.items;
@@ -1752,6 +1783,7 @@ async function refreshData(opts) {
         state.syncMeta = Object.assign({}, state.syncMeta, { connected: false });
         throw e;
     } finally {
+        state.authRolePending = false;
         state.loading = false;
         paint();
     }
@@ -1773,7 +1805,10 @@ function boot() {
     state.form = emptyForm(defaultTeacherForm());
 
     const params = new URLSearchParams(window.location.search || '');
-    state.demoRoleOverride = params.get('demoRole') === '1';
+    const landingShot = params.get('landingShot') === '1';
+    state.demoRoleOverride = params.get('demoRole') === '1' || landingShot;
+    state.authRolePending = !state.demoRoleOverride;
+    state.authSettled = !!state.demoRoleOverride;
     state.entraGroupsConfigured = entraGroupsConfigured(loadEffectivePermissionsConfig());
 
     const view = params.get('view');
@@ -1786,6 +1821,11 @@ function boot() {
             state.roleSource = 'demo';
         }
     }
+    if (landingShot && !roleQ) {
+        state.role = 'admin';
+        persistRole('admin');
+        state.roleSource = 'demo';
+    }
     const klasseQ = params.get('klasse');
     if (klasseQ) {
         state.demoKlasseCode = String(klasseQ).trim();
@@ -1795,17 +1835,51 @@ function boot() {
         state.view = 'dashboard';
     }
 
+    if (landingShot) {
+        try {
+            state.authRolePending = false;
+            state.authSettled = true;
+            applyLocalDemoPack(getDemoSeedPackage(), { skipToast: true });
+        } catch (e) {
+            console.warn('[sa-landingShot]', e);
+            state.authRolePending = false;
+            paint();
+        }
+        return;
+    }
+
+    // Erster Paint zeigt sofort das ruhige Skeleton während Konto & Rolle geprüft werden.
     paint();
 
     window.addEventListener('ms365-auth-state-changed', () => {
-        resolvePlanerRole()
-            .then(() => {
-                if (state.bootstrapped && state.siteUrl && !state.localDemoOnly) {
-                    return refreshData({ silent: true });
+        void (async () => {
+            state.authRolePending = !state.demoRoleOverride && !state.localDemoOnly;
+            state.error = '';
+            state.softError = '';
+            paint();
+            try {
+                const snap = await waitForAuthAccountRead();
+                state.authSettled = true;
+                syncAccount();
+                if (!snap.loggedIn && !state.accountEmail && !state.demoRoleOverride && !state.localDemoOnly) {
+                    await applyPlanerRoleFromEntra(state, {
+                        demoRoleOverride: false,
+                        preferredActiveRole: state.role
+                    });
+                    state.authRolePending = false;
+                    paint();
+                    return;
                 }
                 paint();
-            })
-            .catch((e) => {
+                await resolvePlanerRole();
+                state.authRolePending = false;
+                if (!state.planerAccessDenied && !state.kontoOffen && state.siteUrl && !state.localDemoOnly) {
+                    await refreshData({ silent: false });
+                } else {
+                    paint();
+                }
+            } catch (e) {
+                state.authRolePending = false;
                 if (state.localDemoOnly && (state.items || []).length) {
                     state.softError = isSaAccessDeniedError(e)
                         ? 'SharePoint-Zugriff eingeschränkt – lokale Demo bleibt erhalten.'
@@ -1815,28 +1889,40 @@ function boot() {
                     state.error = friendlySaSpoError(e);
                 }
                 paint();
-            });
-    });
-    window.addEventListener('ms365-auth-widget-ready', resyncAccountAndPaint);
-
-    // Auth kann vor dem Listener fertig sein – einmal nachziehen
-    if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
-        resyncAccountAndPaint();
-    } else {
-        window.setTimeout(() => {
-            syncAccount();
-            if (state.accountEmail || state.accountName) paint();
-            else if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
-                resyncAccountAndPaint();
             }
-        }, 400);
-    }
+        })();
+    });
 
-    if (state.siteUrl) {
-        refreshData().catch(() => {
-            /* error already in state */
-        });
-    }
+    void (async () => {
+        try {
+            const snap = await waitForAuthAccountRead();
+            state.authSettled = true;
+            syncAccount();
+            if (!snap.loggedIn && !state.accountEmail && !state.demoRoleOverride && !state.localDemoOnly) {
+                await applyPlanerRoleFromEntra(state, {
+                    demoRoleOverride: false,
+                    preferredActiveRole: state.role
+                });
+                state.authRolePending = false;
+                paint();
+                return;
+            }
+            paint();
+            await resolvePlanerRole();
+            state.authRolePending = false;
+            if (!state.planerAccessDenied && !state.kontoOffen && state.siteUrl && !state.localDemoOnly) {
+                await refreshData();
+            } else {
+                paint();
+            }
+        } catch (e) {
+            state.authRolePending = false;
+            if (!state.localDemoOnly) {
+                state.error = friendlySaSpoError(e);
+            }
+            paint();
+        }
+    })();
 }
 
 if (document.readyState === 'loading') {

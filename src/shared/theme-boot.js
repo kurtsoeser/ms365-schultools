@@ -4,10 +4,12 @@
  * Früher stand dieser Block inline in jeder Seite; ausgelagert, damit die
  * Content-Security-Policy ohne 'unsafe-inline' auskommt.
  *
+ * Marke: nur Teal (Klassisch/Wein und weitere Varianten abgekündigt).
  * Erlaubte Marken: dieselbe Liste wie in theme-toggle.js und msal-auth-ui.js.
  */
 (function () {
-    var BRAND_IDS = ['teal', 'classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
+    var BRAND_IDS = ['teal'];
+    var DEPRECATED_BRANDS = ['classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
     var BRAND_KEY = 'ms365-brand-v1';
     var CUSTOM_KEY = 'ms365-brand-custom-v1';
     var HEADER_LUM_MAX = 0.55;
@@ -128,18 +130,26 @@
         var brand = 'teal';
         try {
             var storedBrand = localStorage.getItem(BRAND_KEY);
-            if (BRAND_IDS.indexOf(storedBrand) !== -1) brand = storedBrand;
+            if (BRAND_IDS.indexOf(storedBrand) !== -1) {
+                brand = storedBrand;
+            } else if (DEPRECATED_BRANDS.indexOf(storedBrand) !== -1) {
+                brand = 'teal';
+                try {
+                    localStorage.setItem(BRAND_KEY, brand);
+                } catch (eMigrate) {
+                    /* ignore */
+                }
+            }
         } catch (e3) {
             /* ignore */
         }
-        var resolved = syncCustom(root, brand);
-        if (resolved !== brand) {
-            brand = resolved;
-            try {
-                localStorage.setItem(BRAND_KEY, brand);
-            } catch (e4) {
-                /* ignore */
-            }
+        // Custom-Farben abgekündigt: immer Teal-Tokens aus CSS
+        clearCustomProps(root);
+        brand = 'teal';
+        try {
+            localStorage.setItem(BRAND_KEY, brand);
+        } catch (e4) {
+            /* ignore */
         }
         root.setAttribute('data-brand', brand);
     }
@@ -152,6 +162,7 @@
         readCustom: readCustom,
         luminance: luminance,
         darkenForHeader: darkenForHeader,
+        clearCustomProps: clearCustomProps,
         syncCustom: syncCustom,
         applyStored: applyStored
     };

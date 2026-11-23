@@ -48,6 +48,13 @@ import {
 import { patchSchoolToolSitesSetup } from '../../shared/school-tool-sites.js';
 import { defaultStammdatenSpoListTitles, lookupClassM365GroupFromAppData } from '../../shared/school-stammdaten-spo-lists.js';
 import { pickEntraGroupsMulti } from '../../shared/entra-group-picker.js';
+import { abschlussarbeitenListTitleForYear } from '../srdp-anmeldung/srdp-abschlussarbeiten-schema.js';
+import {
+    ensureAbschlussarbeitenList,
+    loadAbschlussarbeiten,
+    replaceAbschlussarbeiten
+} from '../srdp-anmeldung/srdp-abschlussarbeiten-graph.js';
+import { parseAbaPortalRows } from '../srdp-anmeldung/srdp-abschlussarbeiten-parse.js';
 
 const SCOPES_GRAPH = [
     'https://graph.microsoft.com/User.Read',
@@ -56,9 +63,16 @@ const SCOPES_GRAPH = [
     'https://graph.microsoft.com/User.Read.All'
 ];
 
-const SRS_WIZARD_STEP_COUNT = 5;
-const SRS_WIZARD_STEP_STORAGE_KEY = 'ms365-srdp-wizard-step-v1';
-const SRS_WIZARD_STEP_LABELS = ['Website & Jahr', 'Klassen', 'Optionen', 'Rechte', 'Anlegen'];
+const SRS_WIZARD_STEP_COUNT = 6;
+const SRS_WIZARD_STEP_STORAGE_KEY = 'ms365-srdp-wizard-step-v2';
+const SRS_WIZARD_STEP_LABELS = [
+    'Website & Jahr',
+    'Klassen',
+    'Optionen',
+    'Abschlussarbeiten',
+    'Rechte',
+    'Anlegen'
+];
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function G() {
@@ -384,13 +398,13 @@ async function createSrdpList(webUrl, opts, logFn) {
     if (!host) throw new Error('SharePoint-Host aus URL nicht lesbar.');
 
     write('SharePoint-Token (Ansichten / Rechte) …');
-    const spoScope = 'https://' + host + '/Sites.FullControl.All';
+    const spoScope = 'https://' + host + '/AllSites.FullControl';
     let spoToken;
     try {
         spoToken = await G().getGraphToken([spoScope]);
     } catch (e) {
         throw new Error(
-            'SharePoint-Token fehlgeschlagen (Sites.FullControl.All?). ' +
+            'SharePoint-Token fehlgeschlagen (AllSites.FullControl?). ' +
                 (e && e.message ? e.message : e)
         );
     }
@@ -706,17 +720,17 @@ async function applyListPermissions(siteWebUrl, spoToken, digest, listTitle, gra
         opts.groupAdmin,
         opts.adminUsers,
         SPO_ROLE.fullControl,
-        'Admin'
+        'Vollzugriff'
     );
     // Gestaltung (nicht nur Lesen): bei „nur eigene Elemente“ sehen Read/Contribute
-    // sonst ausschließlich selbst erstellte Zeilen. Lehrkräfte müssen alle Anmeldungen sehen.
+    // sonst ausschließlich selbst erstellte Zeilen. Lesende Rechte brauchen Sicht auf alle Anmeldungen.
     await grantAudience(
         opts.lehrerGroups,
         opts.groupLehrerId,
         opts.groupLehrer,
         opts.lehrerUsers,
         SPO_ROLE.design,
-        'Lehrer'
+        'Lesende'
     );
     await grantAudience(
         opts.kandidatenGroups,
@@ -741,10 +755,10 @@ async function applyListPermissions(siteWebUrl, spoToken, digest, listTitle, gra
 
     try {
         // ReadSecurity 2 + WriteSecurity 2: Kandidat:innen (Mitwirken) sehen/bearbeiten nur eigene Zeilen.
-        // Vollzugriff (Admin) und Gestaltung (Lehrkräfte) sehen weiterhin alle Anmeldungen.
+        // Vollzugriff und Lesende Rechte (Gestaltung) sehen weiterhin alle Anmeldungen.
         await G().spoSetListItemLevelPermissions(siteWebUrl, spoToken, digest, listTitle, 2, 2);
         write(
-            '  Elementberechtigungen: Kandidat:innen nur eigene Anmeldung. Lehrkräfte (Gestaltung) und Admin sehen alle.'
+            '  Elementberechtigungen: Kandidat:innen nur eigene Anmeldung. Vollzugriff und Lesende Rechte sehen alle.'
         );
     } catch (e) {
         write('  Hinweis Elementrechte: ' + (e && e.message ? e.message : e));
@@ -775,7 +789,7 @@ async function reapplySrdpPermissions(webUrl, opts, logFn) {
     );
     if (!okAdmin || !okLehrer || !okKand) {
         throw new Error(
-            'Für Rechte: je Rolle Gruppe oder Person(en) wählen (Admin, Lehrkräfte, Kandidat:innen).'
+            'Für Rechte: je Stufe Gruppe oder Person(en) wählen (Vollzugriff, Lesende Rechte, Kandidat:innen).'
         );
     }
     const profile = getProfile(o.profileId);
@@ -797,7 +811,7 @@ async function reapplySrdpPermissions(webUrl, opts, logFn) {
     }
     if (!host) throw new Error('SharePoint-Host aus URL nicht lesbar.');
     write('SharePoint-Token (Rechte) …');
-    const spoToken = await G().getGraphToken(['https://' + host + '/Sites.FullControl.All']);
+    const spoToken = await G().getGraphToken(['https://' + host + '/AllSites.FullControl']);
     const digest = await G().getSpoRequestDigest(url, spoToken);
     write('Schreibe Berechtigungen auf „' + (list.displayName || title) + '“ neu …');
     await applyListPermissions(url, spoToken, digest, list.displayName || title, token, o, write);
@@ -823,38 +837,106 @@ async function probeSrdpHealth(webUrl, terminJahr, logFn, profileId) {
     if (!siteId) throw new Error('Site-ID fehlt.');
 
     const list = await findListByTitleCandidates(token, siteId, terminJahr, profile.id);
+    /** @type {string[]} */
+    const notes = [];
+    let missing = required.slice();
+    let listOk = false;
+    let listWebUrl = '';
+    let listTitle = title;
     if (!list || !list.id) {
-        write('Fehlt: Liste „' + title + '"');
-        return { ok: false, title, missingList: true, missingColumns: required.slice() };
+        write('Fehlt: Anmeldeliste „' + title + '"');
+        notes.push('Anmeldeliste fehlt');
+    } else {
+        listOk = true;
+        listWebUrl = list.webUrl || '';
+        listTitle = list.displayName || title;
+        const colsPath =
+            G().graphPathSite(siteId) + '/lists/' + encodeURIComponent(list.id) + '/columns?$top=200';
+        const colsData = await G().graphJson('GET', colsPath, token, undefined, 'v1.0');
+        const colNames = ((colsData && colsData.value) || [])
+            .map((c) => String((c && c.name) || '').trim())
+            .filter(Boolean);
+        missing = required.filter((n) => colNames.indexOf(n) === -1);
+        if (missing.length) {
+            write('Anmeldeliste – fehlende Spalten: ' + missing.join(', '));
+            notes.push('Anmeldeliste: Spalten fehlen');
+        } else {
+            write('Anmeldeliste OK · ' + (list.webUrl || list.displayName || title));
+        }
     }
 
-    const colsPath =
-        G().graphPathSite(siteId) + '/lists/' + encodeURIComponent(list.id) + '/columns?$top=200';
-    const colsData = await G().graphJson('GET', colsPath, token, undefined, 'v1.0');
-    const colNames = ((colsData && colsData.value) || [])
-        .map((c) => String((c && c.name) || '').trim())
-        .filter(Boolean);
-    const missing = required.filter((n) => colNames.indexOf(n) === -1);
-    if (missing.length) write('Fehlende Spalten: ' + missing.join(', '));
-    else write('Spalten OK · ' + (list.webUrl || list.displayName || title));
+    let abaOk = false;
+    let abaTitle = '';
+    let abaCount = 0;
+    let abaWebUrl = '';
+    try {
+        abaTitle = abschlussarbeitenListTitleForYear(terminJahr, profile.id);
+        const abaCtx = await ensureAbschlussarbeitenList(url, {
+            jahr: terminJahr,
+            profileId: profile.id
+        });
+        const abaRows = await loadAbschlussarbeiten(abaCtx);
+        abaOk = true;
+        abaCount = abaRows.length;
+        abaWebUrl = (abaCtx.list && abaCtx.list.webUrl) || '';
+        abaTitle = (abaCtx.list && abaCtx.list.title) || abaTitle;
+        write(
+            'Abschlussarbeiten OK · „' +
+                abaTitle +
+                '“ · ' +
+                abaCount +
+                ' Einträge' +
+                (abaWebUrl ? ' · ' + abaWebUrl : '')
+        );
+        const abaLink = $('srsAbaListLink');
+        if (abaLink && abaWebUrl) {
+            abaLink.hidden = false;
+            abaLink.href = abaWebUrl;
+            abaLink.textContent = 'Abschlussarbeiten öffnen: ' + abaTitle;
+        }
+        setAbaStatus(
+            'Liste „' + abaTitle + '“ bereit · ' + abaCount + ' Einträge (ABA-Excel optional hochladen).'
+        );
+    } catch (e) {
+        write('Abschlussarbeiten: ' + ((e && e.message) || e));
+        notes.push('Abschlussarbeiten prüfen/anlegen');
+        setAbaStatus('Abschlussarbeiten-Liste fehlt oder nicht lesbar – bitte anlegen.');
+    }
 
+    const ok = listOk && missing.length === 0 && abaOk;
     const panel = $('srsHealth');
     if (panel) {
         panel.hidden = false;
-        panel.textContent = missing.length
-            ? 'Status: Spalten fehlen – Details im Protokoll.'
-            : 'Status: OK – Liste „' + (list.displayName || title) + '" bereit.';
-        panel.classList.toggle('ok', missing.length === 0);
-        panel.classList.toggle('warn', missing.length > 0);
+        panel.textContent = ok
+            ? 'Status: OK – Anmeldung „' +
+              listTitle +
+              '“ und Abschlussarbeiten „' +
+              abaTitle +
+              '“ (' +
+              abaCount +
+              ') bereit.'
+            : 'Status: ' + (notes.length ? notes.join(' · ') : 'bitte Protokoll prüfen') + '.';
+        panel.classList.toggle('ok', ok);
+        panel.classList.toggle('warn', !ok);
     }
 
     return {
-        ok: missing.length === 0,
-        title: list.displayName || title,
-        webUrl: list.webUrl || '',
+        ok,
+        title: listTitle,
+        webUrl: listWebUrl,
         missingColumns: missing,
+        missingList: !listOk,
+        abaOk,
+        abaTitle,
+        abaCount,
+        abaWebUrl,
         profileId: profile.id
     };
+}
+
+function setAbaStatus(msg) {
+    const el = $('srsAbaStatus');
+    if (el) el.textContent = String(msg || '');
 }
 
 function currentProfileId() {
@@ -1496,15 +1578,31 @@ async function pullBfkFromList() {
 
 function updateListPreview() {
     const el = $('srsListPreview');
-    if (!el) return;
+    const y = String(($('srsJahr') && $('srsJahr').value) || '').trim();
+    const pid = currentProfileId();
+    const yearLabel = /^\d{4}$/.test(y) ? y : 'YYYY';
     try {
-        const y = String(($('srsJahr') && $('srsJahr').value) || '').trim();
-        const pid = currentProfileId();
-        el.textContent = /^\d{4}$/.test(y)
-            ? listTitleForYear(y, pid)
-            : listTitleForYear(new Date().getFullYear(), pid).replace(/\d{4}$/, 'YYYY');
+        if (el) {
+            el.textContent = /^\d{4}$/.test(y)
+                ? listTitleForYear(y, pid)
+                : listTitleForYear(new Date().getFullYear(), pid).replace(/\d{4}$/, 'YYYY');
+        }
     } catch {
-        el.textContent = 'sRDP-Anmeldungen … YYYY';
+        if (el) el.textContent = 'sRDP-Anmeldungen … YYYY';
+    }
+    try {
+        const abaName = /^\d{4}$/.test(y)
+            ? abschlussarbeitenListTitleForYear(y, pid)
+            : abschlussarbeitenListTitleForYear(new Date().getFullYear(), pid).replace(/\d{4}$/, yearLabel);
+        ['srsAbaListPreview', 'srsAbaListPreviewTop'].forEach((id) => {
+            const node = $(id);
+            if (node) node.textContent = abaName;
+        });
+    } catch {
+        ['srsAbaListPreview', 'srsAbaListPreviewTop'].forEach((id) => {
+            const node = $(id);
+            if (node) node.textContent = 'sRDP-Abschlussarbeiten … YYYY';
+        });
     }
     refreshTerminPreview();
 }
@@ -1541,11 +1639,22 @@ async function runCreate() {
         );
         if (!okAdmin || !okLehrer || !okKand) {
             throw new Error(
-                'Für Rechte: je Rolle Gruppe oder Person(en) wählen (Admin, Lehrkräfte, Kandidat:innen) – oder „Rechte überspringen“.'
+                'Für Rechte: je Stufe Gruppe oder Person(en) wählen (Vollzugriff, Lesende Rechte, Kandidat:innen) – oder „Rechte überspringen“.'
             );
         }
     }
     const result = await createSrdpList(webUrl, opts);
+    log('Lege Abschlussarbeiten-Liste an (ABA-Portal) …');
+    const abaCtx = await ensureAbschlussarbeitenList(webUrl, {
+        jahr: opts.terminJahr,
+        profileId: opts.profileId
+    });
+    log(
+        'Abschlussarbeiten bereit: „' +
+            (abaCtx.list && abaCtx.list.title) +
+            '“' +
+            (abaCtx.list && abaCtx.list.webUrl ? ' · ' + abaCtx.list.webUrl : '')
+    );
     saveWizardState({
         siteUrl: webUrl,
         listId: result && result.list && result.list.id ? String(result.list.id) : '',
@@ -1565,14 +1674,29 @@ async function runCreate() {
     } catch {
         /* ignore */
     }
-    toast('Liste angelegt bzw. ergänzt (' + getProfile(opts.profileId).label + ').');
+    toast(
+        'Listen angelegt bzw. ergänzt (' +
+            getProfile(opts.profileId).label +
+            '): Anmeldung + Abschlussarbeiten.'
+    );
     const link = $('srsListLink');
     if (link && result.webUrl) {
         link.hidden = false;
         link.href = result.webUrl;
-        link.textContent = 'Liste öffnen: ' + result.title;
+        link.textContent = 'Anmeldeliste öffnen: ' + result.title;
     }
-    return result;
+    const abaLink = $('srsAbaListLink');
+    if (abaLink && abaCtx.list && abaCtx.list.webUrl) {
+        abaLink.hidden = false;
+        abaLink.href = abaCtx.list.webUrl;
+        abaLink.textContent = 'Abschlussarbeiten öffnen: ' + (abaCtx.list.title || '');
+    }
+    setAbaStatus(
+        'Liste „' +
+            (abaCtx.list && abaCtx.list.title) +
+            '“ bereit – jetzt optional ABA-Excel hochladen.'
+    );
+    return { ...result, aba: abaCtx };
 }
 
 window.ms365SpoSrdp = {
@@ -1646,15 +1770,26 @@ function refreshWizardSummary() {
         '<li><strong>Website:</strong> ' +
         site +
         '</li>' +
-        '<li><strong>Schulform / Liste:</strong> ' +
+        '<li><strong>Schulform / Anmeldeliste:</strong> ' +
         profile.label +
         ' · ' +
         listName +
         '</li>' +
+        '<li><strong>Abschlussarbeiten:</strong> ' +
+        (function () {
+            try {
+                return /^\d{4}$/.test(opts.terminJahr)
+                    ? abschlussarbeitenListTitleForYear(opts.terminJahr, opts.profileId)
+                    : '—';
+            } catch {
+                return '—';
+            }
+        })() +
+        '</li>' +
         '<li><strong>Klassen:</strong> ' +
         (opts.klassen.length ? opts.klassen.join(', ') : '—') +
         '</li>' +
-        '<li><strong>Admin:</strong> ' +
+        '<li><strong>Vollzugriff:</strong> ' +
         formatSrdpAudienceSummary({
             label: opts.groupAdmin,
             id: opts.groupAdminId,
@@ -1662,7 +1797,7 @@ function refreshWizardSummary() {
             users: opts.adminUsers
         }) +
         '</li>' +
-        '<li><strong>Lehrkräfte:</strong> ' +
+        '<li><strong>Lesende Rechte:</strong> ' +
         formatSrdpAudienceSummary({
             label: opts.groupLehrer,
             id: opts.groupLehrerId,
@@ -1712,12 +1847,12 @@ function showWizardStep(n) {
         }
     }
     if (step === 2) fillKlassenCheckboxes();
-    if (step === 4) {
+    if (step === 5) {
         mountSrdpEntraPermHost($('srsEntraPermHost'), () => {
             persistSrdpPickersToStorage($('srsSkipPerms') && $('srsSkipPerms').checked);
         });
     }
-    if (step === 5) refreshWizardSummary();
+    if (step === 6) refreshWizardSummary();
 }
 
 function wireUi() {
@@ -1830,11 +1965,19 @@ function wireUi() {
             } catch {
                 /* ignore */
             }
+            let abaTitle = 'Abschlussarbeiten';
+            try {
+                abaTitle = abschlussarbeitenListTitleForYear(y, pid);
+            } catch {
+                /* ignore */
+            }
             if (
                 !window.confirm(
-                    'Liste „' +
+                    'Listen anlegen bzw. ergänzen?\n\n• ' +
                         title +
-                        '" anlegen bzw. fehlende Spalten/Ansichten ergänzen und Rechte setzen?'
+                        '\n• ' +
+                        abaTitle +
+                        '\n\nRechte werden gesetzt (außer übersprungen).'
                 )
             ) {
                 return;
@@ -1885,6 +2028,115 @@ function wireUi() {
                 .catch((e) => {
                     log('FEHLER: ' + (e && e.message ? e.message : String(e)));
                     toast('Fehler: ' + (e && e.message ? e.message : e));
+                });
+        });
+    }
+
+    async function runAbaEnsureOnly() {
+        const webUrl = String(($('srsSiteUrl') && $('srsSiteUrl').value) || '').trim();
+        const jahr = String(($('srsJahr') && $('srsJahr').value) || '').trim();
+        if (!webUrl) throw new Error('Website-URL fehlt.');
+        if (!/^\d{4}$/.test(jahr)) throw new Error('Terminjahr (YYYY) fehlt.');
+        const ctx = await ensureAbschlussarbeitenList(webUrl, {
+            jahr,
+            profileId: currentProfileId()
+        });
+        log('Abschlussarbeiten-Liste: „' + (ctx.list && ctx.list.title) + '“');
+        const abaLink = $('srsAbaListLink');
+        if (abaLink && ctx.list && ctx.list.webUrl) {
+            abaLink.hidden = false;
+            abaLink.href = ctx.list.webUrl;
+            abaLink.textContent = 'Abschlussarbeiten öffnen: ' + (ctx.list.title || '');
+        }
+        setAbaStatus('Liste „' + (ctx.list && ctx.list.title) + '“ bereit.');
+        toast('Abschlussarbeiten-Liste bereit.');
+        return ctx;
+    }
+
+    async function runAbaUpload(file) {
+        if (!file) return;
+        const XLSX = window.XLSX;
+        if (!XLSX) throw new Error('Excel-Bibliothek (SheetJS) nicht geladen – Seite neu laden.');
+        const webUrl = String(($('srsSiteUrl') && $('srsSiteUrl').value) || '').trim();
+        const jahr = String(($('srsJahr') && $('srsJahr').value) || '').trim();
+        if (!webUrl) throw new Error('Website-URL fehlt.');
+        if (!/^\d{4}$/.test(jahr)) throw new Error('Terminjahr (YYYY) fehlt.');
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        const parsed = parseAbaPortalRows(jsonRows, { terminJahr: jahr });
+        if (!parsed.rows.length) {
+            throw new Error(
+                'Keine Zeilen für Terminjahr ' +
+                    jahr +
+                    ' (übersprungen Jahr: ' +
+                    parsed.summary.skippedYear +
+                    ', leer: ' +
+                    parsed.summary.skippedEmpty +
+                    ').'
+            );
+        }
+        const ctx = await ensureAbschlussarbeitenList(webUrl, {
+            jahr,
+            profileId: currentProfileId()
+        });
+        const result = await replaceAbschlussarbeiten(ctx, parsed.rows, {
+            jahr,
+            profileId: currentProfileId()
+        });
+        log(
+            'ABA-Import: ' +
+                result.count +
+                ' Personen · genehmigt in Datei ' +
+                parsed.summary.genehmigt +
+                ' · Liste „' +
+                (ctx.list && ctx.list.title) +
+                '“'
+        );
+        setAbaStatus(
+            'Import OK: ' + result.count + ' Personen in „' + (ctx.list && ctx.list.title) + '“.'
+        );
+        const abaLink = $('srsAbaListLink');
+        if (abaLink && ctx.list && ctx.list.webUrl) {
+            abaLink.hidden = false;
+            abaLink.href = ctx.list.webUrl;
+            abaLink.textContent = 'Abschlussarbeiten öffnen: ' + (ctx.list.title || '');
+        }
+        toast('ABA-Excel importiert: ' + result.count + ' Personen.');
+        return result;
+    }
+
+    const abaEnsureBtn = $('srsBtnAbaEnsure');
+    if (abaEnsureBtn) {
+        abaEnsureBtn.addEventListener('click', () => {
+            if ($('srsLog')) $('srsLog').textContent = '';
+            const panel = $('srsLogPanel');
+            if (panel) panel.open = true;
+            runAbaEnsureOnly().catch((e) => {
+                log('FEHLER: ' + (e && e.message ? e.message : String(e)));
+                toast('Fehler: ' + (e && e.message ? e.message : e));
+            });
+        });
+    }
+
+    const abaUploadBtn = $('srsBtnAbaUpload');
+    const abaFile = $('srsAbaFile');
+    if (abaUploadBtn && abaFile) {
+        abaUploadBtn.addEventListener('click', () => abaFile.click());
+        abaFile.addEventListener('change', () => {
+            const file = abaFile.files && abaFile.files[0];
+            if (!file) return;
+            if ($('srsLog')) $('srsLog').textContent = '';
+            const panel = $('srsLogPanel');
+            if (panel) panel.open = true;
+            runAbaUpload(file)
+                .catch((e) => {
+                    log('FEHLER: ' + (e && e.message ? e.message : String(e)));
+                    toast('Fehler: ' + (e && e.message ? e.message : e));
+                })
+                .finally(() => {
+                    abaFile.value = '';
                 });
         });
     }

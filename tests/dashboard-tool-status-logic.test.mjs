@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    formatQuietSyncLabel,
     formatSyncSecondary,
     klassenChatsProvisionStatus,
     klassenChatsStatusHint,
@@ -155,6 +156,39 @@ describe('dashboard-tool-status-logic', () => {
     it('formatSyncSecondary zeigt heute', () => {
         const now = new Date().toISOString();
         expect(formatSyncSecondary(now)).toBe('Letzter Sync: heute');
+    });
+
+    it('formatQuietSyncLabel bleibt kurz', () => {
+        const now = new Date().toISOString();
+        expect(formatQuietSyncLabel(now)).toBe('heute');
+        expect(formatQuietSyncLabel('')).toBe('Verbunden');
+    });
+
+    it('SharePoint-Listen-Status ist bei Intranet-URL subtil', () => {
+        const info = resolveDashboardToolStatus('sharepoint-liste-lehrer', {
+            show: true,
+            container: { setup: { intranetSiteUrl: 'https://contoso.sharepoint.com/sites/Listen' } },
+            settings: {},
+            hygieneById: {},
+            hygieneApi: null
+        });
+        expect(info && info.tone).toBe('ok');
+        expect(info && info.variant).toBe('subtle');
+        expect(info && info.primary).not.toMatch(/Intranet verbunden/i);
+        expect(info && info.secondary).toBe('');
+    });
+
+    it('SharePoint-Listen-Status ohne URL betont offen', () => {
+        const info = resolveDashboardToolStatus('sharepoint-intranet-hub', {
+            show: true,
+            container: { setup: {} },
+            settings: {},
+            hygieneById: {},
+            hygieneApi: null
+        });
+        expect(info && info.tone).toBe('pending');
+        expect(info && info.variant).toBe('emphasis');
+        expect(info && info.primary).toMatch(/Noch nicht gestartet/i);
     });
 
     it('resolveDashboardToolStatus für Playbook', () => {

@@ -1,7 +1,10 @@
 /**
  * Zentrale Dashboard-Persona: einmal nach Login auflösen, app-weit nutzen.
  */
-import { resolveDashboardPersonas } from './dashboard-audience-resolve.js';
+import {
+    landingShotDashboardPersonas,
+    resolveDashboardPersonas
+} from './dashboard-audience-resolve.js';
 import { clearGlobalAdministratorCache } from '../tools/schularbeiten-planer/schularbeiten-planer-entra-role.js';
 import { ensureSignedInMs365DemoPortalAccountInLocalStammdaten } from './demo-portal-teacher.js';
 import { ensureLiveSchoolStammdatenForBrowser } from './ensure-live-school-stammdaten.js';
@@ -11,10 +14,18 @@ const CACHE_KEY = 'ms365-dashboard-persona-cache-v2';
 const CACHE_TTL_MS = 20 * 60 * 1000;
 /** Kurz cachen, solange Lizenz/Operator/GA noch nachziehen können. */
 const CACHE_TTL_INCONCLUSIVE_MS = 15 * 1000;
+/**
+ * Ohne Konto ist accountCacheKey() leer. Diesen Stand trotzdem cachen,
+ * sonst startet jedes persona-ready (Portal-Render) eine neue Auflösung
+ * und die Startseite blockiert den Hauptthread.
+ */
+const ANON_CACHE_KEY = 'anonymous';
 
 /** @type {Promise<import('./dashboard-audience-resolve.js').DashboardPersonas>|null} */
 let inFlight = null;
 let resolveGen = 0;
+/** Screenshot-URLs feuern sonst bei jedem Listener erneut persona-ready (Sync-Rekursion). */
+let landingShotNotified = false;
 
 function accountCacheKey() {
     try {
@@ -30,6 +41,11 @@ function accountCacheKey() {
         /* ignore */
     }
     return '';
+}
+
+/** Kontoschlüssel oder anonymer Platzhalter – nie leer, sonst kein Cache-Treffer. */
+function personaCacheKey() {
+    return accountCacheKey() || ANON_CACHE_KEY;
 }
 
 function readCache(key) {
@@ -100,6 +116,7 @@ export function isDashboardItResolutionInconclusive(personas) {
 export function clearDashboardPersonaCache() {
     inFlight = null;
     resolveGen += 1;
+    landingShotNotified = false;
     clearGlobalAdministratorCache();
     try {
         sessionStorage.removeItem(CACHE_KEY);
@@ -112,10 +129,30 @@ export function clearDashboardPersonaCache() {
  * @param {{ force?: boolean }} [opts]
  */
 export async function refreshDashboardPersonaSession(opts) {
-    const force = !!(opts && opts.force);
-    const key = accountCacheKey();
+    const landingShot = landingShotDashboardPersonas();
+    if (landingShot) {
+        try {
+            window.__ms365DashboardPersonasLast = landingShot;
+        } catch {
+            /* ignore */
+        }
+        if (!landingShotNotified) {
+            landingShotNotified = true;
+            try {
+                window.dispatchEvent(
+                    new CustomEvent('ms365-dashboard-persona-ready', { detail: { personas: landingShot } })
+                );
+            } catch {
+                /* ignore */
+            }
+        }
+        return landingShot;
+    }
 
-    if (!force && key) {
+    const force = !!(opts && opts.force);
+    const key = personaCacheKey();
+
+    if (!force) {
         const cached = readCache(key);
         if (cached) return cached;
     }

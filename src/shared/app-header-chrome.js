@@ -54,10 +54,6 @@ export function buildAppChromeHeaderHtml(mode) {
         '<span class="dash-compact-header__search-dash-link-text">Suchen …</span>' +
         '</a>';
 
-    const navBlock = isDashboard
-        ? '<div class="dash-compact-header__nav" id="dashHeaderNavMount" data-dash-section-audience="it" aria-label="Dashboard-Ansicht"></div>'
-        : '<div class="dash-compact-header__nav dash-compact-header__nav--spacer" aria-hidden="true"></div>';
-
     const searchSlot = isDashboard
         ? '<div class="dash-compact-header__search-slot" id="dashHeaderSearchSlot" data-dash-section-audience="it"></div>'
         : '<div class="dash-compact-header__search-slot" id="dashHeaderSearchSlot" data-dash-section-audience="it">' +
@@ -79,9 +75,11 @@ export function buildAppChromeHeaderHtml(mode) {
         logoClassic +
         '" width="28" height="28" alt="" decoding="async" aria-hidden="true" />' +
         '<span class="app-name">MS365-Schul-Tools</span></a>' +
-        navBlock +
-        '<div class="dash-compact-header__actions" id="adminAppTopActions">' +
+        '<div class="dash-compact-header__center">' +
         searchSlot +
+        '</div>' +
+        '<div class="dash-compact-header__actions" id="adminAppTopActions">' +
+        '<div id="dashHeaderNavMount" class="dash-compact-header__nav" data-dash-section-audience="it" hidden aria-hidden="true"></div>' +
         '<div id="dashRegisterToolbar" hidden aria-hidden="true">' +
         '<input type="file" id="browserBackupImportFile" class="ts-register-save-bar__file" accept="application/json,.json" hidden aria-hidden="true">' +
         '<button type="button" id="browserBackupExport" data-ms365-backup="export" hidden tabindex="-1"></button>' +
@@ -109,10 +107,13 @@ export function ensureAppChromeStylesheets() {
         document.head.appendChild(link);
     }
 
-    linkCss(resolveAppRootHref('src/shared/dashboard-compact-header.css') + '?v=9', 'data-dash-compact-header-css');
-    linkCss(resolveAppRootHref('src/shared/dashboard-ui-spec.css') + '?v=13', 'data-dash-ui-spec-css');
+    linkCss(resolveAppRootHref('src/shared/dashboard-compact-header.css') + '?v=16', 'data-dash-compact-header-css');
+    linkCss(resolveAppRootHref('src/shared/dashboard-quick-search.css') + '?v=3', 'data-dash-quick-search-css');
+    linkCss(resolveAppRootHref('src/shared/dashboard-ui-spec.css') + '?v=18', 'data-dash-ui-spec-css');
     linkCss(resolveAppRootHref('src/shared/app-tool-chrome.css') + '?v=6', 'data-app-tool-chrome-css');
     linkCss(resolveAppRootHref('src/shared/dashboard-card-surfaces.css') + '?v=5', 'data-dash-card-surfaces-css');
+    linkCss(resolveAppRootHref('src/shared/shell-fluent.css') + '?v=11', 'data-shell-fluent-css');
+    linkCss(resolveAppRootHref('src/shared/fluent-blocks.css') + '?v=6', 'data-fluent-blocks-css');
 }
 
 /**
@@ -120,14 +121,15 @@ export function ensureAppChromeStylesheets() {
  */
 export function normalizeAppHeaderActionsOrder(container) {
     if (!container) return;
-    const search = container.querySelector('#dashHeaderSearchSlot');
     const backup = document.getElementById('ms365BackupHeader');
+    const schoolSwitch = document.getElementById('ms365HeaderSchoolSwitch');
     const org = document.getElementById('ms365HeaderSchulOrganigramm');
     const reg = document.getElementById('ms365HeaderSchulregister');
+    const shellSwitch = document.getElementById('ms365HeaderShellSwitch');
     const auth = document.getElementById('ms365AuthWidget');
     const toolbar = document.getElementById('dashRegisterToolbar');
 
-    [search, backup, org, reg, auth, toolbar].forEach(function (el) {
+    [backup, schoolSwitch, org, reg, shellSwitch, auth, toolbar].forEach(function (el) {
         if (el && el.parentElement === container) {
             container.appendChild(el);
         }

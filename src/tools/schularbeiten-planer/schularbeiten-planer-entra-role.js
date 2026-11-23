@@ -40,24 +40,9 @@ export function clearGlobalAdministratorCache() {
 }
 
 function globalAdminCheckScopes() {
-    /** @type {string[]} */
-    const merged = GLOBAL_ADMIN_ROLE_SCOPES.slice();
-    const seen = new Set(merged.map((s) => s.toLowerCase()));
-    try {
-        const g = typeof window !== 'undefined' ? window.ms365GraphUnifiedGroups : null;
-        const extra = g && Array.isArray(g.GRAPH_SCOPES) ? g.GRAPH_SCOPES : [];
-        extra.forEach(function (scope) {
-            const s = String(scope || '').trim();
-            if (!s) return;
-            const key = s.toLowerCase();
-            if (seen.has(key)) return;
-            seen.add(key);
-            merged.push(s);
-        });
-    } catch {
-        /* ignore */
-    }
-    return merged;
+    // a4/R3: Rollenprüfung bleibt bei RoleManagement.Read.Directory.
+    // Nicht das gemeinsame Graph-Bundle (früher User.ReadWrite.All / Group.ReadWrite.All) mit anfordern.
+    return GLOBAL_ADMIN_ROLE_SCOPES.slice();
 }
 
 async function acquireTokenForGlobalAdminCheck() {
@@ -455,22 +440,37 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             pickOpts
         );
         state.roleSource = 'demo';
+        state.kontoOffen = false;
         state.planerAccessDenied = false;
         state.roleHint = '';
         return;
     }
 
-    if (!isLoggedIn()) {
+    const emEarly = String(state.accountEmail || '')
+        .trim()
+        .toLowerCase();
+
+    if (!isLoggedIn() && !emEarly) {
         state.planerRoles = [];
         state.planerRoleSources = {};
-        if (entra) {
-            state.roleSource = 'entra';
-            state.planerAccessDenied = false;
-            state.roleHint =
-                'Bitte mit Ihrem Schul-Microsoft-Konto anmelden (links unten). Ihre Rolle im Planer richtet sich nach den Entra-Gruppen unter Systemadministration → Berechtigungen.';
-        }
+        state.kontoOffen = false;
+        state.planerAccessDenied = false;
+        state.roleHint = '';
         return;
     }
+
+    // Konto angemeldet, aber E-Mail noch nicht gelesen: keine Rolle speichern
+    // und noch keine Sperrmeldung setzen (siehe docs/rollen-vertrag.md).
+    if (!emEarly) {
+        state.planerRoles = [];
+        state.planerRoleSources = { pending: 'konto-offen' };
+        state.kontoOffen = true;
+        state.planerAccessDenied = false;
+        state.roleHint = '';
+        return;
+    }
+
+    state.kontoOffen = false;
 
     const scope = {
         teacherMatch: state.teacherMatch,
@@ -487,7 +487,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
                 'Entra-Gruppen im Planer-Setup fehlen – Rolle vorläufig aus Stammdaten oder Einzelpersonen. Bitte unter Systemadministration → Berechtigungen Gruppen eintragen.';
             return;
         }
-        state.role = 'lehrer';
+        state.role = '';
         state.planerRoles = [];
         state.planerRoleSources = {};
         state.planerAccessDenied = true;
@@ -511,7 +511,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             return;
         }
 
-        state.role = 'lehrer';
+        state.role = '';
         state.roleSource = 'entra';
         state.planerRoles = [];
         state.planerRoleSources = {};

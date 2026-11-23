@@ -164,7 +164,8 @@ Interaktion (Ziel ab Phase 2): Doppelklick / Stift → Detail-Pop-up; DnD für B
 | `tools/schul-organigramm.html` | Vollbild-Tool |
 | `src/tools/schul-organigramm/schul-organigramm-logic.js` | Seed, Normalize, Sync, Migration Verwaltung → Schul |
 | `src/tools/schul-organigramm/schul-organigramm-ui.js` | Mount / Render |
-| `src/tools/schul-organigramm/schul-organigramm-edit.js` | Pop-ups → Stammdaten (Rollen, ARGEs, Klassen/KV, Vertretung/SGA) |
+| `src/tools/schul-organigramm/schul-organigramm-edit.js` | Entry/Re-Export + `createSchulOrganigrammEditor` (dünn; öffentliche API) |
+| `src/tools/schul-organigramm/schul-organigramm-edit-*.js` | Edit-Split: Utils/HTML/People/Ops/Find/Overlay + UI-Factories (Rollen, ARGE, Klasse, Personen, Area/M365, Canvas) |
 | `src/tools/schul-organigramm/schul-organigramm.css` | Styles |
 | `src/shared/tenant-schul-organigramm-embed.js` | Tab in `tenant.html` |
 | `tests/schul-organigramm-logic.test.mjs` | Seed/Sync-Tests |

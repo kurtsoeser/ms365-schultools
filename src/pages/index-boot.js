@@ -6,11 +6,11 @@
 (function () {
     try {
         var d = document.documentElement;
-        var sec = localStorage.getItem('ms365-dash-main-section-v1');
-        if (sec !== 'tasks' && sec !== 'catalog' && sec !== 'playbooks') {
-            sec = localStorage.getItem('ms365-dash-it-focus-v1') === '0' ? 'catalog' : 'tasks';
-        }
-        d.setAttribute('data-dash-main-section', sec);
+        /* Eine IT-Ansicht: Gruppenleiste. Katalog nur noch für Suche. */
+        d.setAttribute('data-dash-main-section', 'tasks');
+        try {
+            localStorage.setItem('ms365-dash-main-section-v1', 'tasks');
+        } catch (e2) {}
         /* Portal-first: kein IT-Flash vor Persona-Resolve */
         d.setAttribute('data-dash-app-only', '');
     } catch (e) {}

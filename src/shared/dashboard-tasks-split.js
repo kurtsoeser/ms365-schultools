@@ -1,17 +1,88 @@
 /**
- * Dashboard „Was möchten Sie tun?“ – Master-Detail (linke Navigation, Detail rechts).
+ * Dashboard IT-Bereiche – Master-Detail (linke Gruppen-Navigation, Detail rechts).
  */
 
 import {
     enrichTaskToolRows,
     mountTaskScenarioGuide
 } from './dashboard-task-tool-copy.js';
+import {
+    applyToolsViewMode,
+    ensureGroupInsightTile,
+    mountToolsViewToggle,
+    readToolsViewMode,
+    refreshGroupInsightTile
+} from './dashboard-tools-view.js';
+import {
+    buildNavTreeFromDashboard,
+    clearItWorkspaceNav,
+    deactivateItWorkspace,
+    extractToolsFromTask,
+    IT_WORKSPACE_STAMMDATEN_TASK_ID,
+    isDashboardItShellActive,
+    persistItWorkspaceNav
+} from './it-workspace-nav.js';
+import { mergeStammdatenWorkspaceTools } from './stammdaten-nav-catalog.js';
 
 const STORAGE_KEY = 'ms365-dash-tasks-split-v1';
+/** Offen/zu je Bereich (Mitgliedschaften, Aufräumen, …) – nicht mehr Abgleich/Betrieb. */
+const NAV_GROUPS_STORAGE_KEY = 'ms365-dash-tasks-nav-groups-v2';
+/** „Mehr“-Overflow je Bereich in der Sidebar. */
+const NAV_MORE_STORAGE_KEY = 'ms365-dash-tasks-nav-more-v1';
 export const DASH_TASKS_SPLIT_NAV_WIDTH_KEY = 'ms365-dash-tasks-split-nav-width-v1';
 export const DASH_TASKS_SPLIT_NAV_WIDTH_MIN = 220;
 export const DASH_TASKS_SPLIT_NAV_WIDTH_MAX = 520;
-export const DASH_TASKS_SPLIT_NAV_WIDTH_DEFAULT = 300;
+export const DASH_TASKS_SPLIT_NAV_WIDTH_DEFAULT = 256;
+
+/** Reihenfolge der Bereichs-Gruppen in der IT-Leiste (Stammdaten zuerst, wie die anderen aufklappbar). */
+const NAV_AREA_TASK_IDS = [
+    'dashTaskImportVerknuepfen',
+    'dashTaskGruppen',
+    'dashTaskUnterricht',
+    'dashTaskPersonen',
+    'dashTaskSchuljahr',
+    'dashTaskIntranet',
+    'dashTaskSchulApps',
+    'dashTaskOrdnung'
+];
+
+/** @returns {Record<string, boolean>} */
+function readNavGroupOpenState() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(NAV_GROUPS_STORAGE_KEY) || '{}');
+        return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+        return {};
+    }
+}
+
+/** @param {Record<string, boolean>} state */
+function writeNavGroupOpenState(state) {
+    try {
+        localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(state || {}));
+    } catch {
+        /* ignore */
+    }
+}
+
+/** @returns {Record<string, boolean>} */
+function readNavMoreOpenState() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(NAV_MORE_STORAGE_KEY) || '{}');
+        return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+        return {};
+    }
+}
+
+/** @param {Record<string, boolean>} state */
+function writeNavMoreOpenState(state) {
+    try {
+        localStorage.setItem(NAV_MORE_STORAGE_KEY, JSON.stringify(state || {}));
+    } catch {
+        /* ignore */
+    }
+}
 
 /** @param {number} px */
 export function clampDashTasksSplitNavWidth(px) {
@@ -263,7 +334,7 @@ function applyImportTaskPersona(task, btn) {
     const iconWrap = task.querySelector('.dash-task-icon i');
     const indexEl = task.querySelector('.dash-task-index');
     if (h3) {
-        h3.textContent = hasData ? 'Stammdaten pflegen & importieren' : 'Daten importieren & verknüpfen';
+        h3.textContent = hasData ? 'Stammdaten pflegen & importieren' : 'Erste Einrichtung (Blaupause)';
     }
     if (lead) {
         lead.textContent = hasData
@@ -323,17 +394,18 @@ function applyImportTaskPersona(task, btn) {
     }
 }
 
-/** @param {HTMLElement} task */
-function flattenExpertTools(task) {
+/** Expert-Block behalten; Summary auf „Mehr …“ vereinheitlichen. */
+function prepareExpertTools(task) {
     const stack = task.querySelector('.dash-task-links--stack');
     if (!stack) return;
     stack.querySelectorAll('details.dash-task-expert').forEach(function (details) {
-        const rows = Array.from(details.querySelectorAll('.dash-task-row'));
-        rows.forEach(function (row) {
-            row.classList.remove('dash-task-row--primary');
-            stack.appendChild(row);
-        });
-        details.remove();
+        const summary = details.querySelector('summary');
+        if (!summary) return;
+        const icon = summary.querySelector('i.bi');
+        const iconHtml = icon
+            ? '<i class="' + icon.className + '" aria-hidden="true"></i>'
+            : '<i class="bi bi-three-dots" aria-hidden="true"></i>';
+        summary.innerHTML = iconHtml + 'Mehr …';
     });
 }
 
@@ -449,6 +521,7 @@ function structureDetailSections(task) {
     }
 
     enrichTaskToolRows(task);
+    ensureGroupInsightTile(task);
     task.dataset.splitStructured = '1';
 }
 
@@ -477,21 +550,24 @@ function layoutToolsGrid(task) {
     const stack = task.querySelector('.dash-task-links--stack');
     if (!stack || stack.dataset.splitTools === '1') return;
     const rows = Array.from(stack.querySelectorAll(':scope > .dash-task-row'));
-    if (!rows.length) return;
+    const expertBlocks = Array.from(stack.querySelectorAll(':scope > details.dash-task-expert'));
+    if (!rows.length && !expertBlocks.length) return;
 
     const primary = [];
-    const more = [];
+    const looseMore = [];
     rows.forEach(function (row) {
         if (row.classList.contains('dash-task-row--primary')) primary.push(row);
-        else more.push(row);
+        else looseMore.push(row);
     });
 
     stack.textContent = '';
     stack.dataset.splitTools = '1';
     stack.classList.add('dash-task-links--split');
 
-    appendToolsBlock(stack, 'Empfohlene Werkzeuge', primary);
-    appendToolsBlock(stack, 'Weitere Werkzeuge', more);
+    appendToolsBlock(stack, '', primary.concat(looseMore));
+    expertBlocks.forEach(function (details) {
+        stack.appendChild(details);
+    });
 }
 
 /** @param {HTMLElement} task */
@@ -566,18 +642,61 @@ function badgeForTaskId(taskId) {
     return { text: '', tone: '' };
 }
 
+/** @param {string} taskId */
+function countForTaskId(taskId) {
+    const progId = PROGRESS_BY_TASK[taskId];
+    if (progId) {
+        const el = document.getElementById(progId);
+        const tone = el ? String(el.getAttribute('data-tone') || '').trim() : '';
+        const tx = el ? String(el.textContent || '').trim() : '';
+        if (tone === 'warn' || tone === 'mismatch') {
+            const dev = tx.match(/(\d+)\s+Abweichung/i);
+            if (dev) return Number(dev[1]) || 1;
+            const frac = tx.match(/(\d+)\s*\/\s*(\d+)/);
+            if (frac) {
+                const diff = Number(frac[2]) - Number(frac[1]);
+                if (diff > 0) return diff;
+            }
+            return 1;
+        }
+    }
+    if (taskId === 'dashTaskOrdnung') {
+        const h = window.ms365MembershipHygiene;
+        if (h && typeof h.loadHygieneScanCache === 'function') {
+            const c = h.loadHygieneScanCache();
+            if (c && c.counts) {
+                const n = Number(c.counts.mismatch || 0) + Number(c.counts.emptyList || 0);
+                if (n > 0) return n;
+            }
+        }
+    }
+    return 0;
+}
+
 /**
  * @param {HTMLElement} btn
  * @param {string} taskId
  */
 function paintNavBadge(btn, taskId) {
     const dot = btn.querySelector('.dash-tasks-split__nav-dot');
-    if (!dot) return;
     const b = badgeForTaskId(taskId);
     const status = navStatusDotTone(b.tone, b.text);
-    dot.setAttribute('data-status', status);
-    if (b.text) dot.setAttribute('title', b.text);
-    else dot.removeAttribute('title');
+    if (dot) {
+        dot.setAttribute('data-status', status);
+        if (b.text) dot.setAttribute('title', b.text);
+        else dot.removeAttribute('title');
+    }
+    const countEl = btn.querySelector('.dash-tasks-split__nav-count');
+    if (countEl) {
+        const count = countForTaskId(taskId);
+        if (count > 0) {
+            countEl.textContent = String(count);
+            countEl.hidden = false;
+        } else {
+            countEl.textContent = '';
+            countEl.hidden = true;
+        }
+    }
 }
 
 function rowMatchesSearch(row, needle) {
@@ -585,7 +704,16 @@ function rowMatchesSearch(row, needle) {
     const extra = row.getAttribute('data-search') || '';
     const href = row.getAttribute('href') || '';
     const slug = href.replace(/^[./]*tools\//, '').replace(/\.html.*$/, '').replace(/[#?].*$/, '');
-    const hay = ((row.textContent || '') + ' ' + extra + ' ' + slug.replace(/-/g, ' ')).toLowerCase();
+    const labelEl = row.querySelector('.dash-task-row__label, .dash-task-row__title');
+    let label = '';
+    if (labelEl) {
+        const clone = labelEl.cloneNode(true);
+        clone.querySelectorAll('i, .bi').forEach(function (n) {
+            n.remove();
+        });
+        label = String(clone.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    const hay = (label + ' ' + extra + ' ' + slug.replace(/-/g, ' ')).toLowerCase();
     return hay.indexOf(needle) !== -1;
 }
 
@@ -619,9 +747,126 @@ export function mountDashboardTasksSplit() {
     detail.id = 'dashTasksSplitDetail';
 
     const navButtons = [];
-
+    /** @type {{ id: string, el: HTMLElement, toggle: HTMLButtonElement, body: HTMLElement, taskIds: string[] }[]} */
+    const navGroups = [];
+    const groupOpenState = readNavGroupOpenState();
+    const taskById = {};
     navTasks.forEach(function (task) {
-        flattenExpertTools(task);
+        taskById[task.id] = task;
+    });
+
+    function currentSelectedTaskId() {
+        const current = navButtons.find(function (item) {
+            return item.btn.getAttribute('aria-current') === 'true';
+        });
+        return current && current.task ? current.task.id : '';
+    }
+
+    function persistWorkspaceTree(activeTaskId) {
+        if (!isDashboardItShellActive()) return;
+        const tree = buildNavTreeFromDashboard(navButtons, navLabelForTask, navIconClassForTask);
+        // Overview-Hashes ergänzen
+        tree.forEach(function (node) {
+            node.overviewHash = TASK_HASH_BY_ID[node.id] || '';
+        });
+        persistItWorkspaceNav(tree, activeTaskId || '');
+    }
+
+    const moreOpenState = readNavMoreOpenState();
+
+    /**
+     * @param {{ href: string, label: string, icon: string }} tool
+     * @param {string} taskId
+     */
+    function createNavSubLink(tool, taskId) {
+        const a = document.createElement('a');
+        a.className = 'dash-tasks-split__nav-subitem';
+        a.href = tool.href;
+        a.innerHTML =
+            '<span class="dash-tasks-split__nav-subicon" aria-hidden="true"><i class="' +
+            tool.icon +
+            '"></i></span>' +
+            '<span class="dash-tasks-split__nav-sublabel"></span>';
+        a.querySelector('.dash-tasks-split__nav-sublabel').textContent = tool.label;
+        a.addEventListener('click', function () {
+            persistWorkspaceTree(taskId);
+        });
+        return a;
+    }
+
+    /**
+     * @param {HTMLElement} task
+     * @returns {HTMLElement | null}
+     */
+    function buildNavSubForTask(task) {
+        const extracted = extractToolsFromTask(task);
+        const tools =
+            task && task.id === IT_WORKSPACE_STAMMDATEN_TASK_ID
+                ? mergeStammdatenWorkspaceTools(extracted)
+                : extracted;
+        if (!tools.length) return null;
+        const primary = tools.filter(function (t) {
+            return !t.expert;
+        });
+        const expert = tools.filter(function (t) {
+            return !!t.expert;
+        });
+        const sub = document.createElement('div');
+        sub.className = 'dash-tasks-split__nav-sub';
+        // Flache Unterliste wie bei Mitgliedschaften – ein IT-Menü, gleiche Optik
+        primary.forEach(function (tool) {
+            sub.appendChild(createNavSubLink(tool, task.id));
+        });
+        if (expert.length) {
+            const moreWrap = document.createElement('div');
+            moreWrap.className = 'dash-tasks-split__nav-more';
+            const moreBtn = document.createElement('button');
+            moreBtn.type = 'button';
+            moreBtn.className = 'dash-tasks-split__nav-more-btn';
+            moreBtn.setAttribute('aria-expanded', 'false');
+            moreBtn.innerHTML =
+                '<span class="dash-tasks-split__nav-more-line" aria-hidden="true"></span>' +
+                '<span class="dash-tasks-split__nav-more-label">Mehr …</span>' +
+                '<span class="dash-tasks-split__nav-more-count">' +
+                expert.length +
+                '</span>';
+            const moreBody = document.createElement('div');
+            moreBody.className = 'dash-tasks-split__nav-more-body';
+            moreBody.hidden = true;
+            expert.forEach(function (tool) {
+                moreBody.appendChild(createNavSubLink(tool, task.id));
+            });
+            function setMoreOpen(open, persist) {
+                const next = !!open;
+                moreBtn.setAttribute('aria-expanded', next ? 'true' : 'false');
+                moreBody.hidden = !next;
+                moreWrap.classList.toggle('is-open', next);
+                moreBtn.querySelector('.dash-tasks-split__nav-more-label').textContent = next
+                    ? 'Weniger'
+                    : 'Mehr …';
+                if (persist !== false) {
+                    moreOpenState[task.id] = next;
+                    writeNavMoreOpenState(moreOpenState);
+                }
+            }
+            moreBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                setMoreOpen(moreBtn.getAttribute('aria-expanded') !== 'true', true);
+            });
+            moreWrap.appendChild(moreBtn);
+            moreWrap.appendChild(moreBody);
+            sub.appendChild(moreWrap);
+            setMoreOpen(moreOpenState[task.id] === true, false);
+        }
+        return sub;
+    }
+
+    function createNavItem(task, opts) {
+        const options = opts && typeof opts === 'object' ? opts : {};
+        const accordion = !!options.accordion;
+
+        prepareExpertTools(task);
         structureDetailSections(task);
         task.classList.add('dash-tasks-split__panel');
         task.hidden = true;
@@ -629,16 +874,14 @@ export function mountDashboardTasksSplit() {
         const indexEl = task.querySelector('.dash-task-index');
         const indexText = indexEl ? String(indexEl.textContent || '').trim() : '';
 
-        if (task.id === 'dashTaskGruppen') {
-            const sep = document.createElement('div');
-            sep.className = 'dash-tasks-split__nav-sep';
-            sep.setAttribute('role', 'presentation');
-            nav.appendChild(sep);
-        }
+        const block = document.createElement('div');
+        block.className = 'dash-tasks-split__nav-block';
+        block.dataset.taskId = task.id;
 
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'dash-tasks-split__nav-item';
+        if (accordion) btn.classList.add('dash-tasks-split__nav-group-toggle');
         if (task.id === 'dashTaskImportVerknuepfen') btn.classList.add('dash-tasks-split__nav-item--start');
         btn.setAttribute('data-task-id', task.id);
         btn.setAttribute('aria-controls', task.id);
@@ -647,37 +890,135 @@ export function mountDashboardTasksSplit() {
             '<span class="dash-tasks-split__nav-icon" aria-hidden="true"><i></i></span>' +
             '<span class="dash-tasks-split__nav-body">' +
             '<span class="dash-tasks-split__nav-line">' +
-            '<span class="dash-tasks-split__nav-index"></span>' +
-            '<span class="dash-tasks-split__nav-dot" data-status="none" aria-hidden="true"></span>' +
+            '<span class="dash-tasks-split__nav-index" hidden></span>' +
+            '<span class="dash-tasks-split__nav-dot" data-status="none" aria-hidden="true" hidden></span>' +
             '<span class="dash-tasks-split__nav-label"></span>' +
+            '<span class="dash-tasks-split__nav-count" hidden></span>' +
+            (accordion
+                ? '<i class="bi bi-chevron-down dash-tasks-split__nav-group-chevron" aria-hidden="true"></i>'
+                : '') +
             '</span></span></span>';
         const iconEl = btn.querySelector('.dash-tasks-split__nav-icon i');
         if (iconEl) iconEl.className = navIconClassForTask(task);
         const indexSpan = btn.querySelector('.dash-tasks-split__nav-index');
         if (indexSpan) {
             if (indexText && indexText !== 'Start') indexSpan.textContent = indexText;
-            else indexSpan.hidden = true;
+            indexSpan.hidden = true;
         }
         btn.querySelector('.dash-tasks-split__nav-label').textContent = navLabelForTask(task);
         paintNavBadge(btn, task.id);
         if (task.id === 'dashTaskImportVerknuepfen') applyImportTaskPersona(task, btn);
 
+        const sub = buildNavSubForTask(task);
+
+        detail.appendChild(task);
+
+        if (accordion) {
+            const groupEl = document.createElement('div');
+            groupEl.className = 'dash-tasks-split__nav-group';
+            groupEl.dataset.navGroup = task.id;
+            groupEl.dataset.taskId = task.id;
+
+            btn.id = 'dashNavGroupToggle-' + task.id;
+            btn.setAttribute('aria-controls', 'dashNavGroupBody-' + task.id);
+
+            const body = document.createElement('div');
+            body.className = 'dash-tasks-split__nav-group-body';
+            body.id = 'dashNavGroupBody-' + task.id;
+            body.setAttribute('role', 'group');
+            body.setAttribute('aria-labelledby', btn.id);
+            if (sub) body.appendChild(sub);
+            else body.hidden = true;
+
+            groupEl.appendChild(btn);
+            groupEl.appendChild(body);
+            block.appendChild(groupEl);
+
+            const group = {
+                id: task.id,
+                el: groupEl,
+                toggle: btn,
+                body: body,
+                taskIds: [task.id]
+            };
+            navGroups.push(group);
+
+            const defaultOpen = groupOpenState[task.id] === true;
+            setGroupOpen(group, defaultOpen, false);
+
+            btn.addEventListener('click', function () {
+                const isCurrent = btn.getAttribute('aria-current') === 'true';
+                const isOpen = btn.getAttribute('aria-expanded') === 'true';
+                if (isCurrent && isOpen) {
+                    setGroupOpen(group, false, true);
+                    return;
+                }
+                selectTask(task.id);
+            });
+
+            navButtons.push({ btn: btn, task: task, block: block, sub: sub, group: group });
+            return block;
+        }
+
         btn.addEventListener('click', function () {
             selectTask(task.id);
         });
+        block.appendChild(btn);
+        if (sub) {
+            sub.hidden = true;
+            block.appendChild(sub);
+        }
+        navButtons.push({ btn: btn, task: task, block: block, sub: sub, group: null });
+        return block;
+    }
 
-        nav.appendChild(btn);
-        detail.appendChild(task);
-        navButtons.push({ btn, task });
+    function setGroupOpen(group, open, persist) {
+        const next = !!open;
+        group.el.classList.toggle('is-collapsed', !next);
+        group.toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+        group.body.hidden = !next;
+        if (persist !== false) {
+            groupOpenState[group.id] = next;
+            writeNavGroupOpenState(groupOpenState);
+        }
+    }
+
+    function expandGroupForTask(taskId) {
+        navGroups.forEach(function (group) {
+            if (group.taskIds.indexOf(taskId) !== -1) setGroupOpen(group, true, true);
+        });
+    }
+
+    // Bereiche = aufklappbare Gruppen (Stammdaten, Mitgliedschaften, …)
+    NAV_AREA_TASK_IDS.forEach(function (id) {
+        const task = taskById[id];
+        if (!task) return;
+        nav.appendChild(createNavItem(task, { accordion: true }));
+    });
+
+    // Unbekannte Tasks (falls später ergänzt) ans Ende
+    navTasks.forEach(function (task) {
+        if (NAV_AREA_TASK_IDS.indexOf(task.id) !== -1) return;
+        nav.appendChild(createNavItem(task, { accordion: true }));
     });
 
     split.appendChild(nav);
     split.appendChild(detail);
+    mountToolsViewToggle(detail, { ariaLabel: 'Darstellung der Aufgaben-Werkzeuge' });
+    applyToolsViewMode(readToolsViewMode());
     wireDashTasksSplitNavResize(split);
     grid.replaceWith(split);
 
     split.dataset.splitMounted = '1';
     document.body.classList.add('dash-tasks-split-active');
+
+    // Tool-Klicks in der Detailfläche: Nav-Baum für die bleibende IT-Leiste merken
+    detail.addEventListener('click', function (ev) {
+        const a = ev.target && ev.target.closest ? ev.target.closest('a.dash-task-row[href]') : null;
+        if (!a) return;
+        const panel = a.closest('.dash-tasks-split__panel');
+        persistWorkspaceTree(panel && panel.id ? panel.id : '');
+    });
 
     function selectTask(taskId, opts) {
         const id = String(taskId || '').trim();
@@ -694,7 +1035,15 @@ export function mountDashboardTasksSplit() {
             selectTask(navButtons[0].task.id, options);
             return;
         }
-        if (found) writeStoredTaskId(id);
+        if (found) {
+            writeStoredTaskId(id);
+            expandGroupForTask(id);
+            navButtons.forEach(function (item) {
+                const on = item.task.id === id;
+                if (item.block) item.block.classList.toggle('is-active', on);
+            });
+            persistWorkspaceTree(id);
+        }
         if (found && !options.skipHash) {
             const hash = TASK_HASH_BY_ID[id] || id;
             try {
@@ -727,6 +1076,7 @@ export function mountDashboardTasksSplit() {
         navButtons.forEach(function (item) {
             paintNavBadge(item.btn, item.task.id);
             ensureAlertSection(item.task);
+            refreshGroupInsightTile(item.task);
             if (item.task.id === 'dashTaskImportVerknuepfen') {
                 applyImportTaskPersona(item.task, item.btn);
             }
@@ -748,18 +1098,50 @@ export function mountDashboardTasksSplit() {
                 String(task.getAttribute('data-dash-task-search') || '').toLowerCase();
             const sectionMatch = !searching || sectionHay.indexOf(q) !== -1;
             let anyRow = false;
+            let expertHit = false;
             task.querySelectorAll('.dash-task-row').forEach(function (row) {
                 const rowMatch = sectionMatch || rowMatchesSearch(row, q);
                 if (searching) row.hidden = !rowMatch;
                 else row.hidden = false;
                 if (rowMatch) anyRow = true;
+                const details = row.closest('details.dash-task-expert');
+                if (details && rowMatch && searching) {
+                    details.open = true;
+                    expertHit = true;
+                }
             });
             const navVisible = !searching || sectionMatch || anyRow;
             item.btn.hidden = !navVisible;
+            if (item.block) item.block.hidden = !navVisible;
+            if (item.sub && searching && (sectionMatch || expertHit || anyRow)) {
+                const moreWrap = item.sub.querySelector('.dash-tasks-split__nav-more');
+                if (moreWrap && (expertHit || sectionMatch)) {
+                    const moreBtn = moreWrap.querySelector('.dash-tasks-split__nav-more-btn');
+                    const moreBody = moreWrap.querySelector('.dash-tasks-split__nav-more-body');
+                    if (moreBtn && moreBody) {
+                        moreBtn.setAttribute('aria-expanded', 'true');
+                        moreBody.hidden = false;
+                        moreWrap.classList.add('is-open');
+                        const label = moreBtn.querySelector('.dash-tasks-split__nav-more-label');
+                        if (label) label.textContent = 'Weniger';
+                    }
+                }
+            }
             if (navVisible && searching) {
                 hits += 1;
                 if (!firstHit) firstHit = task.id;
             }
+        });
+
+        navGroups.forEach(function (group) {
+            const anyVisible = group.taskIds.some(function (tid) {
+                const item = navButtons.find(function (n) {
+                    return n.task.id === tid;
+                });
+                return item && !item.btn.hidden;
+            });
+            group.el.hidden = searching && !anyVisible;
+            if (searching && anyVisible) setGroupOpen(group, true, false);
         });
 
         if (searching) {
@@ -770,7 +1152,16 @@ export function mountDashboardTasksSplit() {
             tasksRoot.setAttribute('data-dash-task-search-visible', '1');
             navButtons.forEach(function (item) {
                 item.btn.hidden = false;
+                if (item.block) item.block.hidden = false;
             });
+            navGroups.forEach(function (group) {
+                group.el.hidden = false;
+                setGroupOpen(group, groupOpenState[group.id] === true, false);
+            });
+            const current = navButtons.find(function (item) {
+                return item.btn.getAttribute('aria-current') === 'true';
+            });
+            if (current) expandGroupForTask(current.task.id);
         }
         return hits;
     }
@@ -798,7 +1189,7 @@ export function mountDashboardTasksSplit() {
         });
     }
 
-    mountTaskScenarioGuide(split, { select: selectTask });
+    mountTaskScenarioGuide(detail, { select: selectTask });
 
     const api = {
         select: selectTask,
@@ -821,6 +1212,27 @@ export function mountDashboardTasksSplit() {
             }
         }
     );
+
+    function syncWorkspaceSessionWithDashboardMode(ev) {
+        if (isDashboardItShellActive()) {
+            persistWorkspaceTree(currentSelectedTaskId());
+            return;
+        }
+        const mode = ev && ev.detail && ev.detail.layoutMode ? String(ev.detail.layoutMode) : '';
+        if (/^apps-/.test(mode)) {
+            clearItWorkspaceNav();
+        } else {
+            deactivateItWorkspace();
+        }
+    }
+
+    ['ms365-dash-app-only-changed', 'ms365-it-shell-changed'].forEach(function (evName) {
+        try {
+            window.addEventListener(evName, syncWorkspaceSessionWithDashboardMode);
+        } catch {
+            /* ignore */
+        }
+    });
 
     return api;
 }

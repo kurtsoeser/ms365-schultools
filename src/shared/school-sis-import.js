@@ -58,12 +58,14 @@
 
     function cell(row, idx) {
         if (idx < 0 || !row) return '';
-        return normStr(row[idx]);
+        const s = normStr(row[idx]);
+        if (!s || /^undefined$/i.test(s) || /^null$/i.test(s)) return '';
+        return s.replace(/\bundefined\b/gi, ' ').replace(/\s+/g, ' ').trim();
     }
 
     function joinPersonName(vorname, familienname) {
-        const v = normStr(vorname);
-        const f = normStr(familienname);
+        const v = cell([vorname], 0);
+        const f = cell([familienname], 0);
         if (v && f) return v + ' ' + f;
         return v || f;
     }

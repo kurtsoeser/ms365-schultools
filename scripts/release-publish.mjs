@@ -74,8 +74,10 @@ async function main() {
   console.log('→ check:secrets');
   await run('npm', ['run', 'check:secrets']);
 
-  console.log('→ privacy-copy synchronisieren');
+  console.log('→ privacy-copy + landing offer-/screens-catalog synchronisieren');
   await run('node', ['scripts/sync-privacy-copy.mjs']);
+  await run('node', ['scripts/sync-landing-offer-catalog.mjs']);
+  await run('node', ['scripts/sync-landing-screens-catalog.mjs']);
 
   if (!skipScreens) {
     console.log('→ landing screenshots (Playwright + Vite auf Port ' + SHOT_PORT + ')');

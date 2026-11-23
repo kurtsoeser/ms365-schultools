@@ -12,20 +12,20 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.25rem;
-    height: 1.25rem;
-    margin-left: 0.35rem;
-    padding: 0 0.35rem;
+    min-width: 0;
+    height: auto;
+    margin-left: auto;
+    padding: 1px 7px;
     border-radius: 999px;
-    background: var(--accent, #6d28d9);
-    color: #fff;
-    font-size: 0.72rem;
-    font-weight: 600;
+    background: var(--brand1);
+    color: var(--on-accent, #04211d);
+    font-size: 11px;
+    font-weight: 700;
 }
 
 .lfr-page .fr-nav__btn--cta {
-    margin-top: 0.35rem;
-    font-weight: 600;
+    margin-top: 0;
+    font-weight: 450;
 }
 
 .lfr-page .fr-nav__btn-label {
@@ -185,77 +185,74 @@
 .lfr-listbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
-    margin: 0 0 14px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--card);
+    margin: 0 0 16px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .lfr-listbar__select,
 .lfr-listbar__search {
     appearance: none;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 6px;
     background-color: var(--card);
-    color: inherit;
+    color: var(--heading);
     font: inherit;
-    min-height: 38px;
-    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 34px;
+    padding: 6px 10px;
 }
 
 .lfr-listbar__select {
-    padding-right: 32px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
     min-width: 140px;
 }
 
 .lfr-listbar__search {
-    margin-left: auto;
     width: min(220px, 100%);
 }
 
 .lfr-listbar__meta {
-    font-size: 0.85rem;
-    color: var(--muted, var(--text-secondary));
+    margin-left: auto;
+    font-size: 12.5px;
+    color: var(--muted);
     white-space: nowrap;
 }
 
 .lfr-page .fr-table-wrap {
     overflow: auto;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--card);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .lfr-page .lfr-table {
     margin: 0;
-    font-size: 0.92rem;
+    font-size: 13.5px;
 }
 
 .lfr-page .lfr-table th,
 .lfr-page .lfr-table td {
-    padding: 8px 10px;
+    padding: 11px 8px;
     vertical-align: middle;
     border-bottom: 1px solid var(--border);
 }
 
 .lfr-page .lfr-table th {
-    background: var(--surface-2, var(--bg-soft, #f1f5f9));
-    color: color-mix(in srgb, var(--text) 82%, #000);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     position: static;
-}
-
-.lfr-page .lfr-table tr:last-child td {
-    border-bottom: 0;
 }
 
 .lfr-page .lfr-table--rows .lfr-table__row {
@@ -263,23 +260,23 @@
 }
 
 .lfr-page .lfr-table--rows .lfr-table__row:hover {
-    background: color-mix(in srgb, var(--brand1, var(--primary, #5b4bb7)) 6%, var(--card));
+    background: color-mix(in srgb, var(--heading) 3.5%, transparent);
 }
 
 .lfr-page .lfr-table--rows .lfr-table__row:hover .lfr-table__chevron {
-    color: var(--text);
+    color: var(--heading);
     opacity: 1;
 }
 
 .lfr-page .lfr-table--rows .lfr-table__row:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--brand1, var(--primary, #5b4bb7)) 50%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--brand1) 50%, transparent);
     outline-offset: -2px;
 }
 
 .lfr-table__chevron {
     width: 2rem;
     text-align: right;
-    color: var(--muted, var(--text-secondary));
+    color: var(--muted);
     opacity: 0.55;
 }
 
@@ -287,35 +284,47 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 9px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--border) 55%, var(--card));
-    color: var(--text);
+    background: var(--rail-active, rgba(0, 0, 0, 0.06));
+    color: var(--heading);
     white-space: nowrap;
 }
 
 .lfr-status__dot {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: currentColor;
 }
 
 .lfr-status--ok {
-    background: color-mix(in srgb, #16a34a 16%, var(--card));
-    color: #166534;
+    background: rgba(19, 161, 14, 0.14);
+    color: #0e7a0b;
 }
 
 .lfr-status--warn {
-    background: color-mix(in srgb, #d97706 16%, var(--card));
-    color: #92400e;
+    background: rgba(247, 99, 12, 0.14);
+    color: #b54708;
 }
 
 .lfr-status--bad {
-    background: color-mix(in srgb, #dc2626 14%, var(--card));
-    color: #991b1b;
+    background: rgba(197, 15, 31, 0.14);
+    color: #b42318;
+}
+
+html[data-theme='dark'] .lfr-status--ok {
+    color: #7ee27a;
+}
+
+html[data-theme='dark'] .lfr-status--warn {
+    color: #ffb07a;
+}
+
+html[data-theme='dark'] .lfr-status--bad {
+    color: #ff99a1;
 }
 
 .lfr-text-link {

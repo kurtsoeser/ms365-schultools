@@ -48,6 +48,13 @@ export function ensureAppHeaderChrome() {
             .catch(function () {
                 /* ignore */
             });
+        import('./it-workspace-shell.js')
+            .then(function (m) {
+                if (m && typeof m.bootItWorkspaceShell === 'function') m.bootItWorkspaceShell();
+            })
+            .catch(function () {
+                /* ignore */
+            });
         return true;
     }
 
@@ -104,6 +111,14 @@ export function mountAppGlobalHeader() {
             if (m && typeof m.mountDashboardCompactHeader === 'function') {
                 m.mountDashboardCompactHeader();
             }
+        })
+        .catch(function () {
+            /* ignore */
+        });
+
+    import('./it-workspace-shell.js')
+        .then(function (m) {
+            if (m && typeof m.bootItWorkspaceShell === 'function') m.bootItWorkspaceShell();
         })
         .catch(function () {
             /* ignore */

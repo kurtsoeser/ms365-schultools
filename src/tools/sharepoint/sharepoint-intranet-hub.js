@@ -439,14 +439,14 @@
 
         setPsScript(siteUrl);
         $('fLog').textContent = 'Hole SharePoint-Token und versuche Hub-Registrierung (REST) …';
-        const spoScope = 'https://' + host + '/Sites.FullControl.All';
+        const spoScope = 'https://' + host + '/AllSites.FullControl';
         let spoToken;
         try {
             spoToken = await G.getGraphToken([spoScope]);
         } catch (e) {
             revealHubFallback();
             $('fLog').textContent =
-                'SharePoint-Token fehlgeschlagen (App braucht Zustimmung „Office 365 SharePoint Online“ / Sites.FullControl.All).\n' +
+                'SharePoint-Token fehlgeschlagen (App braucht Zustimmung „Office 365 SharePoint Online“ / AllSites.FullControl).\n' +
                 'Das ist im Browser oft nicht eingerichtet – bitte PowerShell unten oder Admin Center nutzen.\n' +
                 String(e && e.message ? e.message : e);
             toast('Hub: bitte PowerShell oder Admin Center');

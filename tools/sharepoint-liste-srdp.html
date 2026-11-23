@@ -32,8 +32,8 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-mortarboard"></i>sRDP-Liste einrichten</span>
             </div>
             <p>
-                In <strong>5 Schritten</strong>: Website &amp; Jahr, Abschlussklassen, Optionen, Rechte
-                (Gruppen oder Personen aus Microsoft&nbsp;365), dann Liste anlegen.
+                In <strong>6 Schritten</strong>: Website &amp; Jahr, Klassen, Optionen, Abschlussarbeiten (ABA),
+                Rechte (Vollzugriff / Lesende Rechte / Kandidat:innen), dann Listen anlegen.
                 Danach arbeiten Schüler, Lehrer und Admin in der
                 <a href="srdp-anmeldung.html">sRDP-Anmeldung-App</a>.
             </p>
@@ -47,11 +47,11 @@
         <div class="content">
             <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
                 <span class="tm-perm" id="srsTeacherHint"><i class="bi bi-person-badge"></i>Lehrer …</span>
-                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="srsPhaseHint">Schritt 1 von 5: Website &amp; Jahr</span></span>
-                <span class="tm-perm"><i class="bi bi-shield-check"></i>Website-Besitzer + Sites.FullControl.All</span>
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="srsPhaseHint">Schritt 1 von 6: Website &amp; Jahr</span></span>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Website-Besitzer + AllSites.FullControl</span>
             </div>
 
-            <section class="tm-glance tm-glance--compact srs-wizard-glance srs-wizard-glance--nav it-setup-glance it-setup-glance--nav it-setup-glance--cols-5" id="srsWizardGlance" role="tablist" aria-label="sRDP-Listen Schritte">
+            <section class="tm-glance tm-glance--compact srs-wizard-glance srs-wizard-glance--nav it-setup-glance it-setup-glance--nav it-setup-glance--cols-6" id="srsWizardGlance" role="tablist" aria-label="sRDP-Listen Schritte">
                 <button type="button" role="tab" class="tm-glance__card is-active" data-srs-wizard-step="1" aria-selected="true" aria-controls="srsWizardStep1">
                     <i class="bi bi-link-45deg" aria-hidden="true"></i>
                     <span class="tm-glance__label">1 · Website</span>
@@ -65,12 +65,16 @@
                     <span class="tm-glance__label">3 · Optionen</span>
                 </button>
                 <button type="button" role="tab" class="tm-glance__card" data-srs-wizard-step="4" aria-controls="srsWizardStep4">
-                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
-                    <span class="tm-glance__label">4 · Rechte</span>
+                    <i class="bi bi-file-earmark-richtext" aria-hidden="true"></i>
+                    <span class="tm-glance__label">4 · ABA</span>
                 </button>
                 <button type="button" role="tab" class="tm-glance__card" data-srs-wizard-step="5" aria-controls="srsWizardStep5">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                    <span class="tm-glance__label">5 · Rechte</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-srs-wizard-step="6" aria-controls="srsWizardStep6">
                     <i class="bi bi-play-circle" aria-hidden="true"></i>
-                    <span class="tm-glance__label">5 · Anlegen</span>
+                    <span class="tm-glance__label">6 · Anlegen</span>
                 </button>
             </section>
 
@@ -79,7 +83,8 @@
                     <div id="srsWizardStep1" class="tm-wizard__pane" role="tabpanel">
                         <h3 class="tm-wizard__pane-title">Website &amp; Jahr</h3>
                         <p class="tm-wizard__pane-lead">
-                            Listenname: <strong id="srsListPreview">sRDP-Anmeldungen YYYY</strong>
+                            Anmeldeliste: <strong id="srsListPreview">sRDP-Anmeldungen YYYY</strong>
+                            · Abschlussarbeiten: <strong id="srsAbaListPreviewTop">sRDP-Abschlussarbeiten YYYY</strong>
                             · Profile: HAK, HTL, HLW, BAFEB, AHS.
                         </p>
                         <section class="tm-panel">
@@ -148,9 +153,39 @@
                     </div>
 
                     <div id="srsWizardStep4" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Abschlussarbeiten (ABA-Portal)</h3>
+                        <p class="tm-wizard__pane-lead">
+                            Excel-Export aus dem ABA-Portal – Titel und Betreuer werden in der Matura-Anmeldung vorausgefüllt.
+                            Liste: <strong id="srsAbaListPreview">sRDP-Abschlussarbeiten …</strong>
+                        </p>
+                        <section class="tm-panel">
+                            <p class="muted" style="margin:0 0 10px;font-size:0.88em;">
+                                Musterdatei:
+                                <a href="../assets/srdp/ABA-Portal-Demo-Diplomarbeiten.xlsx" download>ABA-Portal-Demo-Diplomarbeiten.xlsx</a>
+                                (Demo-Schüler:innen inkl. Lena Bauer, Betreuer aus Demo-Lehrkräften).
+                            </p>
+                            <div class="tm-actions" style="flex-wrap:wrap;gap:8px;">
+                                <input type="file" id="srsAbaFile" accept=".xlsx,.xls,.csv" hidden>
+                                <button type="button" class="btn" id="srsBtnAbaEnsure"><i class="bi bi-database-add"></i>Abschlussarbeiten-Liste anlegen</button>
+                                <button type="button" class="btn akt-btn-primary" id="srsBtnAbaUpload" style="background:var(--brand1);color:#fff;border-color:var(--brand1)"><i class="bi bi-upload"></i>ABA-Excel hochladen</button>
+                            </div>
+                            <p id="srsAbaStatus" class="muted" style="margin:10px 0 0;font-size:0.88em;line-height:1.45;" role="status"></p>
+                            <p style="margin:12px 0 0;">
+                                <a id="srsAbaListLink" hidden href="#" target="_blank" rel="noopener"></a>
+                            </p>
+                            <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
+                                Optional in diesem Schritt – die Liste wird auch beim finalen „Listen anlegen“ mit erstellt.
+                                Spalten: Titel, Schüler/in, Klasse, Betreuer/in, Status. Team-Zeilen werden pro Person aufgeteilt.
+                            </p>
+                        </section>
+                    </div>
+
+                    <div id="srsWizardStep5" class="tm-wizard__pane" role="tabpanel" hidden>
                         <h3 class="tm-wizard__pane-title">Gruppen &amp; Rechte</h3>
                         <p class="tm-wizard__pane-lead">
-                            Mehrere Microsoft&nbsp;365-Gruppen und optional einzelne Personen je Rolle.
+                            Microsoft&nbsp;365-Gruppen und optional einzelne Personen je Stufe:
+                            <strong>Vollzugriff</strong>, <strong>Lesende Rechte</strong> (alle Anmeldungen sehen),
+                            <strong>Kandidat:innen</strong> (nur eigene Anmeldung).
                             Vererbung wird gebrochen; breite Site-Rollen entfernt.
                         </p>
                         <div id="srsEntraPermHost" class="fr-setup-perm-grid-host"></div>
@@ -159,24 +194,26 @@
                         </label>
                     </div>
 
-                    <div id="srsWizardStep5" class="tm-wizard__pane" role="tabpanel" hidden>
-                        <h3 class="tm-wizard__pane-title">Liste anlegen</h3>
-                        <p class="tm-wizard__pane-lead">Zusammenfassung prüfen, dann ausführen. Idempotent für dasselbe Jahr.</p>
+                    <div id="srsWizardStep6" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Listen anlegen &amp; prüfen</h3>
+                        <p class="tm-wizard__pane-lead">Anmeldeliste und ABA-Abschlussarbeiten für dasselbe Terminjahr. Idempotent.</p>
                         <section class="tm-panel">
                             <ul class="srs-summary-list" id="srsWizardSummary">
                                 <li>Website: —</li>
                             </ul>
                             <div id="srsWizardRunFooter" style="margin-top:14px;">
                                 <button type="button" class="btn" id="srsBtnSave"><i class="bi bi-save"></i>Einstellungen speichern</button>
-                                <button type="button" class="btn" id="srsBtnHealth"><i class="bi bi-heart-pulse"></i>Liste prüfen</button>
+                                <button type="button" class="btn" id="srsBtnHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>
                                 <button type="button" class="btn" id="srsBtnTitles"><i class="bi bi-type"></i>Titel nachziehen</button>
                                 <button type="button" class="btn" id="srsBtnPerms"><i class="bi bi-shield-lock"></i>Rechte nachziehen</button>
-                                <button type="button" class="btn akt-btn-primary" id="srsBtnRun" style="background:var(--brand1);color:#fff;border-color:var(--brand1)"><i class="bi bi-list-ul"></i>Liste anlegen</button>
+                                <button type="button" class="btn akt-btn-primary" id="srsBtnRun" style="background:var(--brand1);color:#fff;border-color:var(--brand1)"><i class="bi bi-list-ul"></i>Listen anlegen</button>
                             </div>
                             <p id="srsHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
                             <p style="margin:12px 0 0;">
                                 <a id="srsListLink" hidden href="#" target="_blank" rel="noopener"></a>
                             </p>
+                        </section>
+                        <section class="tm-panel" style="margin-top:14px;">
                             <details class="tm-tech" id="srsLogPanel" open>
                                 <summary>Protokoll</summary>
                                 <div id="srsLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
@@ -204,6 +241,7 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js"></script>
     <script src="../src/shared/action-log.js" defer></script>
+    <script src="../vendor/xlsx/xlsx.full.min.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-srdp.js"></script>
 </body>

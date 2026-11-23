@@ -10,6 +10,8 @@ import {
 import { toolLabel } from './dashboard-audience-catalog.js';
 import { packageStatsHtml } from './admin-license-packages-ui.js';
 import { renderSalesBundlesPanel } from './admin-sales-bundles-ui.js';
+import { matchSalesBundle } from './sales-bundles-catalog.js';
+import { adoptionCounts } from './admin-license-overview-logic.js';
 
 function $(id) {
     return document.getElementById(id);
@@ -94,7 +96,7 @@ function renderStats() {
 function renderPackageRail() {
     const host = $('adminModPackageList');
     const headCount = document.querySelector('.admin-mod-rail__head span');
-    if (headCount) headCount.textContent = LICENSE_PACKAGES.length + ' Module';
+    if (headCount) headCount.textContent = String(LICENSE_PACKAGES.length);
     if (!host) return;
     host.replaceChildren();
     LICENSE_PACKAGES.forEach((pkg) => {
@@ -319,6 +321,38 @@ function loadDraftLocal() {
     }
 }
 
+function renderAdoption(schools) {
+    const host = $('adminModAdoption');
+    if (!host) return;
+    if (!Array.isArray(schools)) {
+        host.textContent = 'Paket-Mix erscheint, sobald die Schulliste geladen ist.';
+        return;
+    }
+    const counts = adoptionCounts(schools, LICENSE_PACKAGES, matchSalesBundle);
+    if (!counts.withPackages) {
+        host.textContent = schools.length
+            ? 'Noch keine Schule mit gesetzten Paketen.'
+            : 'Paket-Mix erscheint, sobald die Schulliste geladen ist.';
+        return;
+    }
+    host.replaceChildren();
+    const title = document.createElement('p');
+    title.className = 'admin-mod-adoption__title';
+    title.textContent = 'Freigeschaltet an Schulen';
+    host.appendChild(title);
+    const pkgs = document.createElement('p');
+    pkgs.className = 'admin-mod-adoption__line';
+    pkgs.textContent = LICENSE_PACKAGES.map((pkg) => pkg.label + ' ' + (counts.byPackage[pkg.id] || 0)).join(' · ');
+    host.appendChild(pkgs);
+    const bundles = Object.keys(counts.byBundle).map((id) => counts.byBundle[id]);
+    const bundleLine = document.createElement('p');
+    bundleLine.className = 'admin-mod-adoption__line';
+    const bundleBits = bundles.map((bundle) => bundle.label + ' ' + bundle.count);
+    if (counts.custom) bundleBits.push('ohne Bündel ' + counts.custom);
+    bundleLine.textContent = bundleBits.length ? bundleBits.join(' · ') : 'Kein Verkaufsbündel erkannt.';
+    host.appendChild(bundleLine);
+}
+
 function renderSalesReference() {
     const host = $('adminModSalesBundles');
     if (!host) return;
@@ -337,6 +371,7 @@ function renderCatalog() {
     renderStats();
     renderPackageRail();
     renderDetail();
+    renderAdoption(window.ms365AdminSchoolSnapshot);
 }
 
 function wire() {
@@ -373,6 +408,10 @@ function wire() {
     }
 
     renderCatalog();
+    window.addEventListener('ms365-admin-schools', (event) => {
+        const schools = event.detail && event.detail.schools;
+        renderAdoption(Array.isArray(schools) ? schools : []);
+    });
     window.addEventListener('hashchange', () => {
         if (String(location.hash || '').replace(/^#/, '').split('/')[0] === 'modules') {
             renderCatalog();

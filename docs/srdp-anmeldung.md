@@ -62,15 +62,24 @@ Sieben Prüfungsteile: Diplomarbeit + (3 Klausuren + 3 mündlich) **oder** (4 Kl
 | **schriftlich** | D (5h), BFK (6h), **LFS (5h)** | D (5h), BFK (6h), **AM (4,5h)** | D, BFK, **LFS**, **AM** |
 | **mündlich** | BKO, **AM**, Wahlfach | BKO, **LFS**, Wahlfach | BKO, Wahlfach |
 
-Implikation für die Anmeldung:
+Implikation für die Anmeldung (App-Wizard, profilgesteuert):
 
-- **LFS** kommt in **allen** Varianten vor (schriftlich oder mündlich) → Feld `LFS` (+ optional `LehrerIn LFS`) bleibt grundsätzlich sichtbar.
-- **Wahlfach** + `LehrerIn Wahlfach` immer.
-- **BKO** + `LehrerIn BKO` immer.
-- **AM** braucht kein eigenes Anmelde-Dropdown (kein Sprachcode); die Variante legt fest, ob AM schriftlich oder mündlich ist → als **abgeleitete/info**-Spalten oder nur in der Hilfe/Ansicht.
-- Wenn Wahlfach = „Seminar …“ → Feld `Seminar` Pflicht (Bezeichnung des Seminars).
+- Variante zuerst als Karten (schriftlich/mündlich) → dann Prüfungsgebiete.
+- **Schriftlich** (zentral/schulisch): kein Prüfer.
+- **Mündlich**: Fach wo nötig + **Mehrfach-Lehrer** (`Name1; Name2`), mind. 1.
+- **LFS**-Code in allen HAK-Varianten; **Lehrer LFS nur**, wenn LFS mündlich (Var. 2).
+- **Lehrer AM** nur bei mündlichem AM (Var. 1); Spalte `LehrerAM`.
+- **BKO** / **Wahlfach** immer mündlich → Multi-Lehrer.
+- Seminar-Pflicht unverändert, wenn Wahlfach mit „Seminar“ beginnt.
+- Gleiche Engine für **HTL / HLW / BAFEB / AHS** (Profile + Part→Feld-Mapping); AHS nutzt ABA/VWA-Felder.
 
 Offizielle Wahlfach-Bezeichnungen (Wizard-Defaults, Schule kann kürzen/erweitern): Religion/Ethik, Kultur, Geschichte und …, Geografie und …, Naturwissenschaften, Recht, Volkswirtschaft, Berufsbezogene Kommunikation in der LFS, Mehrsprachigkeit, Wirtschaftsinformatik, Seminar …, Freigegenstand …, (Sonderfälle Slowenisch/Deutsch nur zweisprachige HAK).
+
+---
+
+### 3.1 ABA-Portal → Abschlussarbeiten
+
+IT/Admin lädt den Excel-Export aus dem ABA-Portal hoch (SheetJS) – im **IT-Setup** (`sharepoint-liste-srdp.html`, Schritt 4) und in der App-Systemadministration. Spalten: Titel, Schüler/in, Klasse, Betreuer/in, Status. Team-Zellen werden **pro Person** aufgelöst und in `sRDP-Abschlussarbeiten {CODE} {Jahr}` geschrieben (Replace pro Terminjahr). „Listen anlegen“ erzeugt Anmeldungs- **und** Abschlussarbeiten-Liste; „Listen prüfen“ prüft beide. Musterdatei: `assets/srdp/ABA-Portal-Demo-Diplomarbeiten.xlsx` (Demo-Schüler:innen inkl. Lena Bauer, Betreuer Mag. Müller &amp; Co.). Beim Anmelden Match auf Vorname/Nachname (+ Klasse) → Prefill Titel + Betreuer (BHS: Diplomarbeit; AHS: ABA/VWA).
 
 ---
 
@@ -121,11 +130,12 @@ Persistenz der Wizard-Defaults lokal (Browser / Backup-Key analog anderer Tools)
 | `BetreuungslehrerDA` | BetreuungslehrerIn Diplomarbeit | Choice | ja | Lehrer |
 | `Variante` | Variante | Choice | ja | `Variante 1` / `2` / `3` |
 | `LFS` | LFS | Choice | ja | bei HAK immer (siehe §3) |
-| `LehrerLFS` | LehrerIn LFS | Choice | **ja** | Pflicht |
-| `LehrerBKO` | LehrerIn BKO mündlich | Choice | ja | |
+| `LehrerLFS` | LehrerIn LFS | Choice (`allowTextEntry`) | bedingt | nur wenn LFS mündlich; Multi via `Name; Name` |
+| `LehrerBKO` | LehrerIn BKO mündlich | Choice (`allowTextEntry`) | ja | Multi |
+| `LehrerAM` | LehrerIn AM mündlich | Choice (`allowTextEntry`) | bedingt | nur HAK Var. 1 (AM mündlich); Multi |
 | `WahlfachMuendlich` | Wahlfach mündlich | Choice | ja | |
 | `Seminar` | Seminar | Choice **mit Freitext** (`allowTextEntry: true`) | bedingt | Pflicht wenn Wahlfach Seminar; Optionen + eigene Eingabe |
-| `LehrerWahlfach` | LehrerIn Wahlfach | Choice | ja | |
+| `LehrerWahlfach` | LehrerIn Wahlfach | Choice (`allowTextEntry`) | ja | Multi |
 | `Bestaetigung` | Bestätigung Anmeldung | Boolean / Choice Ja | ja | |
 | `Schulform` | Schulform | Choice (hidden) | – | Default `HAK` für spätere Profile |
 | `TerminJahr` | Terminjahr | Zahl/Text | – | z. B. 2026 |
@@ -176,20 +186,16 @@ Setup-Wizard wählt Profil → Provisioning bleibt generisch.
 
 ## 7. Tool-Oberfläche (Setup-Wizard)
 
-Schritte (Vorschlag):
+Schritte in `sharepoint-liste-srdp.html` (6):
 
-1. **Site & Jahr** – Intranet-URL, Terminjahr, Listenname-Vorschau  
-2. **Schulform** – HAK (weitere disabled / „demnächst“)  
-3. **Klassen** – Multi-Select aus Stammdaten (vorfilter Abschlussjahr)  
-4. **Lehrer-Pools** – alle Lehrer oder gefilterte Listen für die vier Choice-Felder  
-5. **LFS / Wahlfach / Seminar** – Optionen bearbeiten  
-6. **Gruppen & Rechte** – je Rolle **mehrere** M365-Gruppen und optional Personen; Vererbung brechen  
-7. **Anlegen** – Liste + Spalten + Ansichten + Formatting + Rechte; Protokoll  
-8. **Fertig** – Link zur Liste, Link „Neues Element“
+1. **Website & Jahr** – Site-URL, Schulform, Terminjahr  
+2. **Klassen** – Abschlussklassen aus Stammdaten (+ optional M365-Gruppen)  
+3. **Optionen** – LFS / Wahlfach / Seminar  
+4. **Abschlussarbeiten (ABA)** – Liste anlegen, ABA-Excel hochladen  
+5. **Rechte** – Vollzugriff / Lesende Rechte / Kandidat:innen (Gruppen + Personen)  
+6. **Anlegen** – Anmelde- + Abschlussarbeiten-Liste, Health-Check, Rechte nachziehen  
 
-Zusätzlich: **Health-Check** (Liste existiert, Spalten ok, Ansichten ok) und „fehlende Spalten ergänzen“ (idempotent innerhalb desselben Jahres).
-
-Integration: eigene Tool-Seite + optional Checkbox im Intranet-Hub-Startpaket (wie Schularbeiten).
+Zusätzlich: fehlende Spalten ergänzen (idempotent innerhalb desselben Jahres).
 
 ---
 
@@ -197,13 +203,13 @@ Integration: eigene Tool-Seite + optional Checkbox im Intranet-Hub-Startpaket (w
 
 Beim Listen-Anlegen: Vererbung brechen und SharePoint-/Entra-Gruppen zuweisen.
 
-| Rolle | Recht | Gruppe (Vorschlag, im Wizard konfigurierbar) |
-|-------|--------|-----------------------------------------------|
-| Schüler:innen Abschlussjahrgänge | Beiträge hinzufügen; eigene Items lesen/bearbeiten | z. B. Jahrgangs-/Klassengruppen oder `sRDP-Kandidaten-{Jahr}` |
-| Verwaltung / Direktion | Vollzugriff | z. B. `sRDP-Admin` / bestehende Admin-Gruppe |
-| Klassenlehrer / Lehrkräfte | Lesen | z. B. Lehrer-Gesamtgruppe oder `sRDP-Lehrer` |
+| Stufe (UI) | SPO-Recht | Wer typisch |
+|------------|-----------|-------------|
+| **Vollzugriff** | Full Control | Direktion, IT, Verwaltung |
+| **Lesende Rechte** | Gestaltung (sieht alle Anmeldungen trotz „nur eigene Elemente“) | Lehrkräfte, Sekretariat, Einzelpersonen |
+| **Kandidat:innen** | Mitwirken; nur eigene Zeile | Abschlussklassen / Jahrgangsgruppen |
 
-Wizard-Schritt „Gruppen“: pro Rolle mehrere Entra-/M365-Gruppen und optional Einzelpersonen; Setup setzt alle Zuweisungen und protokolliert das Ergebnis. Fallback-Hinweis, falls Graph die Rechte nicht setzen kann. Bestehende Einzel-Gruppen-IDs werden in die Mehrfach-Listen migriert.
+Wizard-Schritt „Rechte“: je Stufe mehrere Entra-/M365-Gruppen und optional Einzelpersonen. Bestehende Config-Keys (`admin*` / `lehrer*`) bleiben intern kompatibel.
 
 ---
 
@@ -266,7 +272,15 @@ Wizard-Schritt „Gruppen“: pro Rolle mehrere Entra-/M365-Gruppen und optional
 - [x] Docs + Hilfe + Workshop-Script Tool C anpassen  
 - [x] Bestätigungsmail-Flow (Shared Mailbox) + Setup-ZIP `srdp-mail-setup.html`  
 
-**Feinschliff danach:** Entra-Gruppen strikt, HTL/AHS-Formularfelder in der App, CSV-Export, Landing-Screenshot, SchülerEmail-Spalte falls Admin für Schüler einträgt.
+**Feinschliff danach:** Entra-Gruppen strikt, CSV-Export, Landing-Screenshot.
+
+### Phase 5 – Varianten-Wizard + ABA-Abschlussarbeiten (2026-03)
+
+- [x] Profilgesteuerter Wizard (Varianten-Karten → Gebiete → Multi-Lehrer nur mündlich)
+- [x] HAK `LehrerAM`; Lehrer-Choice mit Freitext für Mehrfachnamen
+- [x] ABA-Portal-Excel-Import (Systemadministration) → Liste `sRDP-Abschlussarbeiten {CODE} {Jahr}`
+- [x] Prefill Diplomarbeit / ABA-Titel + Betreuer beim Anmelden
+- [x] Tests: Slots, Validierung, ABA-Parse, Wizard-Render
 
 **Power Automate (Bestätigungsmail):** `tools/srdp-mail-setup.html` + Vorlage `assets/power-automate/srdp-anmeldung/` – Trigger neue Anmeldung → Mail aus freigegebenem Postfach mit Zusammenfassung (Variante, Prüfplan, Betreuung, LFS/BKO/Wahlfach). Optional BCC Verwaltung.
 

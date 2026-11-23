@@ -41,19 +41,28 @@ import {
     PORTAL_QUICK_LINK_SCHOOL_IDS
 } from './dashboard-portal-links.js';
 import { greetingForHour, extractFirstName } from './dashboard-greeting-band.js';
+import { primaryPersonaLabel } from './app-role-switcher-policy.js';
 import { buildDashboardSchoolCard } from './school-profile-logic.js';
+import { LANDING_KONTAKT_URL } from './lehrer-portal-readiness.js';
+import { readLehrerPortalWithReleaseGate } from './portal-release-gate.js';
+import {
+    persistPortalWorkspaceNav,
+    portalTreeFromSections,
+    PORTAL_SECTION_NAV_KEY
+} from './portal-workspace-nav.js';
 
 /** @type {import('./dashboard-layout-mode.js').DashboardLayoutMode} */
 let layoutMode = 'preview-lehrer';
 /** @type {import('./dashboard-audience-resolve.js').DashboardPersonas|null} */
 let personas = null;
 
-const PORTAL_NAV_KEY = 'ms365-dashboard-portal-nav-v1';
 /** @type {string} */
 let portalNavId = 'home';
+/** Ausgewählte Gruppe bleibt sichtbar, ein zweiter Klick klappt nur die Werkzeuge zu. */
+let portalGroupCollapsed = false;
 
 try {
-    const saved = String(sessionStorage.getItem(PORTAL_NAV_KEY) || '').trim();
+    const saved = String(sessionStorage.getItem(PORTAL_SECTION_NAV_KEY) || '').trim();
     if (saved) portalNavId = saved;
 } catch {
     /* ignore */
@@ -111,6 +120,59 @@ function appOnlyStackEl() {
     return document.getElementById('dashAppOnlyStack');
 }
 
+const LEHRER_SETUP_BANNER_ID = 'ms365LehrerPortalSetupBanner';
+
+/**
+ * Dezenter Banner im Lehrer-Portal, wenn Lizenz OK aber Einrichtung fehlt.
+ * @param {ParentNode | null} stack
+ */
+function syncLehrerPortalSetupBanner(stack) {
+    if (!stack) return;
+    const existing = document.getElementById(LEHRER_SETUP_BANNER_ID);
+    const appOnly = isAppsOnlyLayout(layoutMode);
+    const view = catalogView();
+    const forLehrer = appOnly && (view === 'lehrer' || layoutMode === 'apps-lehrer' || layoutMode === 'preview-lehrer');
+
+    if (!forLehrer || itDashboardChrome()) {
+        if (existing) existing.remove();
+        return;
+    }
+
+    const readiness = readLehrerPortalWithReleaseGate();
+    if (readiness.status !== 'setup_incomplete') {
+        if (existing) existing.remove();
+        return;
+    }
+
+    let banner = existing;
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = LEHRER_SETUP_BANNER_ID;
+        banner.className = 'ms365-empty-state-banner ms365-lehrer-portal-setup-banner';
+        banner.setAttribute('role', 'status');
+    }
+
+    banner.innerHTML =
+        '<p><strong>' +
+        escapeHtml(readiness.title) +
+        '</strong> ' +
+        escapeHtml(readiness.message) +
+        '</p>' +
+        '<div class="ms365-empty-state-banner__actions">' +
+        '<a class="btn btn-ghost" href="' +
+        escapeHtml(LANDING_KONTAKT_URL) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        '<i class="bi bi-envelope" aria-hidden="true"></i> Anfrage stellen</a>' +
+        '</div>';
+
+    const quick = document.getElementById('dashQuickApps');
+    if (quick && quick.parentElement === stack) {
+        stack.insertBefore(banner, quick);
+    } else if (!banner.parentElement) {
+        stack.insertBefore(banner, stack.firstChild);
+    }
+}
+
 function syncCatalogCardsHidden() {
     const catalog = document.getElementById('dash-catalog');
     if (!catalog) return;
@@ -146,6 +208,17 @@ function portalDisplayName() {
     return '';
 }
 
+function renderToolRow(id) {
+    const href = DASHBOARD_TOOL_LINKS[id] || `tools/${id}.html`;
+    const icon = DASHBOARD_TOOL_ICONS[id] || 'bi-box-arrow-up-right';
+    const blurb = DASHBOARD_TOOL_BLURBS[id] || '';
+    return `<a class="dash-portal-row" href="${escapeHtml(href)}" data-tool-id="${escapeHtml(id)}">
+        <span class="dash-portal-row__icon"><i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i></span>
+        <span class="dash-portal-row__text"><strong>${escapeHtml(toolLabel(id))}</strong>${blurb ? `<small>${escapeHtml(blurb)}</small>` : ''}</span>
+        <span class="dash-portal-row__go">Öffnen</span>
+    </a>`;
+}
+
 function renderToolCard(id) {
     const href = DASHBOARD_TOOL_LINKS[id] || `tools/${id}.html`;
     const icon = DASHBOARD_TOOL_ICONS[id] || 'bi-box-arrow-up-right';
@@ -177,7 +250,9 @@ function renderPortalLinksStrip(links) {
     return `<section class="dash-portal-links" aria-label="Schnellzugriff Links">
         <div class="dash-portal-links__head">
             <h2 class="dash-portal-links__title">Schnellzugriff</h2>
-            <button type="button" class="dash-portal-links__edit btn btn-ghost" data-portal-links-edit>Links bearbeiten</button>
+            <button type="button" class="dash-portal-links__edit" data-portal-links-edit title="Links bearbeiten">
+                <i class="bi bi-pencil" aria-hidden="true"></i><span>Links bearbeiten</span>
+            </button>
         </div>
         <div class="dash-portal-links__chips">${chips}</div>
         ${emptyHint}
@@ -256,21 +331,18 @@ function visiblePortalSections(view) {
 function setPortalNavId(id) {
     portalNavId = String(id || 'home').trim() || 'home';
     try {
-        sessionStorage.setItem(PORTAL_NAV_KEY, portalNavId);
+        sessionStorage.setItem(PORTAL_SECTION_NAV_KEY, portalNavId);
     } catch {
         /* ignore */
     }
 }
 
 function renderItAreaCtaCard() {
-    return `<button type="button" class="dash-quick-apps__card dash-portal-it-cta" data-open-it-shell>
-                <div class="dash-quick-apps__card-head">
-                  <h3><i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>IT-Bereich</h3>
-                  <i class="bi bi-chevron-right dash-quick-apps__chev" aria-hidden="true"></i>
-                </div>
-                <p class="dash-quick-apps__card-desc">Vollständiger Werkzeugkatalog, Stammdaten und Organigramm – nur für Schul-IT.</p>
-                <span class="dash-quick-apps__card-action">Öffnen <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span>
-            </button>`;
+    return `<button type="button" class="dash-portal-row" data-open-it-shell>
+        <span class="dash-portal-row__icon"><i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i></span>
+        <span class="dash-portal-row__text"><strong>IT-Bereich</strong><small>Werkzeugkatalog, Stammdaten und Organigramm.</small></span>
+        <span class="dash-portal-row__go">Öffnen</span>
+    </button>`;
 }
 
 function readSchoolCardInput() {
@@ -394,7 +466,9 @@ function bindPortalSchoolClock(wrap) {
 
 function renderPortalHome(view, sections, links) {
     const firstName = extractFirstName(portalDisplayName());
-    const role = viewLabel(view);
+    const role =
+        primaryPersonaLabel(personas) ||
+        (personas && personas.unknownUser ? 'Willkommen' : viewLabel(view));
     const greeting = greetingForHour();
     const welcomeLine = firstName
         ? `${greeting}, ${escapeHtml(firstName)}!`
@@ -436,20 +510,85 @@ function renderPortalHome(view, sections, links) {
         </header>
         ${renderPortalLinksStrip(links)}
         <section class="dash-portal-section" aria-label="Meine Apps">
-            <h2 class="dash-portal-section__title"><i class="bi bi-grid" aria-hidden="true"></i>Meine Apps</h2>
-            <div class="dash-quick-apps__grid">
-                ${unique.map(renderToolCard).join('')}
+            <h2 class="dash-portal-section__title">Meine Apps</h2>
+            <div class="dash-portal-rows">
+                ${unique.map(renderToolRow).join('')}
                 ${itCta}
             </div>
         </section>`;
 }
 
 function renderPortalSectionPanel(sec) {
+    const n = (sec.toolIds || []).length;
+    const lead = n === 0
+        ? 'In diesem Bereich ist noch kein Werkzeug freigeschaltet.'
+        : n === 1
+            ? 'Ein Werkzeug. Ein Klick öffnet es.'
+            : `${n} Werkzeuge. Ein Klick öffnet das jeweilige Werkzeug.`;
     return `
         <section class="dash-portal-section" data-portal-section="${escapeHtml(sec.id)}" aria-label="${escapeHtml(sec.label)}">
-            <h2 class="dash-portal-section__title"><i class="bi ${escapeHtml(sec.icon || 'bi-grid')}" aria-hidden="true"></i>${escapeHtml(sec.label)}</h2>
-            <div class="dash-quick-apps__grid">${sec.toolIds.map(renderToolCard).join('')}</div>
+            <header class="dash-portal-hero dash-portal-hero--section">
+                <h1 class="dash-portal-hero__title">${escapeHtml(sec.label)}</h1>
+                <p class="dash-portal-hero__lead">${lead}</p>
+            </header>
+            <div class="dash-portal-rows">${(sec.toolIds || []).map(renderToolRow).join('')}</div>
         </section>`;
+}
+
+function renderPortalNavHtml(sections) {
+    const byId = new Map(sections.map((sec) => [sec.id, sec]));
+    const items = [
+        { id: 'home', label: 'Dashboard', icon: 'bi-house-door' },
+        ...sections.map((sec) => ({
+            id: sec.id,
+            label: sec.label,
+            icon: sec.icon || 'bi-grid'
+        }))
+    ];
+    if (itDashboardChrome()) {
+        items.push({
+            id: 'it-bereich',
+            label: 'IT-Bereich',
+            icon: 'bi-grid-3x3-gap-fill',
+            it: true
+        });
+    }
+
+    return items
+        .map((item) => {
+            const selected = item.id === portalNavId && item.id !== 'it-bereich';
+            const section = byId.get(item.id);
+            const toolIds = section && section.toolIds ? section.toolIds : [];
+            const expandable = toolIds.length > 0;
+            const open = expandable && selected && !portalGroupCollapsed;
+            const cls = [
+                'dashboard-tab',
+                'dash-portal-shell__tab',
+                item.it ? 'dash-portal-shell__tab--it' : ''
+            ]
+                .filter(Boolean)
+                .join(' ');
+            const chevron = expandable
+                ? '<i class="bi bi-chevron-down dash-portal-shell__chevron" aria-hidden="true"></i>'
+                : '';
+            const btn =
+                `<button type="button" class="${cls}" data-portal-nav="${escapeHtml(item.id)}" aria-selected="${selected ? 'true' : 'false'}"` +
+                (expandable ? ` aria-expanded="${open ? 'true' : 'false'}"` : '') +
+                `><i class="bi ${escapeHtml(item.icon)}" aria-hidden="true"></i>` +
+                `<span class="dash-portal-shell__tab-label">${escapeHtml(item.label)}</span>${chevron}</button>`;
+            if (!expandable) {
+                return `<div class="dash-portal-shell__group">${btn}</div>`;
+            }
+            const subs = toolIds
+                .map((id) => {
+                    const href = DASHBOARD_TOOL_LINKS[id] || `tools/${id}.html`;
+                    const icon = DASHBOARD_TOOL_ICONS[id] || 'bi-box-arrow-up-right';
+                    return `<a class="dash-portal-shell__subitem" href="${escapeHtml(href)}" data-tool-id="${escapeHtml(id)}"><i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i><span>${escapeHtml(toolLabel(id))}</span></a>`;
+                })
+                .join('');
+            return `<div class="dash-portal-shell__group">${btn}<div class="dash-portal-shell__sub"${open ? '' : ' hidden'}>${subs}</div></div>`;
+        })
+        .join('');
 }
 
 function bindPortalShellEvents(wrap, view) {
@@ -460,6 +599,12 @@ function bindPortalShellEvents(wrap, view) {
                 setLayoutMode('full');
                 return;
             }
+            if (id === portalNavId && id !== 'home') {
+                portalGroupCollapsed = !portalGroupCollapsed;
+                renderQuickstart();
+                return;
+            }
+            portalGroupCollapsed = false;
             setPortalNavId(id);
             renderQuickstart();
         });
@@ -482,6 +627,7 @@ function renderQuickstart() {
     if (!isAppsOnlyLayout(layoutMode)) {
         if (wrap) wrap.hidden = true;
         if (stack) stack.hidden = true;
+        document.getElementById(LEHRER_SETUP_BANNER_ID)?.remove();
         return;
     }
 
@@ -491,9 +637,11 @@ function renderQuickstart() {
 
     if (!sections.length) {
         const visible = flatFallback.filter((id) => isToolVisible(id) && isToolLicenseAllowed(id));
-        if (!visible.length && !itDashboardChrome()) {
+        const setupIncomplete = readLehrerPortalWithReleaseGate().status === 'setup_incomplete';
+        if (!visible.length && !itDashboardChrome() && !setupIncomplete) {
             if (wrap) wrap.hidden = true;
             if (stack) stack.hidden = true;
+            document.getElementById(LEHRER_SETUP_BANNER_ID)?.remove();
             return;
         }
         if (visible.length) {
@@ -529,47 +677,15 @@ function renderQuickstart() {
     wrap.hidden = false;
     wrap.classList.add('dash-lehrer-portal');
     if (stack) stack.hidden = false;
+    syncLehrerPortalSetupBanner(stack);
 
     const links = loadPortalQuickLinks();
     const activeSec = sections.find((s) => s.id === portalNavId);
-
-    const navItems = [
-        {
-            id: 'home',
-            label: 'Dashboard',
-            icon: 'bi-house-door'
-        },
-        ...sections.map((s) => ({
-            id: s.id,
-            label: s.label,
-            icon: s.icon || 'bi-grid'
-        }))
-    ];
-    if (itDashboardChrome()) {
-        navItems.push({
-            id: 'it-bereich',
-            label: 'IT-Bereich',
-            icon: 'bi-grid-3x3-gap-fill',
-            it: true
-        });
-    }
-
-    const navHtml = navItems
-        .map((item) => {
-            const selected = item.id === portalNavId && item.id !== 'it-bereich';
-            const cls = [
-                'dashboard-tab',
-                'dash-portal-shell__tab',
-                item.it ? 'dash-portal-shell__tab--it' : '',
-                selected ? '' : ''
-            ]
-                .filter(Boolean)
-                .join(' ');
-            return `<button type="button" class="${cls}" role="tab" data-portal-nav="${escapeHtml(item.id)}" aria-selected="${selected ? 'true' : 'false'}"${selected ? '' : ' tabindex="-1"'}>
-                <i class="bi ${escapeHtml(item.icon)}" aria-hidden="true"></i>${escapeHtml(item.label)}
-            </button>`;
-        })
-        .join('');
+    persistPortalWorkspaceNav(
+        portalTreeFromSections(sections),
+        view === 'schueler' ? 'schueler' : 'lehrer'
+    );
+    const navHtml = renderPortalNavHtml(sections);
 
     let mainHtml;
     if (portalNavId === 'home' || !activeSec) {
@@ -580,10 +696,10 @@ function renderQuickstart() {
 
     wrap.innerHTML = `
         <div class="dash-portal-shell" role="region" aria-label="Schulportal">
-            <div class="dash-portal-shell__nav dashboard-tablist" role="tablist" aria-label="Portal-Bereiche">
+            <nav class="dash-portal-shell__nav dashboard-tablist" aria-label="Portal-Bereiche">
                 ${navHtml}
-            </div>
-            <div class="dash-portal-shell__main" role="tabpanel">
+            </nav>
+            <div class="dash-portal-shell__main">
                 ${mainHtml}
             </div>
         </div>`;

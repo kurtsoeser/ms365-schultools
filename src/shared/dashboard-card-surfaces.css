@@ -159,143 +159,120 @@
     color: var(--brand1);
 }
 
-/* —— Aufgaben-Split: Primär + Hygiene (überschreibt index.html Gelb/Grün + weiße Navy-Typo) —— */
+/*
+ * Welle 4 – einheitliche Tool-Zeilen in „Was möchten Sie tun?“
+ * Eine ruhige Liste: gleiche Icons, gleicher Hover, Status nur rechts farbig.
+ */
+.dash-tasks-split__panel a.dash-split-tool-card,
 .dash-tasks-split__panel a.dash-split-tool-card.dash-task-row--primary,
+.dash-tasks-split__panel a.dash-split-tool-card:hover,
+.dash-tasks-split__panel a.dash-split-tool-card:focus-visible,
 .dash-tasks-split__panel a.dash-split-tool-card.dash-task-row--primary:hover,
 .dash-tasks-split__panel a.dash-split-tool-card.dash-task-row--primary:focus-visible {
-    color: var(--task-ink, #1e2440) !important;
+    color: var(--heading, #1e2440) !important;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary {
-    color: var(--task-ink, #1e2440);
-    background: color-mix(in srgb, var(--brand1) 7%, var(--card, #fff));
-    border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border, rgba(30, 36, 64, 0.1)));
-    box-shadow: none;
+.dash-tasks-split__panel .dash-split-tool-card,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary,
+.dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary),
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='warn'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='mismatch'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='unmatched'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='pending'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='warn'],
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='mismatch'] {
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 12px 10px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--hairline, var(--border)) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transform: none !important;
+    filter: none !important;
 }
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__title,
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__desc,
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__deviation-hint {
-    color: var(--task-ink, #1e2440);
+    color: inherit;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__desc {
-    color: var(--task-muted, #5c6578);
-    opacity: 1;
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__title {
+    font-weight: 600 !important;
+    color: var(--heading, #1e2440) !important;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__open-badge {
-    display: inline-flex;
-    align-items: center;
-    max-width: 100%;
-    margin-left: 0;
-    margin-top: 4px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 750;
-    line-height: 1.25;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    background: color-mix(in srgb, var(--brand1) 12%, #fff);
-    color: color-mix(in srgb, var(--brand1) 85%, #1e2440) !important;
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__desc {
+    color: var(--muted, #5c6578) !important;
+    opacity: 1 !important;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__head {
-    flex-wrap: wrap;
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__head .bi,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__head .bi,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone] .dash-task-row__head .bi,
+.dash-tasks-split__panel .dash-split-tool-card:hover .dash-task-row__head .bi,
+.dash-tasks-split__panel .dash-split-tool-card:focus-visible .dash-task-row__head .bi {
+    color: var(--heading, #1e2440) !important;
+    opacity: 0.78 !important;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__head .bi {
-    color: color-mix(in srgb, var(--brand1) 82%, #1e2440);
-}
-
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__action,
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__action {
-    background: color-mix(in srgb, var(--brand1) 14%, #fff);
-    color: color-mix(in srgb, var(--brand1) 90%, #1e2440) !important;
+    background: transparent !important;
+    color: var(--brand1) !important;
+    font-weight: 650 !important;
+    padding: 0 !important;
 }
 
+.dash-tasks-split__panel .dash-split-tool-card:hover .dash-task-row__action,
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:hover .dash-task-row__action {
-    background: color-mix(in srgb, var(--brand1) 20%, #fff);
-    color: color-mix(in srgb, var(--brand1) 92%, #1e2440) !important;
+    background: transparent !important;
+    color: var(--brand1) !important;
 }
 
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__status,
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__status {
-    background: color-mix(in srgb, var(--brand1) 12%, #fff);
-    color: color-mix(in srgb, var(--brand1) 82%, #1e2440) !important;
+    background: transparent !important;
+    font-weight: 600;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok'] {
-    background: color-mix(in srgb, #16a34a 6%, var(--card, #fff));
-    border-color: color-mix(in srgb, #16a34a 22%, var(--border, #e5e7eb));
-    color: var(--task-ink, #1e2440);
-}
-
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='warn'],
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='mismatch'] {
-    background: color-mix(in srgb, var(--brand1) 8%, var(--card, #fff));
-    border-color: color-mix(in srgb, var(--brand1) 26%, var(--border, #e5e7eb));
-    color: var(--task-ink, #1e2440);
-}
-
-/* Hover: siehe gemeinsame Kachel-Hervorhebung unten */
-
-.dash-tasks-split__panel .dash-split-tool-card[data-hygiene-tone='ok'] .dash-task-row__status[data-tone='ok'],
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok'] .dash-task-row__status {
-    background: var(--color-success-bg, #dcfce7);
-    color: var(--color-success, #16a34a);
+.dash-tasks-split__panel .dash-split-tool-card[data-hygiene-tone='ok'] .dash-task-row__status,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok'] .dash-task-row__status,
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__status[data-tone='ok'] {
+    color: var(--muted, #6c757d) !important;
 }
 
 .dash-tasks-split__panel .dash-split-tool-card[data-hygiene-tone='warn'] .dash-task-row__status,
-.dash-tasks-split__panel .dash-split-tool-card[data-hygiene-tone='mismatch'] .dash-task-row__status {
-    background: color-mix(in srgb, var(--brand1) 10%, #fff);
-    color: color-mix(in srgb, var(--brand1) 75%, #7a4e00);
+.dash-tasks-split__panel .dash-split-tool-card[data-hygiene-tone='mismatch'] .dash-task-row__status,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='warn'] .dash-task-row__status,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='mismatch'] .dash-task-row__status {
+    color: color-mix(in srgb, var(--brand1) 55%, #9a6700) !important;
 }
 
-.dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary) {
-    background: var(--card, #fff);
-    border: 1px solid var(--border, rgba(30, 36, 64, 0.1));
+.dash-tasks-split__panel .dash-split-tool-card .dash-task-row__open-badge,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__open-badge {
+    background: color-mix(in srgb, var(--brand1) 10%, transparent) !important;
+    color: var(--brand1) !important;
 }
 
-
-/* index.html .dash-task-row-Hygiene: kein Gelb/Grün-Vollflächen im Split-Grid */
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok'] {
-    background: color-mix(in srgb, #16a34a 5%, var(--card, #fff));
-    border-color: color-mix(in srgb, #16a34a 20%, var(--border, rgba(30, 36, 64, 0.1)));
-    color: var(--task-ink, #1e2440);
-}
-
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='warn'],
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='mismatch'] {
-    background: color-mix(in srgb, var(--brand1) 6%, var(--card, #fff));
-    border-color: color-mix(in srgb, var(--brand1) 22%, var(--border, rgba(30, 36, 64, 0.1)));
-    color: var(--task-ink, #1e2440);
-}
-
-/* Split-Kacheln: deutliche Hover-Hervorhebung (nur die Karte, nicht der Mittelbereich) */
+/* Einheitlicher Hover für ALLE Zeilen */
 .dash-tasks-split__panel .dash-split-tool-card:hover,
-.dash-tasks-split__panel .dash-split-tool-card:focus-visible {
-    transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--brand1) 55%, var(--border, rgba(30, 36, 64, 0.12))) !important;
-    box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--brand1) 28%, transparent),
-        0 16px 36px color-mix(in srgb, var(--brand1) 22%, rgba(12, 18, 34, 0.14));
-    z-index: 3;
-}
-
+.dash-tasks-split__panel .dash-split-tool-card:focus-visible,
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:focus-visible {
-    background: color-mix(in srgb, var(--brand1) 16%, var(--card, #fff)) !important;
-}
-
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:focus-visible,
 .dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary):hover,
 .dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary):focus-visible {
-    background: color-mix(in srgb, var(--brand1) 10%, var(--card, #fff)) !important;
-}
-
-.dash-tasks-split__panel .dash-split-tool-card:hover .dash-task-row__head .bi,
-.dash-tasks-split__panel .dash-split-tool-card:focus-visible .dash-task-row__head .bi {
-    color: var(--brand1);
+    background: color-mix(in srgb, var(--heading) 5%, transparent) !important;
+    border-color: transparent !important;
+    border-bottom-color: var(--hairline, var(--border)) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    z-index: 2;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -305,19 +282,131 @@
     }
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok'] .dash-task-row__head .bi {
-    color: #146c43;
-}
-
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='warn'] .dash-task-row__head .bi,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='mismatch'] .dash-task-row__head .bi {
-    color: color-mix(in srgb, var(--brand1) 78%, #1e2440);
-}
-
 .dash-task-progress[data-tone='warn'] {
     color: color-mix(in srgb, var(--brand1) 82%, #1e2440);
     background: color-mix(in srgb, var(--brand1) 8%, #fff);
     border-color: color-mix(in srgb, var(--brand1) 22%, var(--color-neutral-200, #e5e7eb));
+}
+
+/*
+ * Katalog „Alle Werkzeuge“: gleiche ruhige Listen-Zeilen (keine bunten Kacheln).
+ */
+body.dash-catalog-split-active #dash-catalog .dashboard-tabpanel .grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card.primary,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card.secondary {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas:
+        'icon head actions'
+        'icon desc actions'
+        'icon status actions';
+    gap: 2px 12px;
+    align-items: center;
+    min-height: 0;
+    margin: 0;
+    padding: 12px 10px;
+    border: 0;
+    border-bottom: 1px solid var(--hairline, var(--border));
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card:hover,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card.primary:hover,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card.secondary:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent) !important;
+    border-color: transparent !important;
+    border-bottom-color: var(--hairline, var(--border)) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-header {
+    grid-area: head;
+    padding-right: 0;
+    min-height: 0;
+    align-items: center;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-header::before {
+    content: '';
+    grid-area: icon;
+    /* Platzhalter – Icon kommt aus Title-Bi oder pseudo */
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--heading) !important;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-title .bi,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card h2 .bi,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-header .bi {
+    color: var(--heading) !important;
+    opacity: 0.78;
+    font-size: 1.05rem;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-description {
+    grid-area: desc;
+    -webkit-line-clamp: 2;
+    color: var(--muted) !important;
+    opacity: 1 !important;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-status {
+    grid-area: status;
+    justify-self: start;
+    margin: 2px 0 0;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-actions {
+    grid-area: actions;
+    margin: 0;
+    align-self: center;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-btn,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card.primary .card-btn,
+body.dash-catalog-split-active #dash-catalog .choice.tool-card.secondary .card-btn {
+    background: transparent !important;
+    border: 0 !important;
+    color: var(--brand1) !important;
+    box-shadow: none !important;
+    padding: 0;
+    font-weight: 650;
+}
+
+body.dash-catalog-split-active #dash-catalog .choice.tool-card .card-star {
+    top: 8px;
+    right: 8px;
+    opacity: 0.35;
+}
+
+body.dash-catalog-split-active #dash-catalog .dashboard-cluster-subhead {
+    margin: 18px 4px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+body.dash-catalog-split-active #dash-catalog .dashboard-cluster-subhead .bi {
+    color: var(--muted) !important;
+    opacity: 0.85;
 }
 
 .page-dashboard .choice.tool-card.recommended:hover {

@@ -61,12 +61,12 @@ export function renderLfrDrawer(state) {
     const secondaryActions = [];
     if (allowDecide) {
         primaryActions.push(
-            `<button type="button" class="btn fr-btn-primary" data-lfr-approve="${esc(
+            `<button type="button" class="fb-btn" data-lfr-approve="${esc(
                 id
             )}">Genehmigen</button>`
         );
         secondaryActions.push(
-            `<button type="button" class="btn" data-lfr-reject="${esc(id)}">Ablehnen</button>`
+            `<button type="button" class="fb-btn fb-btn--ghost" data-lfr-reject="${esc(id)}">Ablehnen</button>`
         );
     }
 

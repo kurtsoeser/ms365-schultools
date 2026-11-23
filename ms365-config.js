@@ -9,6 +9,12 @@ window.MS365_FREISTELLUNG_PLANER = {
 
 window.MS365_MSAL_CONFIG = {
     clientId: 'e1d877c3-004c-4040-8c3b-81a59e0c7050',
+    /**
+     * Zweite App „ms365-schultools-it“: nur Schreib- und hochprivilegierte Aufrufe.
+     * Öffentliche Client-ID, mehrere Mandanten, keine Zuweisung erforderlich.
+     * Überschreibbar über meta name="ms365-graph-it-client-id", wenn dieses Feld leer ist.
+     */
+    itClientId: 'a1f27f94-78c2-4503-9603-192c86924842',
     authority: 'https://login.microsoftonline.com/organizations',
     redirectUri: (function () {
         if (typeof window === 'undefined') return '';
@@ -47,21 +53,22 @@ window.MS365_MSAL_CONFIG = {
 };
 
 /**
- * Kursteams Azure-Backend – Basis-URL und API-Scope (öffentlich).
- * Anmeldung über das Benutzer-Token, kein Function Key im Browser.
+ * Kursteams Azure-Backend – Scope öffentlich; baseUrl nur über Deploy-Secret
+ * oder ms365-config.local.js (kein -dev in Produktion, a9).
+ * Anmeldung über Benutzer-Token, kein Function Key im Browser.
  */
 window.MS365_KURSTEAMS_API = {
-    baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
+    baseUrl: '',
     scope: 'api://c7e6f467-e6f3-4221-a9ee-574b35120029/Kursteams.Create'
 };
 
 /**
- * License-API – baseUrl nach Deploy setzen (oder in ms365-config.local.js).
- * scope: delegierte Berechtigung der License-Backend-App (License.Access).
- * Endpunkt: GET {baseUrl}/me  mit Authorization: Bearer <Access-Token>
+ * License-API – baseUrl per Deploy (LICENSE_API_BASE_URL) oder lokal.
+ * scope: License.Access. Endpunkt: GET {baseUrl}/me mit Bearer-Token.
+ * Kein Function Key in dist/ (a9).
  */
 window.MS365_LICENSE_API = {
-    baseUrl: 'https://func-ms365-license-dev.azurewebsites.net/api/license',
+    baseUrl: '',
     scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
     functionKey: '',
     /** true = kein /admin/me (nur Schulbetrieb, kein Betreiber-Menü) */
@@ -69,11 +76,10 @@ window.MS365_LICENSE_API = {
 };
 
 /**
- * Schulsprecherwahl-API – anonyme Stimmen in Azure Table Storage.
- * Scope Election.Access (Fallback License.Access) der License-Backend-App.
+ * Schulsprecherwahl-API – Scope öffentlich; baseUrl per Deploy/Lokal.
  */
 window.MS365_ELECTION_API = {
-    baseUrl: 'https://func-ms365-election-dev.azurewebsites.net/api/election',
+    baseUrl: '',
     scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/Election.Access',
     fallbackScope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
     functionKey: ''

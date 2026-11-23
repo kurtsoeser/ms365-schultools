@@ -25,7 +25,14 @@ const STATUS_LABEL = {
 
 export function shouldShowFreistellungAccessDebugEntry(state) {
     if (isFreistellungAccessDebugEnabled()) return true;
-    return !!(state && state.planerAccessDenied && state.accountEmail);
+    return !!(
+        state &&
+        state.planerAccessDenied &&
+        state.accountEmail &&
+        !state.authRolePending &&
+        !state.loading &&
+        !state.kontoOffen
+    );
 }
 
 export function renderFreistellungAccessDebugEntry(state) {

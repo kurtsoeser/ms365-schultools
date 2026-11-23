@@ -1,8 +1,7 @@
 /**
- * Light/Dark + Markenfarbe für die gesamte App.
- * Standard: Hellmodus + Blau-Grün (teal).
- * Speichert: ms365-theme-v1, ms365-brand-v1, eigene Farbe in ms365-brand-custom-v1.
- * Hell/Dunkel-Schalter: Fußzeile. Marke: Konto-Menü oben rechts.
+ * Light/Dark für die gesamte App. Marke ist fest Teal (eine Signatur).
+ * Speichert: ms365-theme-v1, ms365-brand-v1 (= teal).
+ * Hell/Dunkel-Schalter: Fußzeile.
  * Erlaubte Marken: dieselbe Liste wie in theme-boot.js und msal-auth-ui.js.
  */
 (function () {
@@ -11,15 +10,9 @@
     const STORAGE_KEY = 'ms365-theme-v1';
     const BRAND_KEY = 'ms365-brand-v1';
     const THEMES = { light: 'light', dark: 'dark' };
-    const VALID_BRAND_LIST = ['teal', 'classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
+    const VALID_BRAND_LIST = ['teal'];
     const BRANDS = {
-        teal: 'teal',
-        classic: 'classic',
-        wine: 'wine',
-        azure: 'azure',
-        forest: 'forest',
-        amber: 'amber',
-        custom: 'custom'
+        teal: 'teal'
     };
 
     function isValidBrand(brand) {
@@ -93,34 +86,31 @@
     }
 
     function syncBrandLogos() {
-        const brand = currentBrand();
-        const classic = brand === BRANDS.classic;
         document.querySelectorAll('.app-brand-logo').forEach(function (wrap) {
             const teal = wrap.querySelector('.app-brand-logo__mark--teal');
             const classicImg = wrap.querySelector('.app-brand-logo__mark--classic');
             if (teal) {
-                teal.hidden = classic;
-                teal.style.display = classic ? 'none' : 'block';
-                teal.setAttribute('aria-hidden', classic ? 'true' : 'false');
-                if (!classic) teal.setAttribute('alt', 'Logo MS365-Schul-Tools');
-                else teal.setAttribute('alt', '');
+                teal.hidden = false;
+                teal.style.display = 'block';
+                teal.setAttribute('aria-hidden', 'false');
+                teal.setAttribute('alt', 'Logo MS365-Schul-Tools');
             }
             if (classicImg) {
-                classicImg.hidden = !classic;
-                classicImg.style.display = classic ? 'block' : 'none';
-                classicImg.setAttribute('aria-hidden', classic ? 'false' : 'true');
-                if (classic) classicImg.setAttribute('alt', 'Logo MS365-Schul-Tools');
-                else classicImg.setAttribute('alt', '');
+                classicImg.hidden = true;
+                classicImg.style.display = 'none';
+                classicImg.setAttribute('aria-hidden', 'true');
+                classicImg.setAttribute('alt', '');
             }
         });
     }
 
-    function applyBrand(brand) {
-        let next = normalizeBrand(brand);
+    function applyBrand(_brand) {
+        const next = BRANDS.teal;
         const root = document.documentElement;
-        if (window.ms365BrandBoot && typeof window.ms365BrandBoot.syncCustom === 'function') {
-            const resolved = window.ms365BrandBoot.syncCustom(root, next);
-            if (resolved && resolved !== next) next = normalizeBrand(resolved);
+        if (window.ms365BrandBoot && typeof window.ms365BrandBoot.clearCustomProps === 'function') {
+            window.ms365BrandBoot.clearCustomProps(root);
+        } else if (window.ms365BrandBoot && typeof window.ms365BrandBoot.syncCustom === 'function') {
+            window.ms365BrandBoot.syncCustom(root, next);
         }
         root.setAttribute('data-brand', next);
         try {
@@ -155,12 +145,19 @@
     function syncAuthMenuThemeSwitch() {
         const theme = currentTheme();
         const isDark = theme === THEMES.dark;
+        const labelEl = document.getElementById('ms365AuthThemeLabel');
+        if (labelEl) labelEl.textContent = 'Dunkles Design';
         document.querySelectorAll('[data-ms365-auth-theme-toggle]').forEach(function (btn) {
             btn.setAttribute('aria-checked', isDark ? 'true' : 'false');
             btn.classList.toggle('is-on', isDark);
-            const modeLabel = isDark ? 'Dunkel' : 'Hell';
-            btn.setAttribute('aria-label', 'Dunkelmodus: ' + modeLabel);
-            btn.setAttribute('title', modeLabel + 'modus');
+            btn.setAttribute(
+                'aria-label',
+                isDark ? 'Dunkles Design ist an' : 'Dunkles Design ist aus'
+            );
+            btn.setAttribute(
+                'title',
+                isDark ? 'Zum hellen Design wechseln' : 'Dunkles Design einschalten'
+            );
         });
     }
 

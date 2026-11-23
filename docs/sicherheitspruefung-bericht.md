@@ -1,0 +1,78 @@
+# Sicherheitsprüfbericht – MS365-Schul-Tools
+
+**Art:** Interne Kontrollprüfung / Bereitschaftsbericht (kein Ersatz für einen beauftragten externen Pentest)  
+**Stand:** 21.11.2026  
+**Gegenstand:** App `app.ms365.schule`, Landing `ms365.schule`, zugehörige Betreiber-APIs und öffentliches Repo  
+**Bezug:** 180-Tage-Plan Initiative I1 (Vertrauensfundament)
+
+---
+
+## 1. Kurzfazit
+
+Die Vertrauenskette der Browser-App ist für den aktuellen Reifegrad **tragfähig**: Abhängigkeiten werden gebündelt, CSP erzwingt `script-src 'self'`, Deploy läuft über FTPS mit SHA-gepinnten Actions, Elternlinks sind HMAC-signiert (Remote-API in Demos aus), Datenschutztexte haben eine Quelle, Login-Scopes am Anmelden-Button sind persona-/seitenbezogen.
+
+**Offen / empfohlen vor breitem Produktivbetrieb:**
+
+1. Externen Sicherheitstest (Web-App + OAuth-Consent + optionale Azure Functions) beauftragen
+2. WebUntis-Fixtures ohne echte Schul-Mails (`@hak-steyr.at`)
+3. LICENSE / Open-Core-Entscheidung
+4. Dev-/Prod-API-Trennung: getrackte Config ohne `-dev`/ohne Key; Deploy injiziert URLs. Azure hat noch nur `*-dev`-Apps – echte Prod-Function-Apps stehen aus
+5. Staging-Stufe vor Produktion
+6. Zweite Entra-App (c5): Der Code nutzt `ms365-schultools-it` für Schreib- und hochprivilegierte Aufrufe. Login, Lehrkraft, Schüler/in und normale Leseaufrufe bleiben auf der Portal-App. Die Portal-App hat die Schreibscopes noch (in Entra nicht löschen). Zuweisung bleibt aus; andere Schulen stimmen einmalig im Namen der Organisation zu.
+
+---
+
+## 2. Geprüfte Kontrollen
+
+| Kontrolle | Status | Beleg |
+|---|---|---|
+| Keine fremden Skript-CDNs in App (`src`/`tools`/Root) | OK | Suche leer; `vendor-libs.js` / `msal-loader.js` |
+| CSP `script-src 'self'` | OK | `scripts/csp-policy.mjs`, `check-csp` |
+| Deploy verschlüsselt + Actions gepinnt | OK | `deploy-ftp.yml`, `deploy-landing-ftp.yml` (FTPS, SHA) |
+| Login ohne Admin-Scope-Bundle | OK | `auth-login-scopes.js`, `msal-auth-ui.js` |
+| R3 Scope-Bündelung (a4 / c5) | teilweise | Login persona-schmal auf der Portal-App. IT-Schreibaufrufe über die zweite Client-ID (`it-app-auth.js`, `ms365-config.js`). Portal-App behält die Schreibscopes. Zuweisung aus, Zustimmung je Schule einmalig. |
+| Elternlinks HMAC + Fragment | OK | `parent-link-token.js`; Remote-API Demo aus |
+| Datenschutz-SSOT | OK | `privacy-copy.js` + Sync |
+| Storage-Key-Register | OK | `storage-register.js` + Coverage-Test |
+| Trust-Seite öffentlich | OK | `landing/trust.html` |
+| AVV-Vorlage | OK | `docs/avv-vorlage.md` |
+| Externer Pentest | offen | Auftrag ausstehend |
+| Fixture-PII bereinigt | OK (aktueller Tree) | synthetische Fixtures `schule.example`; Historie ggf. noch alt |
+
+---
+
+## 3. Datenfluss (prüfbar)
+
+1. Browser (localStorage / optional IndexedDB)  
+2. Microsoft 365 der Schule (Graph / SharePoint / Teams)  
+3. Statisches Hosting der App  
+4. Betreiber-Minimaldienste (Lizenz, optionale Portale)
+
+Nachweis für Schulen: [Trust-Seite](https://ms365.schule/trust.html) und Netzwerk-Tab auf der App.
+
+---
+
+## 4. Empfehlung externer Test
+
+Scope-Vorschlag für ein externes Audit (1–3 Tage):
+
+- OAuth/MSAL: Consent-Flächen Portal vs. IT, Token-Speicherung, Logout
+- CSP und Supply Chain (Build, `vendor/`, Actions)
+- SharePoint-Listenrechte / Genehmigungsintegrität (Annahme R5)
+- Optionale Azure Functions (Lizenz, Einsammler) inkl. AuthZ und Rate-Limits
+- Landing + Trust-Aussagen vs. tatsächlicher Traffic
+
+Ergebnis des externen Tests als Anhang an diesen Bericht hängen und Schulen auf Anfrage bereitstellen.
+
+---
+
+## 5. Freigabe
+
+| | |
+|---|---|
+| Erstellt | 21.11.2026 · interne Kontrolle zum I1-Stand |
+| Nächste Prüfung | nach externem Pentest oder vor erstem Produktiv-Schuljahr |
+
+---
+
+*Dieser Bericht ist eine ehrliche Bestandsaufnahme. Er ersetzt keine Zertifizierung und keinen unabhängigen Pentest.*

@@ -6,7 +6,9 @@ import {
     normalizeWebsiteHref,
     normalizeSchoolLogoUrl,
     resolveSchoolLogoSrc,
-    buildDashboardSchoolCard
+    buildDashboardSchoolCard,
+    splitRolePersonFields,
+    SCHOOL_LOGO_DATA_URL_MAX_CHARS
 } from '../src/shared/school-profile-logic.js';
 
 describe('school-profile-logic', () => {
@@ -20,6 +22,13 @@ describe('school-profile-logic', () => {
     it('lehnt ungültige Logo-Data-URLs ab', () => {
         const p = normalizeSchoolProfile({ logoDataUrl: 'not-an-image' });
         expect(p.logoDataUrl).toBe('');
+    });
+
+    it('lehnt zu lange Logo-Data-URLs ab (Backup/localStorage)', () => {
+        const huge = 'data:image/jpeg;base64,' + 'A'.repeat(SCHOOL_LOGO_DATA_URL_MAX_CHARS);
+        expect(normalizeSchoolProfile({ logoDataUrl: huge }).logoDataUrl).toBe('');
+        const ok = 'data:image/png;base64,iVBORw0KGgo=';
+        expect(normalizeSchoolProfile({ logoDataUrl: ok }).logoDataUrl).toBe(ok);
     });
 
     it('akzeptiert nur öffentliche HTTPS-Logo-URLs', () => {
@@ -52,6 +61,29 @@ describe('school-profile-logic', () => {
         expect(p.email).toBe('office@schule.at');
         expect(p.logoUrl).toBe('https://example.com/logo.webp');
         expect(emptySchoolProfile().website).toBe('');
+    });
+
+    it('trennt Rollen in Name und E-Mail', () => {
+        expect(splitRolePersonFields('Kurt Söser', 'kurt@schule.at')).toEqual({
+            name: 'Kurt Söser',
+            email: 'kurt@schule.at'
+        });
+        expect(splitRolePersonFields('kurt@schule.at', '')).toEqual({
+            name: '',
+            email: 'kurt@schule.at'
+        });
+        expect(splitRolePersonFields('Kurt Söser <kurt@schule.at>', '')).toEqual({
+            name: 'Kurt Söser',
+            email: 'kurt@schule.at'
+        });
+        const p = normalizeSchoolProfile({
+            direktion: 'DEMO Direktor',
+            itM365Admin: 'it@ms365.schule'
+        });
+        expect(p.direktion).toBe('DEMO Direktor');
+        expect(p.direktionEmail).toBe('');
+        expect(p.itM365Admin).toBe('');
+        expect(p.itM365AdminEmail).toBe('it@ms365.schule');
     });
 
     it('formatiert Adresse und Website für Dashboard-Karte', () => {

@@ -7,6 +7,7 @@
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Stammdaten-Übergabe</title>
     <link rel="stylesheet" href="../app.css?v=14">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
@@ -82,7 +83,7 @@
                                     Anlage läuft über <strong>SharePoint REST</strong> (nicht Graph <code>POST /lists</code>), weil Graph dort oft
                                     „Access denied“ liefert. Sie müssen <strong>Website-Besitzer</strong> sein.
                                     Zusätzlich: App-Zustimmung <code>Sites.ReadWrite.All</code> und SharePoint
-                                    <code>Sites.FullControl.All</code>. Alternative: Bibliothek manuell anlegen, dann hier erneut einrichten.
+                                    <code>AllSites.FullControl</code>. Alternative: Bibliothek manuell anlegen, dann hier erneut einrichten.
                                 </p>
                             </details>
                         </div>
@@ -155,6 +156,7 @@
     <script src="../src/shared/theme-toggle.js?v=4" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/storage-register.js" defer></script>
     <script src="../src/shared/browser-backup.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script type="module" src="../src/tools/stammdaten-uebergabe/stammdaten-uebergabe.js"></script>

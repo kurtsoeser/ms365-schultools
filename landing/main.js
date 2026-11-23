@@ -24,7 +24,6 @@
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
 
-  /* Soft parallax on hero atmosphere */
   const atmosphere = document.querySelector(".hero-atmosphere");
   if (atmosphere && !reduceMotion) {
     let ticking = false;
@@ -43,7 +42,6 @@
     );
   }
 
-  /* Scroll reveal */
   const reveals = document.querySelectorAll(".reveal");
   if (reveals.length) {
     if (reduceMotion || !("IntersectionObserver" in window)) {
@@ -63,59 +61,120 @@
     }
   }
 
-  /* Screenshot tabs with fade */
+  /* Persona-Showcase */
   const showcase = document.querySelector("[data-showcase]");
-  if (showcase) {
+  const catalog = window.MS365_SCREENS_CATALOG;
+  if (showcase && catalog && Array.isArray(catalog.personas) && catalog.personas.length) {
     const frame = showcase.querySelector(".screen-main .device-frame");
     const img = showcase.querySelector("#screen-main-img");
     const cap = showcase.querySelector("#screen-main-cap");
     const urlEl = showcase.querySelector("#screen-main-url");
-    const tabs = showcase.querySelectorAll(".screen-thumbs button");
+    const personaHost = showcase.querySelector("[data-screen-personas]");
+    const thumbsHost = showcase.querySelector("[data-screen-thumbs]");
+    const leadEl = showcase.querySelector("[data-screen-persona-lead]");
+    const cacheV =
+      (img && (img.getAttribute("src") || "").match(/[?&]v=([^&]+)/) || [])[1] ||
+      "20261121";
 
-    tabs.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        tabs.forEach((b) => {
-          b.classList.remove("is-active");
-          b.setAttribute("aria-selected", "false");
-        });
-        btn.classList.add("is-active");
-        btn.setAttribute("aria-selected", "true");
+    let personaIdx = Math.max(
+      0,
+      catalog.personas.findIndex((p) => p.id === "lehrer")
+    );
+    if (personaIdx < 0) personaIdx = 0;
+    let screenIdx = 0;
 
-        const src = btn.getAttribute("data-src");
-        const label = btn.getAttribute("data-label") || "";
-        const caption = btn.getAttribute("data-cap") || "";
-        const urlLabel = btn.getAttribute("data-url") || label;
+    function screenSrc(file) {
+      return "assets/screens/" + file + "?v=" + cacheV;
+    }
 
-        const apply = () => {
-          if (img && src) {
-            img.src = src;
-            img.alt = label ? `Ansicht: ${label}` : img.alt;
-            img.onerror = () => {
-              const ph = document.createElement("div");
-              ph.className = "shot-placeholder";
-              ph.innerHTML = `<p>${label || "App"}</p><span>Screenshot folgt</span>`;
-              img.replaceWith(ph);
-            };
-          }
-          if (cap) cap.textContent = caption;
-          if (urlEl) urlEl.textContent = urlLabel;
-          if (img) img.classList.remove("is-fading");
-          if (frame) frame.classList.remove("is-switching");
-        };
+    function showScreen(persona, screen, animate) {
+      if (!screen) return;
+      const src = screenSrc(screen.file);
+      const label = screen.label || "";
+      const caption = screen.caption || "";
+      const urlLabel = screen.urlLabel || label;
 
-        if (reduceMotion || !img) {
-          apply();
-          return;
+      const apply = () => {
+        if (img) {
+          img.src = src;
+          img.alt = label ? "Ansicht: " + label : img.alt;
+          img.onerror = () => {
+            const ph = document.createElement("div");
+            ph.className = "shot-placeholder";
+            ph.innerHTML =
+              "<p>" +
+              (label || "App") +
+              '</p><span>Screenshot folgt</span>';
+            img.replaceWith(ph);
+          };
         }
+        if (cap) cap.textContent = caption;
+        if (urlEl) urlEl.textContent = urlLabel;
+        if (img) img.classList.remove("is-fading");
+        if (frame) frame.classList.remove("is-switching");
+      };
 
-        img.classList.add("is-fading");
-        if (frame) frame.classList.add("is-switching");
-        window.setTimeout(apply, 180);
+      if (!animate || reduceMotion || !img) {
+        apply();
+        return;
+      }
+      img.classList.add("is-fading");
+      if (frame) frame.classList.add("is-switching");
+      window.setTimeout(apply, 180);
+    }
+
+    function renderThumbs(persona) {
+      if (!thumbsHost) return;
+      thumbsHost.innerHTML = "";
+      (persona.screens || []).forEach((screen, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("role", "tab");
+        btn.setAttribute("aria-selected", i === screenIdx ? "true" : "false");
+        if (i === screenIdx) btn.classList.add("is-active");
+        btn.innerHTML = "<span>" + screen.label + "</span>";
+        btn.addEventListener("click", () => {
+          screenIdx = i;
+          renderThumbs(persona);
+          showScreen(persona, screen, true);
+        });
+        thumbsHost.appendChild(btn);
       });
-    });
+    }
+
+    function selectPersona(idx, animate) {
+      personaIdx = idx;
+      screenIdx = 0;
+      const persona = catalog.personas[personaIdx];
+      if (!persona) return;
+      if (personaHost) {
+        personaHost.querySelectorAll("button").forEach((b, i) => {
+          const on = i === personaIdx;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-selected", on ? "true" : "false");
+        });
+      }
+      if (leadEl) leadEl.textContent = persona.lead || "";
+      renderThumbs(persona);
+      showScreen(persona, persona.screens[0], animate);
+    }
+
+    if (personaHost) {
+      catalog.personas.forEach((persona, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("role", "tab");
+        btn.setAttribute("aria-selected", i === personaIdx ? "true" : "false");
+        if (i === personaIdx) btn.classList.add("is-active");
+        btn.textContent = persona.label;
+        btn.addEventListener("click", () => selectPersona(i, true));
+        personaHost.appendChild(btn);
+      });
+    }
+
+    selectPersona(personaIdx, false);
   }
 
-  /* Subtle button press ripple via pointer */
   document.querySelectorAll(".btn").forEach((btn) => {
     btn.addEventListener("pointerdown", () => btn.classList.add("is-pressed"));
     ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => {

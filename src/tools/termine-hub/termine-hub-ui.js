@@ -17,6 +17,7 @@ import {
     roundToTimeGrid,
     startOfWeekMonday,
     toLocalInputValue,
+    emptyPeriodLabel,
     weekDays,
     weekRangeLabelDe
 } from './termine-hub-logic.js';
@@ -36,6 +37,7 @@ import {
     signedInEmail
 } from './termine-hub-outlook.js';
 import { getDashboardPersonas } from '../../shared/dashboard-persona-session.js';
+import { buildTermineHubDemoState } from './termine-hub-demo.js';
 import { announceAppRole } from '../../shared/app-role-chrome.js';
 import { isToolVisibleForView } from '../../shared/dashboard-audience-catalog.js';
 import {
@@ -493,7 +495,7 @@ export function mountApp(root) {
         return html;
     }
 
-    function emptyCalendarHint() {
+    function emptyCalendarHint(mode) {
         const src = sources();
         if (!src.length) {
             return canManageQuellen()
@@ -504,7 +506,32 @@ export function mountApp(root) {
         if (hidden.length === src.length) {
             return '<p class="th-empty">Alle Kalender sind ausgeblendet. Oben mindestens einen Kalender einblenden.</p>';
         }
-        return '<p class="th-empty">Keine Termine in diesem Zeitraum.</p>';
+        return (
+            '<p class="th-empty th-empty--period" role="status">' +
+            esc(emptyPeriodLabel(mode || ui.calMode)) +
+            '</p>'
+        );
+    }
+
+    function periodHasVisibleEvents(mode) {
+        const items = visibleEvents();
+        if (!items.length) return false;
+        if (mode === 'week') {
+            return weekDays(ui.weekAnchor).some(function (d) {
+                return listForDay(items, toIsoDateOnly(d)).length > 0;
+            });
+        }
+        if (mode === 'month') {
+            return monthGridDays(ui.calYear, ui.calMonth).some(function (d) {
+                return d.getMonth() === ui.calMonth && listForDay(items, toIsoDateOnly(d)).length > 0;
+            });
+        }
+        return groupAgendaByDay(items, { days: 14 }).length > 0;
+    }
+
+    function emptyOverlayHtml(mode) {
+        if (periodHasVisibleEvents(mode)) return '';
+        return '<div class="ms365-cal__empty-overlay">' + emptyCalendarHint(mode) + '</div>';
     }
 
     function layerClassForSource(s) {
@@ -619,20 +646,24 @@ export function mountApp(root) {
             '<div class="ms365-cal__toolbar">' +
             '<div class="ms365-cal__title-block">' +
             (showNav
-                ? '<button type="button" class="ms365-cal__textbtn" data-th-nav="0">Heute</button>' +
+                ? '<div class="ms365-cal__nav" role="group" aria-label="Zeitraum">' +
                   '<button type="button" class="ms365-cal__iconbtn" data-th-nav="-1" aria-label="Zurück">‹</button>' +
+                  '<button type="button" class="ms365-cal__textbtn ms365-cal__textbtn--today" data-th-nav="0">Heute</button>' +
+                  '<button type="button" class="ms365-cal__iconbtn" data-th-nav="1" aria-label="Weiter">›</button>' +
+                  '</div>' +
                   '<h2 class="ms365-cal__title">' +
                   esc(title) +
-                  '</h2>' +
-                  '<button type="button" class="ms365-cal__iconbtn" data-th-nav="1" aria-label="Weiter">›</button>'
+                  '</h2>'
                 : '<h2 class="ms365-cal__title">' + esc(title) + '</h2>') +
             '</div>' +
             '<div class="ms365-cal__actions">' +
             calModeSwitch(mode) +
-            '<button type="button" class="ms365-cal__textbtn" data-th-refresh' +
+            '<button type="button" class="ms365-cal__iconbtn" data-th-refresh title="Aktualisieren" aria-label="Aktualisieren"' +
             (ui.loading ? ' disabled' : '') +
             '>' +
-            (ui.loading ? 'Laden…' : 'Aktualisieren') +
+            (ui.loading
+                ? '<span class="ms365-cal__busy" aria-hidden="true">…</span>'
+                : '<i class="bi bi-arrow-clockwise" aria-hidden="true"></i>') +
             '</button>' +
             '<button type="button" class="ms365-cal__textbtn ms365-cal__textbtn--primary" data-th-go="neu">Neu</button>' +
             '</div></div>'
@@ -822,7 +853,9 @@ export function mountApp(root) {
             .join('');
 
         return (
-            '<div class="ms365-week">' +
+            '<div class="ms365-week' +
+            (periodHasVisibleEvents('week') ? '' : ' is-empty') +
+            '">' +
             head +
             allDayRow +
             '<div class="ms365-week__body">' +
@@ -831,7 +864,9 @@ export function mountApp(root) {
             '</div>' +
             '<div class="ms365-week__cols">' +
             columns +
-            '</div></div></div>'
+            '</div>' +
+            emptyOverlayHtml('week') +
+            '</div></div>'
         );
     }
 
@@ -880,7 +915,15 @@ export function mountApp(root) {
                 );
             })
             .join('');
-        return '<div class="ms365-month">' + heads + cells + '</div>';
+        return (
+            '<div class="ms365-month' +
+            (periodHasVisibleEvents('month') ? '' : ' is-empty') +
+            '">' +
+            heads +
+            cells +
+            emptyOverlayHtml('month') +
+            '</div>'
+        );
     }
 
     function renderKalender() {
@@ -904,7 +947,7 @@ export function mountApp(root) {
             renderLayerToggles() +
             errorsBlock() +
             body +
-            '<p class="ms365-cal__hint">Kalender oben ein-/ausblenden · Termin antippen für Details.</p>' +
+            '<p class="ms365-cal__hint">Kalender ein-/ausblenden · Termin für Details antippen.</p>' +
             '</div>'
         );
     }
@@ -1836,6 +1879,30 @@ export function mountApp(root) {
     }
 
     render();
+
+    const landingShot = new URLSearchParams(window.location.search || '').get('landingShot') === '1';
+    if (landingShot) {
+        personas = {
+            loggedIn: true,
+            isIt: false,
+            isLehrer: true,
+            isSchueler: false,
+            schularbeitenRoles: ['lehrer'],
+            freistellungRoles: ['lehrer']
+        };
+        personasReady = true;
+        const demo = buildTermineHubDemoState();
+        ui.events = (demo.termine || []).map((t) => ({
+            ...t,
+            sourceId: SOURCE_IDS.ME,
+            sourceLabel: 'Schulkalender'
+        }));
+        ui.calMode = 'agenda';
+        ui.lastErrors = [];
+        publishTermineRole();
+        render();
+        return;
+    }
 
     void getDashboardPersonas()
         .then((p) => {

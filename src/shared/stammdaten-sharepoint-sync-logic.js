@@ -595,7 +595,11 @@ const FRESH_LOCAL_IGNORE_KEYS = {
     'ms365-stammdaten-it-library-by-tenant-v2': true,
     'ms365-last-backup-export-at': true,
     'ms365-demo-mode-v1': true,
-    'ms365-onboarding-welcome-v1': true
+    'ms365-onboarding-welcome-v1': true,
+    'ms365-it-first-run-v1': true,
+    'ms365-it-first-save-tip-v1': true,
+    'ms365-lehrer-welcome-v1': true,
+    'ms365-lehrer-first-run-v1': true
 };
 
 function isEmptyStorageValue(v) {
@@ -1055,6 +1059,9 @@ export function isAutoSyncIgnoredChangeSource(sourceOrReason) {
         s === 'spo-auto-pull' ||
         s === 'spo-auto-push' ||
         s === 'render' ||
+        s === 'license-pull' ||
+        s === 'school-profile-license-sync' ||
+        s === 'school-profile-license-pull' ||
         s.indexOf('spo-auto-') === 0
     );
 }

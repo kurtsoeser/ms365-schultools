@@ -1,6 +1,13 @@
 (function (global) {
     'use strict';
 
+    /**
+     * Graph-Transport: shared/graph-client.js (R22 / b11), wenn auf window.
+     * Bleibt bewusst klassisches Script (viele HTML-Einbindungen ohne type=module).
+     * Kein dynamisches Nachladen von ESM: Vite würde sonst ein import-Statement
+     * voranstellen und die Datei als klassisches Script unausführbar machen → ms365SpoGraph fehlt.
+     * Öffentliche Signaturen von ms365SpoGraph bleiben unverändert.
+     */
     var freshTokenByKey = Object.create(null);
 
     async function getGraphToken(scopes) {
@@ -47,10 +54,23 @@
         throw new Error('Bitte oben rechts anmelden (MSAL-Widget nicht verfügbar).');
     }
 
-    function sleep(ms) {
+    function ensureSharedGraphClient() {
+        if (global.ms365GraphClient) {
+            return Promise.resolve(global.ms365GraphClient);
+        }
+        return Promise.resolve(null);
+    }
+
+    function localSleep(ms) {
         return new Promise(function (r) {
             setTimeout(r, ms);
         });
+    }
+
+    function sleep(ms) {
+        var c = global.ms365GraphClient;
+        if (c && typeof c.sleep === 'function') return c.sleep(ms);
+        return localSleep(ms);
     }
 
     function graphBase(version) {
@@ -58,7 +78,13 @@
         return 'https://graph.microsoft.com/' + v;
     }
 
-    async function graphRequest(method, pathOrUrl, token, body, version) {
+    function shouldRetryLocal(status) {
+        var n = Number(status) || 0;
+        return n === 429 || (n >= 500 && n <= 599);
+    }
+
+    /** Fallback wenn shared/graph-client.js nicht geladen werden kann (Tests/vm). */
+    async function localGraphRequest(method, pathOrUrl, token, body, version) {
         let url = pathOrUrl;
         if (url.indexOf('http') !== 0) {
             url = graphBase(version) + (pathOrUrl.indexOf('/') === 0 ? pathOrUrl : '/' + pathOrUrl);
@@ -74,9 +100,9 @@
                 headers: headers,
                 body: body !== undefined ? JSON.stringify(body) : undefined
             });
-            if (res.status === 429 && attempt < 8) {
+            if (shouldRetryLocal(res.status) && attempt < 8) {
                 const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-                await sleep((isNaN(ra) ? 5 : ra) * 1000);
+                await localSleep((isNaN(ra) ? 5 : ra) * 1000);
                 attempt++;
                 continue;
             }
@@ -84,8 +110,8 @@
         }
     }
 
-    async function graphJson(method, pathOrUrl, token, body, version) {
-        const res = await graphRequest(method, pathOrUrl, token, body, version);
+    async function localGraphJson(method, pathOrUrl, token, body, version) {
+        const res = await localGraphRequest(method, pathOrUrl, token, body, version);
         const text = await res.text();
         let data = null;
         if (text) {
@@ -98,7 +124,7 @@
         if (!res.ok) {
             const msg =
                 typeof data === 'object' && data && data.error
-                    ? (data.error.message || JSON.stringify(data.error))
+                    ? data.error.message || JSON.stringify(data.error)
                     : text || String(res.status);
             const err = new Error(method + ' ' + pathOrUrl + ': ' + msg);
             err.status = res.status;
@@ -106,6 +132,40 @@
             throw err;
         }
         return data || {};
+    }
+
+    /**
+     * @param {string} method
+     * @param {string} pathOrUrl
+     * @param {string} token
+     * @param {unknown} [body]
+     * @param {string} [version] 'v1.0' | 'beta' (bestehende spo-API)
+     */
+    async function graphRequest(method, pathOrUrl, token, body, version) {
+        const client = await ensureSharedGraphClient();
+        if (client && typeof client.graphRequest === 'function') {
+            return client.graphRequest(method, pathOrUrl, token, body, undefined, {
+                version: version === 'beta' ? 'beta' : 'v1.0'
+            });
+        }
+        return localGraphRequest(method, pathOrUrl, token, body, version);
+    }
+
+    /**
+     * @param {string} method
+     * @param {string} pathOrUrl
+     * @param {string} token
+     * @param {unknown} [body]
+     * @param {string} [version] 'v1.0' | 'beta' (bestehende spo-API)
+     */
+    async function graphJson(method, pathOrUrl, token, body, version) {
+        const client = await ensureSharedGraphClient();
+        if (client && typeof client.graphJson === 'function') {
+            return client.graphJson(method, pathOrUrl, token, body, undefined, {
+                version: version === 'beta' ? 'beta' : 'v1.0'
+            });
+        }
+        return localGraphJson(method, pathOrUrl, token, body, version);
     }
 
     async function getSharePointHostname(token) {
@@ -1164,8 +1224,50 @@
         return { lookupIdForEmail: lookupIdForEmail, index: index };
     }
 
+    /**
+     * Access-Token nur für die SharePoint-Ressource des Hosts.
+     * Graph-Scopes (User.Read) gehören nicht dazu: AADSTS28000, ein Token = eine Ressource.
+     * Zuerst still (Write, dann Read). Interaktiv erst, wenn beides fehlt.
+     * Write zuerst: oft schon per Admin-Consent da; Read allein öffnet sonst den Zustimmungsdialog.
+     * @param {string} host z. B. contoso.sharepoint.com
+     * @returns {Promise<string>}
+     */
+    async function acquireSharePointToken(host) {
+        const h = String(host || '')
+            .trim()
+            .replace(/^https?:\/\//i, '')
+            .split('/')[0];
+        if (!h || h.indexOf('.') < 0) throw new Error('SharePoint-Host fehlt.');
+        const scopes = [
+            ['https://' + h + '/AllSites.Write'],
+            ['https://' + h + '/AllSites.Read']
+        ];
+        if (typeof global.ms365AuthAcquireTokenSilent === 'function') {
+            for (let i = 0; i < scopes.length; i++) {
+                try {
+                    const silent = await global.ms365AuthAcquireTokenSilent(scopes[i]);
+                    if (silent) return silent;
+                } catch {
+                    /* nächster Scope, danach interaktiv */
+                }
+            }
+        }
+        let lastErr = '';
+        for (let i = 0; i < scopes.length; i++) {
+            try {
+                const tok = await getGraphToken(scopes[i]);
+                if (tok) return tok;
+            } catch (e) {
+                lastErr = e && e.message ? String(e.message) : String(e);
+                if (/abgebrochen|cancelled|canceled|user_cancelled/i.test(lastErr)) break;
+            }
+        }
+        throw new Error('SharePoint-Token fehlt (' + (lastErr || 'AllSites.Read') + ')');
+    }
+
     global.ms365SpoGraph = {
         getGraphToken: getGraphToken,
+        acquireSharePointToken: acquireSharePointToken,
         sleep: sleep,
         graphRequest: graphRequest,
         graphJson: graphJson,

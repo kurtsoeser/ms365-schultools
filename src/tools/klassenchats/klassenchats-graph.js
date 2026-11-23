@@ -1,6 +1,8 @@
 /**
  * Graph: Teams-Gruppenchats oder private Kanäle im Lehrerteam anlegen / syncen.
+ * Transport: shared/graph-client.js (R22 / b11).
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
 
 import {
     displayNameForTarget,
@@ -37,13 +39,13 @@ export async function createGroupChat(G, token, topic, userIds, opts) {
         topic: safeTopic || undefined,
         members
     };
-    return G.graphJson('POST', '/chats', token, body);
+    return sharedGraphJson('POST', '/chats', token, body);
 }
 
 export async function patchChatTopic(G, token, chatId, topic) {
     const id = String(chatId || '').trim();
     if (!id) throw new Error('chatId fehlt.');
-    return G.graphJson('PATCH', '/chats/' + encodeURIComponent(id), token, {
+    return sharedGraphJson('PATCH', '/chats/' + encodeURIComponent(id), token, {
         topic: sanitizeTeamsChatTopic(topic)
     });
 }
@@ -55,7 +57,7 @@ export async function listChatMembers(G, token, chatId) {
     // Kein $select mit userId/email: liegen nur auf aadUserConversationMember, nicht auf conversationMember
     let next = '/chats/' + encodeURIComponent(id) + '/members';
     while (next) {
-        const data = await G.graphJson('GET', next, token, undefined);
+        const data = await sharedGraphJson('GET', next, token, undefined);
         (data && data.value ? data.value : []).forEach((m) => out.push(m));
         const link = data && data['@odata.nextLink'] ? String(data['@odata.nextLink']) : '';
         if (link.indexOf('https://graph.microsoft.com/v1.0') === 0) {
@@ -71,7 +73,7 @@ export async function addChatMember(G, token, chatId, userId) {
     const cid = String(chatId || '').trim();
     const uid = String(userId || '').trim();
     if (!cid || !uid) throw new Error('chatId/userId fehlt.');
-    return G.graphJson('POST', '/chats/' + encodeURIComponent(cid) + '/members', token, {
+    return sharedGraphJson('POST', '/chats/' + encodeURIComponent(cid) + '/members', token, {
         '@odata.type': '#microsoft.graph.aadUserConversationMember',
         roles: ['owner'],
         'user@odata.bind': 'https://graph.microsoft.com/v1.0/users(\'' + uid + '\')'
@@ -95,7 +97,7 @@ export async function removeChatMemberByUserId(G, token, chatId, userId) {
     const hit = members.find((m) => String(m.userId || '') === uid);
     if (!hit || !hit.id) return false;
     try {
-        await G.graphJson(
+        await sharedGraphJson(
             'DELETE',
             '/chats/' + encodeURIComponent(cid) + '/members/' + encodeURIComponent(String(hit.id)),
             token,
@@ -237,7 +239,7 @@ export async function ensureTeamMembers(G, token, teamId, userIds) {
             if (typeof G.graphAddMember === 'function') {
                 await G.graphAddMember(token, tid, uid);
             } else {
-                await G.graphJson(
+                await sharedGraphJson(
                     'POST',
                     '/groups/' + encodeURIComponent(tid) + '/members/$ref',
                     token,
@@ -374,7 +376,7 @@ export async function createPrivateChannel(G, token, teamId, displayName, member
     let lastErr = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-            return await G.graphJson(
+            return await sharedGraphJson(
                 'POST',
                 '/teams/' + encodeURIComponent(tid) + '/channels',
                 token,
@@ -408,7 +410,7 @@ export async function patchChannelMemberRoles(G, token, teamId, channelId, membe
     const cid = String(channelId || '').trim();
     const mid = String(membershipId || '').trim();
     if (!tid || !cid || !mid) throw new Error('teamId/channelId/membershipId fehlt.');
-    return G.graphJson(
+    return sharedGraphJson(
         'PATCH',
         '/teams/' +
             encodeURIComponent(tid) +
@@ -438,7 +440,7 @@ export async function removeChannelMemberByUserId(G, token, teamId, channelId, u
     const hit = members.find((m) => String(m.userId || '') === uid);
     if (!hit || !hit.id) return false;
     try {
-        await G.graphJson(
+        await sharedGraphJson(
             'DELETE',
             '/teams/' +
                 encodeURIComponent(tid) +
@@ -606,7 +608,7 @@ export async function patchChannelDisplayName(G, token, teamId, channelId, displ
     const name = sanitizeTeamsChannelDisplayName(displayName);
     if (!tid || !cid) throw new Error('teamId/channelId fehlt.');
     if (!name) throw new Error('Kanalname fehlt.');
-    return G.graphJson(
+    return sharedGraphJson(
         'PATCH',
         '/teams/' + encodeURIComponent(tid) + '/channels/' + encodeURIComponent(cid),
         token,
@@ -624,7 +626,7 @@ export async function listChannelMembers(G, token, teamId, channelId) {
     let next =
         '/teams/' + encodeURIComponent(tid) + '/channels/' + encodeURIComponent(cid) + '/members';
     while (next) {
-        const data = await G.graphJson('GET', next, token, undefined);
+        const data = await sharedGraphJson('GET', next, token, undefined);
         (data && data.value ? data.value : []).forEach((m) => out.push(m));
         const link = data && data['@odata.nextLink'] ? String(data['@odata.nextLink']) : '';
         if (link.indexOf('https://graph.microsoft.com/v1.0') === 0) {
@@ -641,7 +643,7 @@ export async function addChannelMember(G, token, teamId, channelId, userId, asOw
     const cid = String(channelId || '').trim();
     const uid = String(userId || '').trim();
     if (!tid || !cid || !uid) throw new Error('teamId/channelId/userId fehlt.');
-    return G.graphJson(
+    return sharedGraphJson(
         'POST',
         '/teams/' +
             encodeURIComponent(tid) +
@@ -736,7 +738,7 @@ export async function provisionClassChat(G, token, plan, meUserId) {
             adminRemoved = await removeChatMemberByUserId(G, token, chatId, me);
         }
         try {
-            const chat = await G.graphJson(
+            const chat = await sharedGraphJson(
                 'GET',
                 '/chats/' + encodeURIComponent(chatId) + '?$select=id,topic,webUrl',
                 token,
@@ -897,7 +899,7 @@ export async function provisionClassPrivateChannel(G, token, plan, meUserId) {
             }
         }
         try {
-            const ch = await G.graphJson(
+            const ch = await sharedGraphJson(
                 'GET',
                 '/teams/' +
                     encodeURIComponent(teamId) +

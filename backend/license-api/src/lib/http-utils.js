@@ -63,7 +63,7 @@ function publicErrorMessage(e, fallback4xx) {
     if (!raw) return fallback4xx || 'Anfrage abgelehnt.';
     // Bewusst öffentliche API-Meldungen immer durchlassen
     if (
-        /License\.Access|Anmeldung fehlt|Token ungültig|Token ohne|nicht freigeschaltet|Mandant|OneNote|Snapshot|Microsoft erlaubt|Titel fehlt|Beschreibung fehlt|Screenshot|Maximal|Bild-Anhänge|Feedback/i.test(
+        /License\.Access|Anmeldung fehlt|Token ungültig|Token ohne|nicht freigeschaltet|Mandant|OneNote|Snapshot|Microsoft erlaubt|Titel fehlt|Beschreibung fehlt|Screenshot|Maximal|Bild-Anhänge|Feedback|SharePoint-Feld|Schema sicherstellen/i.test(
             raw
         )
     ) {

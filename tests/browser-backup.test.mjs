@@ -29,8 +29,8 @@ function createMemoryStorage(initial) {
 }
 
 function loadBackup(store, sessionStore) {
+    const regPath = join(projectRoot, 'src/shared/storage-register.js');
     const full = join(projectRoot, 'src/shared/browser-backup.js');
-    const code = readFileSync(full, 'utf8');
     const sandbox = {
         console,
         document: {
@@ -48,7 +48,8 @@ function loadBackup(store, sessionStore) {
     sandbox.localStorage = store;
     sandbox.sessionStorage = sessionStore || createMemoryStorage();
     createContext(sandbox);
-    runInContext(code, sandbox, { filename: full });
+    runInContext(readFileSync(regPath, 'utf8'), sandbox, { filename: regPath });
+    runInContext(readFileSync(full, 'utf8'), sandbox, { filename: full });
     return sandbox;
 }
 
@@ -523,7 +524,12 @@ describe('browser-backup Seiten', () => {
 
     it.each(pages)('$file bindet Backup-Skript und Steuerelemente ein', ({ file, scriptPrefix }) => {
         const html = readFileSync(join(projectRoot, file), 'utf8');
+        expect(html).toContain('src/shared/storage-register.js');
         expect(html).toContain(scriptPrefix);
+        const regAt = html.indexOf('src/shared/storage-register.js');
+        const bakAt = html.indexOf(scriptPrefix);
+        expect(regAt).toBeGreaterThanOrEqual(0);
+        expect(bakAt).toBeGreaterThan(regAt);
         if (file === 'tenant.html') {
             expect(html).toContain('data-ms365-backup="export"');
         } else {

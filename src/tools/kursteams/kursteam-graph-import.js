@@ -1,7 +1,9 @@
 /**
  * UI: Bestehende Kursteams aus Microsoft 365 importieren → Unterrichtsbelegung (App-Daten).
+ * Transport: shared/graph-client.js (R22 / b11).
  */
 import { getGraphToken } from './kursteam-graph.js';
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
 import {
     buildBelegungRowsFromGraphGroups,
     mergeBelegungWithGraphImport,
@@ -73,26 +75,7 @@ function buildTeacherByCodeMap() {
 }
 
 async function graphJson(method, path, token, extraHeaders) {
-    const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
-    const headers = Object.assign({ Authorization: 'Bearer ' + token }, extraHeaders || {});
-    const res = await fetch(url, { method, headers });
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
-    }
-    if (!res.ok) {
-        const msg =
-            typeof data === 'object' && data && data.error
-                ? JSON.stringify(data.error)
-                : text || String(res.status);
-        throw new Error(method + ' ' + path + ': ' + msg);
-    }
-    return data || {};
+    return sharedGraphJson(method, path, token, undefined, extraHeaders);
 }
 
 async function listTeamGroupsFromGraph(token) {

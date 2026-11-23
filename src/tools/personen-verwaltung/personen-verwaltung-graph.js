@@ -1,7 +1,14 @@
 /**
  * Graph/MSAL für Personen-Verwaltung (Analyse 02 Phase B).
  * Move-first – Verhalten unverändert.
+ * Transport: shared/graph-client.js (R22 / b11 – Retry, Paging, Journal-Hook).
  */
+
+import {
+    graphRequest as sharedGraphRequest,
+    graphJson as sharedGraphJson,
+    fetchAllPages as sharedFetchAllPages
+} from '../../shared/graph-client.js';
 
 export const GRAPH_SCOPES = [
     'https://graph.microsoft.com/User.Read',
@@ -77,6 +84,9 @@ export async function getPca() {
 }
 
 export async function getGraphToken() {
+    const itMod = await import('../../shared/it-app-auth.js');
+    const itToken = await itMod.acquireItTokenIfRequired(GRAPH_SCOPES, { mode: 'interactive' });
+    if (itToken) return itToken;
     // Pilot M7: gemeinsame Auth-UI bevorzugen (eine PCA-Session)
     if (typeof window.ms365AuthAcquireToken === 'function') {
         try {
@@ -118,51 +128,11 @@ export function sleep(ms) {
 }
 
 export async function graphRequest(method, pathOrUrl, token, body, extraHeaders) {
-    const url =
-        pathOrUrl.indexOf('http') === 0 ? pathOrUrl : 'https://graph.microsoft.com/v1.0' + pathOrUrl;
-    let attempt = 0;
-    while (true) {
-        const headers = { Authorization: 'Bearer ' + token };
-        if (extraHeaders && typeof extraHeaders === 'object') {
-            Object.assign(headers, extraHeaders);
-        }
-        if (body !== undefined && method !== 'GET' && method !== 'DELETE') {
-            headers['Content-Type'] = 'application/json';
-        }
-        const res = await fetch(url, {
-            method: method,
-            headers: headers,
-            body: body !== undefined ? JSON.stringify(body) : undefined
-        });
-        if (res.status === 429 && attempt < 8) {
-            const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-            await sleep((isNaN(ra) ? 5 : ra) * 1000);
-            attempt++;
-            continue;
-        }
-        return res;
-    }
+    return sharedGraphRequest(method, pathOrUrl, token, body, extraHeaders);
 }
 
 export async function graphJson(method, pathOrUrl, token, body, extraHeaders) {
-    const res = await graphRequest(method, pathOrUrl, token, body, extraHeaders);
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
-    }
-    if (!res.ok) {
-        const msg =
-            typeof data === 'object' && data && data.error
-                ? JSON.stringify(data.error)
-                : text || String(res.status);
-        throw new Error(method + ' ' + pathOrUrl + ': ' + msg);
-    }
-    return data || {};
+    return sharedGraphJson(method, pathOrUrl, token, body, extraHeaders);
 }
 
 export async function graphDelete(path, token) {
@@ -204,20 +174,16 @@ export function clearLog() {
 }
 
 export async function fetchAllPages(token, initialPath, onProgress) {
-    const out = [];
-    let next = initialPath;
-    let page = 0;
-    while (next) {
-        page++;
-        const data = await graphJson('GET', next, token, undefined);
-        const vals = data.value;
-        if (Array.isArray(vals)) {
-            for (let i = 0; i < vals.length; i++) out.push(vals[i]);
-        }
-        next = data['@odata.nextLink'] || null;
-        if (onProgress) onProgress(out.length, page, !!next);
-    }
-    return out;
+    const r = await sharedFetchAllPages(token, initialPath, {
+        maxItems: 100000,
+        maxPages: 1000,
+        onProgress: onProgress
+            ? function (info) {
+                  onProgress(info.loaded, info.page, info.hasMore);
+              }
+            : undefined
+    });
+    return r.items;
 }
 
 export function odataEscape(s) {

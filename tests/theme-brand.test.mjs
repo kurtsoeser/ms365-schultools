@@ -57,40 +57,39 @@ function bootContext(stored) {
 }
 
 describe('brand theme assets', () => {
-    const ids = ['teal', 'classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
+    const ids = ['teal'];
 
-    it('dieselbe Markenliste in Boot, Toggle und Konto-Menü', () => {
+    it('dieselbe Markenliste in Boot, Toggle und Konto-Menü (nur Teal)', () => {
         expect(quotedList(read('src/shared/theme-boot.js'), 'var BRAND_IDS')).toEqual(ids);
         expect(quotedList(read('src/shared/theme-toggle.js'), 'const VALID_BRAND_LIST')).toEqual(ids);
         expect(quotedList(read('src/shared/msal-auth-ui.js'), 'const MENU_BRANDS')).toEqual(ids);
     });
 
-    it('jede Kennung hat einen CSS-Block, Klassisch und Wein nur einmal', () => {
-        const css = read('app.css');
-        for (const id of ids) {
-            expect(css).toContain(`html[data-brand="${id}"]`);
-        }
-        expect(css.match(/html\[data-brand="classic"\]\[data-theme="light"\]/g)).toHaveLength(1);
-        expect(css.match(/html\[data-brand="wine"\]\[data-theme="light"\]/g)).toHaveLength(1);
-        expect(css).toMatch(/html\[data-brand="wine"\]\[data-theme="light"\][\s\S]*--bg1:\s*#7f1d1d/);
-        expect(css).toMatch(/html\[data-brand="azure"\]\[data-theme="light"\][\s\S]*--brand1:\s*#1d4ed8/);
-        expect(css).toMatch(/html\[data-brand="forest"\]\[data-theme="light"\][\s\S]*--brand1:\s*#15803d/);
-        expect(css).toMatch(/html\[data-brand="amber"\]\[data-theme="light"\][\s\S]*--brand1:\s*#c2410c/);
+    it('Design-Tokens sind die Hex-Quelle; app.css bleibt unter 30 Hex', () => {
+        const tokens = read('src/shared/design-tokens.css');
+        const app = read('app.css');
+        expect(tokens).toMatch(/--brand1:\s*#0d9f8a/);
+        expect(tokens).toContain('--status-ok');
+        expect(tokens).toContain('--status-warn');
+        expect(tokens).toContain('--status-danger');
+        expect(app).toContain("url('src/shared/design-tokens.css')");
+        expect(app).not.toMatch(/html\[data-brand="classic"\]/);
+        expect(app).not.toMatch(/html\[data-brand="wine"\]/);
+        expect(app).not.toMatch(/#5e72e4/i);
+        const hexCount = (app.match(/#[0-9a-fA-F]{3,8}\b/g) || []).length;
+        expect(hexCount).toBeLessThan(30);
     });
 
-    it('Konto-Menü zeigt sechs Marken und eigene Farbe', () => {
+    it('Konto-Menü zeigt Teal als feste Marke, ohne Variantenwahl', () => {
         const js = read('src/shared/msal-auth-ui.js');
         expect(js).toContain('applyMenuBrandChoice');
-        expect(js).toMatch(/setAttribute\('data-brand', next\)/);
         expect(js).toContain('brandGridHtml');
-        expect(js).toContain("wine: 'Wein'");
-        expect(js).toContain("azure: 'Blau'");
-        expect(js).toContain("forest: 'Grün'");
-        expect(js).toContain("amber: 'Bernstein'");
-        expect(js).not.toContain('brand-row--pair');
-        expect(js).toContain('Eigene Farbe');
-        expect(js).toContain("data-ms365-auth-menu-v', '3'");
-        expect(js).toContain("menuV !== '3'");
+        expect(js).not.toContain('Markenfarbe der App');
+        expect(js).not.toContain("wine: 'Wein'");
+        expect(js).not.toContain("classic: 'Klassisch'");
+        expect(js).not.toContain('Eigene Farbe');
+        expect(js).toContain("data-ms365-auth-menu-v', '12'");
+        expect(js).toContain("menuV !== '12'");
     });
 
     it('Dashboard und Admin laden theme-boot zuerst, ohne eigene Markenliste', () => {
@@ -104,35 +103,26 @@ describe('brand theme assets', () => {
         expect(read('src/pages/index-boot.js')).toContain('data-dash-main-section');
     });
 
-    it('helles Eigenfarben-Akzent wird für den Header abgedunkelt, ungültiger Speicher fällt auf teal', () => {
+    it('abgekündigte Marken und Custom fallen auf teal', () => {
         const boot = bootContext().window.ms365BrandBoot;
         expect(boot.headerLumMax).toBe(0.55);
         expect(boot.darkenForHeader('#0d9f8a')).toBe('#0d9f8a');
         expect(boot.luminance(boot.darkenForHeader('#ffffff'))).toBeLessThanOrEqual(0.55);
-        expect(boot.darkenForHeader('#ffffff')).not.toBe('#ffffff');
         expect(boot.parseHex('#abc')).toBe('#aabbcc');
         expect(boot.parseHex('rot')).toBe('');
 
-        const invalid = bootContext({
-            'ms365-brand-v1': 'custom',
-            'ms365-brand-custom-v1': '{'
-        });
-        expect(invalid.document.documentElement.attrs['data-brand']).toBe('teal');
-        expect(invalid.store['ms365-brand-v1']).toBe('teal');
-        expect(invalid.document.documentElement.style.props['--brand1']).toBeUndefined();
+        const classic = bootContext({ 'ms365-brand-v1': 'classic' });
+        expect(classic.document.documentElement.attrs['data-brand']).toBe('teal');
+        expect(classic.store['ms365-brand-v1']).toBe('teal');
+
+        const wine = bootContext({ 'ms365-brand-v1': 'wine' });
+        expect(wine.document.documentElement.attrs['data-brand']).toBe('teal');
 
         const custom = bootContext({
             'ms365-brand-v1': 'custom',
             'ms365-brand-custom-v1': JSON.stringify({ brand1: '#ffff00', brand2: '#1d4ed8' })
         });
-        const props = custom.document.documentElement.style.props;
-        expect(custom.document.documentElement.attrs['data-brand']).toBe('custom');
-        expect(props['--brand1']).toBe('#ffff00');
-        expect(props['--brand2']).toBe('#1d4ed8');
-        expect(boot.luminance(props['--brand-header-1'])).toBeLessThanOrEqual(0.55);
-        expect(props['--brand-header-2']).toBe('#1d4ed8');
-
-        custom.window.ms365BrandBoot.syncCustom(custom.document.documentElement, 'azure');
+        expect(custom.document.documentElement.attrs['data-brand']).toBe('teal');
         expect(custom.document.documentElement.style.props['--brand1']).toBeUndefined();
     });
 });

@@ -50,6 +50,209 @@ export function buildPruefplanKurz(variante, profileId) {
     );
 }
 
+/** Mehrere Prüfer:innen als „Name1; Name2“. */
+export function parseTeacherList(value) {
+    return String(value == null ? '' : value)
+        .split(/\s*;\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+/** @param {string|string[]|null|undefined} value */
+export function serializeTeacherList(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((s) => String(s || '').trim())
+            .filter(Boolean)
+            .join('; ');
+    }
+    return parseTeacherList(value).join('; ');
+}
+
+/**
+ * @param {string} part
+ * @returns {string}
+ */
+export function normalizeExamPartKey(part) {
+    const p = String(part || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    if (!p) return '';
+    if (/^d(\s|\(|$)/.test(p) || p === 'd' || p.indexOf('deutsch') === 0) return 'd';
+    if (p.indexOf('bfk') !== -1) return 'bfk';
+    if (p.indexOf('bko') !== -1) return 'bko';
+    if (p.indexOf('wahlfach') !== -1) return 'wahlfach';
+    if (p.indexOf('schwerpunkt') !== -1) return 'schwerpunkt';
+    if (p.indexOf('fachkolloquium') !== -1) return 'fachkolloquium';
+    if (p.indexOf('fachtheorie') !== -1) return 'fachtheorie';
+    if (/muendlich\s*1|mundlich\s*1/.test(p)) return 'muendlich1';
+    if (/muendlich\s*2|mundlich\s*2/.test(p)) return 'muendlich2';
+    if (/muendlich\s*3|mundlich\s*3/.test(p)) return 'muendlich3';
+    if (p.indexOf('vierte') !== -1 || p.indexOf('4.') !== -1) return 'vierte';
+    if (/\bam\b/.test(p) || p.indexOf('angewandte mathematik') !== -1 || p === 'm' || /^m(\s|\(|$)/.test(p)) {
+        return 'am';
+    }
+    if (
+        p.indexOf('lfs') !== -1 ||
+        p.indexOf('fremd') !== -1 ||
+        p.indexOf('englisch') !== -1 ||
+        p.indexOf('lebende') !== -1
+    ) {
+        return 'lfs';
+    }
+    if (p.indexOf('klausur') !== -1 || p.indexOf('bw-rw') !== -1 || p.indexOf('kombi') !== -1) {
+        return 'klausurkombi';
+    }
+    if (p.indexOf('extra') !== -1) return 'muendlichextra';
+    return p.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+/**
+ * Fach- und Lehrer-Felder für einen Prüfungsteil-Key (Draft-/Item-Keys camelCase).
+ * @param {string} key
+ * @returns {{ subjectField?: string, teacherField?: string, subjectLabel?: string, teacherLabel?: string }}
+ */
+export function examPartFieldMap(key) {
+    const k = String(key || '').trim().toLowerCase();
+    /** @type {Record<string, { subjectField?: string, teacherField?: string, subjectLabel?: string, teacherLabel?: string }>} */
+    const map = {
+        lfs: {
+            subjectField: 'lfs',
+            teacherField: 'lehrerLFS',
+            subjectLabel: 'LFS',
+            teacherLabel: 'LehrerIn LFS'
+        },
+        bko: { teacherField: 'lehrerBKO', teacherLabel: 'LehrerIn BKO mündlich' },
+        am: { teacherField: 'lehrerAM', teacherLabel: 'LehrerIn AM mündlich' },
+        wahlfach: {
+            subjectField: 'wahlfachMuendlich',
+            teacherField: 'lehrerWahlfach',
+            subjectLabel: 'Wahlfach mündlich',
+            teacherLabel: 'LehrerIn Wahlfach'
+        },
+        schwerpunkt: {
+            subjectField: 'schwerpunktFach',
+            teacherField: 'lehrerSchwerpunkt',
+            subjectLabel: 'Schwerpunktfach',
+            teacherLabel: 'LehrerIn Schwerpunkt'
+        },
+        fachkolloquium: {
+            subjectField: 'fachkolloquium',
+            teacherField: 'lehrerFachkolloquium',
+            subjectLabel: 'Fachkolloquium',
+            teacherLabel: 'LehrerIn Fachkolloquium'
+        },
+        fachtheorie: {
+            subjectField: 'fachtheorie',
+            teacherField: 'lehrerFachtheorie',
+            subjectLabel: 'Fachtheorie',
+            teacherLabel: 'LehrerIn Fachtheorie'
+        },
+        muendlich1: {
+            subjectField: 'muendlich1',
+            teacherField: 'lehrerMuendlich1',
+            subjectLabel: 'Mündlich 1',
+            teacherLabel: 'LehrerIn mündlich 1'
+        },
+        muendlich2: {
+            subjectField: 'muendlich2',
+            teacherField: 'lehrerMuendlich2',
+            subjectLabel: 'Mündlich 2',
+            teacherLabel: 'LehrerIn mündlich 2'
+        },
+        muendlich3: {
+            subjectField: 'muendlich3',
+            teacherField: 'lehrerMuendlich3',
+            subjectLabel: 'Mündlich 3',
+            teacherLabel: 'LehrerIn mündlich 3'
+        },
+        muendlichextra: {
+            subjectField: 'muendlichExtra',
+            teacherField: 'lehrerMuendlichExtra',
+            subjectLabel: 'Mündlich Extra (AM/EN)',
+            teacherLabel: 'LehrerIn Extra mündlich'
+        },
+        klausurkombi: {
+            subjectField: 'klausurKombi',
+            subjectLabel: 'Klausur-Kombination'
+        },
+        vierte: {
+            subjectField: 'vierteKlausur',
+            subjectLabel: '4. Klausur'
+        }
+    };
+    return map[k] || {};
+}
+
+/**
+ * @param {string|number|null|undefined} variante
+ * @param {string} [profileId]
+ * @returns {{
+ *   variante: object|null,
+ *   schriftlich: Array<{ part: string, key: string, needsTeacher: false }>,
+ *   muendlich: Array<{ part: string, key: string, needsTeacher: true, subjectField?: string, teacherField?: string, subjectLabel?: string, teacherLabel?: string }>,
+ *   needsLfsCode: boolean
+ * }}
+ */
+function profileHasTeacherColumn(profile, teacherField) {
+    if (!teacherField || !profile) return false;
+    /** @type {Record<string, string>} */
+    const col = {
+        lehrerLFS: 'LehrerLFS',
+        lehrerBKO: 'LehrerBKO',
+        lehrerAM: 'LehrerAM',
+        lehrerWahlfach: 'LehrerWahlfach',
+        lehrerSchwerpunkt: 'LehrerSchwerpunkt',
+        lehrerFachkolloquium: 'LehrerFachkolloquium',
+        lehrerFachtheorie: 'LehrerFachtheorie',
+        lehrerMuendlichExtra: 'LehrerMuendlichExtra',
+        lehrerMuendlich1: 'LehrerMuendlich1',
+        lehrerMuendlich2: 'LehrerMuendlich2',
+        lehrerMuendlich3: 'LehrerMuendlich3'
+    };
+    const name = col[teacherField];
+    if (!name) return false;
+    // Wahlfach-Lehrer ist in allen Profilen im Kernschema
+    if (name === 'LehrerWahlfach') return true;
+    const extras = profile.extraColumnNames || [];
+    if (extras.indexOf(name) !== -1) return true;
+    // AHS Muendlich-Lehrer kommen mit Muendlich1..3
+    if (/^LehrerMuendlich[123]$/.test(name) && extras.indexOf('Muendlich1') !== -1) return true;
+    if (name === 'LehrerSchwerpunkt' && extras.indexOf('SchwerpunktFach') !== -1) return true;
+    if (name === 'LehrerFachkolloquium' && extras.indexOf('Fachkolloquium') !== -1) return true;
+    if (name === 'LehrerFachtheorie' && extras.indexOf('Fachtheorie') !== -1) return true;
+    return false;
+}
+
+export function describeExamSlots(variante, profileId) {
+    const profile = getProfile(profileId);
+    const v = resolveVariant(variante, profileId);
+    if (!v) {
+        return { variante: null, schriftlich: [], muendlich: [], needsLfsCode: false };
+    }
+    const mapPart = (part, oral) => {
+        const key = normalizeExamPartKey(part);
+        const fields = examPartFieldMap(key);
+        const teacherOk = !!fields.teacherField && profileHasTeacherColumn(profile, fields.teacherField);
+        return {
+            part: String(part || '').trim(),
+            key,
+            needsTeacher: !!oral && teacherOk,
+            subjectField: fields.subjectField,
+            teacherField: teacherOk ? fields.teacherField : undefined,
+            subjectLabel: fields.subjectLabel,
+            teacherLabel: fields.teacherLabel
+        };
+    };
+    const schriftlich = (v.schriftlich || []).map((p) => mapPart(p, false));
+    const muendlich = (v.muendlich || []).map((p) => mapPart(p, true));
+    const needsLfsCode =
+        schriftlich.some((s) => s.key === 'lfs') || muendlich.some((s) => s.key === 'lfs');
+    return { variante: v, schriftlich, muendlich, needsLfsCode };
+}
+
 /**
  * Gewählte Prüfungsteile getrennt nach schriftlich / mündlich, mit den Angaben aus der Anmeldung.
  * @param {object} item
@@ -61,29 +264,28 @@ export function buildPruefplanDetail(item, profileId, opts) {
     const jahr = (opts && opts.terminJahr) || it.terminJahr || '';
     const v = resolveVariant(it.variante, profileId);
     const detailFor = (part) => {
-        const p = String(part || '').trim().toLowerCase();
-        if (p === 'd' || p.startsWith('d ') || p.startsWith('d(')) {
+        const key = normalizeExamPartKey(part);
+        const fields = examPartFieldMap(key);
+        if (key === 'd') {
             return [it.titelDiplomarbeit || it.titelABA, it.betreuungslehrerDA || it.betreuungslehrerABA]
                 .map((x) => String(x || '').trim())
                 .filter(Boolean)
                 .join(' · ');
         }
-        if (p.indexOf('lfs') !== -1) {
-            return [it.lfs, it.lehrerLFS]
-                .map((x) => String(x || '').trim())
-                .filter(Boolean)
-                .join(' · ');
+        const bits = [];
+        if (fields.subjectField) {
+            const subj = String(it[fields.subjectField] || it.wahlfach || '').trim();
+            if (subj) bits.push(subj);
+            if (fields.subjectField === 'wahlfachMuendlich' && isSeminarWahlfach(subj)) {
+                const sem = String(it.seminar || '').trim();
+                if (sem) bits.push(sem);
+            }
         }
-        if (p.indexOf('bko') !== -1) return String(it.lehrerBKO || '').trim();
-        if (p.indexOf('wahlfach') !== -1) {
-            const wf = String(it.wahlfachMuendlich || it.wahlfach || '').trim();
-            const sem = isSeminarWahlfach(wf) ? String(it.seminar || '').trim() : '';
-            return [wf, sem, it.lehrerWahlfach]
-                .map((x) => String(x || '').trim())
-                .filter(Boolean)
-                .join(' · ');
+        if (fields.teacherField) {
+            const teachers = serializeTeacherList(it[fields.teacherField]);
+            if (teachers) bits.push(teachers);
         }
-        return '';
+        return bits.join(' · ');
     };
     const mapParts = (parts) =>
         (Array.isArray(parts) ? parts : []).map((part) => {
@@ -122,16 +324,54 @@ export function isSeminarWahlfach(wahlfach) {
 }
 
 /**
+ * Lehrer-Wert aus Draft (camelCase oder Alias).
+ * @param {object} draft
+ * @param {string} teacherField
+ */
+function draftTeacherValue(draft, teacherField) {
+    const d = draft || {};
+    if (!teacherField) return '';
+    if (d[teacherField] != null && String(d[teacherField]).trim()) {
+        return serializeTeacherList(d[teacherField]);
+    }
+    const aliases = {
+        lehrerLFS: ['lehrerLfs', 'lehrerLFS'],
+        lehrerBKO: ['lehrerBko', 'lehrerBKO'],
+        lehrerAM: ['lehrerAm', 'lehrerAM'],
+        lehrerWahlfach: ['lehrerWahlfach'],
+        lehrerSchwerpunkt: ['lehrerSchwerpunkt'],
+        lehrerFachkolloquium: ['lehrerFachkolloquium'],
+        lehrerFachtheorie: ['lehrerFachtheorie'],
+        lehrerMuendlich1: ['lehrerMuendlich1'],
+        lehrerMuendlich2: ['lehrerMuendlich2'],
+        lehrerMuendlich3: ['lehrerMuendlich3'],
+        lehrerMuendlichExtra: ['lehrerMuendlichExtra']
+    };
+    const list = aliases[teacherField] || [teacherField];
+    for (let i = 0; i < list.length; i++) {
+        const v = d[list[i]];
+        if (v != null && String(v).trim()) return serializeTeacherList(v);
+    }
+    return '';
+}
+
+/**
  * @param {{
  *   profileId?: string,
  *   variante?: string,
  *   wahlfach?: string,
+ *   wahlfachMuendlich?: string,
  *   seminar?: string,
  *   lfs?: string,
  *   lehrerLfs?: string,
+ *   lehrerLFS?: string,
+ *   lehrerBKO?: string,
+ *   lehrerAM?: string,
+ *   lehrerWahlfach?: string,
  *   nachname?: string,
  *   vorname?: string,
- *   bestaetigung?: boolean
+ *   bestaetigung?: boolean,
+ *   hatABA?: boolean|string
  * }} draft
  */
 export function validateAnmeldungDraft(draft) {
@@ -143,11 +383,37 @@ export function validateAnmeldungDraft(draft) {
     if (!variante) errors.push('Variante fehlt oder ist ungültig.');
     if (!String(d.nachname || '').trim()) errors.push('Nachname fehlt.');
     if (!String(d.vorname || '').trim()) errors.push('Vorname fehlt.');
-    if (profile.extraColumnNames.indexOf('LFS') !== -1) {
-        if (!String(d.lfs || '').trim()) errors.push((profile.lfsFieldLabel || 'LFS') + ' fehlt.');
-        if (!String(d.lehrerLfs || '').trim()) errors.push('LehrerIn LFS fehlt.');
+
+    const slots = describeExamSlots(d.variante, profile.id);
+    if (slots.needsLfsCode && profile.extraColumnNames.indexOf('LFS') !== -1) {
+        if (!String(d.lfs || '').trim()) {
+            errors.push((profile.lfsFieldLabel || 'LFS') + ' fehlt.');
+        }
     }
-    if (isSeminarWahlfach(d.wahlfach) && !String(d.seminar || '').trim()) {
+
+    slots.muendlich.forEach((slot) => {
+        if (!slot.needsTeacher || !slot.teacherField) return;
+        const teachers = draftTeacherValue(d, slot.teacherField);
+        if (!parseTeacherList(teachers).length) {
+            errors.push((slot.teacherLabel || 'LehrerIn') + ' fehlt (' + slot.part + ').');
+        }
+        if (slot.subjectField && slot.subjectField !== 'lfs') {
+            const subj = String(
+                d[slot.subjectField] ||
+                    (slot.subjectField === 'wahlfachMuendlich' ? d.wahlfach || d.wahlfachMuendlich : '') ||
+                    ''
+            ).trim();
+            if (!subj && slot.key !== 'bko' && slot.key !== 'am') {
+                // BKO/AM haben oft kein Fach-Dropdown
+                if (slot.subjectField) {
+                    errors.push((slot.subjectLabel || 'Fach') + ' fehlt (' + slot.part + ').');
+                }
+            }
+        }
+    });
+
+    const wahlfach = String(d.wahlfachMuendlich || d.wahlfach || '').trim();
+    if (isSeminarWahlfach(wahlfach) && !String(d.seminar || '').trim()) {
         errors.push('Seminar-Bezeichnung fehlt (Wahlfach Seminar).');
     }
     if (d.bestaetigung !== true && d.bestaetigung !== 'Ja' && d.bestaetigung !== 'ja') {
@@ -159,7 +425,8 @@ export function validateAnmeldungDraft(draft) {
         title: buildItemTitle(d.nachname, d.vorname),
         pruefplanKurz: variante ? buildPruefplanKurz(variante.key, profile.id) : '',
         varianteLabel: variante ? variante.label : '',
-        profileId: profile.id
+        profileId: profile.id,
+        slots
     };
 }
 
@@ -335,18 +602,23 @@ export function teacherRolesOnItem(item, teacherLabel) {
         { key: 'betreuungslehrerABA', role: 'aba', label: 'ABA / VWA' },
         { key: 'lehrerLFS', role: 'lfs', label: 'LFS' },
         { key: 'lehrerBKO', role: 'bko', label: 'BKO mündlich' },
+        { key: 'lehrerAM', role: 'am', label: 'AM mündlich' },
         { key: 'lehrerWahlfach', role: 'wahlfach', label: 'Wahlfach mündlich' },
         { key: 'lehrerSchwerpunkt', role: 'schwerpunkt', label: 'Schwerpunkt' },
         { key: 'lehrerFachkolloquium', role: 'fachkolloquium', label: 'Fachkolloquium' },
         { key: 'lehrerFachtheorie', role: 'fachtheorie', label: 'Fachtheorie' },
+        { key: 'lehrerMuendlichExtra', role: 'extra', label: 'Extra mündlich' },
         { key: 'lehrerVierteKlausur', role: 'vierte', label: '4. Klausur' },
+        { key: 'lehrerMuendlich1', role: 'muendlich1', label: 'Mündlich 1' },
+        { key: 'lehrerMuendlich2', role: 'muendlich2', label: 'Mündlich 2' },
+        { key: 'lehrerMuendlich3', role: 'muendlich3', label: 'Mündlich 3' },
         { key: 'lehrerMuendlich', role: 'muendlich', label: 'Mündlich' }
     ];
     const out = [];
     for (let i = 0; i < fields.length; i++) {
         const f = fields[i];
-        const val = String(item[f.key] || '').trim().toLowerCase();
-        if (val && val === want) out.push({ role: f.role, label: f.label });
+        const names = parseTeacherList(item[f.key]).map((n) => n.toLowerCase());
+        if (names.indexOf(want) !== -1) out.push({ role: f.role, label: f.label });
     }
     return out;
 }

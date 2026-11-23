@@ -1,8 +1,10 @@
 /**
  * Graph-Helfer: Team-Drive, Kanäle, Upload (Browser).
+ * Transport: shared/graph-client.js (R22 / b11).
  */
 
-const GRAPH = 'https://graph.microsoft.com/v1.0';
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
+
 const SMALL_MAX = 4 * 1024 * 1024;
 
 /**
@@ -13,38 +15,22 @@ const SMALL_MAX = 4 * 1024 * 1024;
  * @param {Record<string, string>} [extraHeaders]
  */
 export async function graphJson(method, path, token, body, extraHeaders = {}) {
-    const url = path.startsWith('http') ? path : GRAPH + path;
-    /** @type {Record<string, string>} */
-    const headers = { Authorization: 'Bearer ' + token, ...extraHeaders };
-    let payload;
-    if (body !== undefined && body !== null) {
-        if (body instanceof Blob || body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-            payload = body;
-        } else if (typeof body === 'string') {
-            payload = body;
-        } else {
-            headers['Content-Type'] = headers['Content-Type'] || 'application/json';
-            payload = JSON.stringify(body);
-        }
-    }
-    const res = await fetch(url, { method, headers, body: payload });
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = { raw: text };
-        }
-    }
-    if (!res.ok) {
-        const msg =
-            (data && data.error && data.error.message) || text.slice(0, 400) || res.statusText;
-        const err = new Error(`Graph ${method} ${path} → ${res.status}: ${msg}`);
-        /** @type {any} */ (err).status = res.status;
+    const rawBody =
+        body instanceof Blob ||
+        body instanceof ArrayBuffer ||
+        ArrayBuffer.isView(body) ||
+        typeof body === 'string';
+    try {
+        return await sharedGraphJson(method, path, token, body === null ? undefined : body, extraHeaders, {
+            rawBody: rawBody && body !== undefined && body !== null
+        });
+    } catch (e) {
+        const status = /** @type {any} */ (e).status || 0;
+        const msg = String((e && e.message) || e);
+        const err = new Error(`Graph ${method} ${path} → ${status}: ${msg}`);
+        /** @type {any} */ (err).status = status;
         throw err;
     }
-    return data;
 }
 
 /**

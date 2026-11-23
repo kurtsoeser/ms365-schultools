@@ -12,8 +12,16 @@ import {
     moveSchulOrganigrammArea,
     normalizeSchulOrganigramm,
     applySchulOrganigrammToStammdaten,
+    rebuildSchulOrganigrammFromStammdaten,
     isAreaNode
 } from '../tools/schul-organigramm/schul-organigramm-logic.js';
+
+/** Kern-Vorlagen, wenn Verwaltung noch leer ist (UX-Maßnahme 5). */
+const VERWALTUNG_ROLE_TEMPLATES = [
+    { name: 'Direktion', code: 'DIREKTION', tier: 'schulleitung' },
+    { name: 'Sekretariat', code: 'SEKRETARIAT', tier: 'verwaltung' },
+    { name: 'Administration', code: 'ADMINISTRATION', tier: 'verwaltung' }
+];
 import {
     ensureAdminAudienceOnSettings,
     normalizeVerwaltungAudienceGroups
@@ -90,6 +98,53 @@ export function mountVerwaltungStammdatenTree(opts) {
             opts.scheduleAutoSave();
         }
         render();
+    }
+
+    function applyVerwaltungRoleTemplates() {
+        const settings = loadSettings();
+        const defaults =
+            typeof window !== 'undefined' &&
+            typeof window.ms365TenantSettingsDefaultAdminRoles === 'function'
+                ? window.ms365TenantSettingsDefaultAdminRoles()
+                : VERWALTUNG_ROLE_TEMPLATES.slice();
+        const wanted = VERWALTUNG_ROLE_TEMPLATES.map(function (t) {
+            return String(t.name).toLowerCase();
+        });
+        const fromDefaults = (Array.isArray(defaults) ? defaults : []).filter(function (d) {
+            return wanted.indexOf(String((d && d.name) || '').toLowerCase()) !== -1;
+        });
+        const seedRoles = fromDefaults.length ? fromDefaults : VERWALTUNG_ROLE_TEMPLATES;
+        const roles = Array.isArray(settings.adminRoles) ? settings.adminRoles.slice() : [];
+        const seen = new Set(
+            roles.map(function (r) {
+                return String((r && r.name) || '')
+                    .trim()
+                    .toLowerCase();
+            })
+        );
+        seedRoles.forEach(function (d) {
+            const name = String((d && d.name) || '').trim();
+            const key = name.toLowerCase();
+            if (!name || seen.has(key)) return;
+            seen.add(key);
+            roles.push({
+                code: String((d && d.code) || name)
+                    .toUpperCase()
+                    .replace(/\s+/g, '')
+                    .slice(0, 24),
+                name: name,
+                tier: String((d && d.tier) || 'verwaltung')
+            });
+        });
+        const next = Object.assign({}, settings, { adminRoles: roles });
+        next.schulOrganigramm = rebuildSchulOrganigrammFromStammdaten(
+            next.schulOrganigramm,
+            next
+        );
+        const applied = applySchulOrganigrammToStammdaten(next, next.schulOrganigramm);
+        persistSettings((applied && applied.settings) || next);
+        notifyUser('Vorlagen Direktion, Sekretariat und Administration übernommen.', 'ok');
+        afterPersist();
     }
 
     function notifyUser(msg, kind) {
@@ -610,14 +665,15 @@ export function mountVerwaltungStammdatenTree(opts) {
         detail.className = 'ts-vw-tree__detail';
 
         if (!selected) {
+            detail.classList.add('is-quiet-help');
             detail.innerHTML =
-                '<div class="ts-vw-tree__detail-empty muted">' +
-                '<p><strong>So verschieben Sie Einträge</strong></p>' +
-                '<ol class="ts-vw-tree__howto">' +
+                '<details class="ts-vw-tree__howto">' +
+                '<summary>Einträge verschieben</summary>' +
+                '<ol class="ts-vw-tree__howto-list">' +
                 '<li>Funktion wählen (z.&nbsp;B. IT-Support)</li>' +
                 '<li>Am Zielbereich auf <strong>Hierher</strong> klicken – oder dorthin ziehen</li>' +
                 '</ol>' +
-                '</div>';
+                '</details>';
             return detail;
         }
 
@@ -847,10 +903,9 @@ export function mountVerwaltungStammdatenTree(opts) {
         const head = document.createElement('div');
         head.className = 'ts-vw-tree__head';
         head.innerHTML =
-            '<h3 class="ts-vw-tree__title">Verwaltung – Struktur &amp; Microsoft&nbsp;365</h3>' +
+            '<h3 class="ts-vw-tree__title">Struktur</h3>' +
             '<p class="muted ts-vw-tree__lead">' +
-            '<strong>Verschieben:</strong> Eintrag wählen → am Zielordner <strong>Hierher</strong> klicken ' +
-            '(oder ziehen / rechts Zielbutton). Beispiel: IT-Support → IT-Team.' +
+            'Eintrag wählen und am Zielordner <strong>Hierher</strong> ablegen, oder ziehen.' +
             '</p>';
         host.appendChild(head);
 
@@ -858,9 +913,9 @@ export function mountVerwaltungStammdatenTree(opts) {
         toolbar.className = 'ts-vw-tree__toolbar';
         const btnArea = document.createElement('button');
         btnArea.type = 'button';
-        btnArea.className = 'btn btn-success btn-sm';
+        btnArea.className = 'btn fb-btn ts-act-primary';
         btnArea.innerHTML =
-            '<i class="bi bi-plus-circle" aria-hidden="true"></i> Verwaltungsgruppe';
+            '<i class="bi bi-plus-lg" aria-hidden="true"></i> Verwaltungsgruppe';
         btnArea.addEventListener('click', function () {
             void Promise.resolve(editor.createAudienceSection()).then(function () {
                 afterPersist();
@@ -869,8 +924,8 @@ export function mountVerwaltungStammdatenTree(opts) {
         toolbar.appendChild(btnArea);
         const btnFn = document.createElement('button');
         btnFn.type = 'button';
-        btnFn.className = 'btn btn-sm';
-        btnFn.innerHTML = '<i class="bi bi-person-badge" aria-hidden="true"></i> Funktion';
+        btnFn.className = 'btn fb-btn fb-btn--ghost';
+        btnFn.innerHTML = '<i class="bi bi-plus-lg" aria-hidden="true"></i> Funktion';
         btnFn.addEventListener('click', function () {
             const parentId =
                 selected && selected.kind === 'area'
@@ -886,7 +941,7 @@ export function mountVerwaltungStammdatenTree(opts) {
         if (typeof opts.onOpenOrganigramm === 'function') {
             const btnMap = document.createElement('button');
             btnMap.type = 'button';
-            btnMap.className = 'btn btn-sm';
+            btnMap.className = 'btn fb-btn fb-btn--ghost ts-vw-map';
             btnMap.innerHTML =
                 '<i class="bi bi-diagram-3" aria-hidden="true"></i> Landkarte';
             btnMap.addEventListener('click', function () {
@@ -916,10 +971,47 @@ export function mountVerwaltungStammdatenTree(opts) {
         const master = document.createElement('div');
         master.className = 'ts-vw-tree__master';
         if (!tree.roots.length) {
-            const empty = document.createElement('p');
-            empty.className = 'muted';
-            empty.textContent = 'Keine Struktur – zuerst eine Verwaltungsgruppe anlegen.';
-            master.appendChild(empty);
+            const lead = document.createElement('p');
+            lead.className = 'muted';
+            lead.textContent =
+                'Noch leer – Standardrollen als Vorlage. Übernehmen legt Schulleitung/Verwaltung an; Personen können danach besetzt werden.';
+            master.appendChild(lead);
+            const list = document.createElement('ul');
+            list.className = 'ts-vw-tree__templates';
+            list.setAttribute('aria-label', 'Vorlagen-Rollen');
+            VERWALTUNG_ROLE_TEMPLATES.forEach(function (tpl) {
+                const li = document.createElement('li');
+                li.className = 'ts-vw-tree__template';
+                li.innerHTML =
+                    '<span class="ts-vw-tree__template-label">' +
+                    escapeHtml(tpl.name) +
+                    '</span>' +
+                    '<span class="ts-vw-tree__template-meta">unbesetzt · Vorlage</span>';
+                list.appendChild(li);
+            });
+            master.appendChild(list);
+            const actions = document.createElement('div');
+            actions.className = 'ts-vw-tree__templates-actions';
+            const btnSeed = document.createElement('button');
+            btnSeed.type = 'button';
+            btnSeed.className = 'btn fb-btn';
+            btnSeed.innerHTML =
+                '<i class="bi bi-magic" aria-hidden="true"></i> Vorlagen übernehmen';
+            btnSeed.addEventListener('click', function () {
+                applyVerwaltungRoleTemplates();
+            });
+            const btnAreaEmpty = document.createElement('button');
+            btnAreaEmpty.type = 'button';
+            btnAreaEmpty.className = 'btn fb-btn fb-btn--ghost';
+            btnAreaEmpty.innerHTML =
+                '<i class="bi bi-plus-circle" aria-hidden="true"></i> Eigene Verwaltungsgruppe';
+            btnAreaEmpty.addEventListener('click', function () {
+                void Promise.resolve(editor.createAudienceSection()).then(function () {
+                    afterPersist();
+                });
+            });
+            actions.append(btnSeed, btnAreaEmpty);
+            master.appendChild(actions);
         } else {
             const ul = document.createElement('ul');
             ul.className = 'ts-vw-tree__list';

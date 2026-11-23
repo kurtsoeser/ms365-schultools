@@ -40,8 +40,14 @@
  * Schul-Admins legen KEINE eigene App an – sie öffnen nur Ihre URL und melden sich an (Zustimmung ggf. einmal pro Mandant).
  */
 window.MS365_MSAL_CONFIG = {
-    /** Anwendungs-ID (Client) aus der App-Registrierung */
+    /** Anwendungs-ID (Client) der Portal-App */
     clientId: '',
+    /**
+     * Zweite App ms365-schultools-it (Schreib- und Admin-Aufrufe).
+     * Leer lassen nur in dieser Vorlage. Produktiv: itClientId in ms365-config.js.
+     * Bekannte öffentliche Client-ID: a1f27f94-78c2-4503-9603-192c86924842
+     */
+    itClientId: '',
     /** Multimandanten: alle Organisationskonten */
     authority: 'https://login.microsoftonline.com/organizations',
     /**
@@ -53,7 +59,8 @@ window.MS365_MSAL_CONFIG = {
 
 /**
  * Kursteams Azure-Backend (Schritt 6 – Online-Anlage).
- * scope: delegierte Berechtigung der Backend-App (Entra → Eine API verfügbar machen).
+ * Lokal: -dev-URL ok. Produktion: leere baseUrl in ms365-config.js + Secret
+ * KURSTEAMS_API_BASE_URL (ohne -dev), kein Function Key.
  */
 window.MS365_KURSTEAMS_API = {
     baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
@@ -61,9 +68,8 @@ window.MS365_KURSTEAMS_API = {
 };
 
 /**
- * Lizenz-API (Phase 2) – Tenant-Freischaltung gegen SharePoint-Liste.
- * scope: License.Access der License-Backend-App.
- * Nach Deploy: baseUrl z. B. https://YOUR-FUNC.azurewebsites.net/api/license
+ * Lizenz-API – Tenant-Freischaltung.
+ * Lokal: -dev. Produktion: LICENSE_API_BASE_URL ohne -dev, ohne Function Key.
  */
 window.MS365_LICENSE_API = {
     baseUrl: 'https://func-ms365-license-dev.azurewebsites.net/api/license',
@@ -73,7 +79,7 @@ window.MS365_LICENSE_API = {
 
 /**
  * Schulsprecherwahl-API (Azure Tables, anonym).
- * Scope Election.Access an der License-Backend-App (siehe backend/election-api/scripts).
+ * Lokal: -dev. Produktion: ELECTION_API_BASE_URL ohne -dev.
  */
 window.MS365_ELECTION_API = {
     baseUrl: 'https://func-ms365-election-dev.azurewebsites.net/api/election',

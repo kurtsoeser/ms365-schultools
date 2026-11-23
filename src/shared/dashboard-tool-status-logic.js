@@ -526,6 +526,28 @@ export function formatSyncSecondary(iso) {
     }
 }
 
+/** Kurzes Datum für ruhige OK-Pills (Häkchen + Datum statt „Intranet verbunden · Sync …“). */
+export function formatQuietSyncLabel(iso) {
+    if (!iso) return 'Verbunden';
+    try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return 'Verbunden';
+        const now = new Date();
+        const sameDay =
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate();
+        if (sameDay) return 'heute';
+        return d.toLocaleDateString('de-AT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric'
+        });
+    } catch {
+        return 'Verbunden';
+    }
+}
+
 function hygieneLabel(status, hygieneApi) {
     if (!status || !hygieneApi) return null;
     const primary = hygieneApi.hygieneStatusDashboardHint(status);
@@ -619,17 +641,17 @@ function sharepointListStatus(container) {
     if (!url) {
         return {
             tone: 'pending',
-            primary: 'Intranet-URL fehlt',
-            secondary: 'In den Stammdaten oder Intranet-Hub setzen'
+            primary: 'Noch nicht gestartet',
+            secondary: 'Intranet-URL in den Stammdaten oder im Intranet-Hub setzen',
+            variant: 'emphasis'
         };
     }
-    let secondary = '';
     const at = readSpoSyncAtForStatus();
-    if (at) secondary = formatSyncSecondary(at);
     return {
         tone: 'ok',
-        primary: 'Intranet verbunden',
-        secondary: secondary || 'Listen im Werkzeug abgleichen'
+        primary: formatQuietSyncLabel(at),
+        secondary: '',
+        variant: 'subtle'
     };
 }
 

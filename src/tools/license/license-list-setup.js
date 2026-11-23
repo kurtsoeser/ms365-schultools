@@ -33,8 +33,148 @@
         else window.alert(m);
     }
 
+    function withTimeout(promise, ms, label) {
+        const wait = Number(ms) > 0 ? Number(ms) : 45000;
+        return Promise.race([
+            promise,
+            new Promise(function (_, reject) {
+                setTimeout(function () {
+                    reject(
+                        new Error(
+                            (label || 'Vorgang') +
+                                ' abgebrochen (Timeout ' +
+                                Math.round(wait / 1000) +
+                                's). Bitte Popup erlauben oder Spalten manuell anlegen.'
+                        )
+                    );
+                }, wait);
+            })
+        ]);
+    }
+
     async function ensureToken() {
-        return await G.getGraphToken(SCOPES);
+        // Explizit Popup – Silent/iframe hängt oft bei Sites.Manage.All.
+        if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
+            return withTimeout(
+                window.ms365AuthAcquireTokenPopup(SCOPES),
+                45000,
+                'Anmeldung/Token'
+            );
+        }
+        return withTimeout(G.getGraphToken(SCOPES), 45000, 'Anmeldung/Token');
+    }
+
+    /** Stammdaten-Spalten inkl. Rollen-E-Mails – per License-API ohne Sites.Manage.All. */
+    var STAMMDATEN_COLUMNS = [
+        { name: 'Standort', displayName: 'Standort', type: 'text' },
+        { name: 'Strasse', displayName: 'Straße', type: 'text' },
+        { name: 'PLZ', displayName: 'PLZ', type: 'text' },
+        { name: 'Ort', displayName: 'Ort', type: 'text' },
+        { name: 'Direktion', displayName: 'Direktion', type: 'text' },
+        { name: 'DirektionEmail', displayName: 'Direktion E-Mail', type: 'text' },
+        { name: 'Schuladministration', displayName: 'Schuladministration', type: 'text' },
+        { name: 'SchuladministrationEmail', displayName: 'Schuladministration E-Mail', type: 'text' },
+        { name: 'ItM365Admin', displayName: 'IT-/M365-Administration', type: 'text' },
+        { name: 'ItM365AdminEmail', displayName: 'IT-/M365-Administration E-Mail', type: 'text' },
+        { name: 'WeitereKontakte', displayName: 'Weitere Kontakte / Rollen', type: 'multiline' },
+        { name: 'Telefon', displayName: 'Telefon', type: 'text' },
+        { name: 'Schulnummer', displayName: 'Schulnummer', type: 'text' }
+    ];
+
+    /**
+     * Bevorzugter Weg: License-API (App-only Graph auf dem Server) + adminCreateColumn.
+     * @returns {Promise<object|null>}
+     */
+    async function runSetupViaLicenseApi() {
+        var api = window.ms365LicenseApi;
+        if (!api || typeof api.acquireLicenseToken !== 'function') return null;
+        if (typeof api.adminEnsureSchema !== 'function' && typeof api.adminCreateColumn !== 'function') {
+            return null;
+        }
+
+        log('License-API: Token holen (ohne Sites.Manage.All) …');
+        var token = await withTimeout(
+            api.acquireLicenseToken({ popup: true }),
+            45000,
+            'License-API Token'
+        );
+
+        if (typeof api.adminEnsureSchema === 'function') {
+            log('License-API: Schema sicherstellen …');
+            try {
+                var schema = await api.adminEnsureSchema(token);
+                var created =
+                    schema && schema.stammdaten && Array.isArray(schema.stammdaten.created)
+                        ? schema.stammdaten.created
+                        : [];
+                if (created.length) log('API neu: ' + created.join(', '));
+                else log('API-Schema geprüft.');
+            } catch (e) {
+                log('API ensure-schema: ' + ((e && e.message) || e));
+            }
+        }
+
+        var have = {};
+        if (typeof api.adminListColumns === 'function') {
+            try {
+                var colRes = await api.adminListColumns(token);
+                var cols =
+                    colRes && Array.isArray(colRes.columns)
+                        ? colRes.columns
+                        : Array.isArray(colRes)
+                          ? colRes
+                          : [];
+                cols.forEach(function (c) {
+                    var n = String((c && c.name) || '')
+                        .trim()
+                        .toLowerCase();
+                    if (n) have[n] = true;
+                });
+            } catch (e) {
+                log('Spaltenliste: ' + ((e && e.message) || e));
+            }
+        }
+
+        var createdLocal = [];
+        if (typeof api.adminCreateColumn === 'function') {
+            for (var i = 0; i < STAMMDATEN_COLUMNS.length; i++) {
+                var f = STAMMDATEN_COLUMNS[i];
+                var key = String(f.name).toLowerCase();
+                if (have[key]) {
+                    log('Spalte vorhanden: ' + f.name);
+                    continue;
+                }
+                log('Lege Spalte an (API): ' + f.name + ' …');
+                try {
+                    await api.adminCreateColumn(token, {
+                        name: f.name,
+                        displayName: f.displayName,
+                        type: f.type || 'text'
+                    });
+                    have[key] = true;
+                    createdLocal.push(f.name);
+                } catch (ce) {
+                    var msg = String((ce && ce.message) || ce || '');
+                    if ((ce && ce.status === 409) || /existiert bereits|already exists/i.test(msg)) {
+                        have[key] = true;
+                        log('Spalte vorhanden: ' + f.name);
+                    } else {
+                        log('Fehler ' + f.name + ': ' + msg);
+                    }
+                }
+            }
+        }
+
+        log(
+            createdLocal.length
+                ? 'Fertig über License-API – neu: ' + createdLocal.join(', ')
+                : 'Fertig über License-API – Spalten aktuell.'
+        );
+        return {
+            via: 'license-api',
+            created: createdLocal,
+            webUrl: String((cfg().siteWebUrl || '')).trim()
+        };
     }
 
     async function findListByDisplayName(siteId, displayName, token) {
@@ -115,8 +255,31 @@
             { name: 'PLZ', displayName: 'PLZ', text: { allowMultipleLines: false, maxLength: 32 } },
             { name: 'Ort', displayName: 'Ort', text: { allowMultipleLines: false, maxLength: 255 } },
             { name: 'Direktion', displayName: 'Direktion', text: { allowMultipleLines: false, maxLength: 255 } },
-            { name: 'Schuladministration', displayName: 'Schuladministration', text: { allowMultipleLines: true } },
-            { name: 'ItM365Admin', displayName: 'IT-/M365-Administration', text: { allowMultipleLines: true } },
+            {
+                name: 'DirektionEmail',
+                displayName: 'Direktion E-Mail',
+                text: { allowMultipleLines: false, maxLength: 255 }
+            },
+            {
+                name: 'Schuladministration',
+                displayName: 'Schuladministration',
+                text: { allowMultipleLines: false, maxLength: 255 }
+            },
+            {
+                name: 'SchuladministrationEmail',
+                displayName: 'Schuladministration E-Mail',
+                text: { allowMultipleLines: false, maxLength: 255 }
+            },
+            {
+                name: 'ItM365Admin',
+                displayName: 'IT-/M365-Administration',
+                text: { allowMultipleLines: false, maxLength: 255 }
+            },
+            {
+                name: 'ItM365AdminEmail',
+                displayName: 'IT-/M365-Administration E-Mail',
+                text: { allowMultipleLines: false, maxLength: 255 }
+            },
             { name: 'WeitereKontakte', displayName: 'Weitere Kontakte / Rollen', text: { allowMultipleLines: true } },
             { name: 'Telefon', displayName: 'Telefon', text: { allowMultipleLines: false, maxLength: 64 } },
             { name: 'Schulnummer', displayName: 'Schulnummer', text: { allowMultipleLines: false, maxLength: 255 } },
@@ -148,7 +311,25 @@
         if (!siteUrl) throw new Error('Site-URL fehlt.');
         if (!listTitle) throw new Error('Listenname fehlt.');
 
-        log('Anmeldung / Token …');
+        // 1) Bevorzugt License-API – hängt nicht an Sites.Manage.All / iframe
+        try {
+            var viaApi = await runSetupViaLicenseApi();
+            if (viaApi) {
+                const openElApi = $('licOpenLink');
+                if (openElApi && viaApi.webUrl) {
+                    openElApi.href = viaApi.webUrl;
+                    openElApi.hidden = false;
+                    const openLabelApi = $('licOpenLinkLabel');
+                    if (openLabelApi) openLabelApi.textContent = 'Site öffnen';
+                }
+                return viaApi;
+            }
+        } catch (apiErr) {
+            log('License-API-Weg: ' + ((apiErr && apiErr.message) || apiErr));
+            log('Fallback: Browser-Graph mit Sites.Manage.All …');
+        }
+
+        log('Anmeldung / Token (Sites.Manage.All, Popup) …');
         const token = await ensureToken();
 
         log('Löse Website auf: ' + siteUrl);
@@ -187,6 +368,8 @@
             openEl.href = webUrl;
             openEl.hidden = false;
             openEl.style.display = '';
+            const openLabel = $('licOpenLinkLabel');
+            if (openLabel) openLabel.textContent = 'Liste öffnen';
         }
         return { siteId: siteId, listId: String(list.id), webUrl: webUrl };
     }
@@ -199,6 +382,13 @@
         log('Löse Website auf …');
         const site = await G.resolveSiteFromWebUrl(token, siteUrl);
         log('OK: ' + (site.displayName || '') + ' → ' + (site.id || ''));
+        const openEl = $('licOpenLink');
+        if (openEl) {
+            openEl.href = (site && site.webUrl) || siteUrl;
+            openEl.hidden = false;
+            const openLabel = $('licOpenLinkLabel');
+            if (openLabel) openLabel.textContent = 'Site öffnen';
+        }
         const listTitle = String(($('licListName') && $('licListName').value) || cfg().listDisplayName || '').trim();
         if (listTitle && site.id) {
             const existing = await findListByDisplayName(site.id, listTitle, token);
@@ -282,7 +472,13 @@
             'Status',
             'ValidUntil',
             'ContactEmail',
-            'Notes'
+            'Notes',
+            'Direktion',
+            'DirektionEmail',
+            'Schuladministration',
+            'SchuladministrationEmail',
+            'ItM365Admin',
+            'ItM365AdminEmail'
         ];
         const list = await findListByDisplayName(siteId, listTitle, token);
         if (!list || !list.id) {

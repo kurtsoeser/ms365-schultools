@@ -49,6 +49,7 @@
                 editBtn.className = 'btn btn-sm alt';
                 editBtn.innerHTML = '<i class="bi bi-pencil" aria-hidden="true"></i>';
                 editBtn.title = 'Bearbeiten';
+                editBtn.setAttribute('aria-label', 'Bearbeiten');
                 editBtn.addEventListener('click', function () {
                     opts.onEdit(note);
                 });
@@ -60,6 +61,7 @@
                 delBtn.className = 'btn btn-sm btn-danger';
                 delBtn.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
                 delBtn.title = 'Löschen';
+                delBtn.setAttribute('aria-label', 'Löschen');
                 delBtn.addEventListener('click', function () {
                     opts.onDelete(note);
                 });

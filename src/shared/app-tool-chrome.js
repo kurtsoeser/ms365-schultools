@@ -206,6 +206,16 @@ export function normalizeToolPageChrome(header) {
 
 export function bootToolPageChrome() {
     normalizeToolPageChrome(null);
+    if (document.body && document.body.classList.contains('it-workspace-shell')) {
+        document.querySelectorAll('a[data-it-workspace-hidden-back="1"], a.app-tool-chrome__back').forEach(
+            function (a) {
+                const label = String(a.textContent || '');
+                if (/dashboard/i.test(label) || a.hasAttribute('data-it-workspace-hidden-back')) {
+                    a.hidden = true;
+                }
+            }
+        );
+    }
 }
 
 if (typeof window !== 'undefined') {

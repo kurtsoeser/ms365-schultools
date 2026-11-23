@@ -13,6 +13,6 @@
     "address.postCode",
     "address.city"
   ],
-  ["ALTH", "Althuber", "Lukas", "", "", "90565023", "lukas.althuber@hak-steyr.at", "", "", "", "", ""],
-  ["SOESER", "Söser", "Kurt", "", "", "90024283", "kurt.soeser@hak-steyr.at", "", "", "", "", ""]
+  ["MUSTE", "Mustermann", "Max", "", "", "90000001", "max.mustermann@schule.example", "", "", "", "", ""],
+  ["BEISP", "Beispiel", "Berta", "", "", "90000002", "berta.beispiel@schule.example", "", "", "", "", ""]
 ]

@@ -35,6 +35,7 @@ import {
     saveKrankmeldungSettings
 } from './krankmeldung-settings.js';
 import { readDemoRoleOverrideFromUrl } from '../../shared/app-role-switcher-policy.js';
+import { renderToolOpsStatusCard } from '../../shared/tool-ops-status.js';
 import {
     getEinsammlerStammdatenMeta,
     hydrateEinsammlerStammdaten
@@ -202,32 +203,18 @@ export function mountApp(root) {
         return loadState();
     }
 
-    function renderSyncHint() {
-        const sync = getKrankmeldungSyncMeta();
-        if (sync.source === 'live' && sync.ok) return '';
-        if (!sync.siteUrl && sync.source !== 'demo') {
-            return (
-                '<section class="km-calm-banner km-calm-banner--ops" role="status">' +
-                '<div class="km-calm-banner__text">' +
-                '<p class="km-calm-banner__eyebrow">SharePoint</p>' +
-                '<p>Noch keine Site – IT richtet die Liste ein. Bis dahin lokal/Demo.</p>' +
-                '</div></section>'
-            );
-        }
-        if (sync.source === 'demo' || sync.source === 'local') {
-            return (
-                '<section class="km-calm-banner km-calm-banner--ops" role="status">' +
-                '<div class="km-calm-banner__text">' +
-                '<p class="km-calm-banner__eyebrow">Lokal / Demo</p>' +
-                '<p>' +
-                esc(
-                    sync.error ||
-                        'SharePoint nicht verbunden – Meldungen bleiben lokal, bis die Liste greift.'
-                ) +
-                '</p></div></section>'
-            );
-        }
-        return '';
+    function statusCard() {
+        return renderToolOpsStatusCard({
+            nounPlural: 'Meldungen',
+            listWord: 'Liste',
+            requireLogin: false,
+            loggedIn: true,
+            isAdmin: admin(),
+            sync: getKrankmeldungSyncMeta(),
+            setupHref: 'sharepoint-liste-krankmeldung.html',
+            setupLabel: 'Liste einrichten',
+            esc
+        });
     }
 
     function admin() {
@@ -265,7 +252,7 @@ export function mountApp(root) {
             renderNav() +
             '<div class="km-main">' +
             renderMessage() +
-            (ui.view === 'inbox' ? renderSyncHint() : '') +
+            (ui.view === 'inbox' ? statusCard() : '') +
             renderView() +
             '</div></div>';
         bind();
@@ -494,17 +481,24 @@ export function mountApp(root) {
                   ? 'Datum (unbenutzt)'
                   : 'Tag';
 
+        const greetNum = stats.neu;
+        const greetText = greetNum === 1 ? 'neue Meldung' : 'neue Meldungen';
         return (
             actionBanner(stats) +
-            '<div class="km-head"><div><h2>Inbox</h2>' +
-            '<p>Tag / Woche / Alle – Suche, Klasse, Status. Gefiltert: <strong>' +
+            '<div class="km-head"><div>' +
+            '<h1 class="fb-greet"><span class="fb-num">' +
+            greetNum +
+            '</span> ' +
+            greetText +
+            '</h1>' +
+            '<p class="fb-sub">Inbox Tag / Woche / Alle – gefiltert <strong>' +
             list.length +
             '</strong> von ' +
             stats.total +
             '.</p></div>' +
             '<div class="km-form__actions">' +
             (isAdm
-                ? '<button type="button" class="btn btn-success" data-km-pull-spo>Von SharePoint</button>' +
+                ? '<button type="button" class="btn btn-success fb-btn" data-km-pull-spo>Von SharePoint</button>' +
                   '<button type="button" class="btn" data-km-pull-remote>Von API laden</button>'
                 : '') +
             '<button type="button" class="btn" id="kmExportCsv">CSV</button>' +
@@ -515,7 +509,7 @@ export function mountApp(root) {
                 ? '<button type="button" class="btn" id="kmCopyFormLink">Link kopieren</button>'
                 : '') +
             '</div></div>' +
-            '<div class="km-cards">' +
+            '<div class="km-cards km-cards--quiet" aria-label="Kennzahlen">' +
             card('Neu gesamt', String(stats.neu)) +
             card('Heute', String(stats.heute)) +
             card('Heute neu', String(stats.offenHeute)) +

@@ -455,10 +455,10 @@ export function renderActivityDrawer(state) {
     const moreActions = [];
     if (canDecide(state) && st === 'beantragt') {
         primaryActions.push(
-            `<button type="button" class="btn akt-btn-primary" data-akt-approve="${esc(it.itemId)}">Genehmigen</button>`
+            `<button type="button" class="fb-btn" data-akt-approve="${esc(it.itemId)}">Genehmigen</button>`
         );
         secondaryActions.push(
-            `<button type="button" class="btn" data-akt-nachforderung="${esc(it.itemId)}">Zur Ergänzung</button>`
+            `<button type="button" class="fb-btn fb-btn--ghost" data-akt-nachforderung="${esc(it.itemId)}">Zur Ergänzung</button>`
         );
         moreActions.push(
             `<button type="button" class="akt-more-menu__item akt-btn-danger" data-akt-reject="${esc(it.itemId)}">Ablehnen</button>`
@@ -466,7 +466,7 @@ export function renderActivityDrawer(state) {
     }
     if (canMarkUntis(it, state) && !it.untisErledigt) {
         primaryActions.unshift(
-            `<button type="button" class="btn akt-btn-primary" data-akt-untis="${esc(
+            `<button type="button" class="fb-btn" data-akt-untis="${esc(
                 it.itemId
             )}">Als in Untis verarbeitet markieren</button>`
         );

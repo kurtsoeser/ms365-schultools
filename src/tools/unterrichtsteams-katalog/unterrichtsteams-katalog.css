@@ -337,3 +337,18 @@
     font-size: 0.84em;
     color: var(--text-secondary);
 }
+
+/* ===== Welle 3 UI chrome ===== */
+.page-card.tm-page {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.fb-greet { margin: 0 0 6px; }
+.fb-sub { margin: 0 0 16px; }
+.fb-actions-row { margin-top: 16px; }

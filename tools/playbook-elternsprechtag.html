@@ -8,51 +8,110 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Playbook Elternsprechtag</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <style>
-        .cp-steps{display:grid;gap:14px;margin-top:8px}
-        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
-        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
-        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
-        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
-        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
-        @media (max-width:720px){.cp-step{grid-template-columns:40px 1fr}.cp-step .btn{grid-column:1/-1;justify-self:start}}
-    </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-calendar2-heart"></i>Playbook Elternsprechtag</span>
             </div>
-            <p>Vom Termin bis zur Buchung: Stammdaten, Verteiler, Microsoft Bookings und Elterninfo – Schritt für Schritt.</p>
+            <p>Fokussiert auf den Sprechtag: Termin, Guardians, Verteiler, Bookings, Info und Nachbereitung – getrennt vom allgemeinen Elternkanal.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-playbook-elternsprechtag" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="playbook-eltern.html"><i class="bi bi-chat-heart"></i>Elternkommunikation</a>
                 <a class="btn" href="elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Bookings</a>
+                <a class="btn" href="playbook-eltern.html"><i class="bi bi-chat-heart"></i>Elternkommunikation</a>
             </div>
         </div>
         <div class="content">
             <section class="tm-panel">
                 <div class="tm-panel__head">
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
-                    <div><h3>Schritte</h3><p id="cpProgress" class="muted" style="margin:0;">0 / 7 erledigt</p></div>
+                    <div><h3>Schritte</h3><p id="cpProgress" class="pb-progress">0 / 7 erledigt</p></div>
                 </div>
-                <div class="cp-steps">
-                    <article class="cp-step"><div class="cp-step__n">1</div><div><h3>Termin &amp; Ablauf planen</h3><p>Datum, Zeitfenster, Raumlogik und Zuständigkeiten in der Schulleitung festhalten.</p><label class="cp-check"><input type="checkbox" data-cp-check="termin"> Erledigt</label></div><a class="btn" href="sharepoint-liste-schultermine.html"><i class="bi bi-calendar3"></i>Schultermine</a></article>
-                    <article class="cp-step"><div class="cp-step__n">2</div><div><h3>Erziehungsberechtigte prüfen</h3><p>Guardians in Stammdaten/Import – Basis für Verteiler und Ansprache.</p><label class="cp-check"><input type="checkbox" data-cp-check="guardians"> Erledigt</label></div><a class="btn" href="../tenant.html"><i class="bi bi-person-lines-fill"></i>Stammdaten</a></article>
-                    <article class="cp-step"><div class="cp-step__n">3</div><div><h3>Eltern-Verteiler</h3><p>Klassen- und Jahrgangsverteiler für Einladungen vorbereiten.</p><label class="cp-check"><input type="checkbox" data-cp-check="verteiler"> Erledigt</label></div><a class="btn" href="eltern-verteiler.html"><i class="bi bi-people"></i>Verteiler</a></article>
-                    <article class="cp-step"><div class="cp-step__n">4</div><div><h3>Bookings einrichten</h3><p>Eine Umgebung, 10‑Min-Dienst, alle Lehrkräfte als Mitarbeiter.</p><label class="cp-check"><input type="checkbox" data-cp-check="bookings"> Erledigt</label></div><a class="btn" href="elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Bookings</a></article>
-                    <article class="cp-step"><div class="cp-step__n">5</div><div><h3>Lehrkräfte einbinden</h3><p>Kurz-Anleitung: Kalender, Buchungslink, Vertretungen – Teams/Intranet nutzen.</p><label class="cp-check"><input type="checkbox" data-cp-check="lehrer"> Erledigt</label></div><a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Intranet</a></article>
-                    <article class="cp-step"><div class="cp-step__n">6</div><div><h3>Eltern informieren</h3><p>News auf dem Intranet, optional Verteiler-Mail mit Buchungslink.</p><label class="cp-check"><input type="checkbox" data-cp-check="kommunikation"> Erledigt</label></div><a class="btn" href="playbook-eltern.html"><i class="bi bi-chat-heart"></i>Elternkanal</a></article>
-                    <article class="cp-step"><div class="cp-step__n">7</div><div><h3>Nach dem Sprechtag</h3><p>Auslastung prüfen, Bookings für nächstes Mal notieren, ggf. Automation anpassen.</p><label class="cp-check"><input type="checkbox" data-cp-check="nachbereitung"> Erledigt</label></div><a class="btn" href="power-automate-rezepte.html"><i class="bi bi-lightning-charge"></i>Automationen</a></article>
+                <p class="pb-lead">Kern: Termin → Guardians → Verteiler → Bookings → Info. Nachbereitung optional.</p>
+                <div class="pb-steps">
+                    <article class="pb-step cp-step" data-cp-step="termin">
+                        <div class="pb-step__n">1</div>
+                        <div>
+                            <h3>Termin &amp;amp; Ablauf planen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Datum, Zeitfenster, Raumlogik und Zuständigkeiten festhalten.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="termin"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-liste-schultermine.html"><i class="bi bi-calendar3"></i>Schultermine</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="guardians">
+                        <div class="pb-step__n">2</div>
+                        <div>
+                            <h3>Erziehungsberechtigte prüfen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Guardians in Stammdaten – Basis für Verteiler und Ansprache.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="guardians"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="../tenant.html#schueler"><i class="bi bi-person-lines-fill"></i>Stammdaten</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="verteiler">
+                        <div class="pb-step__n">3</div>
+                        <div>
+                            <h3>Eltern-Verteiler <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Klassen- und Jahrgangsverteiler für Einladungen vorbereiten.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="verteiler"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="eltern-verteiler.html"><i class="bi bi-people"></i>Verteiler</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="bookings">
+                        <div class="pb-step__n">4</div>
+                        <div>
+                            <h3>Bookings einrichten <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Eine Umgebung, 10‑Min-Dienst, Lehrkräfte als Mitarbeiter.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="bookings"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Bookings</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="lehrer">
+                        <div class="pb-step__n">5</div>
+                        <div>
+                            <h3>Lehrkräfte einbinden <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Kurz-Anleitung: Kalender, Buchungslink, Vertretungen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="lehrer"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Intranet</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="kommunikation">
+                        <div class="pb-step__n">6</div>
+                        <div>
+                            <h3>Eltern informieren <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>News auf dem Intranet, optional Verteiler-Mail mit Buchungslink.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="kommunikation"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="playbook-eltern.html"><i class="bi bi-chat-heart"></i>Elternkanal</a>
+                    </article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="nachbereitung">
+                        <div class="pb-step__n">7</div>
+                        <div>
+                            <h3>Nach dem Sprechtag <span class="pb-pill pb-pill--later">Optional</span></h3>
+                            <p>Auslastung prüfen, Bookings fürs nächste Mal notieren, ggf. Automation anpassen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="nachbereitung"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="power-automate-rezepte.html"><i class="bi bi-lightning-charge"></i>Automationen</a>
+                    </article>
                 </div>
-                <div class="tm-actions" style="margin-top:16px;">
-                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
                 </div>
             </section>
         </div>
@@ -61,9 +120,25 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module">
         import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        import { evaluateElternPlaybookReadyChecks } from '../src/shared/playbook-tool-ready.js';
+
+        function loadTenantSettings() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        }
+
         wirePlaybookPage({
             storageKey: 'ms365-playbook-elternsprechtag-v1',
-            stepIds: ['termin', 'guardians', 'verteiler', 'bookings', 'lehrer', 'kommunikation', 'nachbereitung']
+            stepIds: ["termin","guardians","verteiler","bookings","lehrer","kommunikation","nachbereitung"],
+            evaluateReadyChecks: function () {
+                return evaluateElternPlaybookReadyChecks(loadTenantSettings());
+            }
         });
     </script>
 </body>

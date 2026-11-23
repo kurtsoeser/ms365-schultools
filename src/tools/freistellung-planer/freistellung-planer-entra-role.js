@@ -222,6 +222,7 @@ export function roleSourceLabel(source) {
     if (s === 'dashboard-audience') return 'Schüler-Sammelgruppe (Stammdaten / Dashboard)';
     if (s === 'jahrgang-group') return 'Jahrgangs-Koordination (Entra)';
     if (s === 'list-access') return 'Freistellungsliste (SharePoint)';
+    if (s === 'konto-offen') return 'Konto wird gelesen';
     if (s === 'demo') return 'Demo';
     return '';
 }
@@ -378,30 +379,44 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             pickOpts
         );
         state.roleSource = 'demo';
+        state.kontoOffen = false;
         state.planerAccessDenied = false;
         state.jahrgangScope = null;
         setPlanerRoleHints(state, '', '');
         return;
     }
 
-    if (!isLoggedIn()) {
+    const emEarly = String(state.accountEmail || '')
+        .trim()
+        .toLowerCase();
+
+    if (!isLoggedIn() && !emEarly) {
         state.planerRoles = [];
         state.planerRoleSources = {};
         state.role = '';
-        if (entra) {
-            state.roleSource = 'entra';
-            state.planerAccessDenied = false;
-            setPlanerRoleHints(
-                state,
-                'Bitte mit Ihrem Schul-Microsoft-Konto anmelden.',
-                'Nicht angemeldet – Rolle nach Anmeldung über Entra-Gruppen aus dem Freistellungen-Setup.'
-            );
-        } else {
-            state.planerAccessDenied = true;
-            setPlanerRoleHints(state, ROLE_HINT_PUBLIC_DENIED, ROLE_HINT_STAFF_NO_GROUPS);
-        }
+        state.kontoOffen = false;
+        state.planerAccessDenied = false;
+        setPlanerRoleHints(
+            state,
+            'Bitte mit Ihrem Schul-Microsoft-Konto anmelden.',
+            'Nicht angemeldet – Rolle wird nach der Anmeldung bestimmt.'
+        );
         return;
     }
+
+    // Konto angemeldet, aber E-Mail noch nicht gelesen: keine Rolle speichern
+    // und noch keine Sperrmeldung setzen (siehe docs/rollen-vertrag.md).
+    if (!emEarly) {
+        state.planerRoles = [];
+        state.planerRoleSources = { pending: 'konto-offen' };
+        state.role = '';
+        state.kontoOffen = true;
+        state.planerAccessDenied = false;
+        setPlanerRoleHints(state, '', 'Konto wird gelesen …');
+        return;
+    }
+
+    state.kontoOffen = false;
 
     const scope = {
         studentMatch: state.studentMatch,

@@ -102,8 +102,9 @@ function row(partial) {
         variante,
         pruefplanKurz: buildPruefplanKurz(variante, 'hak'),
         lfs: partial.lfs || 'ENWS',
-        lehrerLFS: partial.lehrerLFS || 'Mag. Schmidt',
+        lehrerLFS: partial.lehrerLFS || '',
         lehrerBKO: partial.lehrerBKO || 'Mag. Hofer',
+        lehrerAM: partial.lehrerAM || '',
         wahlfachMuendlich: partial.wahlfachMuendlich || 'Recht',
         seminar: partial.seminar || '',
         lehrerWahlfach: partial.lehrerWahlfach || 'Mag. Wagner',
@@ -129,6 +130,8 @@ export function buildDemoItems() {
             klasse: '5AHAK',
             variante: 'Variante 1',
             wahlfachMuendlich: 'Recht',
+            lehrerAM: 'Mag. Schmidt',
+            lehrerBKO: 'Mag. Hofer; Mag. Wagner',
             createdBy: 'anna.huber@demo.schule.at',
             createdOffset: -1,
             nacharbeitErledigt: true
@@ -156,7 +159,6 @@ export function buildDemoItems() {
             klasse: '5BHAK',
             variante: 'Variante 3',
             lfs: 'ITWS',
-            lehrerLFS: 'Mag. Müller',
             lehrerBKO: 'Mag. Wagner',
             wahlfachMuendlich: 'Naturwissenschaften',
             lehrerWahlfach: 'Mag. Hofer',
@@ -172,7 +174,7 @@ export function buildDemoItems() {
             klasse: '5BHAK',
             variante: 'Variante 1',
             lfs: 'SPWS',
-            lehrerLFS: 'Mag. Schmidt',
+            lehrerAM: 'Mag. Schmidt',
             wahlfachMuendlich: 'Kultur',
             betreuungslehrerDA: 'Mag. Müller',
             createdBy: 'jonas.gruber@demo.schule.at',
@@ -203,11 +205,114 @@ export function buildDemoItems() {
             lehrerWahlfach: 'Mag. Lehner',
             betreuungslehrerDA: 'Mag. Müller',
             lehrerBKO: 'Mag. Schmidt',
+            lehrerAM: 'Mag. Hofer',
             createdBy: 'felix.wagner@demo.schule.at',
             createdOffset: -6,
             nacharbeitErledigt: true
         })
     ];
+}
+
+/**
+ * ABA-Portal-Excel-Zeilen (wie Export) – für Demo-XLSX und IT-Setup-Muster.
+ * Spalten: Schule, Bundesland, Titel, Schüler/in, Klasse, Betreuer/in, …
+ */
+export function buildDemoAbaPortalExcelRows() {
+    return [
+        {
+            Schule: 'Demo-HAK Linz',
+            Bundesland: 'Oberösterreich',
+            Titel: 'Nachhaltige Geschäftsmodelle im Einzelhandel',
+            'Schüler/in': 'Lena Bauer',
+            Klasse: '5AHAK - 2026/27',
+            'Betreuer/in': 'Mag. Müller',
+            Eingereicht: '10.09.2026',
+            Aktualisiert: '12.09.2026',
+            Abteilung: '',
+            Status: 'Genehmigt durch DIR'
+        },
+        {
+            Schule: 'Demo-HAK Linz',
+            Bundesland: 'Oberösterreich',
+            Titel: 'Digitale Geschäftsmodelle im Handel',
+            'Schüler/in': 'Anna Huber',
+            Klasse: '5AHAK - 2026/27',
+            'Betreuer/in': 'Mag. Müller',
+            Eingereicht: '11.09.2026',
+            Aktualisiert: '11.09.2026',
+            Abteilung: '',
+            Status: 'Genehmigt durch DIR'
+        },
+        {
+            Schule: 'Demo-HAK Linz',
+            Bundesland: 'Oberösterreich',
+            Titel: 'Buy now, pay later und Konsumfinanzierung',
+            'Schüler/in': 'Tom Maier, Sara Leitner',
+            Klasse: '5BHAK - 2026/27',
+            'Betreuer/in': 'Mag. Schmidt',
+            Eingereicht: '15.09.2026',
+            Aktualisiert: '16.09.2026',
+            Abteilung: '',
+            Status: 'Genehmigt durch DIR'
+        },
+        {
+            Schule: 'Demo-HAK Linz',
+            Bundesland: 'Oberösterreich',
+            Titel: 'Influencer und Finanzentscheidungen von Jugendlichen',
+            'Schüler/in': 'Jonas Gruber, Lara Pichler',
+            Klasse: '5CHAK - 2026/27',
+            'Betreuer/in': 'Mag. Hofer',
+            Eingereicht: '20.09.2026',
+            Aktualisiert: '21.09.2026',
+            Abteilung: '',
+            Status: 'Genehmigt durch DIR'
+        },
+        {
+            Schule: 'Demo-HAK Linz',
+            Bundesland: 'Oberösterreich',
+            Titel: 'Werteorientierte Personalführung in KMU',
+            'Schüler/in': 'Felix Wagner',
+            Klasse: '5CHAK - 2026/27',
+            'Betreuer/in': 'Mag. Wagner',
+            Eingereicht: '22.09.2026',
+            Aktualisiert: '22.09.2026',
+            Abteilung: '',
+            Status: 'Genehmigt durch DIR'
+        }
+    ];
+}
+
+/** Demo-Zeilen ABA-Portal (explodiert) für Prefill – inkl. Schülerpersona Lena Bauer. */
+export function buildDemoAbschlussarbeiten() {
+    const out = [];
+    buildDemoAbaPortalExcelRows().forEach((row) => {
+        const names = String(row['Schüler/in'] || '')
+            .split(/\s*(?:,|;|\bund\b)\s*/i)
+            .map((s) => s.trim())
+            .filter(Boolean);
+        const klasseRoh = String(row.Klasse || '');
+        const m = klasseRoh.match(/^(.+?)\s*[-–—]\s*(\d{4})\s*\/\s*(\d{2,4})\s*$/);
+        const klasseCode = m ? m[1].trim() : klasseRoh;
+        const start = m ? m[2] : '';
+        let end = m ? m[3] : '';
+        if (end.length === 2 && start) end = start.slice(0, 2) + end;
+        names.forEach((schuelerName) => {
+            out.push({
+                titel: String(row.Titel || ''),
+                schuelerName,
+                klasseRoh,
+                klasseCode,
+                schuljahr: start && end ? start + '/' + String(end).slice(-2) : '',
+                betreuer: String(row['Betreuer/in'] || ''),
+                status: String(row.Status || ''),
+                schule: String(row.Schule || ''),
+                genehmigt: /genehmigt/i.test(String(row.Status || '')),
+                terminJahrHint: end || DEMO_TERMIN_JAHR,
+                quelle: 'ABA-Portal'
+            });
+        });
+    });
+    return out;
 }
 
 /**
@@ -239,6 +344,13 @@ export function buildLocalDemoState(base) {
         wizard: pack.wizard,
         stammdaten: pack.stammdaten,
         items: pack.items,
+        abschlussarbeiten: buildDemoAbschlussarbeiten(),
+        abschlussarbeitHits: [],
+        abschlussarbeitenMeta: {
+            listTitle: 'Demo ABA-Portal',
+            count: buildDemoAbschlussarbeiten().length,
+            lastImportAt: new Date().toISOString()
+        },
         // URL-Flag ?demoRole=1 nicht überschreiben – sonst fehlen die Rollen-Chips.
         demoRoleOverride: !!prev.demoRoleOverride,
         demoPersonaEmail: '',

@@ -141,10 +141,12 @@ async function fetchAllItemsViaSpoRest(webUrl, listId, listTitle) {
     } catch {
         return [];
     }
-    const spoTok = await G().getGraphToken([
-        'https://' + host + '/AllSites.Read',
-        'https://graph.microsoft.com/User.Read'
-    ]);
+    // Nur SharePoint. User.Read dazu ergibt AADSTS28000 (zwei Ressourcen in einem Token).
+    const api = G();
+    const spoTok =
+        typeof api.acquireSharePointToken === 'function'
+            ? await api.acquireSharePointToken(host)
+            : await api.getGraphToken(['https://' + host + '/AllSites.Read']);
     const digest = await G().getSpoRequestDigest(url, spoTok);
     const paths = [];
     const byId = listApiPath(listId, '');

@@ -8,36 +8,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Playbook Schuljahresstart</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <style>
-        .cp-steps{display:grid;gap:14px;margin-top:8px}
-        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
-        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
-        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
-        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
-        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
-        .cp-step-gate{margin:8px 0 0;padding:8px 10px;border-radius:10px;font-size:.88em;line-height:1.4;color:var(--heading);background:color-mix(in srgb,#f59e0b 12%,var(--card));border:1px solid color-mix(in srgb,#f59e0b 35%,var(--border))}
-        .cp-step--locked{opacity:.92}
-        .cp-step--locked .cp-check input:disabled{opacity:.55}
-        .cp-step--gate-warn{border-color:color-mix(in srgb,#f59e0b 40%,var(--border))}
-        .cp-step--gate-warn .cp-step-gate{background:color-mix(in srgb,#f59e0b 10%,var(--card))}
-        @media (max-width:720px){.cp-step{grid-template-columns:40px 1fr}.cp-step .btn{grid-column:1/-1;justify-self:start}}
-    </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-rocket-takeoff"></i>Playbook Schuljahresstart</span>
             </div>
-            <p>Geführte Reihenfolge für den Start ins neue Schuljahr – Links auf bestehende Werkzeuge, Haken pro Schritt, Fortschritt lokal. Nur Orientierung, keine Graph-Aktionen hier.</p>
+            <p>
+                <strong>Primärer Einstieg zum neuen Schuljahr</strong> – damit Stammdaten, Gruppen und Teams laufen.
+                Haken setzen Sie manuell; Ready-Hinweise prüfen Stammdaten-Voraussetzungen. Der Organisations-Assistent
+                („Schuljahr wechseln“) ist unterstützend, nicht der Haupt-Einstieg.
+            </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-playbook-schuljahresstart" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="organisations-assistent.html"><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</a>
+                <a class="btn" href="organisations-assistent.html"><i class="bi bi-calendar2-range"></i>Assistent (unterstützend)</a>
             </div>
         </div>
         <div class="content">
@@ -46,21 +40,21 @@
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
                     <div>
                         <h3>Schritte</h3>
-                        <p id="cpProgress" class="muted" style="margin:0;">0 / 8 erledigt</p>
+                        <p id="cpProgress" class="pb-progress">0 / 8 erledigt</p>
                     </div>
                 </div>
-                <div class="cp-steps">
-                    <article class="cp-step" data-cp-step="stammdaten"><div class="cp-step__n">1</div><div><h3>Stammdaten &amp; Schuljahr</h3><p>Domain, Schuljahr und Klassenliste prüfen oder einrichten.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="stammdaten"> Erledigt</label></div><a class="btn" href="../tenant.html#stammdaten"><i class="bi bi-journal-bookmark"></i>Stammdaten</a></article>
-                    <article class="cp-step" data-cp-step="klassen"><div class="cp-step__n">2</div><div><h3>Klassengruppen</h3><p>Jahrgangs-/Klassenteams anlegen oder fortschreiben.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="klassen"> Erledigt</label></div><a class="btn" href="jahrgangsgruppen.html"><i class="bi bi-collection"></i>Klassengruppen</a></article>
-                    <article class="cp-step" data-cp-step="slg"><div class="cp-step__n">3</div><div><h3>Schüler- &amp; Lehrkräfte-Sammelgruppen</h3><p>Große Gruppen abgleichen (mit Diff-Vorschau).</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="slg"> Erledigt</label></div><a class="btn" href="schueler-lehrer-gruppen.html"><i class="bi bi-people"></i>SLG</a></article>
-                    <article class="cp-step" data-cp-step="kursteams"><div class="cp-step__n">4</div><div><h3>Unterrichtsteams</h3><p>WebUntis/Manuell → Kursteams erzeugen.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="kursteams"> Erledigt</label></div><a class="btn" href="kursteams.html"><i class="bi bi-rocket-takeoff"></i>Kursteams</a></article>
-                    <article class="cp-step" data-cp-step="monitor"><div class="cp-step__n">5</div><div><h3>Sync-Gesundheit prüfen</h3><p>Fehlende Besitzer/Mails und Klassen ohne Team sehen.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="monitor"> Erledigt</label></div><a class="btn" href="webuntis-sync-monitor.html"><i class="bi bi-activity"></i>Monitor</a></article>
-                    <article class="cp-step" data-cp-step="lifecycle"><div class="cp-step__n">6</div><div><h3>Personen-Lifecycle</h3><p>Zu-/Abgänge und Klassenwechsel mit Diff prüfen.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="lifecycle"> Erledigt</label></div><a class="btn" href="schueler-lifecycle.html"><i class="bi bi-arrow-left-right"></i>Lifecycle</a></article>
-                    <article class="cp-step" data-cp-step="cleanup"><div class="cp-step__n">7</div><div><h3>Aufräumen</h3><p>Cleanup-Playbook: leere Gruppen, Besitzlose, Archiv.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="cleanup"> Erledigt</label></div><a class="btn" href="cleanup-playbook.html"><i class="bi bi-broom"></i>Cleanup</a></article>
-                    <article class="cp-step" data-cp-step="org"><div class="cp-step__n">8</div><div><h3>Schuljahr-Assistent</h3><p>Offizielle Checkliste im Organisations-Assistenten abschließen.</p><p class="cp-step-gate" data-cp-gate-hint hidden></p><label class="cp-check"><input type="checkbox" data-cp-check="org"> Erledigt</label></div><a class="btn" href="organisations-assistent.html"><i class="bi bi-calendar2-check"></i>Assistent</a></article>
+                <div class="pb-steps">
+                    <article class="pb-step cp-step" data-cp-step="stammdaten"><div class="pb-step__n">1</div><div><h3>Stammdaten &amp; Schuljahr</h3><p>Domain, Schuljahr und Klassenliste prüfen oder einrichten.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="stammdaten"> Erledigt</label></div><a class="btn" href="../tenant.html#stammdaten"><i class="bi bi-journal-bookmark"></i>Stammdaten</a></article>
+                    <article class="pb-step cp-step" data-cp-step="klassen"><div class="pb-step__n">2</div><div><h3>Klassengruppen</h3><p>Jahrgangs-/Klassenteams anlegen oder fortschreiben.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="klassen"> Erledigt</label></div><a class="btn" href="jahrgangsgruppen.html"><i class="bi bi-collection"></i>Klassengruppen</a></article>
+                    <article class="pb-step cp-step" data-cp-step="slg"><div class="pb-step__n">3</div><div><h3>Schüler- &amp; Lehrkräfte-Sammelgruppen</h3><p>Große Gruppen abgleichen (mit Diff-Vorschau).</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="slg"> Erledigt</label></div><a class="btn" href="schueler-lehrer-gruppen.html"><i class="bi bi-people"></i>SLG</a></article>
+                    <article class="pb-step cp-step" data-cp-step="kursteams"><div class="pb-step__n">4</div><div><h3>Unterrichtsteams</h3><p>WebUntis/Manuell → Kursteams erzeugen.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="kursteams"> Erledigt</label></div><a class="btn" href="kursteams.html"><i class="bi bi-rocket-takeoff"></i>Kursteams</a></article>
+                    <article class="pb-step cp-step" data-cp-step="monitor"><div class="pb-step__n">5</div><div><h3>Sync-Gesundheit prüfen</h3><p>Fehlende Besitzer/Mails und Klassen ohne Team sehen.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="monitor"> Erledigt</label></div><a class="btn" href="webuntis-sync-monitor.html"><i class="bi bi-activity"></i>Monitor</a></article>
+                    <article class="pb-step cp-step" data-cp-step="lifecycle"><div class="pb-step__n">6</div><div><h3>Personen-Lifecycle</h3><p>Zu-/Abgänge und Klassenwechsel mit Diff prüfen.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="lifecycle"> Erledigt</label></div><a class="btn" href="schueler-lifecycle.html"><i class="bi bi-arrow-left-right"></i>Lifecycle</a></article>
+                    <article class="pb-step cp-step" data-cp-step="cleanup"><div class="pb-step__n">7</div><div><h3>Aufräumen</h3><p>Cleanup-Playbook: leere Gruppen, Besitzlose, Archiv.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="cleanup"> Erledigt</label></div><a class="btn" href="cleanup-playbook.html"><i class="bi bi-broom"></i>Cleanup</a></article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="org"><div class="pb-step__n">8</div><div><h3>Organisations-Assistent <span class="pb-pill pb-pill--later">Unterstützend</span></h3><p>Nur bei Bedarf: Jahr aktivieren, Anzeigenamen, Abschlussjahrgang – Detailwerkzeug neben diesem jährlichen Playbook.</p><p class="pb-step__ready" data-cp-ready-hint hidden></p><p class="pb-step__gate" data-cp-gate-hint hidden></p><label class="pb-check"><input type="checkbox" data-cp-check="org"> Erledigt</label></div><a class="btn" href="organisations-assistent.html"><i class="bi bi-calendar2-check"></i>Assistent</a></article>
                 </div>
-                <div class="tm-actions" style="margin-top:16px;">
-                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
                 </div>
             </section>
         </div>
@@ -74,6 +68,7 @@
             SCHULJAHRSTART_STEP_IDS,
             tenantCountsFromSettings,
             evaluateSchuljahresstartPrerequisites,
+            evaluateSchuljahresstartReadyChecks,
             evaluateStepUnlock
         } from '../src/shared/playbook-schuljahresstart-gates.js';
 
@@ -88,15 +83,22 @@
             return null;
         }
 
+        function counts() {
+            return tenantCountsFromSettings(loadTenantSettings());
+        }
+
         wirePlaybookPage({
             storageKey: SCHULJAHRSTART_PLAYBOOK_STORAGE_KEY,
             stepIds: SCHULJAHRSTART_STEP_IDS,
             gateMode: 'warn',
             evaluateGates: function () {
-                return evaluateSchuljahresstartPrerequisites(tenantCountsFromSettings(loadTenantSettings()));
+                return evaluateSchuljahresstartPrerequisites(counts());
             },
             evaluateStepUnlock: function (stepId, index, state, gates) {
                 return evaluateStepUnlock(stepId, index, state, gates, SCHULJAHRSTART_STEP_IDS);
+            },
+            evaluateReadyChecks: function () {
+                return evaluateSchuljahresstartReadyChecks(counts());
             }
         });
     </script>

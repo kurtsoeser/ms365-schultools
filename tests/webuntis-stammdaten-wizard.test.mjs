@@ -66,7 +66,7 @@ describe('webuntis-stammdaten-wizard-logic', () => {
         expect(preview.students.length).toBe(3);
         expect(preview.students.some((s) => s.parentCount >= 1)).toBe(true);
         const payload = compileWizardApplyPayload(preview, deps);
-        expect(payload.teachersLines).toContain('ALTH');
+        expect(payload.teachersLines).toContain('MUSTE');
         expect(payload.studentsLines).toContain('1A');
     });
 

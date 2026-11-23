@@ -26,7 +26,18 @@
     gap: 8px;
     align-items: stretch;
 }
-.gd-filter-row input { flex: 1; min-width: 0; }
+.gd-filter-row input {
+    flex: 1;
+    min-width: 0;
+    background: var(--input-bg, var(--panel, #fff));
+    border: 1px solid var(--input-border, var(--border, #ced4da));
+    color: var(--heading, inherit);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+.gd-filter-row input::placeholder {
+    color: var(--muted, #6c757d);
+}
 .gd-filter-row .btn {
     margin: 0;
     padding: 10px 12px;

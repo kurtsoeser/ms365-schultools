@@ -1,11 +1,13 @@
 /**
- * Guided Wizard für sRDP-Anmeldung (Schüler Create).
+ * Guided Wizard für sRDP/sRP-Anmeldung (profilgesteuert).
  */
 import { emptyForm, classGroupLinksFromAppData } from './srdp-anmeldung-state.js';
+import { getProfile } from './srdp-anmeldung-profiles.js';
 import {
-    buildPruefplanKurz,
     buildPruefplanDetail,
+    describeExamSlots,
     isSeminarWahlfach,
+    parseTeacherList,
     resolveStudentAssignedKlasse
 } from './srdp-anmeldung-logic.js';
 
@@ -56,9 +58,104 @@ function planSplitHtml(item, profileId, terminJahr, bfkDatum) {
     </div>`;
 }
 
+/**
+ * @param {string[]} lehrer
+ * @param {string} selectedCsv
+ * @param {string} fieldName
+ * @param {string} idPrefix
+ */
+function teacherMultiHtml(lehrer, selectedCsv, fieldName, idPrefix) {
+    const selected = new Set(parseTeacherList(selectedCsv).map((s) => s.toLowerCase()));
+    const list = Array.isArray(lehrer) ? lehrer : [];
+    if (!list.length) {
+        return `<p class="srdp-field__hint">Keine Lehrkräfte in den Stammdaten.</p>
+      <input type="hidden" id="${esc(idPrefix)}" name="${esc(fieldName)}" value="${esc(selectedCsv || '')}">`;
+    }
+    const boxes = list
+        .map((name, i) => {
+            const id = idPrefix + '_' + i;
+            const checked = selected.has(String(name).toLowerCase()) ? ' checked' : '';
+            return `<label class="srdp-teacher-chip" for="${esc(id)}">
+        <input type="checkbox" id="${esc(id)}" data-srdp-teacher-field="${esc(fieldName)}" value="${esc(name)}"${checked}>
+        <span>${esc(name)}</span>
+      </label>`;
+        })
+        .join('');
+    return `<div class="srdp-teacher-multi" data-srdp-teacher-group="${esc(fieldName)}" role="group" aria-label="${esc(
+        fieldName
+    )}">
+      ${boxes}
+      <input type="hidden" id="${esc(idPrefix)}" name="${esc(fieldName)}" value="${esc(selectedCsv || '')}">
+    </div>
+    <p class="srdp-field__hint">Mehrfachauswahl möglich (Prüfungskommission).</p>`;
+}
+
+function subjectOptionsForSlot(slot, o) {
+    if (!slot || !slot.subjectField) return [];
+    if (slot.subjectField === 'lfs') return o.lfs || [];
+    if (slot.subjectField === 'wahlfachMuendlich') return o.wahlfaecher || [];
+    if (slot.subjectField === 'schwerpunktFach') return o.schwerpunkte || [];
+    if (slot.subjectField === 'fachkolloquium') return o.fachkolloquien || o.wahlfaecher || [];
+    if (slot.subjectField === 'fachtheorie') return o.fachtheorien || ['Didaktik', 'Pädagogik'];
+    if (slot.subjectField === 'klausurKombi') {
+        return [
+            'LFS + AM (BW-RW mündlich)',
+            'LFS + BW-RW (AM mündlich)',
+            'AM + BW-RW (LFS mündlich)',
+            'alle vier (Variante 2)'
+        ];
+    }
+    if (slot.subjectField === 'muendlichExtra') return ['Angewandte Mathematik', 'Englisch'];
+    if (slot.subjectField === 'vierteKlausur') {
+        return o.vierteKlausuren || ['Weitere lebende Fremdsprache', 'Latein', 'Darstellende Geometrie'];
+    }
+    if (
+        slot.subjectField === 'muendlich1' ||
+        slot.subjectField === 'muendlich2' ||
+        slot.subjectField === 'muendlich3'
+    ) {
+        return o.muendlichFaecher || o.wahlfaecher || [];
+    }
+    return [];
+}
+
+function subjectFieldId(field) {
+    const map = {
+        lfs: 'srdpLfs',
+        wahlfachMuendlich: 'srdpWahlfach',
+        schwerpunktFach: 'srdpSchwerpunkt',
+        fachkolloquium: 'srdpFachkolloquium',
+        fachtheorie: 'srdpFachtheorie',
+        klausurKombi: 'srdpKlausurKombi',
+        muendlichExtra: 'srdpMuendlichExtra',
+        vierteKlausur: 'srdpVierteKlausur',
+        muendlich1: 'srdpMuendlich1',
+        muendlich2: 'srdpMuendlich2',
+        muendlich3: 'srdpMuendlich3'
+    };
+    return map[field] || 'srdpSubj_' + field;
+}
+
+function teacherFieldId(field) {
+    const map = {
+        lehrerLFS: 'srdpLehrerLfs',
+        lehrerBKO: 'srdpLehrerBko',
+        lehrerAM: 'srdpLehrerAm',
+        lehrerWahlfach: 'srdpLehrerWahl',
+        lehrerSchwerpunkt: 'srdpLehrerSchwerpunkt',
+        lehrerFachkolloquium: 'srdpLehrerFachkolloquium',
+        lehrerFachtheorie: 'srdpLehrerFachtheorie',
+        lehrerMuendlichExtra: 'srdpLehrerMuendlichExtra',
+        lehrerMuendlich1: 'srdpLehrerMuendlich1',
+        lehrerMuendlich2: 'srdpLehrerMuendlich2',
+        lehrerMuendlich3: 'srdpLehrerMuendlich3'
+    };
+    return map[field] || 'srdpLehrer_' + field;
+}
+
 const STEPS = [
     { id: 1, label: 'Person & Klasse' },
-    { id: 2, label: 'Variante & DA' },
+    { id: 2, label: 'Variante & Arbeit' },
     { id: 3, label: 'Prüfungen' },
     { id: 4, label: 'Bestätigen' }
 ];
@@ -69,20 +166,14 @@ const STEPS = [
 export function renderAntragWizard(state) {
     const f = state.form || emptyForm();
     const o = state.options || {};
+    const profile = getProfile(o.profileId);
     const step = Math.min(4, Math.max(1, Number(f.wizardStep) || 1));
     const showSeminar = isSeminarWahlfach(f.wahlfachMuendlich);
-    const livePlan = f.variante
-        ? buildPruefplanDetail(f, o.profileId, { terminJahr: o.jahr, bfkDatum: o.bfkDatum || '' })
-              .schriftlich.map(
-                  (row) =>
-                      row.part + (row.datum ? ' · ' + row.datum : row.datumHinweis ? ' · ' + row.datumHinweis : '')
-              )
-              .join(', ')
-        : '';
+    const slots = describeExamSlots(f.variante, o.profileId);
+    const isAhs = profile.id === 'ahs';
+    const arbeitLabel = profile.arbeitLabel || 'Diplomarbeit';
     const errors = state.formErrors || [];
-    const accountEmail = String(
-        (state && (state.demoPersonaEmail || state.accountEmail)) || ''
-    )
+    const accountEmail = String((state && (state.demoPersonaEmail || state.accountEmail)) || '')
         .trim()
         .toLowerCase();
     let loggedInHint = false;
@@ -96,8 +187,6 @@ export function renderAntragWizard(state) {
     }
     const displayName = [f.vorname, f.nachname].filter(Boolean).join(' ').trim();
     const nameKnown = !!(f.nachname && f.vorname);
-    // Konto-E-Mail ist maßgeblich; kurz nach MSAL-Init kann sie noch fehlen – dann nicht hart sperren,
-    // wenn die Auth-UI bereits „angemeldet“ meldet (Race beim Seitenstart).
     const needsLogin = !accountEmail && !loggedInHint;
     const abschlussKlassen = (Array.isArray(o.klassen) ? o.klassen : [])
         .map((k) => String(k || '').trim())
@@ -112,6 +201,7 @@ export function renderAntragWizard(state) {
     });
     const classChoices = ownKlasse ? [ownKlasse] : abschlussKlassen;
     const selectedKlasse = ownKlasse || f.klasse || '';
+    const abaHits = Array.isArray(state.abschlussarbeitHits) ? state.abschlussarbeitHits : [];
 
     const stepsHtml = STEPS.map(
         (s) =>
@@ -120,9 +210,167 @@ export function renderAntragWizard(state) {
             }"><span>${s.id}</span>${esc(s.label)}</li>`
     ).join('');
 
+    const variantCards = (o.variants || profile.variants || [])
+        .map((v, idx) => {
+            const label = v.label || 'Variante ' + (v.key || idx + 1);
+            const active = f.variante === label;
+            const mod = 'v' + String(v.key || idx + 1);
+            return `<label class="srdp-variant-card srdp-variant-card--${esc(mod)}${
+                active ? ' is-active' : ''
+            }">
+        <input type="radio" name="variante" value="${esc(label)}" ${active ? 'checked' : ''} data-srdp-variante-card>
+        <span class="srdp-variant-card__title">${esc(label)}</span>
+        <span class="srdp-variant-card__block"><strong>schriftlich</strong> ${(v.schriftlich || [])
+            .map((p) => esc(p))
+            .join(' · ')}</span>
+        <span class="srdp-variant-card__block"><strong>mündlich</strong> ${(v.muendlich || [])
+            .map((p) => esc(p))
+            .join(' · ')}</span>
+      </label>`;
+        })
+        .join('');
+
+    const arbeitBlock = isAhs
+        ? `<div class="srdp-field srdp-field--full">
+            <label class="srdp-check">
+              <input type="checkbox" id="srdpHatAba" name="hatABA"${f.hatABA ? ' checked' : ''}>
+              <span>Mit abschließender Arbeit (ABA / VWA)</span>
+            </label>
+          </div>
+          <div class="srdp-field srdp-field--full">
+            <label for="srdpDA">${esc(arbeitLabel)} – Titel</label>
+            <textarea id="srdpDA" name="titelABA">${esc(f.titelABA || f.titelDiplomarbeit)}</textarea>
+          </div>
+          <div class="srdp-field srdp-field--full">
+            <label for="srdpBetreuung">BetreuungslehrerIn ABA</label>
+            <select id="srdpBetreuung" name="betreuungslehrerABA">
+              <option value="">– wählen –</option>
+              ${optionsHtml(o.lehrer, f.betreuungslehrerABA || f.betreuungslehrerDA)}
+            </select>
+          </div>`
+        : `<div class="srdp-field srdp-field--full">
+            <label for="srdpDA">Titel ${esc(arbeitLabel)}</label>
+            <textarea id="srdpDA" name="titelDiplomarbeit">${esc(f.titelDiplomarbeit)}</textarea>
+          </div>
+          <div class="srdp-field srdp-field--full">
+            <label for="srdpBetreuung">BetreuungslehrerIn ${esc(arbeitLabel)}</label>
+            <select id="srdpBetreuung" name="betreuungslehrerDA">
+              <option value="">– wählen –</option>
+              ${optionsHtml(o.lehrer, f.betreuungslehrerDA)}
+            </select>
+          </div>`;
+
+    const abaHint = f.abaPrefill
+        ? `<div class="srdp-alert srdp-alert--ok srdp-field--full" role="status">Titel und Betreuung aus ABA-Portal vorausgefüllt – bitte prüfen.</div>`
+        : '';
+
+    const abaChoice =
+        abaHits.length > 1
+            ? `<div class="srdp-field srdp-field--full">
+          <label for="srdpAbaPick">Mehrere Abschlussarbeiten gefunden</label>
+          <select id="srdpAbaPick" data-srdp-aba-pick>
+            <option value="">– bitte wählen –</option>
+            ${abaHits
+                .map(
+                    (h, i) =>
+                        `<option value="${i}">${esc(h.titel || '')} · ${esc(h.betreuer || '')}</option>`
+                )
+                .join('')}
+          </select>
+        </div>`
+            : '';
+
+    /** already rendered subject/teacher fields */
+    const seenSubject = new Set();
+    const seenTeacher = new Set();
+    const examBlocks = [];
+
+    if (slots.needsLfsCode) {
+        seenSubject.add('lfs');
+        examBlocks.push(`<div class="srdp-exam-card srdp-field--full">
+        <h4>${esc(o.lfsFieldLabel || profile.lfsFieldLabel || 'LFS')}</h4>
+        <p class="srdp-field__hint">Sprache wählen${
+            slots.schriftlich.some((s) => s.key === 'lfs')
+                ? ' (schriftlich zentral – kein Prüfer nötig)'
+                : ' (mündlich – Prüfer unten)'
+        }.</p>
+        <div class="srdp-field">
+          <label for="srdpLfs">${esc(o.lfsFieldLabel || 'LFS')}</label>
+          <select id="srdpLfs" name="lfs">
+            <option value="">– wählen –</option>
+            ${optionsHtml(o.lfs, f.lfs)}
+          </select>
+        </div>
+      </div>`);
+    }
+
+    if (slots.schriftlich.length) {
+        examBlocks.push(`<div class="srdp-exam-card srdp-exam-card--written srdp-field--full">
+        <h4>Schriftlich</h4>
+        <ul class="srdp-exam-list">${slots.schriftlich
+            .map(
+                (s) =>
+                    `<li><strong>${esc(s.part)}</strong> <span class="srdp-pill">zentral / schulisch – kein Prüfer</span></li>`
+            )
+            .join('')}</ul>
+      </div>`);
+    }
+
+    slots.muendlich.forEach((slot) => {
+        const parts = [];
+        if (slot.subjectField && slot.subjectField !== 'lfs' && !seenSubject.has(slot.subjectField)) {
+            seenSubject.add(slot.subjectField);
+            const sid = subjectFieldId(slot.subjectField);
+            const opts = subjectOptionsForSlot(slot, o);
+            parts.push(`<div class="srdp-field">
+          <label for="${esc(sid)}">${esc(slot.subjectLabel || slot.part)}</label>
+          <select id="${esc(sid)}" name="${esc(slot.subjectField)}"${
+                slot.subjectField === 'wahlfachMuendlich' ? ' data-srdp-wahlfach' : ''
+            }>
+            <option value="">– wählen –</option>
+            ${optionsHtml(opts, f[slot.subjectField])}
+          </select>
+        </div>`);
+        }
+        if (slot.teacherField && slot.needsTeacher && !seenTeacher.has(slot.teacherField)) {
+            seenTeacher.add(slot.teacherField);
+            const tid = teacherFieldId(slot.teacherField);
+            parts.push(`<div class="srdp-field srdp-field--full">
+          <span class="srdp-field__label">${esc(slot.teacherLabel || 'LehrerIn')}</span>
+          ${teacherMultiHtml(o.lehrer, f[slot.teacherField], slot.teacherField, tid)}
+        </div>`);
+        }
+        if (!parts.length && !slot.teacherField) {
+            parts.push(`<p class="srdp-field__hint">${esc(slot.part)} – keine Eingabe nötig.</p>`);
+        }
+        examBlocks.push(`<div class="srdp-exam-card srdp-exam-card--oral srdp-field--full">
+        <h4>Mündlich: ${esc(slot.part)}</h4>
+        ${parts.join('')}
+      </div>`);
+    });
+
+    if (slots.muendlich.some((s) => s.key === 'wahlfach') || f.wahlfachMuendlich) {
+        examBlocks.push(`<div class="srdp-field srdp-field--full"${showSeminar ? '' : ' hidden'} id="srdpSeminarWrap">
+        <label for="srdpSeminar">Seminar</label>
+        ${
+            (o.seminare || []).length
+                ? `<select id="srdpSeminar" name="seminar">
+            <option value="">– wählen –</option>
+            ${optionsHtml(o.seminare, f.seminar)}
+          </select>`
+                : '<p class="srdp-field__hint">In der Liste sind noch keine Seminar-Bezeichnungen hinterlegt.</p>'
+        }
+        <label for="srdpSeminarText">Seminar-Bezeichnung</label>
+        <input type="text" id="srdpSeminarText" name="seminarText" value="${esc(
+            f.seminar || ''
+        )}" placeholder="Bezeichnung, falls sie nicht in der Liste steht" autocomplete="off">
+        <p class="srdp-field__hint">Pflicht, wenn das Wahlfach mit „Seminar“ beginnt.</p>
+      </div>`);
+    }
+
     return `<section class="srdp-panel srdp-panel--calm srdp-panel--wizard">
       <h3>Anmeldung Haupttermin ${esc(o.jahr || '')}</h3>
-      <p class="srdp-panel__hint">Schulform ${esc(o.profileLabel || 'HAK')} · Schritt ${step} von 4</p>
+      <p class="srdp-panel__hint">Schulform ${esc(o.profileLabel || profile.label || 'HAK')} · Schritt ${step} von 4</p>
       <ol class="srdp-wizard__steps">${stepsHtml}</ol>
       ${
           errors.length
@@ -178,96 +426,43 @@ export function renderAntragWizard(state) {
 
         <div class="srdp-wizard__pane${step === 2 ? ' is-visible' : ''}" data-srdp-wizard-pane="2">
           <div class="srdp-field srdp-field--full">
-            <label for="srdpVariante">Variante</label>
-            <select id="srdpVariante" name="variante" required>
-              <option value="">– wählen –</option>
-              ${optionsHtml(
-                  (o.variants || []).map((v) => v.label),
-                  f.variante
-              )}
-            </select>
+            <span class="srdp-field__label">Prüfungsvariante</span>
+            <div class="srdp-variant-grid" role="radiogroup" aria-label="Variante">
+              ${variantCards || '<p class="srdp-panel__hint">Keine Varianten im Profil.</p>'}
+            </div>
+            <input type="hidden" id="srdpVariante" name="varianteHidden" value="${esc(f.variante)}">
           </div>
-          <div class="srdp-field srdp-field--full">
-            <label for="srdpDA">Titel Diplomarbeit</label>
-            <textarea id="srdpDA" name="titelDiplomarbeit">${esc(f.titelDiplomarbeit)}</textarea>
-          </div>
-          <div class="srdp-field srdp-field--full">
-            <label for="srdpBetreuung">BetreuungslehrerIn Diplomarbeit</label>
-            <select id="srdpBetreuung" name="betreuungslehrerDA">
-              <option value="">– wählen –</option>
-              ${optionsHtml(o.lehrer, f.betreuungslehrerDA)}
-            </select>
-          </div>
+          ${abaHint}
+          ${abaChoice}
+          ${arbeitBlock}
           ${
-              livePlan
-                  ? `<div class="srdp-live-plan srdp-field--full" id="srdpLivePlan"><strong>Schriftlich:</strong> ${esc(
-                        livePlan
+              f.variante
+                  ? `<div class="srdp-field srdp-field--full">${planSplitHtml(
+                        f,
+                        o.profileId,
+                        o.jahr,
+                        o.bfkDatum || ''
                     )}</div>`
-                  : '<div class="srdp-live-plan srdp-field--full" id="srdpLivePlan" hidden></div>'
+                  : ''
           }
         </div>
 
         <div class="srdp-wizard__pane${step === 3 ? ' is-visible' : ''}" data-srdp-wizard-pane="3">
-          <div class="srdp-field-pair srdp-field--full">
-            <div class="srdp-field">
-              <label for="srdpLfs">${esc(o.lfsFieldLabel || 'LFS')}</label>
-              <select id="srdpLfs" name="lfs">
-                <option value="">– wählen –</option>
-                ${optionsHtml(o.lfs, f.lfs)}
-              </select>
-            </div>
-            <div class="srdp-field">
-              <label for="srdpLehrerLfs">LehrerIn ${esc(o.lfsFieldLabel || 'LFS')}</label>
-              <select id="srdpLehrerLfs" name="lehrerLFS">
-                <option value="">– wählen –</option>
-                ${optionsHtml(o.lehrer, f.lehrerLFS)}
-              </select>
-            </div>
-          </div>
-
-          <div class="srdp-field srdp-field--full">
-            <label for="srdpLehrerBko">LehrerIn BKO mündlich</label>
-            <select id="srdpLehrerBko" name="lehrerBKO">
-              <option value="">– wählen –</option>
-              ${optionsHtml(o.lehrer, f.lehrerBKO)}
-            </select>
-            <p class="srdp-field__hint">Fach BKO ist durch die Variante vorgegeben – hier nur die Prüfer:in wählen.</p>
-          </div>
-
-          <div class="srdp-field-pair srdp-field--full">
-            <div class="srdp-field">
-              <label for="srdpWahlfach">Wahlfach mündlich</label>
-              <select id="srdpWahlfach" name="wahlfachMuendlich">
-                <option value="">– wählen –</option>
-                ${optionsHtml(o.wahlfaecher, f.wahlfachMuendlich)}
-              </select>
-            </div>
-            <div class="srdp-field">
-              <label for="srdpLehrerWahl">LehrerIn Wahlfach</label>
-              <select id="srdpLehrerWahl" name="lehrerWahlfach">
-                <option value="">– wählen –</option>
-                ${optionsHtml(o.lehrer, f.lehrerWahlfach)}
-              </select>
-            </div>
-          </div>
-
-          <div class="srdp-field srdp-field--full"${showSeminar ? '' : ' hidden'} id="srdpSeminarWrap">
-            <label for="srdpSeminar">Seminar</label>
-            ${
-                (o.seminare || []).length
-                    ? `<select id="srdpSeminar" name="seminar">
-                <option value="">– wählen –</option>
-                ${optionsHtml(o.seminare, f.seminar)}
-              </select>`
-                    : '<p class="srdp-field__hint">In der Liste sind noch keine Seminar-Bezeichnungen hinterlegt.</p>'
-            }
-            <label for="srdpSeminarText">Seminar-Bezeichnung</label>
-            <input type="text" id="srdpSeminarText" name="seminarText" value="${esc(
-                f.seminar || ''
-            )}" placeholder="Bezeichnung, falls sie nicht in der Liste steht" autocomplete="off">
-            <p class="srdp-field__hint">Pflicht, wenn das Wahlfach mit „Seminar“ beginnt. Liste oder eigene Bezeichnung.</p>
-          </div>
-          ${f.variante ? `<div class="srdp-field srdp-field--full">${planSplitHtml(f, o.profileId, o.jahr, o.bfkDatum || '')}</div>` : ''}
+          ${
+              f.variante
+                  ? examBlocks.join('')
+                  : '<p class="srdp-panel__hint srdp-field--full">Bitte zuerst eine Variante wählen.</p>'
+          }
+          ${
+              f.variante
+                  ? `<div class="srdp-field srdp-field--full">${planSplitHtml(
+                        f,
+                        o.profileId,
+                        o.jahr,
+                        o.bfkDatum || ''
+                    )}</div>`
+                  : ''
+          }
         </div>
 
         <div class="srdp-wizard__pane${step === 4 ? ' is-visible' : ''}" data-srdp-wizard-pane="4">
@@ -277,6 +472,9 @@ export function renderAntragWizard(state) {
               <li><strong>Name:</strong> ${esc(f.nachname)}, ${esc(f.vorname)}</li>
               <li><strong>Klasse:</strong> ${esc(f.klasse)}</li>
               <li><strong>Variante:</strong> ${esc(f.variante)}</li>
+              <li><strong>${esc(arbeitLabel)}:</strong> ${esc(
+                  isAhs ? f.titelABA || f.titelDiplomarbeit : f.titelDiplomarbeit
+              )}</li>
             </ul>
             ${planSplitHtml(f, o.profileId, o.jahr, o.bfkDatum || '')}
           </div>
@@ -285,7 +483,7 @@ export function renderAntragWizard(state) {
               <input type="checkbox" id="srdpBestaetigung" name="bestaetigung"${
                   f.bestaetigung ? ' checked' : ''
               }>
-              <span>Ich bestätige die Angaben meiner sRDP-Anmeldung.</span>
+              <span>Ich bestätige die Angaben meiner ${esc(profile.examShort || 'sRDP')}-Anmeldung.</span>
             </label>
           </div>
         </div>

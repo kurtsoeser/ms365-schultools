@@ -1679,17 +1679,38 @@ label.btn.sa-import-btn {
 
 .sa-skel {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     margin-bottom: 12px;
 }
 
 .sa-skel__card {
     height: 72px;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #e2e8f0, #f8fafc, #e2e8f0);
+    border-radius: var(--radius, 12px);
+    background: linear-gradient(90deg, var(--border), transparent, var(--border));
     background-size: 200% 100%;
     animation: sa-shimmer 1.2s ease-in-out infinite;
+}
+
+.sa-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 620px;
+}
+
+.sa-status-panel p {
+    margin: 0;
+}
+
+.sa-status-panel__meta {
+    font-size: 0.9rem;
+}
+
+.sa-status-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
 }
 
 @keyframes sa-shimmer {
@@ -1906,3 +1927,22 @@ label.btn.sa-import-btn {
         display: block !important;
     }
 }
+
+/* ===== Welle 3 UI chrome ===== */
+.page-card.tm-page {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.fb-greet { margin: 0 0 6px; }
+.fb-sub { margin: 0 0 16px; }
+.fb-actions-row { margin-top: 16px; }
+
+.sa-page .fb-greet { margin: 0 0 6px; }
+.sa-quiet-status { display:flex; gap:8px; align-items:center; color:var(--muted); }
+.sa-top-refresh { margin-bottom: 8px; }

@@ -117,8 +117,13 @@
     injectScript('app-shell-boot.js', 'data-ms365-app-shell-boot', true);
     injectScript('app-paths.js', 'data-ms365-app-paths', true);
     injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
-    /* Datensicherung Kopfzeile: auf allen Werkzeug-Seiten verfügbar */
+    /* App-Dialoge statt window.confirm/alert (Fluent/App-Look) */
+    injectScript('app-dialog.js', 'data-ms365-app-dialog', false);
+    /* Datensicherung Kopfzeile: Register vor Backup (c7 / R21) */
+    injectScript('storage-register.js', 'data-ms365-storage-register', false);
     injectScript('browser-backup.js', 'data-ms365-browser-backup', false);
+    /* Shared Graph-Client (ESM) optional vor spo-graph; spo-graph bleibt klassisches Script */
+    injectScript('graph-client.js', 'data-ms365-graph-client', true);
     /* Graph-Helfer vor Sync-UI (IT-Bibliothek Sichern/Laden braucht window.ms365SpoGraph) */
     injectScript('../tools/sharepoint/spo-graph-shared.js', 'data-ms365-spo-graph', false);
     injectScript('stammdaten-sharepoint-sync-ui.js', 'data-ms365-spo-sync-ui', true);

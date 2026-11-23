@@ -1,5 +1,7 @@
-/** Max. Größe Logo-Data-URL (ca. 400 KB Bild) – Schutz für localStorage/Backup */
-export const SCHOOL_LOGO_MAX_BYTES = 400 * 1024;
+/** Max. Dateigröße vor Kompression (Upload) */
+export const SCHOOL_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+/** Zielgröße der gespeicherten Data-URL (Zeichen) – muss in localStorage/Backup passen */
+export const SCHOOL_LOGO_DATA_URL_MAX_CHARS = 420000;
 
 /** Max. Länge für öffentliche Logo-URL */
 export const SCHOOL_LOGO_URL_MAX_LEN = 2000;
@@ -11,6 +13,8 @@ export function emptySchoolProfile() {
         logoFileName: '',
         /** Öffentliche HTTPS-URL zum Schullogo (bevorzugt gegenüber Data-URL) */
         logoUrl: '',
+        /** Lizenz-Admin: Standort (kann vom Ort abweichen) */
+        standort: '',
         street: '',
         postalCode: '',
         city: '',
@@ -18,8 +22,44 @@ export function emptySchoolProfile() {
         phone: '',
         phoneAlt: '',
         email: '',
-        website: ''
+        website: '',
+        /** Rollen / Personen (Name + E-Mail getrennt) */
+        direktion: '',
+        direktionEmail: '',
+        schuladministration: '',
+        schuladministrationEmail: '',
+        itM365Admin: '',
+        itM365AdminEmail: '',
+        weitereKontakte: ''
     };
+}
+
+/**
+ * Alte Einzelfelder („Name“, „mail@…“ oder „Name <mail>“) in Name + E-Mail trennen.
+ * @param {unknown} nameRaw
+ * @param {unknown} emailRaw
+ * @returns {{ name: string, email: string }}
+ */
+export function splitRolePersonFields(nameRaw, emailRaw) {
+    let name = String(nameRaw != null ? nameRaw : '').trim();
+    let email = String(emailRaw != null ? emailRaw : '')
+        .trim()
+        .toLowerCase();
+    if (!email && name) {
+        const angled = name.match(/^(.+?)\s*<\s*([^>\s]+@[^>\s]+)\s*>$/);
+        if (angled) {
+            name = String(angled[1] || '').trim();
+            email = String(angled[2] || '')
+                .trim()
+                .toLowerCase();
+        } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(name)) {
+            email = name.toLowerCase();
+            name = '';
+        }
+    } else if (email) {
+        email = email.toLowerCase();
+    }
+    return { name: name, email: email };
 }
 
 /**
@@ -62,6 +102,71 @@ export function hasSchoolLogo(profile) {
 }
 
 /**
+ * Lädt/komprimiert ein Bild fürs Speichern in localStorage + Browser-Backup / IT-Bibliothek.
+ * @param {Blob|File} file
+ * @param {{ maxEdge?: number, maxChars?: number }} [opts]
+ * @returns {Promise<{ dataUrl: string, fileName: string }>}
+ */
+export function compressSchoolLogoToDataUrl(file, opts) {
+    const maxEdge = opts && opts.maxEdge ? Number(opts.maxEdge) : 640;
+    const maxChars =
+        opts && opts.maxChars ? Number(opts.maxChars) : SCHOOL_LOGO_DATA_URL_MAX_CHARS;
+    return new Promise(function (resolve, reject) {
+        if (!file) {
+            reject(new Error('no-file'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onerror = function () {
+            reject(new Error('read'));
+        };
+        reader.onload = function () {
+            const rawUrl = String(reader.result || '');
+            const img = new Image();
+            img.onerror = function () {
+                reject(new Error('decode'));
+            };
+            img.onload = function () {
+                try {
+                    let w = img.naturalWidth || img.width || 1;
+                    let h = img.naturalHeight || img.height || 1;
+                    const scale = Math.min(1, maxEdge / Math.max(w, h, 1));
+                    w = Math.max(1, Math.round(w * scale));
+                    h = Math.max(1, Math.round(h * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('canvas'));
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, w, h);
+                    let quality = 0.88;
+                    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    while (dataUrl.length > maxChars && quality > 0.42) {
+                        quality -= 0.08;
+                        dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    if (dataUrl.length > maxChars) {
+                        reject(new Error('too-large'));
+                        return;
+                    }
+                    const base = String(file.name || 'schullogo')
+                        .replace(/\.[^.]+$/, '')
+                        .trim() || 'schullogo';
+                    resolve({ dataUrl: dataUrl, fileName: base + '.jpg' });
+                } catch (err) {
+                    reject(err || new Error('compress'));
+                }
+            };
+            img.src = rawUrl;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+/**
  * @param {unknown} raw
  * @returns {ReturnType<typeof emptySchoolProfile>}
  */
@@ -73,12 +178,13 @@ export function normalizeSchoolProfile(raw) {
     if (logo && !/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(logo)) {
         logo = '';
     }
-    if (logo.length > SCHOOL_LOGO_MAX_BYTES * 1.4) {
+    if (logo.length > SCHOOL_LOGO_DATA_URL_MAX_CHARS) {
         logo = '';
     }
     d.logoDataUrl = logo;
     d.logoFileName = String(x.logoFileName != null ? x.logoFileName : '').trim();
     d.logoUrl = normalizeSchoolLogoUrl(x.logoUrl);
+    d.standort = String(x.standort != null ? x.standort : '').trim();
     d.street = String(x.street != null ? x.street : '').trim();
     d.postalCode = String(x.postalCode != null ? x.postalCode : '').trim();
     d.city = String(x.city != null ? x.city : '').trim();
@@ -87,6 +193,16 @@ export function normalizeSchoolProfile(raw) {
     d.phoneAlt = String(x.phoneAlt != null ? x.phoneAlt : '').trim();
     d.email = String(x.email != null ? x.email : '').trim().toLowerCase();
     d.website = String(x.website != null ? x.website : '').trim();
+    const dir = splitRolePersonFields(x.direktion, x.direktionEmail);
+    d.direktion = dir.name;
+    d.direktionEmail = dir.email;
+    const adm = splitRolePersonFields(x.schuladministration, x.schuladministrationEmail);
+    d.schuladministration = adm.name;
+    d.schuladministrationEmail = adm.email;
+    const it = splitRolePersonFields(x.itM365Admin, x.itM365AdminEmail);
+    d.itM365Admin = it.name;
+    d.itM365AdminEmail = it.email;
+    d.weitereKontakte = String(x.weitereKontakte != null ? x.weitereKontakte : '').trim();
     return d;
 }
 

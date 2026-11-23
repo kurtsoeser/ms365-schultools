@@ -43,15 +43,15 @@ export function renderSalesBundlesPanel(host, opts) {
             .map(function (pid) {
                 const hint = packagePriceHint(pid);
                 return (
-                    '<code title="' +
+                    '<span class="admin-sales-card__pkg" title="' +
                     escapeHtml(hint) +
                     '">' +
                     escapeHtml(packageLabel(pid) || pid) +
                     (hint ? ' · ' + escapeHtml(hint.replace(' / Jahr', '')) : '') +
-                    '</code>'
+                    '</span>'
                 );
             })
-            .join(' ');
+            .join('');
         const highlights = (b.highlights || [])
             .map(function (h) {
                 return '<li>' + escapeHtml(h) + '</li>';
@@ -87,7 +87,7 @@ export function renderSalesBundlesPanel(host, opts) {
             escapeHtml(b.priceLabel) +
             '</p>' +
             (listSum
-                ? '<p class="admin-sales-card__compare">Einzelmodule ' +
+                ? '<p class="admin-sales-card__compare">Einzelpakete ' +
                   escapeHtml(String(listSum)) +
                   ' € · Bundle spart ' +
                   escapeHtml(String(save)) +
@@ -150,7 +150,7 @@ export function renderSalesBundlesPanel(host, opts) {
         '<p class="admin-sales-panel__lead">' +
         (mode === 'apply'
             ? 'Bundle setzen oder darunter einzelne Pakete nachjustieren.'
-            : 'Bundle-Preise und Listenpreise je Modul (Referenz).') +
+            : 'Bundle-Preise und Listenpreise je Paket.') +
         '</p>' +
         '</div>' +
         '</div>' +
@@ -164,9 +164,9 @@ export function renderSalesBundlesPanel(host, opts) {
         '</ul>' +
         '</details>' +
         '<details class="admin-sales-fold">' +
-        '<summary>Listenpreise je Modul</summary>' +
+        '<summary>Listenpreise je Paket</summary>' +
         '<table class="admin-sales-modules__table">' +
-        '<thead><tr><th>Modul</th><th>Preis</th><th>Tools</th></tr></thead>' +
+        '<thead><tr><th>Paket</th><th>Preis</th><th>Tools</th></tr></thead>' +
         '<tbody>' +
         moduleRows +
         '</tbody></table>' +

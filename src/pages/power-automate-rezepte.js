@@ -7,7 +7,7 @@
     var cat = window.ms365PaRecipes;
     if (!cat) return;
 
-    // Die konkreten Keys je Rezept stehen im STORAGE_CATALOG (browser-backup.js).
+    // Die konkreten Keys je Rezept stehen im Storage-Register (storage-register.js).
     function doneKeyFor(id) {
         return 'ms365-pa-done-' + id;
     }

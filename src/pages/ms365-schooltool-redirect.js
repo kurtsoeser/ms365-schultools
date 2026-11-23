@@ -20,6 +20,16 @@
   }
 
   async function tryHandleMsalRedirect() {
+    try {
+      const itMod = await import('../shared/it-app-auth.js');
+      const itId = itMod.resolveItClientId();
+      if (itId && itMod.redirectStateMatchesClient(itId)) {
+        await itMod.ensureItPca();
+        return;
+      }
+    } catch {
+      // Portal-Redirect bleibt der bisherige Weg
+    }
     const clientId = resolveClientId();
     if (!clientId) return;
     try {

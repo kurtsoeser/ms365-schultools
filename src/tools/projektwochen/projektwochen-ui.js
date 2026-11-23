@@ -463,15 +463,27 @@ function renderDashboard(state) {
                       : ''
               )
             : '';
+    const greetNum = kpis.beantragt;
+    const greetText = greetNum === 1 ? 'Antrag wartet' : 'Anträge warten';
     return (
         '<section class="pw-view">' +
         '<header class="pw-view__head">' +
-        '<div><h2>Dashboard</h2>' +
-        '<p class="pw-view__sub">Überblick zur aktiven Projektwoche – filtern, dann Plan oder Liste öffnen.</p></div>' +
+        '<div>' +
+        '<h1 class="fb-greet"><span class="fb-num">' +
+        greetNum +
+        '</span> ' +
+        greetText +
+        '</h1>' +
+        '<p class="fb-sub pw-view__sub">Projektwoche: ' +
+        kpis.total +
+        (kpis.total === 1 ? ' Angebot' : ' Angebote') +
+        ', ' +
+        kpis.freigegeben +
+        ' freigegeben – filtern, dann Plan oder Liste öffnen.</p></div>' +
         '</header>' +
         renderDashboardAttention(state) +
         filterBar(state) +
-        '<div class="pw-kpi-grid">' +
+        '<div class="pw-kpi-grid pw-kpi-grid--quiet">' +
         kpiCard('Angebote', kpis.total, 'bi-collection', '') +
         kpiCard('Beantragt', kpis.beantragt, 'bi-hourglass-split', 'warn') +
         kpiCard('Freigegeben', kpis.freigegeben, 'bi-check2-circle', 'ok') +

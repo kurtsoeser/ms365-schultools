@@ -1,7 +1,7 @@
 # Monetarisierung – MS365-Schul-Tools
 
 Stand: 2026-09-22 (Analyse) · **Freitag-Verkaufspreise:** 2026-11-17  
-Status: Marktanalyse unten weiter gültig. **Kundenpreise:** [`verkauf-freitag-workshop.md`](./verkauf-freitag-workshop.md) §1 und Code `src/shared/sales-bundles-catalog.js` (Starter 390 · Schulalltag 890 · Plus 1.690 €/Jahr) – Admin-Schnellwahl + Landing `#angebot`.
+Status: Marktanalyse unten weiter gültig. **Kundenpreise:** Code `src/shared/sales-bundles-catalog.js` (Starter 390 · Schulalltag 890 · Plus 1.690 €/Jahr) – Admin-Schnellwahl + Landing `#angebot`. Interne Verkaufs-Playbooks: siehe [`verkauf.md`](./verkauf.md).
 
 Dieses Dokument hält die bisherige Analyse fest: Was das Produkt kann, wie vergleichbare Angebote am Markt positioniert sind, welche Preismodelle sinnvoll sind und welche offenen Fragen vor einem konkreten Angebot noch zu klären sind.
 

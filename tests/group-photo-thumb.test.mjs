@@ -24,7 +24,7 @@ describe('Gruppenbild-Thumbnails', () => {
         expect(js).toContain('setTeamPhoto');
         expect(js).toContain('deleteTeamPhoto');
         expect(js).toContain('syncTeamPhotoForGroup');
-        expect(js).toContain('TeamSettings.ReadWrite.All');
+        expect(read('src/shared/auth-login-scopes.js')).toContain('TeamSettings.ReadWrite.All');
     });
 
     it('bindet Thumbnails in Listen-Tools ein', () => {

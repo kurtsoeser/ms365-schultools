@@ -185,8 +185,8 @@ export function mountTenantIntranetQuickSync() {
         if (spoStatus && !itManual) spoStatus.textContent = localFirstStatusMessage();
         const banner = document.getElementById('tenantLocalFirstBanner');
         if (banner) {
-            banner.hidden = false;
-            banner.textContent = localFirstStatusMessage();
+            banner.hidden = true;
+            banner.textContent = '';
         }
     }
 }

@@ -119,6 +119,25 @@ async function waitForAuthAccount() {
     }
     const immediate = currentAccount();
     if (immediate.email) return immediate;
+    try {
+        if (typeof window.ms365AuthEnsureBootSettled === 'function') {
+            await Promise.race([
+                Promise.resolve(window.ms365AuthEnsureBootSettled()),
+                new Promise((resolve) => setTimeout(resolve, 3500))
+            ]);
+        }
+    } catch {
+        /* ignore */
+    }
+    const afterBoot = currentAccount();
+    if (afterBoot.email) return afterBoot;
+    if (
+        typeof window.ms365AuthIsBootSettled === 'function' &&
+        window.ms365AuthIsBootSettled() &&
+        !(typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn())
+    ) {
+        return afterBoot;
+    }
     const started = Date.now();
     while (Date.now() - started < 4500) {
         await new Promise((resolve) => setTimeout(resolve, 120));
@@ -211,6 +230,22 @@ function findItem(key) {
 let loadGen = 0;
 
 async function refreshData() {
+    const shotParams = new URLSearchParams(window.location.search || '');
+    if (shotParams.get('landingShot') === '1') {
+        const roleQ = shotParams.get('role');
+        if (roleQ === 'direktion' || roleQ === 'lehrer') state.role = roleQ;
+        state.demoRoleOverride = true;
+        state.accountEmail = state.accountEmail || 'mueller@schule.demo';
+        state.accountName = state.accountName || 'Maria Müller';
+        state.items = buildDemoItems(state.accountEmail, state.accountName);
+        state.localDemoOnly = true;
+        state.loading = false;
+        state.error = '';
+        saveDemoItems(state.items);
+        paint();
+        return;
+    }
+
     const gen = ++loadGen;
     state.loading = true;
     state.error = '';

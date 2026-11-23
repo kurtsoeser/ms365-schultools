@@ -70,7 +70,10 @@ export function resolveLayoutModeFromPersonas(personas) {
     }
 
     if (personas.isLehrer) return 'apps-lehrer';
-    return 'apps-schueler';
+    // Vor Verzeichnis-Sync: Lehrer-Shell mit neutraler Begrüßung (nicht Schüler/in)
+    if (personas.unknownUser) return 'apps-lehrer';
+    if (personas.isSchueler) return 'apps-schueler';
+    return 'apps-lehrer';
 }
 
 /**
@@ -112,7 +115,12 @@ export function writeItPreviewChoice(mode) {
 /**
  * @param {DashboardLayoutMode} mode
  */
-export function layoutModeLabel(mode) {
+/**
+ * @param {DashboardLayoutMode} mode
+ * @param {import('./dashboard-audience-resolve.js').DashboardPersonas|null|undefined} [personas]
+ */
+export function layoutModeLabel(mode, personas) {
+    if (personas && personas.unknownUser) return 'Noch nicht zugeordnet';
     if (mode === 'full') return 'IT-Backend';
     if (mode === 'preview-lehrer') return 'Portal';
     if (mode === 'preview-schueler') return 'Vorschau Schüler/in';

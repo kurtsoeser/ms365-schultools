@@ -4145,3 +4145,53 @@ label.btn.akt-import-btn {
         width: 100%;
     }
 }
+
+/* ===== Welle 3 UI: Teal-only + Fluent blocks (2026-11-22) ===== */
+.akt-page {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.akt-btn-primary,
+.akt-page .btn.akt-btn-primary {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.akt-btn-secondary {
+    border-color: color-mix(in srgb, var(--brand1) 35%, var(--border)) !important;
+    color: var(--brand1) !important;
+    background: transparent !important;
+}
+.akt-btn-secondary:hover,
+.akt-btn-secondary:focus-visible {
+    background: color-mix(in srgb, var(--brand1) 8%, var(--card)) !important;
+}
+.akt-drawer {
+    background: var(--card) !important;
+    color: var(--heading);
+}
+.akt-drawer__title {
+    color: var(--heading) !important;
+}
+.akt-drawer__core {
+    background: var(--rail-bg, var(--soft)) !important;
+}
+.akt-panel--calm,
+.akt-panel--list {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+.akt-page .fb-greet { margin: 0 0 6px; }
+.akt-page .fb-sub { margin: 0 0 18px; }
+.akt-page .fb-actions-row { margin-top: 18px; }
+.akt-involve--organizer {
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+    color: var(--brand1);
+}
+.akt-chip.is-active,
+.akt-page .akt-chip.is-active {
+    background: color-mix(in srgb, var(--brand1) 14%, var(--card));
+    border-color: color-mix(in srgb, var(--brand1) 35%, var(--border));
+    color: var(--heading);
+}

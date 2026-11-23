@@ -1,0 +1,235 @@
+/**
+ * Design-Tokens — einzige Hex-Quelle für App-Chrome und Tools.
+ * Regel: Farbe trägt Marke (Teal) oder Soll/Ist-Status — keine Parallel-Marken.
+ * Komponenten nutzen nur var(--…) / color-mix(); freie Hex in app.css sind verboten.
+ */
+:root {
+    color-scheme: light;
+
+    /* Marke: Teal (Landing = App) */
+    --bg1: #0c6b5e;
+    --bg2: #12263f;
+    --brand1: #0d9f8a;
+    --brand2: #12b59c;
+    --ok1: #2dce89;
+    --ok2: #11998e;
+    --danger1: #f5365c;
+    --danger2: #f56036;
+
+    /* Soll/Ist-Status (nicht Marke) */
+    --status-ok: #0f766e;
+    --status-ok-strong: #15803d;
+    --status-warn: #b45309;
+    --status-warn-strong: #9c6b00;
+    --status-danger: #b91c1c;
+    --status-info: #0d9f8a;
+    --status-new: #0d9f8a;
+    --status-progress: #b45309;
+    --status-ask: #0369a1;
+    --status-idea: #a16207;
+    --accent-gold: #f59e0b;
+    --accent-amber: #fab005;
+
+    /* Neutrale Fläche & Text */
+    --text: #0c1222;
+    --text-secondary: #5b6b82;
+    --muted: #6c757d;
+    --heading: #0c1222;
+    --card: #ffffff;
+    --card-elevated: rgba(255, 255, 255, 0.9);
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(13, 159, 138, 0.32);
+    --soft: #f0f2f1;
+    --rail-bg: #f6f7f7;
+    --rail-active: #eceeee;
+    --on-accent: #04211d;
+    --surface-muted: #f5f5f5;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --code-bg: #e5f5f1;
+    --shadow: 0 14px 36px rgba(12, 18, 34, 0.08);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.28);
+    --radius: 14px;
+    --radius-lg: 20px;
+    --radius-pill: 999px;
+
+    --icon-muted: rgba(255, 255, 255, 0.92);
+    --icon-dim: rgba(33, 37, 41, 0.72);
+    --on-brand: #ffffff;
+    --ink: #0c1222;
+    --ink-soft: #1e2440;
+    --paper: #f4f7fb;
+    --paper-2: #f8fafc;
+    --hairline: #dee2e6;
+    --hairline-soft: #e9ecef;
+    --neutral-100: #f3f4f6;
+    --neutral-200: #d7dde5;
+    --neutral-500: #8b9aab;
+    --neutral-700: #495057;
+    --neutral-900: #212529;
+    --scrim: #111111;
+    --scrim-muted: #bbbbbb;
+
+    /* Hintergrund wie Landing */
+    --app-backdrop-paper: #f4f7fb;
+    --app-backdrop-grad-a: #f4f7fb;
+    --app-backdrop-grad-b: #e8f4f1;
+    --app-backdrop-grad-c: #dff5f0;
+    --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
+    --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
+
+    /* Planer-Nav: ruhige Schiene wie im Prototyp, neutrale Auswahl-Pille */
+    --bg: var(--soft);
+    --surface-2: var(--surface-muted);
+    --planner-nav-fg: var(--heading);
+    --planner-nav-muted: var(--muted);
+    --planner-nav-border: var(--border);
+    --planner-nav-hover: color-mix(in srgb, var(--heading) 5%, transparent);
+    --planner-nav-icon: var(--heading);
+    --planner-nav-link: var(--brand1);
+    --planner-nav-bg: var(--rail-bg);
+    --planner-nav-active-bg: var(--rail-active);
+    --planner-nav-active-fg: var(--heading);
+
+    --app-page-padding: 24px;
+    --app-shell-width: min(1920px, calc(100vw - 2 * var(--app-page-padding)));
+    --app-content-max: 1920px;
+    --app-shell-max: 1920px;
+    --app-max-width: 1920px;
+
+    /* Alias für ältere Tool-CSS */
+    --color-accent-gold: var(--accent-gold);
+}
+
+html[data-theme='dark'] {
+    color-scheme: dark;
+
+    --app-backdrop-paper: #181818;
+    --app-backdrop-grad-a: #181818;
+    --app-backdrop-grad-b: #181818;
+    --app-backdrop-grad-c: #141414;
+    --app-backdrop-glow-primary: transparent;
+    --app-backdrop-glow-accent: transparent;
+
+    --bg1: #141414;
+    --bg2: #1f1f1f;
+    --brand1: #14c4ab;
+    --brand2: #0d9f8a;
+    --ok1: #34d399;
+    --ok2: #10b981;
+    --danger1: #fb7185;
+    --danger2: #f97316;
+
+    --status-ok: #14c4ab;
+    --status-ok-strong: #34d399;
+    --status-warn: #fbbf24;
+    --status-warn-strong: #f59e0b;
+    --status-danger: #fb7185;
+    --status-info: #14c4ab;
+    --status-new: #14c4ab;
+    --status-progress: #fbbf24;
+    --status-ask: #38bdf8;
+    --status-idea: #fbbf24;
+
+    --text: #f5f5f5;
+    --text-secondary: #adadad;
+    --muted: #adadad;
+    --heading: #f5f5f5;
+    --card: #1f1f1f;
+    --card-elevated: rgba(42, 42, 42, 0.94);
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(61, 205, 184, 0.45);
+    --soft: #181818;
+    --rail-bg: #1b1b1b;
+    --rail-active: #2e2e2e;
+    --on-accent: #04211d;
+    --surface-muted: #2a2a2a;
+    --input-bg: #2a2a2a;
+    --input-border: rgba(255, 255, 255, 0.14);
+    --code-bg: #2a2a2a;
+    --shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.55);
+    --icon-muted: rgba(255, 255, 255, 0.9);
+    --icon-dim: rgba(232, 238, 246, 0.72);
+    --on-brand: #ffffff;
+    --ink: #f5f5f5;
+    --ink-soft: #f5f5f5;
+    --paper: #181818;
+    --paper-2: #141414;
+    --hairline: rgba(255, 255, 255, 0.14);
+    --hairline-soft: rgba(255, 255, 255, 0.1);
+    --neutral-100: #2a2a2a;
+    --neutral-200: #333333;
+    --neutral-500: #adadad;
+    --neutral-700: #d6d6d6;
+    --neutral-900: #f5f5f5;
+    --scrim: #111111;
+    --scrim-muted: #8b9aab;
+
+    --bg: var(--soft);
+    --surface-2: var(--surface-muted);
+    --planner-nav-fg: var(--heading);
+    --planner-nav-muted: var(--muted);
+    --planner-nav-border: var(--border);
+    --planner-nav-hover: color-mix(in srgb, var(--heading) 6%, transparent);
+    --planner-nav-icon: var(--heading);
+    --planner-nav-link: var(--brand1);
+    --planner-nav-bg: var(--rail-bg);
+    --planner-nav-active-bg: var(--rail-active);
+    --planner-nav-active-fg: var(--heading);
+}
+
+/* Explizites Light hält Tokens stabil, wenn data-theme gesetzt ist */
+html[data-theme='light'] {
+    color-scheme: light;
+
+    --bg1: #0c6b5e;
+    --bg2: #12263f;
+    --brand1: #0d9f8a;
+    --brand2: #12b59c;
+    --ok1: #2dce89;
+    --ok2: #11998e;
+    --danger1: #f5365c;
+    --danger2: #f56036;
+
+    --text: #0c1222;
+    --text-secondary: #5b6b82;
+    --muted: #6c757d;
+    --heading: #0c1222;
+    --card: #ffffff;
+    --card-elevated: rgba(255, 255, 255, 0.9);
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(13, 159, 138, 0.32);
+    --soft: #f0f2f1;
+    --rail-bg: #f6f7f7;
+    --rail-active: #eceeee;
+    --on-accent: #04211d;
+    --surface-muted: #f5f5f5;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --code-bg: #e5f5f1;
+    --shadow: 0 14px 36px rgba(12, 18, 34, 0.08);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.28);
+    --icon-muted: rgba(255, 255, 255, 0.92);
+    --icon-dim: rgba(33, 37, 41, 0.72);
+}
+
+/* data-brand bleibt für Logo/Legacy-Selektoren; Marke ist immer Teal */
+html[data-brand='teal'][data-theme='light'],
+html[data-brand='teal']:not([data-theme='dark']) {
+    --app-backdrop-paper: #f4f7fb;
+    --app-backdrop-grad-a: #f4f7fb;
+    --app-backdrop-grad-b: #e8f4f1;
+    --app-backdrop-grad-c: #dff5f0;
+    --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
+    --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
+}
+
+html[data-brand='teal'][data-theme='dark'] {
+    --app-backdrop-paper: #181818;
+    --app-backdrop-grad-a: #181818;
+    --app-backdrop-grad-b: #181818;
+    --app-backdrop-grad-c: #141414;
+    --app-backdrop-glow-primary: transparent;
+    --app-backdrop-glow-accent: transparent;
+}

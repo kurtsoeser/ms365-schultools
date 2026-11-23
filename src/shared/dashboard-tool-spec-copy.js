@@ -74,7 +74,7 @@ export const DASHBOARD_SPEC_TOOL_DESCRIPTIONS = {
     'stammdaten-backup-abgleich':
         'Gesicherten Stand mit aktuellem Stand vergleichen – Änderungen identifizieren.',
     'playbook-daten-import-verknuepfen':
-        'Schritt für Schritt von Export bis Verknüpfung mit Microsoft 365.',
+        'Blaupause Erste Einrichtung: Profil, Tool-Site, Import, Verknüpfen, Sicherung.',
     'stammdaten-quelle-waehlen': 'Datei, Bildungsportal oder anderes Format als Datenquelle festlegen.',
     'bildungsportal-stammdaten': 'Anbindung und Roadmap für Ihr Bundesland-Bildungsportal.',
     'pa-termine-sync':

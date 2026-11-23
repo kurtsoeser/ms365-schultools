@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Playbook Elternbrief</title>
+    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+</head>
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-envelope-paper"></i>Playbook Elternbrief</span>
+            </div>
+            <p>Liste, Verteiler und Versand – getrennt vom allgemeinen Eltern-Playbook und vom Elternsprechtag.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-playbook-elternbrief" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="elternbrief.html"><i class="bi bi-envelope-paper"></i>Elternbrief</a>
+                <a class="btn" href="eltern-verteiler.html"><i class="bi bi-people"></i>Verteiler</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div><h3>Schritte</h3><p id="cpProgress" class="pb-progress">0 / 4 erledigt</p></div>
+                </div>
+                <p class="pb-lead">Kern: Liste → Verteiler → Probebrief → Einweisung.</p>
+                <div class="pb-steps">
+                    <article class="pb-step cp-step" data-cp-step="listen">
+                        <div class="pb-step__n">1</div>
+                        <div>
+                            <h3>SharePoint-Liste <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Elternbrief-Liste auf der Primär-Site anlegen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="listen"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-liste-elternbrief.html"><i class="bi bi-list-ul"></i>Listen</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="verteiler">
+                        <div class="pb-step__n">2</div>
+                        <div>
+                            <h3>Eltern-Verteiler prüfen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Klassen-/Jahrgangsverteiler aus Stammdaten – ohne Guardians bleibt der Versand leer.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="verteiler"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="eltern-verteiler.html"><i class="bi bi-people"></i>Verteiler</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="test">
+                        <div class="pb-step__n">3</div>
+                        <div>
+                            <h3>Probebrief senden <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>An eine Testklasse oder sich selbst – Lesebestätigung und Darstellung prüfen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="test"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="elternbrief.html"><i class="bi bi-send"></i>Elternbrief</a>
+                    </article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="schulung">
+                        <div class="pb-step__n">4</div>
+                        <div>
+                            <h3>KV / Sekretariat einweisen <span class="pb-pill pb-pill--later">Optional</span></h3>
+                            <p>Wer darf Briefe starten, welche Verteiler sind Standard.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="schulung"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="playbook-eltern.html"><i class="bi bi-chat-heart"></i>Elternkanal</a>
+                    </article>
+                </div>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        import { evaluateAppPlaybookReadyChecks } from '../src/shared/playbook-tool-ready.js';
+
+        function loadTenantSettings() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        }
+
+        wirePlaybookPage({
+            storageKey: 'ms365-playbook-elternbrief-v1',
+            stepIds: ["listen","verteiler","test","schulung"],
+            evaluateReadyChecks: function () {
+                return evaluateAppPlaybookReadyChecks(loadTenantSettings());
+            }
+        });
+    </script>
+</body>
+</html>

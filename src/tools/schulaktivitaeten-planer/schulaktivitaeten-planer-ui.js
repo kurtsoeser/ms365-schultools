@@ -91,17 +91,17 @@ function renderAktRoleBlock(state) {
     );
 }
 
+function statusPillMod(status) {
+    const s = String(status || 'beantragt').toLowerCase();
+    if (s === 'genehmigt') return 'ok';
+    if (s === 'abgelehnt' || s === 'abgesagt') return 'bad';
+    return 'warn';
+}
+
 function statusBadge(status) {
     const s = String(status || 'beantragt').toLowerCase();
-    let mod = 'warn';
-    if (s === 'genehmigt') mod = 'ok';
-    else if (s === 'abgelehnt' || s === 'abgesagt') mod = 'bad';
-    else if (s === 'nachforderung') mod = 'info';
-    else if (s === 'kv_stellungnahme' || s === 'beantragt') mod = 'info';
-    else if (s === 'entwurf') mod = 'muted';
-    return `<span class="akt-status akt-status--${mod}" data-status="${esc(s)}"><span class="akt-status__dot" aria-hidden="true"></span>${esc(
-        statusLabel(s)
-    )}</span>`;
+    const mod = statusPillMod(s);
+    return `<span class="fb-pill fb-pill--${mod}" data-status="${esc(s)}">${esc(statusLabel(s))}</span>`;
 }
 
 /**
@@ -315,6 +315,13 @@ export function syncAktPageChrome(state) {
 
 function renderTeacherTop(state, opts) {
     const o = opts || {};
+    const selfTitled =
+        state.view === 'dashboard' ||
+        state.view === 'liste' ||
+        state.view === 'meine-klasse' ||
+        state.view === 'freigabe' ||
+        state.view === 'antrag';
+    if (selfTitled) return '';
     const showCta = o.showPrimaryCta !== false && state.view !== 'antrag';
     return `
     <header class="akt-top akt-top--lehrer">
@@ -324,7 +331,7 @@ function renderTeacherTop(state, opts) {
       </div>
       ${
           showCta
-              ? `<button type="button" class="btn akt-btn-primary akt-top__cta" data-akt-view-jump="antrag"><i class="bi bi-plus-lg" aria-hidden="true"></i>Neue Aktivität</button>`
+              ? `<button type="button" class="fb-btn akt-top__cta" data-akt-view-jump="antrag">Neue Aktivität</button>`
               : ''
       }
     </header>`;
@@ -332,28 +339,31 @@ function renderTeacherTop(state, opts) {
 
 function renderStaffTop(state) {
     const openN = countOpenEntscheidungen(state.items);
+    const selfTitled =
+        state.view === 'dashboard' ||
+        state.view === 'liste' ||
+        state.view === 'freigabe' ||
+        state.view === 'berichte' ||
+        state.view === 'antrag';
+    if (selfTitled) {
+        if (!(openN > 0 && (state.view === 'dashboard' || state.view === 'liste'))) return '';
+        return `<div class="akt-top-refresh">
+          <button type="button" class="fb-btn fb-btn--ghost" data-akt-view-jump="freigabe">${openN} offen</button>
+        </div>`;
+    }
     const titles = {
-        dashboard: 'Übersicht',
-        liste: 'Alle Aktivitäten',
         kalender: 'Kalender',
-        freigabe: 'Entscheidungen',
-        berichte: 'Berichte',
         limits: 'Kostenschwellen',
         regeln: 'Regelwerk',
-        system: 'Systemadministration',
-        antrag: 'Neue Aktivität'
+        system: 'Systemadministration'
     };
     const title = titles[state.view] || 'Leitung & Betrieb';
     const lead =
-        state.view === 'dashboard'
-            ? 'Entscheidungen, Nacharbeit und die nächsten Termine im Blick.'
-            : state.view === 'freigabe'
-              ? 'Anträge prüfen, Rückfragen stellen und Entscheidungen nachvollziehen.'
-              : state.view === 'system'
-                ? 'Site, Berechtigungen, Kalender und Wartung in Tabs – Danger Zone bewusst getrennt.'
-                : '';
-    const workViews = state.view === 'dashboard' || state.view === 'freigabe' || state.view === 'liste';
-    const showOpenBadge = workViews && openN > 0;
+        state.view === 'system'
+            ? 'Site, Berechtigungen, Kalender und Wartung in Tabs – Danger Zone bewusst getrennt.'
+            : state.view === 'kalender'
+              ? 'Genehmigte und offene Aktivitäten im Monats- oder Wochenraster.'
+              : '';
     return `
     <header class="akt-top akt-top--staff-calm">
       <div class="akt-top__copy">
@@ -361,12 +371,7 @@ function renderStaffTop(state) {
         ${lead ? `<p class="akt-top__lead">${esc(lead)}</p>` : ''}
       </div>
       <div class="akt-top__user">
-        ${state.localDemoOnly && state.view === 'system' ? '<span class="akt-badge akt-badge--warn">Demo lokal</span>' : ''}
-        ${
-            showOpenBadge
-                ? `<button type="button" class="akt-chip is-active" data-akt-view-jump="freigabe">${openN} offen</button>`
-                : ''
-        }
+        ${state.localDemoOnly && state.view === 'system' ? '<span class="fb-pill fb-pill--warn">Demo lokal</span>' : ''}
       </div>
     </header>`;
 }
@@ -682,15 +687,16 @@ function renderNextActivityCard(it, state) {
     const id = it.aktivitaetId || it.itemId;
     const zeit = formatUeZeitraum(it) || [it.startZeit, it.endZeit].filter(Boolean).join('–');
     const meta = [teilnahmeKurz(it, labels.klasse), it.ort || '', zeit].filter(Boolean).join(' · ');
-    return `
-    <button type="button" class="akt-next-card" data-akt-detail="${esc(id)}">
-      <div class="akt-next-card__date">${esc(formatDeDate(it.startdatum))}${
-          it.enddatum && it.enddatum !== it.startdatum ? ' – ' + esc(formatDeDate(it.enddatum)) : ''
-      }</div>
-      <div class="akt-next-card__body">
-        <strong>${esc(it.titel || 'Ohne Titel')}</strong>
-        <span>${esc(meta || 'Details folgen')} ${involvementChip(it, state)}</span>
+    const range =
+        it.enddatum && it.enddatum !== it.startdatum
+            ? `${formatDeDate(it.startdatum)} – ${formatDeDate(it.enddatum)}`
+            : formatDeDate(it.startdatum);
+    return `<button type="button" class="fb-rowbtn" data-akt-detail="${esc(id)}">
+      <div class="fb-rowbtn__main">
+        <div class="fb-rowbtn__title">${esc(it.titel || 'Ohne Titel')}</div>
+        <div class="fb-rowbtn__meta">${esc(meta || 'Details folgen')}</div>
       </div>
+      <div class="fb-rowbtn__date">${esc(range)}</div>
       ${statusBadge(it.status)}
     </button>`;
 }
@@ -715,59 +721,67 @@ function renderLehrerDashboard(state) {
         .sort((a, b) => String(a.startdatum || '').localeCompare(String(b.startdatum || '')))
         .slice(0, 5);
 
-    let actionBlock = `
-    <p class="akt-quiet-status" role="status">
-      <i class="bi bi-check-circle" aria-hidden="true"></i>
-      <span><strong>Alles erledigt</strong> · Aktuell ist nichts von dir erforderlich.</span>
-    </p>`;
+    const attentionN = kvPending.length || needsAction.length || drafts.length;
+    let headline =
+        attentionN === 0
+            ? '<span class="fb-num">0</span> offene Aufgaben.'
+            : attentionN === 1
+              ? '<span class="fb-num">1</span> Aufgabe wartet auf dich.'
+              : `<span class="fb-num">${attentionN}</span> Aufgaben warten auf dich.`;
+    let sub = 'Aktuell ist nichts von dir erforderlich.';
+    let attentionRows = '';
 
     if (kvPending.length) {
-        const first = kvPending[0];
-        actionBlock = `
-    <section class="akt-calm-banner akt-calm-banner--action" role="status">
-      <div class="akt-calm-banner__text">
-        <p><strong>${kvPending.length === 1 ? '1 Stellungnahme ist erforderlich' : kvPending.length + ' Stellungnahmen sind erforderlich'}</strong></p>
-        <p class="muted">${esc(first.titel || 'Ohne Titel')} · ${esc(teilnahmeKurz(first, labelMaps(state.stammdaten).klasse))}</p>
-      </div>
-      <button type="button" class="btn akt-btn-primary" data-akt-view-jump="meine-klasse">Zu Meine Klasse →</button>
-    </section>`;
+        headline =
+            kvPending.length === 1
+                ? '<span class="fb-num">1</span> Stellungnahme erforderlich.'
+                : `<span class="fb-num">${kvPending.length}</span> Stellungnahmen erforderlich.`;
+        sub = 'Klassenvorstand zuerst – danach Direktion.';
+        attentionRows = `<div class="fb-sec-label">KV-STELLUNGNAHME</div>
+      <div class="fb-rowlist">${kvPending
+          .slice(0, 6)
+          .map((it) => renderEntscheidungRow(it, state, labelMaps(state.stammdaten)))
+          .join('')}</div>`;
     } else if (needsAction.length) {
-        const first = needsAction[0];
-        actionBlock = `
-    <section class="akt-calm-banner akt-calm-banner--action" role="status">
-      <div class="akt-calm-banner__text">
-        <p><strong>${needsAction.length === 1 ? '1 Aktivität braucht deine Ergänzung' : needsAction.length + ' Aktivitäten brauchen deine Ergänzung'}</strong></p>
-        <p class="muted">${esc(first.titel || 'Ohne Titel')}${first.rueckfrageText ? ' – ' + esc(first.rueckfrageText) : ''}</p>
-      </div>
-      <button type="button" class="btn akt-btn-primary" data-akt-edit="${esc(first.itemId)}">Öffnen →</button>
-    </section>`;
+        headline =
+            needsAction.length === 1
+                ? '<span class="fb-num">1</span> Aktivität braucht Ergänzung.'
+                : `<span class="fb-num">${needsAction.length}</span> Aktivitäten brauchen Ergänzung.`;
+        sub = 'Zeile öffnen und Rückfrage beantworten.';
+        attentionRows = `<div class="fb-sec-label">NACHFORDERUNG</div>
+      <div class="fb-rowlist">${needsAction.slice(0, 6).map((it) => renderNextActivityCard(it, state)).join('')}</div>`;
     } else if (drafts.length) {
-        const first = drafts[0];
-        actionBlock = `
-    <section class="akt-calm-banner akt-calm-banner--action" role="status">
-      <div class="akt-calm-banner__text">
-        <p><strong>${drafts.length === 1 ? '1 Entwurf wartet auf dich' : drafts.length + ' Entwürfe warten auf dich'}</strong></p>
-        <p class="muted">${esc(first.titel || 'Ohne Titel')}</p>
-      </div>
-      <button type="button" class="btn akt-btn-primary" data-akt-edit="${esc(first.itemId)}">Weiter bearbeiten</button>
-    </section>`;
+        headline =
+            drafts.length === 1
+                ? '<span class="fb-num">1</span> Entwurf wartet.'
+                : `<span class="fb-num">${drafts.length}</span> Entwürfe warten.`;
+        sub = 'Weiterbearbeiten und einreichen.';
+        attentionRows = `<div class="fb-sec-label">ENTWÜRFE</div>
+      <div class="fb-rowlist">${drafts.slice(0, 6).map((it) => renderNextActivityCard(it, state)).join('')}</div>`;
     }
 
     return `
-    ${actionBlock}
-    <section class="akt-panel akt-panel--calm">
-      <h2>Als Nächstes</h2>
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${attentionRows}
+    <div class="fb-sec-label">ALS NÄCHSTES</div>
+    ${
+        upcoming.length
+            ? `<div class="fb-rowlist">${upcoming.map((it) => renderNextActivityCard(it, state)).join('')}</div>`
+            : '<p class="muted" style="margin:6px 0 0;">Keine kommenden Aktivitäten geplant.</p>'
+    }
+    <div class="fb-actions-row">
+      <button type="button" class="fb-btn" data-akt-view-jump="antrag">Neue Aktivität</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-akt-view-jump="liste">Alle Aktivitäten</button>
       ${
-          upcoming.length
-              ? `<div class="akt-next-list">${upcoming.map((it) => renderNextActivityCard(it, state)).join('')}</div>`
-              : '<p class="muted">Keine kommenden Aktivitäten geplant.</p>'
+          kvPending.length
+              ? '<button type="button" class="fb-btn fb-btn--ghost" data-akt-view-jump="meine-klasse">Meine Klasse</button>'
+              : ''
       }
-      <button type="button" class="akt-text-link" data-akt-view-jump="liste">Alle Aktivitäten anzeigen <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
-    </section>`;
+    </div>`;
 }
 
 function renderLeitungDashboard(state) {
-    const labels = labelMaps(state.stammdaten);
     const offen = sortByStartdatum(
         (state.items || []).filter((i) => String(i.status || '').toLowerCase() === 'beantragt')
     );
@@ -786,66 +800,55 @@ function renderLeitungDashboard(state) {
             return d && d >= today && d <= until;
         })
     ).slice(0, 5);
+    const labels = labelMaps(state.stammdaten);
 
-    const first = offen[0];
-    const attention = offen.length
-        ? `<section class="akt-calm-banner akt-calm-banner--action" role="status">
-      <div class="akt-calm-banner__text">
-        <p class="akt-calm-banner__eyebrow">Was braucht deine Aufmerksamkeit?</p>
-        <p><strong>${offen.length === 1 ? '1 Antrag wartet auf Entscheidung' : offen.length + ' Anträge warten auf Entscheidung'}</strong></p>
-        ${
-            first
-                ? `<p class="muted">${esc(first.titel || 'Ohne Titel')}<br>${esc(
-                      formatDeDate(first.startdatum)
-                  )}${
-                      formatUeZeitraum(first) ? ' · ' + esc(formatUeZeitraum(first)) : ''
-                  } · ${esc(teilnahmeKurz(first, labels.klasse))}${
-                      first.ort ? ' · ' + esc(first.ort) : ''
-                  }</p>`
-                : ''
-        }
-      </div>
-      <button type="button" class="btn akt-btn-primary" data-akt-view-jump="freigabe">${
-          offen.length === 1 ? 'Antrag prüfen' : 'Entscheidungen öffnen'
-      } →</button>
-    </section>`
-        : `<p class="akt-quiet-status" role="status">
-      <i class="bi bi-check-circle" aria-hidden="true"></i>
-      <span><strong>Aktuell wartet keine Entscheidung auf dich.</strong></span>
-    </p>`;
-
-    const nacharbeit = untisN
-        ? `<section class="akt-calm-banner akt-calm-banner--ops" role="status">
-      <div class="akt-calm-banner__icon" aria-hidden="true"><i class="bi bi-calendar2-check"></i></div>
-      <div class="akt-calm-banner__text">
-        <p class="akt-calm-banner__eyebrow">Organisatorische Nacharbeit</p>
-        <p><strong>${
-            untisN === 1
-                ? '1 genehmigte Aktivität wartet noch auf Untis'
-                : untisN + ' genehmigte Aktivitäten warten noch auf Untis'
-        }</strong></p>
-        <p class="muted">Als verarbeitet markieren, sobald die Eintragung erledigt ist.</p>
-      </div>
-      <button type="button" class="btn akt-btn-secondary" data-akt-view-jump="liste" data-akt-filter-status="genehmigt" data-akt-filter-verarbeitung="offen">Offene Eintragungen →</button>
-    </section>`
-        : '';
+    const headline =
+        offen.length === 1
+            ? '<span class="fb-num">1</span> Antrag ohne Entscheidung.'
+            : `<span class="fb-num">${offen.length}</span> ohne Entscheidung.`;
+    const sub = offen.length
+        ? 'Zeile anklicken, Details prüfen und im Drawer entscheiden.'
+        : untisN
+          ? `${untisN} genehmigte Aktivität${untisN === 1 ? '' : 'en'} warten noch auf Untis.`
+          : 'Aktuell wartet keine Entscheidung auf dich.';
 
     return `
-    <section class="akt-panel akt-panel--calm">
-      <h2 class="akt-sr-only">Aufmerksamkeit</h2>
-      ${attention}
-      ${nacharbeit}
-    </section>
-    <section class="akt-panel akt-panel--calm">
-      <h2>Als Nächstes</h2>
-      <p class="muted" style="margin-top:0">Schulweit in den nächsten 14 Tagen.</p>
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${
+        offen.length
+            ? `<div class="fb-sec-label">OFFEN</div>
+               <div class="fb-rowlist">${offen
+                   .slice(0, 8)
+                   .map((it) => renderEntscheidungRow(it, state, labels))
+                   .join('')}</div>`
+            : ''
+    }
+    ${
+        untisN
+            ? `<div class="fb-sec-label">UNTIS-NACHARBEIT · ${untisN}</div>
+               <p class="muted" style="margin:6px 0 0;">Als verarbeitet markieren, sobald die Eintragung erledigt ist.</p>`
+            : ''
+    }
+    <div class="fb-sec-label">NÄCHSTE 14 TAGE</div>
+    ${
+        upcoming.length
+            ? `<div class="fb-rowlist">${upcoming.map((it) => renderNextActivityCard(it, state)).join('')}</div>`
+            : '<p class="muted" style="margin:6px 0 0;">Keine kommenden Aktivitäten in diesem Zeitraum.</p>'
+    }
+    <div class="fb-actions-row">
       ${
-          upcoming.length
-              ? `<div class="akt-next-list">${upcoming.map((it) => renderNextActivityCard(it, state)).join('')}</div>`
-              : '<p class="muted">Keine kommenden Aktivitäten in diesem Zeitraum.</p>'
+          offen.length
+              ? '<button type="button" class="fb-btn" data-akt-view-jump="freigabe">Entscheidungen öffnen</button>'
+              : '<button type="button" class="fb-btn" data-akt-view-jump="antrag">Neue Aktivität</button>'
       }
-      <button type="button" class="akt-text-link" data-akt-view-jump="liste">Alle Aktivitäten anzeigen <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
-    </section>`;
+      <button type="button" class="fb-btn fb-btn--ghost" data-akt-view-jump="liste">Alle Aktivitäten</button>
+      ${
+          untisN
+              ? '<button type="button" class="fb-btn fb-btn--ghost" data-akt-view-jump="liste" data-akt-filter-status="genehmigt" data-akt-filter-verarbeitung="offen">Untis offen</button>'
+              : '<button type="button" class="fb-btn fb-btn--ghost" data-akt-view-jump="kalender">Kalender</button>'
+      }
+    </div>`;
 }
 
 function renderDashboard(state) {
@@ -871,33 +874,33 @@ function renderListe(state) {
     const staff = isAktStaffRole(state.role);
     const scope = scopeFromState(state, listScopeOpts(state));
     const items = sortByStartdatum(filterItems(state.items, state.filters, scope));
-    const title = staff ? 'Alle Aktivitäten' : 'Meine Aktivitäten';
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> Aktivität im Überblick.'
+            : `<span class="fb-num">${items.length}</span> Aktivitäten im Überblick.`;
+    const sub = staff
+        ? 'Gefiltert oder durchsucht. Zeile öffnet das Detail.'
+        : 'Aktivitäten, die du einreichst, verantwortest oder begleitest.';
     const emptyHint = staff
         ? 'Noch keine Aktivitäten in der Schule.'
         : 'Hier erscheinen Aktivitäten, die du selbst einreichst, verantwortest oder begleitest.';
     return `
-    <section class="akt-panel akt-panel--list">
-      <h2 class="akt-sr-only">${esc(title)}</h2>
+    <section class="akt-panel akt-panel--calm akt-panel--list">
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">${esc(sub)}</p>
       ${filterBar(state, listScopeOpts(state))}
       ${
           items.length
               ? renderTable(items, state)
-              : `<div class="akt-empty">
-            <p><strong>Noch keine Aktivitäten</strong></p>
-            <p class="muted">${esc(emptyHint)}</p>
-            ${
-                !staff && (state.items || []).length
-                    ? `<p class="muted">${(state.items || []).length} Einträge geladen, aber keiner ist dir zugeordnet (Antragsteller/Verantwortlich/Begleitung). Konto: ${esc(String(state.accountEmail || '–'))}. Bitte Seite neu laden oder erneut einreichen.</p>`
-                    : !staff
-                      ? '<p class="muted">Wenn der Eintrag in SharePoint sichtbar ist, aber hier fehlt: Seite neu laden – die App liest die Liste jetzt auch per SharePoint-REST nach.</p>'
-                      : ''
-            }
-            ${
-                staff
-                    ? ''
-                    : '<button type="button" class="btn akt-btn-primary" data-akt-view-jump="antrag">Neue Aktivität</button>'
-            }
-          </div>`
+              : `<p class="akt-quiet-status" role="status">
+        <i class="bi bi-check-circle" aria-hidden="true"></i>
+        <span>${esc(emptyHint)}</span>
+      </p>
+      ${
+          staff
+              ? ''
+              : '<div class="fb-actions-row"><button type="button" class="fb-btn" data-akt-view-jump="antrag">Neue Aktivität</button></div>'
+      }`
       }
     </section>`;
 }
@@ -1481,23 +1484,21 @@ function teacherDisplayName(state, code, email) {
 function renderEntscheidungRow(it, state, labels) {
     const zeit = formatUeZeitraum(it) || [it.startZeit, it.endZeit].filter(Boolean).join('–');
     const lehrer = teacherDisplayName(state, it.lehrerCode, it.lehrerEmail);
-    const verantwortlich = lehrer
-        ? `Verantwortlich: ${lehrer}`
-        : 'Verantwortliche Lehrkraft nicht erfasst';
-    return `
-    <button type="button" class="akt-decision-row akt-decision-row--task" data-akt-detail="${esc(it.aktivitaetId || it.itemId)}">
-      <div class="akt-decision-row__main">
-        <strong>${esc(it.titel || 'Ohne Titel')}</strong>
-        <span>${esc(formatDeDate(it.startdatum))}${zeit ? ' · ' + esc(zeit) : ''} · ${esc(
-            teilnahmeKurz(it, labels.klasse)
-        )}${it.ort ? ' · ' + esc(it.ort) : ''}</span>
-        <span class="${lehrer ? 'muted' : 'akt-missing'}">${esc(verantwortlich)}</span>
-        ${it.kvStellungnahme ? `<span class="akt-decision-row__kv">KV: ${esc(it.kvStellungnahme)}</span>` : ''}
+    const metaParts = [
+        formatDeDate(it.startdatum),
+        zeit,
+        teilnahmeKurz(it, labels.klasse),
+        it.ort || '',
+        lehrer ? `Verantwortlich: ${lehrer}` : '',
+        it.kvStellungnahme ? `KV: ${it.kvStellungnahme}` : ''
+    ].filter(Boolean);
+    return `<button type="button" class="fb-rowbtn" data-akt-detail="${esc(it.aktivitaetId || it.itemId)}">
+      <div class="fb-rowbtn__main">
+        <div class="fb-rowbtn__title">${esc(it.titel || 'Ohne Titel')}</div>
+        <div class="fb-rowbtn__meta">${esc(metaParts.join(' · ') || 'Aktivität')}</div>
       </div>
-      <div class="akt-decision-row__side">
-        ${statusBadge(it.status)}
-        <span class="btn akt-btn-primary akt-btn-compact">Prüfen</span>
-      </div>
+      <div class="fb-rowbtn__date">${esc(formatDeDate(it.startdatum))}</div>
+      ${statusBadge(it.status)}
     </button>`;
 }
 
@@ -1518,41 +1519,42 @@ function renderFreigabe(state) {
               filterItems(state.items, { status: 'beantragt' }, { role: 'admin', onlyOpen: true })
           )
         : [];
+    const total = open.length + kvPending.length;
+    const headline =
+        total === 1
+            ? '<span class="fb-num">1</span> Antrag ohne Entscheidung.'
+            : `<span class="fb-num">${total}</span> ohne Entscheidung.`;
     return `
-    ${
-        hasAktKvCapability(state) || kvPending.length
-            ? `<section class="akt-panel akt-panel--calm">
-      <div class="akt-section-head">
-        <h3>KV-Stellungnahme${kvPending.length ? ` · ${kvPending.length}` : ''}</h3>
-        <p class="muted">Zuerst Klassenvorstand, danach Direktion.</p>
-      </div>
+    <section class="akt-panel akt-panel--calm akt-panel--list">
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">Zeile anklicken, Details prüfen, rechts im Drawer entscheiden.</p>
+      ${
+          hasAktKvCapability(state) || kvPending.length
+              ? `<div class="fb-sec-label">KV-STELLUNGNAHME${kvPending.length ? ` · ${kvPending.length}` : ''}</div>
       ${
           kvPending.length
-              ? `<div class="akt-decision-list">${kvPending
+              ? `<div class="fb-rowlist">${kvPending
                     .map((it) => renderEntscheidungRow(it, state, labels))
                     .join('')}</div>`
               : '<p class="muted">Keine Anträge warten auf KV-Stellungnahme.</p>'
+      }`
+              : ''
       }
-    </section>`
-            : ''
-    }
-    ${
-        canDecide(state)
-            ? `<section class="akt-panel akt-panel--calm" id="aktEntscheidungenOpen">
-      <div class="akt-section-head">
-        <h3>Offene Anträge${open.length ? ` · ${open.length}` : ''}</h3>
-        <p class="muted">Entscheidung im Activity Drawer: genehmigen, Ergänzung fordern oder ablehnen.</p>
-      </div>
+      ${
+          canDecide(state)
+              ? `<div class="fb-sec-label" id="aktEntscheidungenOpen">OFFENE ANTRÄGE${
+                    open.length ? ` · ${open.length}` : ''
+                }</div>
       ${
           open.length
-              ? `<div class="akt-decision-list">${open
+              ? `<div class="fb-rowlist">${open
                     .map((it) => renderEntscheidungRow(it, state, labels))
                     .join('')}</div>`
               : '<p class="akt-quiet-status"><i class="bi bi-check-circle" aria-hidden="true"></i><span>Keine offenen Anträge.</span></p>'
+      }`
+              : ''
       }
-    </section>`
-            : ''
-    }`;
+    </section>`;
 }
 
 function renderKostenLimits(state) {

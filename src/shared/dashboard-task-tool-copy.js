@@ -31,12 +31,16 @@ export function normalizeToolHref(href) {
 /** @type {Record<string, { title: string, desc: string }>} */
 export const TOOL_PRACTICE_COPY = {
     'tools/playbook-daten-import-verknuepfen.html': {
-        title: 'Playbook: Daten importieren',
-        desc: 'Schritt für Schritt von Export bis M365-Verknüpfung'
+        title: 'Erste Einrichtung (Blaupause)',
+        desc: 'Checkliste: Profil, Tool-Site, Import, Verknüpfen, Sicherung'
     },
     'tools/stammdaten-quelle-waehlen.html': {
         title: 'Datenquelle wählen',
         desc: 'Datei, Bildungsportal oder anderes Format festlegen'
+    },
+    'dashboard-werkzeug-zugriff.html': {
+        title: 'Portal vorbereiten',
+        desc: 'Lehrer-Portal gestalten, Apps freigeben und Go-Live'
     },
     'tools/webuntis-stammdaten-import.html': {
         title: 'Stammdaten aus WebUntis',
@@ -194,6 +198,14 @@ export const TOOL_PRACTICE_COPY = {
 
 /** Spezialfälle mit Query-Parametern */
 const TOOL_PRACTICE_COPY_QUERY = {
+    'tools/verwaltung.html?kind=schulleitung': {
+        title: 'Schulleitung',
+        desc: 'Direktion-Sammelgruppe in Microsoft 365 matchen und synchronisieren'
+    },
+    'tools/verwaltung.html?kind=verwaltung': {
+        title: 'Verwaltung (Personal)',
+        desc: 'Sekretariat und Verwaltungspersonal getrennt von der Direktion abgleichen'
+    },
     'tools/kursteams.html?mode=single': {
         title: 'Einzelne Teams nachziehen',
         desc: 'Ein Unterrichtsteam manuell anlegen oder reparieren'

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Playbook Projektwochen</title>
+    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+</head>
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-calendar2-week"></i>Playbook Projektwochen</span>
+            </div>
+            <p>Listen, Bookings/Angebote und Freigabe – bis Projektwochen im Alltag laufen. Primär-Site kommt aus der Blaupause.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-playbook-projektwochen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="projektwochen.html"><i class="bi bi-calendar2-week"></i>Projektwochen</a>
+                <a class="btn" href="sharepoint-liste-projektwochen.html"><i class="bi bi-list-ul"></i>PW-Listen</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div><h3>Schritte</h3><p id="cpProgress" class="pb-progress">0 / 5 erledigt</p></div>
+                </div>
+                <p class="pb-lead">Kern: Site → PW-Listen → Bookings/Angebote → Test → Einweisung.</p>
+                <div class="pb-steps">
+                    <article class="pb-step cp-step" data-cp-step="site">
+                        <div class="pb-step__n">1</div>
+                        <div>
+                            <h3>Primär-Site prüfen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Projektwochen-Listen brauchen die gemeinsame Tool-Site (Stammdaten → Planer &amp; Apps).</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="site"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="../tenant.html#spo-planer"><i class="bi bi-grid-1x2"></i>Planer &amp; Apps</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="listen">
+                        <div class="pb-step__n">2</div>
+                        <div>
+                            <h3>Projektwochen-Listen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Aktionen und Angebote auf der Primär-Site anlegen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="listen"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-liste-projektwochen.html"><i class="bi bi-list-ul"></i>PW-Listen</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="bookings">
+                        <div class="pb-step__n">3</div>
+                        <div>
+                            <h3>Bookings / Angebote <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Buchungs- oder Angebotsfluss im Tool prüfen – je nach Schulmodell Bookings oder Listen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="bookings"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="projektwochen.html"><i class="bi bi-calendar2-check"></i>Projektwochen</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="test">
+                        <div class="pb-step__n">4</div>
+                        <div>
+                            <h3>Probebuchung / Testangebot <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Einen Durchlauf als Lehrkraft/Schüler:in testen, bevor es live geht.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="test"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="projektwochen.html"><i class="bi bi-journal-check"></i>Testen</a>
+                    </article>
+                    <article class="pb-step cp-step pb-step--optional cp-step--optional" data-cp-step="schulung">
+                        <div class="pb-step__n">5</div>
+                        <div>
+                            <h3>Kollegium informieren <span class="pb-pill pb-pill--later">Optional</span></h3>
+                            <p>Kurzanleitung und Link im Intranet oder als Mail.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="schulung"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Intranet</a>
+                    </article>
+                </div>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        import { evaluateAppPlaybookReadyChecks } from '../src/shared/playbook-tool-ready.js';
+
+        function loadTenantSettings() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        }
+
+        wirePlaybookPage({
+            storageKey: 'ms365-playbook-projektwochen-v1',
+            stepIds: ["site","listen","bookings","test","schulung"],
+            evaluateReadyChecks: function () {
+                return evaluateAppPlaybookReadyChecks(loadTenantSettings());
+            }
+        });
+    </script>
+</body>
+</html>

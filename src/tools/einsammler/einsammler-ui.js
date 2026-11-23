@@ -38,6 +38,7 @@ import {
     saveEinsammlerSettings
 } from './einsammler-settings.js';
 import { readDemoRoleOverrideFromUrl } from '../../shared/app-role-switcher-policy.js';
+import { renderToolOpsStatusCard } from '../../shared/tool-ops-status.js';
 import {
     addEmpfaengerFromText,
     clearAll,
@@ -127,6 +128,15 @@ export function mountApp(root) {
     const demoUiEnabled = readDemoRoleOverrideFromUrl(false);
 
     seedDemoIfEmpty();
+    try {
+        const shot = new URLSearchParams(window.location.search || '');
+        if (shot.get('landingShot') === '1') {
+            loadDemoData({ email: 'mueller@schule.demo', name: 'Maria Müller' });
+            ui.showAll = true;
+        }
+    } catch {
+        /* ignore */
+    }
     try {
         mergeInboxIntoStore();
     } catch {
@@ -221,34 +231,6 @@ export function mountApp(root) {
         return loadState();
     }
 
-    function renderSyncHint() {
-        const sync = getEinsammlerSyncMeta();
-        if (sync.source === 'live' && sync.ok) return '';
-        if (!sync.siteUrl && sync.source !== 'demo') {
-            return (
-                '<section class="ein-calm-banner ein-calm-banner--ops" role="status">' +
-                '<div class="ein-calm-banner__text">' +
-                '<p class="ein-calm-banner__eyebrow">SharePoint</p>' +
-                '<p>Noch keine Site – IT richtet die Listen ein. Bis dahin lokal/Demo.</p>' +
-                '</div></section>'
-            );
-        }
-        if (sync.source === 'demo' || sync.source === 'local') {
-            return (
-                '<section class="ein-calm-banner ein-calm-banner--ops" role="status">' +
-                '<div class="ein-calm-banner__text">' +
-                '<p class="ein-calm-banner__eyebrow">Lokal / Demo</p>' +
-                '<p>' +
-                esc(
-                    sync.error ||
-                        'SharePoint nicht verbunden – Einsammler bleiben lokal, bis die Listen greifen.'
-                ) +
-                '</p></div></section>'
-            );
-        }
-        return '';
-    }
-
     function account() {
         return getEinsammlerAccount();
     }
@@ -281,30 +263,26 @@ export function mountApp(root) {
         return head;
     }
 
-    function scopeBanner() {
+    function statusCard() {
         const acc = account();
-        if (!acc.loggedIn) {
-            return (
-                '<p class="ein-msg ein-msg--warn">Bitte mit Microsoft-Konto anmelden – dann sehen Sie nur <strong>Ihre</strong> Einsammler.</p>'
-            );
-        }
-        const who = esc(acc.name || acc.email);
         const adm = admin();
-        return (
-            '<div class="ein-scope-bar">' +
-            '<span>Angemeldet: <strong>' +
-            who +
-            '</strong>' +
-            (adm ? ' · Admin' : ' · Lehrkraft') +
-            (ui.showAll && adm ? ' · <em>alle Vorgänge</em>' : ' · nur eigene') +
-            '</span>' +
-            (adm
-                ? '<label class="ein-scope-toggle"><input type="checkbox" id="einShowAll"' +
-                  (ui.showAll ? ' checked' : '') +
-                  '> Alle Einsammler (Admin)</label>'
-                : '') +
-            '</div>'
-        );
+        return renderToolOpsStatusCard({
+            nounPlural: 'Einsammler',
+            listWord: 'Listen',
+            requireLogin: true,
+            loggedIn: !!acc.loggedIn,
+            accountLabel: acc.name || acc.email || '',
+            isAdmin: adm,
+            showAll: ui.showAll,
+            scopeOwnLabel: 'nur eigene',
+            scopeAllLabel: 'alle Vorgänge',
+            scopeToggleId: 'einShowAll',
+            scopeToggleLabel: 'Alle Einsammler (Admin)',
+            sync: getEinsammlerSyncMeta(),
+            setupHref: 'sharepoint-liste-einsammler.html',
+            setupLabel: 'Listen einrichten',
+            esc
+        });
     }
 
     function render() {
@@ -321,8 +299,7 @@ export function mountApp(root) {
             '<div class="ein-shell">' +
             renderNav() +
             '<div class="ein-main">' +
-            scopeBanner() +
-            renderSyncHint() +
+            statusCard() +
             renderMessage() +
             renderView(s) +
             '</div></div>';
@@ -555,16 +532,27 @@ export function mountApp(root) {
             })
             .join('');
 
+        const greetNum = offen;
+        const greetText = greetNum === 1 ? 'offene Antwort' : 'offene Antworten';
         return (
             actionBanner(heads, antworten) +
-            '<div class="ein-head"><div><h2>Übersicht</h2>' +
-            '<p>Nur Ihre Vorgänge' +
+            '<div class="ein-head"><div>' +
+            '<h1 class="fb-greet"><span class="fb-num">' +
+            greetNum +
+            '</span> ' +
+            greetText +
+            '</h1>' +
+            '<p class="fb-sub">Ihre Einsammler' +
             (admin() && ui.showAll ? ' (Admin: alle)' : '') +
-            ' – Fortschritt, Eltern antworten über Magic-Link.</p></div>' +
+            ' – ' +
+            heads.length +
+            (heads.length === 1 ? ' Vorgang' : ' Vorgänge') +
+            (aktiv ? ', ' + aktiv + ' aktiv' : '') +
+            '.</p></div>' +
             '<div class="ein-actions">' +
-            '<button type="button" class="btn btn-success" data-ein-view="neu"><i class="bi bi-plus-lg"></i> Neu</button>' +
+            '<button type="button" class="btn btn-success fb-btn" data-ein-view="neu"><i class="bi bi-plus-lg"></i> Neu</button>' +
             '</div></div>' +
-            '<div class="ein-cards">' +
+            '<div class="ein-cards ein-cards--quiet" aria-label="Kennzahlen">' +
             card('Meine Einsammler', String(heads.length)) +
             card('Aktiv', String(aktiv)) +
             card('Offene Antworten', String(offen)) +
@@ -584,8 +572,8 @@ export function mountApp(root) {
                         'Neu anlegen'
                     )
                   : quietEmpty(
-                        'Anmeldung nötig',
-                        'Bitte mit Microsoft-Konto anmelden, um Ihre Einsammler zu sehen.',
+                        'Noch nichts sichtbar',
+                        'Nach der Anmeldung erscheinen hier Ihre Einsammler.',
                         '',
                         ''
                     ))

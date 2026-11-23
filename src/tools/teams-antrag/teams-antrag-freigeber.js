@@ -1,6 +1,9 @@
 /**
  * Freigeber für Teams-Antrag: Sicherheitsgruppe (wie Group.Unified) + optionale Extra-Mails.
+ * Transport: shared/graph-client.js (R22 / b11).
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
+
 import { fetchUserMemberGroupIds } from '../schularbeiten-planer/schularbeiten-planer-entra-role.js';
 import { userIsDesignatedSchoolIt } from '../../shared/designated-school-it.js';
 import { isFreigeber as isFreigeberMail } from './teams-antrag-logic.js';
@@ -39,7 +42,7 @@ export function readGruppenerstellungLocal() {
  */
 export async function fetchGroupUnifiedAllowedGroupId() {
     const G = graphApi();
-    if (!G || typeof G.getGraphToken !== 'function' || typeof G.graphJson !== 'function') {
+    if (!G || typeof G.getGraphToken !== 'function') {
         return null;
     }
     const scopes = [
@@ -49,7 +52,7 @@ export async function fetchGroupUnifiedAllowedGroupId() {
     ];
     try {
         const token = await G.getGraphToken(scopes);
-        const data = await G.graphJson('GET', '/groupSettings', token, undefined);
+        const data = await sharedGraphJson('GET', '/groupSettings', token, undefined);
         const list = (data && data.value) || [];
         const unified = list.find((x) => x && String(x.displayName) === 'Group.Unified');
         if (!unified || !Array.isArray(unified.values)) return null;
@@ -78,7 +81,7 @@ export async function fetchGroupById(groupId) {
             'https://graph.microsoft.com/User.Read',
             'https://graph.microsoft.com/Group.Read.All'
         ]);
-        const g = await G.graphJson(
+        const g = await sharedGraphJson(
             'GET',
             '/groups/' +
                 encodeURIComponent(id) +
@@ -117,7 +120,7 @@ export async function searchSecurityGroups(query) {
         "/groups?$filter=startswith(displayName,'" +
         safe +
         "')&$select=id,displayName,mail,securityEnabled,mailEnabled,groupTypes&$top=25";
-    const data = await G.graphJson('GET', path, token, undefined);
+    const data = await sharedGraphJson('GET', path, token, undefined);
     return ((data && data.value) || []).map((g) => ({
         id: String(g.id || ''),
         displayName: String(g.displayName || ''),

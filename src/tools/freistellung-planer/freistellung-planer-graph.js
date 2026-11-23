@@ -635,8 +635,11 @@ async function fetchFreistellungKlasseChoicesViaSpoRest(webUrl, listId) {
     } catch {
         return [];
     }
-    const spoScope = 'https://' + host + '/AllSites.Read';
-    const spoTok = await G().getGraphToken([spoScope, 'https://graph.microsoft.com/User.Read']);
+    const graphApi = G();
+    const spoTok =
+        typeof graphApi.acquireSharePointToken === 'function'
+            ? await graphApi.acquireSharePointToken(host)
+            : await graphApi.getGraphToken(['https://' + host + '/AllSites.Read']);
     const digest = await G().getSpoRequestDigest(url, spoTok);
     const api =
         "/_api/web/lists(guid'" +
@@ -769,6 +772,7 @@ async function acquireSpoWriteToken(webUrl) {
         'https://graph.microsoft.com/Sites.ReadWrite.All'
     ];
     let spoTok = null;
+    // Vollzugriff liegt auf der IT-App. Write und .default bleiben auf der Portal-App.
     const spoScopeSets = [
         ['https://' + host + '/AllSites.FullControl'],
         ['https://' + host + '/AllSites.Write'],
@@ -777,7 +781,11 @@ async function acquireSpoWriteToken(webUrl) {
     let lastErr = null;
     for (let i = 0; i < spoScopeSets.length; i++) {
         try {
-            spoTok = await G().getGraphToken(spoScopeSets[i].concat(graphExtras));
+            const onlyFullControl = /AllSites\.FullControl$/i.test(spoScopeSets[i][0] || '');
+            // Vollzugriff ist eine eigene SharePoint-Ressource der IT-App.
+            // Graph-Scopes nicht dazumischen (eine Ressource pro Token).
+            const ask = onlyFullControl ? spoScopeSets[i] : spoScopeSets[i].concat(graphExtras);
+            spoTok = await G().getGraphToken(ask);
             if (spoTok) break;
         } catch (e) {
             lastErr = e;

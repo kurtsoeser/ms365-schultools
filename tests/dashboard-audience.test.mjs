@@ -120,13 +120,27 @@ describe('dashboard-audience-resolve persona', () => {
         expect(d.personaSource).toBe('stammdaten-lehrer-over-entra-schueler');
     });
 
-    it('ohne Lehrkraft-Signal bleibt Schüler-Fallback', () => {
+    it('ohne Lehrkraft-Signal und ohne Schüler-Match: unbekannt (nicht Schüler/in)', () => {
         const d = resolveNonItDashboardPersona({
             entraDashPersona: null,
             groupsConfigured: true,
             isTeacher: false
         });
-        expect(d.isSchueler).toBe(true);
+        expect(d.isSchueler).toBe(false);
+        expect(d.isLehrer).toBe(false);
+        expect(d.unknownUser).toBe(true);
         expect(d.personaSource).toBe('dashboard-entra-none');
+    });
+
+    it('Stammdaten-Schüler bleibt Schüler-Portal', () => {
+        const d = resolveNonItDashboardPersona({
+            entraDashPersona: null,
+            groupsConfigured: false,
+            isTeacher: false,
+            studentMatch: true
+        });
+        expect(d.isSchueler).toBe(true);
+        expect(d.unknownUser).toBeFalsy();
+        expect(d.personaSource).toBe('default-schueler');
     });
 });

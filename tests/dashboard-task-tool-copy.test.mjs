@@ -20,9 +20,15 @@ describe('dashboard-task-tool-copy', () => {
         expect(copy.desc.length).toBeGreaterThan(10);
     });
 
-    it('unterstützt Query-Varianten', () => {
+    it('unterstützt Query-Varianten und hält Schulleitung vs. Verwaltung getrennt', () => {
         const copy = lookupToolCopy('tools/personen-verwaltung.html?create=1');
         expect(copy.title).toBe('Konto anlegen');
+
+        const sl = lookupToolCopy('tools/verwaltung.html?kind=schulleitung');
+        const vw = lookupToolCopy('tools/verwaltung.html?kind=verwaltung');
+        expect(sl.title).toBe('Schulleitung');
+        expect(vw.title).toBe('Verwaltung (Personal)');
+        expect(sl.title).not.toBe(vw.title);
     });
 
     it('hat Einträge für alle Kern-Werkzeuge der Aufgaben-Kacheln', () => {

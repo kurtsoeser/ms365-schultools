@@ -105,7 +105,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'BetreuungslehrerABA',
                 displayName: 'BetreuungslehrerIn ABA',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     } else {
@@ -118,7 +118,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'BetreuungslehrerDA',
                 displayName: 'BetreuungslehrerIn Diplomarbeit',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     }
@@ -159,7 +159,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerLFS',
                 displayName: 'LehrerIn LFS',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     }
@@ -168,7 +168,15 @@ export function buildAnmeldungColumns(opts) {
         cols.push({
             name: 'LehrerBKO',
             displayName: 'LehrerIn BKO mündlich',
-            choice: { allowTextEntry: false, choices: lehrerChoices }
+            choice: { allowTextEntry: true, choices: lehrerChoices }
+        });
+    }
+
+    if (profile.extraColumnNames.indexOf('LehrerAM') !== -1) {
+        cols.push({
+            name: 'LehrerAM',
+            displayName: 'LehrerIn AM mündlich',
+            choice: { allowTextEntry: true, choices: lehrerChoices }
         });
     }
 
@@ -187,7 +195,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerSchwerpunkt',
                 displayName: 'LehrerIn Schwerpunkt',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     }
@@ -207,7 +215,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerFachkolloquium',
                 displayName: 'LehrerIn Fachkolloquium',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     }
@@ -227,7 +235,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerFachtheorie',
                 displayName: 'LehrerIn Fachtheorie',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     }
@@ -240,6 +248,14 @@ export function buildAnmeldungColumns(opts) {
                 allowTextEntry: true,
                 choices: ['Angewandte Mathematik', 'Englisch', '— / nicht nötig —']
             }
+        });
+    }
+
+    if (profile.extraColumnNames.indexOf('LehrerMuendlichExtra') !== -1) {
+        cols.push({
+            name: 'LehrerMuendlichExtra',
+            displayName: 'LehrerIn Extra mündlich',
+            choice: { allowTextEntry: true, choices: lehrerChoices }
         });
     }
 
@@ -272,7 +288,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerMuendlich1',
                 displayName: 'LehrerIn mündlich 1',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             },
             {
                 name: 'Muendlich2',
@@ -282,7 +298,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerMuendlich2',
                 displayName: 'LehrerIn mündlich 2',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             },
             {
                 name: 'Muendlich3',
@@ -292,7 +308,7 @@ export function buildAnmeldungColumns(opts) {
             {
                 name: 'LehrerMuendlich3',
                 displayName: 'LehrerIn mündlich 3',
-                choice: { allowTextEntry: false, choices: lehrerChoices }
+                choice: { allowTextEntry: true, choices: lehrerChoices }
             }
         );
     }
@@ -317,7 +333,7 @@ export function buildAnmeldungColumns(opts) {
         {
             name: 'LehrerWahlfach',
             displayName: 'LehrerIn Wahlfach',
-            choice: { allowTextEntry: false, choices: lehrerChoices }
+            choice: { allowTextEntry: true, choices: lehrerChoices }
         },
         {
             name: 'Bestaetigung',
@@ -375,9 +391,16 @@ export function defaultViewsForProfile(profileId) {
     const arbeitLehrer =
         profile.id === 'ahs' ? 'BetreuungslehrerABA' : 'BetreuungslehrerDA';
     const extras = profile.extraColumnNames.filter((n) =>
-        ['LFS', 'LehrerLFS', 'LehrerBKO', 'SchwerpunktFach', 'LehrerSchwerpunkt', 'Fachkolloquium', 'Fachtheorie'].includes(
-            n
-        )
+        [
+            'LFS',
+            'LehrerLFS',
+            'LehrerBKO',
+            'LehrerAM',
+            'SchwerpunktFach',
+            'LehrerSchwerpunkt',
+            'Fachkolloquium',
+            'Fachtheorie'
+        ].includes(n)
     );
     const fields = [
         'Klasse',

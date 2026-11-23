@@ -1,10 +1,15 @@
 /**
  * Graph-/MSAL-Helfer für Schulstruktur-Sync (Analyse 02 Phase B).
  * Move-first aus schulstruktur-sync.js – Verhalten unverändert.
- * (Noch eigener Client; später optional shared/graph-client.js.)
+ * Transport: shared/graph-client.js (R22 / b11 – Retry, Paging, Journal-Hook).
  */
 
 import { compareDe } from '../../shared/utils/strings.js';
+import {
+    graphRequest as sharedGraphRequest,
+    graphJson as sharedGraphJson,
+    fetchAllPages as sharedFetchAllPages
+} from '../../shared/graph-client.js';
 import {
     loadTenantCache,
     saveTenantCache,
@@ -99,6 +104,9 @@ export async function getPca() {
 }
 
 export async function getGraphToken(scopes) {
+    const itMod = await import('../../shared/it-app-auth.js');
+    const itToken = await itMod.acquireItTokenIfRequired(scopes, { mode: 'interactive' });
+    if (itToken) return itToken;
     // Globaler Login (Header-Widget) – wenn vorhanden, nutzen wir ihn.
     if (typeof window.ms365AuthAcquireToken === 'function') {
         return await window.ms365AuthAcquireToken(scopes);
@@ -137,45 +145,11 @@ export async function getGraphToken(scopes) {
 }
 
 export async function graphRequest(method, pathOrUrl, token, body, extraHeaders) {
-    const url = pathOrUrl.indexOf('http') === 0 ? pathOrUrl : 'https://graph.microsoft.com/v1.0' + pathOrUrl;
-    let attempt = 0;
-    while (true) {
-        const headers = { Authorization: 'Bearer ' + token };
-        if (extraHeaders && typeof extraHeaders === 'object') {
-            Object.assign(headers, extraHeaders);
-        }
-        let payload = undefined;
-        if (body !== undefined) {
-            headers['Content-Type'] = 'application/json';
-            payload = JSON.stringify(body);
-        }
-        const res = await fetch(url, { method, headers, body: payload });
-        if (res.status === 429 && attempt < 8) {
-            const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-            await sleep((isNaN(ra) ? 5 : ra) * 1000);
-            attempt++;
-            continue;
-        }
-        return res;
-    }
+    return sharedGraphRequest(method, pathOrUrl, token, body, extraHeaders);
 }
 
 export async function graphJson(method, pathOrUrl, token, body, extraHeaders) {
-    const res = await graphRequest(method, pathOrUrl, token, body, extraHeaders);
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
-    }
-    if (!res.ok) {
-        const msg = typeof data === 'object' && data && data.error ? JSON.stringify(data.error) : text || String(res.status);
-        throw new Error(method + ' ' + pathOrUrl + ': ' + msg);
-    }
-    return data || {};
+    return sharedGraphJson(method, pathOrUrl, token, body, extraHeaders);
 }
 
 export async function pollTeamsAsyncOperationForTenant(token, operationPath) {
@@ -212,20 +186,14 @@ export async function setTenantTeamArchiveState(teamId, archive, spoReadonlyForM
 }
 
 export async function fetchAllPages(token, initialPath, onProgress, extraHeaders) {
-    const out = [];
-    let next = initialPath;
-    let page = 0;
-    while (next) {
-        page++;
-        const data = await graphJson('GET', next, token, undefined, extraHeaders);
-        const vals = data.value;
-        if (Array.isArray(vals)) for (let i = 0; i < vals.length; i++) out.push(vals[i]);
-        next = data['@odata.nextLink'] || null;
-        if (typeof onProgress === 'function') {
-            onProgress({ page, loaded: out.length, hasMore: !!next });
-        }
-    }
-    return out;
+    const r = await sharedFetchAllPages(token, initialPath, {
+        // Tenant-Inventar kann groß sein – Caps hoch, Truncation nur als Sicherheit.
+        maxItems: 100000,
+        maxPages: 1000,
+        onProgress: onProgress,
+        extraHeaders: extraHeaders
+    });
+    return r.items;
 }
 
 /*

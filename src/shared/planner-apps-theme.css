@@ -583,3 +583,57 @@ html[data-theme='dark'] .pw-conn--wait {
         max-width: none;
     }
 }
+
+/* b5 Portal-Schale: kompakte Werkzeug-Kopfzeile, Inhalt näher am oberen Rand */
+body.ms365-portal-shell .header.lfr-page-header,
+body.ms365-portal-shell .header.sa-page-header,
+body.ms365-portal-shell .header.fr-page-header,
+body.ms365-portal-shell .header,
+body.ms365-portal-shell .tm-page > .header {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.5rem;
+}
+
+body.ms365-portal-shell .header h1 {
+    font-size: 1.05rem;
+    margin: 0 0 0.15rem;
+}
+
+body.ms365-portal-shell .header-help-row,
+body.ms365-portal-shell .header .toolbar {
+    margin-top: 0.25rem;
+}
+
+body.ms365-portal-shell .container.page-card {
+    padding-top: 0.35rem;
+}
+
+html[data-ms365-portal-shell='1'] [data-ms365-frontend-it-only],
+html[data-ms365-portal-shell='1'] [data-sa-it-only] {
+    display: none !important;
+}
+
+html[data-ms365-portal-shell='1'][data-frontend-planner-it] [data-ms365-frontend-it-only],
+html[data-ms365-portal-shell='1'][data-frontend-planner-it] [data-sa-it-only] {
+    display: revert !important;
+}
+
+/* Welle 3: ruhige Kennzahlen ohne Karten-Optik */
+.ag-cards--quiet,
+.eb-cards--quiet,
+.ein-cards--quiet,
+.km-cards--quiet {
+    gap: 10px;
+}
+.ag-cards--quiet > *,
+.eb-cards--quiet > *,
+.ein-cards--quiet > *,
+.km-cards--quiet > * {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid var(--hairline, var(--border)) !important;
+    padding: 4px 8px 8px 0 !important;
+}

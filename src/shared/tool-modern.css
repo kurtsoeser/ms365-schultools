@@ -27,7 +27,7 @@
     display: grid;
     place-items: center;
     font-size: 1.75rem;
-    color: #fff;
+    color: var(--on-brand);
     background: linear-gradient(135deg, var(--brand1), var(--brand2));
     box-shadow: 0 10px 24px color-mix(in srgb, var(--brand1) 35%, transparent);
 }
@@ -175,8 +175,8 @@
     background: color-mix(in srgb, var(--ok1) 10%, var(--card));
 }
 .tm-glance__card.is-warn {
-    border-color: color-mix(in srgb, #fab005 50%, var(--border));
-    background: color-mix(in srgb, #fab005 12%, var(--card));
+    border-color: color-mix(in srgb, var(--accent-amber) 50%, var(--border));
+    background: color-mix(in srgb, var(--accent-amber) 12%, var(--card));
 }
 .tm-glance__card.is-danger {
     border-color: color-mix(in srgb, var(--danger1) 40%, var(--border));
@@ -290,7 +290,7 @@
 
 .tm-choice.is-active .tm-choice__icon {
     background: linear-gradient(135deg, var(--brand1), var(--brand2));
-    color: #fff;
+    color: var(--on-brand);
 }
 
 .tm-choice__title {
@@ -369,8 +369,8 @@
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 88%, #000), color-mix(in srgb, var(--brand2) 88%, #000));
-    color: #fff;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 88%, var(--ink)), color-mix(in srgb, var(--brand2) 88%, var(--ink)));
+    color: var(--on-brand);
     font-weight: 800;
     font-size: 0.9rem;
 }
@@ -433,7 +433,7 @@
     height: 56px;
     border-radius: 12px;
     background: linear-gradient(135deg, var(--brand1), var(--brand2));
-    color: #fff;
+    color: var(--on-brand);
     display: grid;
     place-items: center;
     text-align: center;
@@ -616,7 +616,7 @@
 .tm-wizard__tabs button[aria-selected="true"] {
     background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
     border-color: transparent;
-    color: #fff;
+    color: var(--on-brand);
     box-shadow: 0 6px 16px color-mix(in srgb, var(--brand1) 28%, transparent);
 }
 

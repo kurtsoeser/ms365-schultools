@@ -1,12 +1,11 @@
 /**
  * Status-Zeile auf Werkzeug-Kacheln im Katalog (Alle Werkzeuge).
  */
-import { resolveDashboardToolStatus } from './dashboard-tool-status-logic.js?v=kc-dash-5';
+import { resolveDashboardToolStatus } from './dashboard-tool-status-logic.js?v=kc-dash-6';
 import { applySchulappsUsableAppearance } from './dashboard-tool-card.js';
 
 /**
- * @param {HTMLElement} card
- * @param {{ tone?: string, primary?: string, secondary?: string }|null} info
+ * @param {string} tone
  */
 function statusToneClass(tone) {
     const t = String(tone || '').trim();
@@ -16,6 +15,46 @@ function statusToneClass(tone) {
     return 'warning';
 }
 
+/**
+ * @param {string} tone
+ */
+function statusRank(tone) {
+    const t = String(tone || '').trim();
+    if (t === 'warn' || t === 'mismatch' || t === 'unmatched' || t === 'pending' || t === 'error') {
+        return 0;
+    }
+    if (!t) return 1;
+    if (t === 'ok') return 2;
+    return 1;
+}
+
+/**
+ * Offene / gelbe Karten in Einrichten-Grids nach oben, ruhige OK-Karten nach unten.
+ * @param {ParentNode} root
+ */
+export function prioritizeOpenCatalogCards(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-cluster-grid]').forEach(function (grid) {
+        const cards = Array.from(grid.querySelectorAll(':scope > .choice[data-tool-id]'));
+        if (cards.length < 2) return;
+        cards
+            .slice()
+            .sort(function (a, b) {
+                const ra = statusRank(a.getAttribute('data-status-tone'));
+                const rb = statusRank(b.getAttribute('data-status-tone'));
+                if (ra !== rb) return ra - rb;
+                return cards.indexOf(a) - cards.indexOf(b);
+            })
+            .forEach(function (card) {
+                grid.appendChild(card);
+            });
+    });
+}
+
+/**
+ * @param {HTMLElement} card
+ * @param {{ tone?: string, primary?: string, secondary?: string, variant?: string }|null} info
+ */
 export function paintCatalogToolStatus(card, info) {
     if (!card) return;
     const existing = card.querySelector('.card-status, .dash-choice-status');
@@ -23,6 +62,7 @@ export function paintCatalogToolStatus(card, info) {
         if (existing) {
             existing.hidden = true;
             existing.textContent = '';
+            existing.removeAttribute('data-variant');
         }
         card.removeAttribute('data-status-tone');
         card.classList.remove('recommended');
@@ -37,20 +77,35 @@ export function paintCatalogToolStatus(card, info) {
         else card.appendChild(wrap);
     }
     const tone = info.tone || 'pending';
+    const variant = String(info.variant || '').trim();
     card.setAttribute('data-status-tone', tone);
     wrap.hidden = false;
-    wrap.className = 'card-status ' + statusToneClass(tone);
+    wrap.className =
+        'card-status ' +
+        statusToneClass(tone) +
+        (variant === 'subtle' ? ' card-status--subtle' : '') +
+        (variant === 'emphasis' ? ' card-status--emphasis' : '');
     wrap.setAttribute('data-tone', tone);
+    if (variant) wrap.setAttribute('data-variant', variant);
+    else wrap.removeAttribute('data-variant');
 
-    const parts = [info.primary];
-    if (info.secondary) parts.push(info.secondary);
-    wrap.innerHTML =
-        '<span class="status-dot-sm" aria-hidden="true"></span>' + parts.join(' · ');
+    if (variant === 'subtle' && tone === 'ok') {
+        wrap.innerHTML =
+            '<i class="bi bi-check2 card-status__check" aria-hidden="true"></i>' +
+            '<span class="card-status__label">' +
+            String(info.primary) +
+            '</span>';
+    } else {
+        const parts = [info.primary];
+        if (info.secondary) parts.push(info.secondary);
+        wrap.innerHTML =
+            '<span class="status-dot-sm" aria-hidden="true"></span>' + parts.join(' · ');
+    }
 
-    if (tone === 'warn' || tone === 'mismatch' || tone === 'unmatched') {
+    if (tone === 'warn' || tone === 'mismatch' || tone === 'unmatched' || tone === 'pending') {
         card.classList.add('recommended');
         let hint = card.querySelector('.card-recommended-hint');
-        if (!hint && !card.classList.contains('coming-soon')) {
+        if (!hint && !card.classList.contains('coming-soon') && tone !== 'pending') {
             hint = document.createElement('div');
             hint.className = 'card-recommended-hint';
             hint.textContent = '⚠️ Behebt aktuelle Abweichung';
@@ -58,6 +113,10 @@ export function paintCatalogToolStatus(card, info) {
             if (actions) card.insertBefore(hint, actions);
             else card.appendChild(hint);
         }
+    } else {
+        card.classList.remove('recommended');
+        const hint = card.querySelector('.card-recommended-hint');
+        if (hint) hint.remove();
     }
 }
 
@@ -99,10 +158,16 @@ export function applyDashboardCatalogToolStatuses(opts) {
         paintCatalogToolStatus(card, info);
         applySchulappsUsableAppearance(card, { intranetOk: intranetOk });
     });
+
+    if (opts.show) {
+        prioritizeOpenCatalogCards(root);
+    }
 }
 
 if (typeof window !== 'undefined') {
     window.ms365DashboardCatalogStatus = {
-        apply: applyDashboardCatalogToolStatuses
+        apply: applyDashboardCatalogToolStatuses,
+        paint: paintCatalogToolStatus,
+        prioritizeOpen: prioritizeOpenCatalogCards
     };
 }

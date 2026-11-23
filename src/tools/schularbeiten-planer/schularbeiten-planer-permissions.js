@@ -339,13 +339,13 @@ export async function acquireSpoContext(siteWebUrl) {
     } catch {
         throw new Error('SharePoint-Host aus URL nicht lesbar.');
     }
-    const spoScope = 'https://' + host + '/Sites.FullControl.All';
+    const spoScope = 'https://' + host + '/AllSites.FullControl';
     let spoToken;
     try {
         spoToken = await G().getGraphToken([spoScope]);
     } catch (e) {
         throw new Error(
-            'SharePoint-Token fehlgeschlagen (Sites.FullControl.All?). ' + (e && e.message ? e.message : e)
+            'SharePoint-Token fehlgeschlagen (AllSites.FullControl?). ' + (e && e.message ? e.message : e)
         );
     }
     const digest = await G().getSpoRequestDigest(url, spoToken);

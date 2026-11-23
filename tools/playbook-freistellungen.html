@@ -8,27 +8,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Playbook Freistellungen</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
-    <style>
-        .cp-steps{display:grid;gap:14px;margin-top:8px}
-        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
-        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
-        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
-        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
-        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
-        @media (max-width:720px){.cp-step{grid-template-columns:40px 1fr}.cp-step .btn{grid-column:1/-1;justify-self:start}}
-    </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page pb-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-person-check"></i>Playbook Freistellungen</span>
             </div>
-            <p>Von Konzept über SharePoint-Liste und Flow bis zum ersten Testantrag – KV und Direktion eingebunden.</p>
+            <p>
+                Von Konzept über SharePoint-Liste und Flow bis zum ersten Testantrag.
+                Setup-Schritte springen per Deep-Link in den richtigen Wizard-Schritt.
+            </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-playbook-freistellungen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -40,19 +38,83 @@
             <section class="tm-panel">
                 <div class="tm-panel__head">
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
-                    <div><h3>Schritte</h3><p id="cpProgress" class="muted" style="margin:0;">0 / 7 erledigt</p></div>
+                    <div><h3>Schritte</h3><p id="cpProgress" class="pb-progress">0 / 7 erledigt</p></div>
                 </div>
-                <div class="cp-steps">
-                    <article class="cp-step"><div class="cp-step__n">1</div><div><h3>Ablauf verstehen</h3><p>Schüler → KV → Direktion, Kategorien und was in SharePoint liegt.</p><label class="cp-check"><input type="checkbox" data-cp-check="konzept"> Erledigt</label></div><a class="btn" href="freistellung-konzept.html"><i class="bi bi-diagram-3"></i>Konzept</a></article>
-                    <article class="cp-step"><div class="cp-step__n">2</div><div><h3>Power Platform Basis</h3><p>Environment, Technik-Konto und Postfach für Flows vorbereiten.</p><label class="cp-check"><input type="checkbox" data-cp-check="pa-basis"> Erledigt</label></div><a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a></article>
-                    <article class="cp-step"><div class="cp-step__n">3</div><div><h3>Vorbereitung &amp; E-Mails</h3><p>Checkliste im Freistellungen-Setup (Schritt 1).</p><label class="cp-check"><input type="checkbox" data-cp-check="vorbereitung"> Erledigt</label></div><a class="btn" href="freistellung-setup.html"><i class="bi bi-clipboard-check"></i>Setup</a></article>
-                    <article class="cp-step"><div class="cp-step__n">4</div><div><h3>SharePoint-Liste</h3><p>Liste anlegen und mit dem Planer verbinden (Setup Schritt 2).</p><label class="cp-check"><input type="checkbox" data-cp-check="liste"> Erledigt</label></div><a class="btn" href="freistellung-setup.html"><i class="bi bi-list-ul"></i>Liste</a></article>
-                    <article class="cp-step"><div class="cp-step__n">5</div><div><h3>Flow importieren</h3><p>Genehmigungs-Flow mit Technik-Konto importieren und testen.</p><label class="cp-check"><input type="checkbox" data-cp-check="flow"> Erledigt</label></div><a class="btn" href="freistellung-setup.html"><i class="bi bi-lightning-charge"></i>Flow</a></article>
-                    <article class="cp-step"><div class="cp-step__n">6</div><div><h3>Kategorien &amp; Genehmiger</h3><p>Kategorien, Klassen/Jahrgang und Berechtigungen im Planer setzen.</p><label class="cp-check"><input type="checkbox" data-cp-check="planer-config"> Erledigt</label></div><a class="btn" href="freistellung-planer.html"><i class="bi bi-sliders"></i>Planer</a></article>
-                    <article class="cp-step"><div class="cp-step__n">7</div><div><h3>Testantrag &amp; Schulung KV</h3><p>Probeantrag stellen, Genehmigung durchspielen, KV/Direktion kurz einweisen.</p><label class="cp-check"><input type="checkbox" data-cp-check="live"> Erledigt</label></div><a class="btn" href="freistellung-planer.html"><i class="bi bi-calendar2-check"></i>Antrag testen</a></article>
+                <p class="pb-lead">Reihenfolge: Konzept → Power Platform → Setup (Liste/Flow) → Planer-Konfig → Testantrag mit KV/Direktion.</p>
+                <div class="pb-steps">
+                    <article class="pb-step cp-step" data-cp-step="konzept">
+                        <div class="pb-step__n">1</div>
+                        <div>
+                            <h3>Ablauf verstehen <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Schüler → KV → Direktion, Kategorien und was in SharePoint liegt.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="konzept"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="freistellung-konzept.html"><i class="bi bi-diagram-3"></i>Konzept</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="pa-basis">
+                        <div class="pb-step__n">2</div>
+                        <div>
+                            <h3>Power Platform Basis <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Environment, Technik-Konto und Postfach für Flows vorbereiten.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="pa-basis"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="vorbereitung">
+                        <div class="pb-step__n">3</div>
+                        <div>
+                            <h3>Vorbereitung &amp; E-Mails <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Checkliste im Freistellungen-Setup (Schritt 1).</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="vorbereitung"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="freistellung-setup.html?step=1"><i class="bi bi-clipboard-check"></i>Setup</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="liste">
+                        <div class="pb-step__n">4</div>
+                        <div>
+                            <h3>SharePoint-Liste <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Liste anlegen und mit dem Planer verbinden (Setup Schritt 3).</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="liste"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="freistellung-setup.html?step=3"><i class="bi bi-list-ul"></i>Liste</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="flow">
+                        <div class="pb-step__n">5</div>
+                        <div>
+                            <h3>Flow importieren <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Genehmigungs-Flow mit Technik-Konto importieren und testen (Setup Schritt 7).</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="flow"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="freistellung-setup.html?step=7"><i class="bi bi-lightning-charge"></i>Flow</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="planer-config">
+                        <div class="pb-step__n">6</div>
+                        <div>
+                            <h3>Kategorien &amp; Genehmiger <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Kategorien, Klassen/Jahrgang und Berechtigungen im Planer setzen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="planer-config"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="freistellung-planer.html"><i class="bi bi-sliders"></i>Planer</a>
+                    </article>
+                    <article class="pb-step cp-step" data-cp-step="live">
+                        <div class="pb-step__n">7</div>
+                        <div>
+                            <h3>Testantrag &amp; Schulung KV <span class="pb-pill pb-pill--must">Pflicht</span></h3>
+                            <p>Probeantrag stellen, Genehmigung durchspielen, KV/Direktion kurz einweisen.</p>
+                            <p class="pb-step__ready" data-cp-ready-hint hidden></p>
+                            <label class="pb-check"><input type="checkbox" data-cp-check="live"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="freistellung-planer.html"><i class="bi bi-calendar2-check"></i>Antrag testen</a>
+                    </article>
                 </div>
-                <div class="tm-actions" style="margin-top:16px;">
-                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                <div class="pb-actions tm-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
                 </div>
             </section>
         </div>
@@ -61,9 +123,25 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module">
         import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        import { evaluateFreistellungenPlaybookReadyChecks } from '../src/shared/playbook-tool-ready.js';
+
+        function loadTenantSettings() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        }
+
         wirePlaybookPage({
             storageKey: 'ms365-playbook-freistellungen-v1',
-            stepIds: ['konzept', 'pa-basis', 'vorbereitung', 'liste', 'flow', 'planer-config', 'live']
+            stepIds: ['konzept', 'pa-basis', 'vorbereitung', 'liste', 'flow', 'planer-config', 'live'],
+            evaluateReadyChecks: function () {
+                return evaluateFreistellungenPlaybookReadyChecks(loadTenantSettings());
+            }
         });
     </script>
 </body>

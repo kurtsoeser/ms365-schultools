@@ -53,11 +53,19 @@ describe('sales-bundles-catalog', () => {
         const pkgs = salesBundleById('schulalltag').packageIds;
         const m = matchSalesBundle(pkgs);
         expect(m.bundle?.id).toBe('schulalltag');
+        expect(m.exact).toBe(true);
     });
 
-    it('Add-ons vorhanden', () => {
-        expect(SALES_ADDONS.some((a) => a.id === 'addon-ablauf' && a.priceEuro === 290)).toBe(true);
-        expect(SALES_ADDONS.some((a) => a.id === 'addon-ausgaben' && a.priceEuro === 150)).toBe(true);
-        expect(SALES_ADDONS.some((a) => a.id === 'addon-setup' && a.once)).toBe(true);
+    it('matchSalesBundle: Bundle mit Extra ist Treffer aber nicht exact', () => {
+        const pkgs = [...salesBundleById('starter-it').packageIds, 'kommunikation'];
+        const m = matchSalesBundle(pkgs);
+        expect(m.bundle?.id).toBe('starter-it');
+        expect(m.exact).toBe(false);
+    });
+
+    it('nur Setup als Extra (keine Doppelung zu Bausteinen)', () => {
+        expect(SALES_ADDONS).toHaveLength(1);
+        expect(SALES_ADDONS[0].id).toBe('addon-setup');
+        expect(SALES_ADDONS[0].once).toBe(true);
     });
 });

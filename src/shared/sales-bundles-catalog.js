@@ -63,7 +63,7 @@ export const SALES_BUNDLES = [
         ],
         highlights: [
             'Alles aus Starter IT',
-            'Schularbeiten, Schulaktivitäten, Projektwochen',
+            'Schularbeiten, Aktivitäten, Projektwochen, Schulwahlen',
             'Schüler- & Lehrer-Freistellungen',
             'Intranet-Listen + Lehrer-Portal'
         ],
@@ -98,32 +98,12 @@ export const SALES_BUNDLES = [
     }
 ];
 
-/** @type {SalesAddon[]} */
+/**
+ * Nur echte Extras – keine Doppelung zu LICENSE_PACKAGES / Bausteinen.
+ * Setup ist einmalig und kein Jahres-Baustein.
+ * @type {SalesAddon[]}
+ */
 export const SALES_ADDONS = [
-    {
-        id: 'addon-ablauf',
-        label: 'Eltern & Ablauf',
-        priceEuro: 290,
-        priceLabel: '+290 € / Jahr',
-        tagline: 'Einsammler, Elternbrief, Krankmeldung, Kollegiumsumfragen.',
-        packageIds: ['ablauf']
-    },
-    {
-        id: 'addon-ausgaben',
-        label: 'Ausgaben & Zugang',
-        priceEuro: 150,
-        priceLabel: '+150 € / Jahr',
-        tagline: 'Schlüssel, Raum-/Schrankenkarten, Parkplatz.',
-        packageIds: ['ausgaben']
-    },
-    {
-        id: 'addon-stammdaten-portal',
-        label: 'Stammdaten-Portal',
-        priceEuro: 390,
-        priceLabel: '+390 € / Jahr',
-        tagline: 'Öffentliches Einschreibe-/Stammdatenformular für Eltern.',
-        packageIds: ['stammdaten-portal']
-    },
     {
         id: 'addon-setup',
         label: 'Setup / Onboarding',
@@ -176,7 +156,8 @@ export function matchSalesBundle(activePackageIds) {
         if (score > bestScore || (score === bestScore && isExact)) {
             best = bundle;
             bestScore = score;
-            exact = isExact || hit === need.length;
+            // Nur echte Mengengleichheit – Extras (z. B. Kommunikation) sind nicht „exact“.
+            exact = isExact;
         }
     }
 

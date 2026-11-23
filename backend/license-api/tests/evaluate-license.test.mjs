@@ -2,7 +2,14 @@ import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { evaluateLicense, findFieldsForTenant, parseDomainList } = require('../src/lib/evaluate-license.js');
+const {
+    evaluateLicense,
+    findFieldsForTenant,
+    findLicenseItemForTenant,
+    parseDomainList,
+    canReportToolSiteUrl,
+    normalizeReportedToolSiteUrl
+} = require('../src/lib/evaluate-license.js');
 const { issuerMatchesTenant } = require('../src/lib/validate-token.js');
 
 describe('evaluateLicense', () => {
@@ -127,5 +134,60 @@ describe('parseContactEmails', () => {
         const emails = parseContactEmails('it@hak-steyr.at, backup@hak-steyr.at', '');
         expect(upnMatchesDesignatedItContact('IT@hak-steyr.at', emails)).toBe(true);
         expect(upnMatchesDesignatedItContact('lehrer@hak-steyr.at', emails)).toBe(false);
+    });
+});
+
+describe('Tool-Site melden (Schul-IT → Betreiber)', () => {
+    it('findLicenseItemForTenant liefert id + fields', () => {
+        const hit = findLicenseItemForTenant(
+            [
+                {
+                    id: '42',
+                    fields: { TenantId: 'aaa-bbb', Title: 'Schule', ToolSiteUrl: 'https://x.sharepoint.com/sites/T' }
+                }
+            ],
+            'AAA-BBB'
+        );
+        expect(hit).toEqual({
+            id: '42',
+            fields: { TenantId: 'aaa-bbb', Title: 'Schule', ToolSiteUrl: 'https://x.sharepoint.com/sites/T' }
+        });
+        expect(findFieldsForTenant([{ id: '1', fields: { TenantId: 'other' } }], 'aaa-bbb')).toBeNull();
+    });
+
+    it('canReportToolSiteUrl: IT-Kontakt oder Bootstrap ohne Kontakte', () => {
+        expect(
+            canReportToolSiteUrl({
+                allowed: true,
+                contactEmails: ['it@schule.at'],
+                upn: 'it@schule.at'
+            }).ok
+        ).toBe(true);
+        expect(
+            canReportToolSiteUrl({
+                allowed: true,
+                contactEmails: ['it@schule.at'],
+                upn: 'lehrer@schule.at'
+            }).ok
+        ).toBe(false);
+        expect(
+            canReportToolSiteUrl({
+                allowed: true,
+                contactEmails: [],
+                upn: 'admin@schule.at'
+            }).reason
+        ).toBe('no_contacts_bootstrap');
+        expect(canReportToolSiteUrl({ allowed: false, contactEmails: [], upn: 'x@y.at' }).ok).toBe(false);
+    });
+
+    it('normalizeReportedToolSiteUrl akzeptiert SharePoint-Sites', () => {
+        expect(
+            normalizeReportedToolSiteUrl('https://schule.sharepoint.com/sites/MS365-Schultools/')
+        ).toEqual({
+            ok: true,
+            url: 'https://schule.sharepoint.com/sites/MS365-Schultools'
+        });
+        expect(normalizeReportedToolSiteUrl('http://schule.sharepoint.com/sites/X').ok).toBe(false);
+        expect(normalizeReportedToolSiteUrl('https://example.com/foo').ok).toBe(false);
     });
 });

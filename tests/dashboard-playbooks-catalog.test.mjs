@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
     DASHBOARD_PLAYBOOKS,
+    PLANNED_APP_PLAYBOOKS,
     PLAYBOOK_CATEGORIES,
+    allPlaybookDefs,
     computePlaybookProgress,
     formatPlaybookMetaLine,
     formatPlaybookProgressLabel,
@@ -12,15 +14,17 @@ import {
 
 describe('dashboard-playbooks-catalog', () => {
     it('enthält die Dashboard-Playbooks inkl. Werkzeug-Playbooks', () => {
-        expect(DASHBOARD_PLAYBOOKS.length).toBe(9);
+        expect(DASHBOARD_PLAYBOOKS.length).toBe(16);
         expect(DASHBOARD_PLAYBOOKS.some((p) => p.id === 'schuljahresstart')).toBe(true);
         expect(DASHBOARD_PLAYBOOKS.some((p) => p.id === 'elternsprechtag')).toBe(true);
         expect(DASHBOARD_PLAYBOOKS.some((p) => p.id === 'freistellungen')).toBe(true);
-        expect(PLAYBOOK_CATEGORIES.length).toBe(4);
+        expect(PLAYBOOK_CATEGORIES.length).toBe(5);
         DASHBOARD_PLAYBOOKS.forEach((p) => {
             expect(PLAYBOOK_CATEGORIES.some((c) => c.id === p.categoryId)).toBe(true);
         });
         expect(playbooksInCategory('grundlagen').length).toBe(3);
+        expect(PLANNED_APP_PLAYBOOKS.length).toBe(0);
+        expect(allPlaybookDefs().length).toBe(16);
     });
 
     it('zählt erledigte Schritte', () => {

@@ -35,7 +35,11 @@ describe('Eine globale Menüleiste', () => {
         expect(auth).toContain('ms365-auth-menu');
         expect(auth).toContain('ms365AuthDropdown');
         expect(auth).toContain('schoolYearSelect');
-        expect(auth).toContain('schoolYearAddBtn');
+        expect(auth).not.toContain('schoolYearAddBtn');
+        expect(auth).not.toContain('ms365AuthCtxTenant');
+        expect(auth).not.toContain('ms365AuthTenantCopyBtn');
+        expect(auth).toContain('Dunkles Design');
+        expect(auth).toContain("data-ms365-auth-menu-v', '12'");
         expect(auth).toContain('ms365AuthCtxDomain');
         expect(auth).toContain('Schuljahr');
         expect(auth).toContain('Domain');
@@ -45,6 +49,11 @@ describe('Eine globale Menüleiste', () => {
         expect(auth).toContain('Abmelden');
         expect(auth).toContain('aria-haspopup');
         expect(auth).not.toContain('ms365-auth-btn--icon');
+
+        const policy = read('src/shared/dashboard-auth-menu-policy.js');
+        expect(policy).toContain('ms365HeaderShellSwitch');
+        expect(policy).toContain('ensureHeaderShellSwitch');
+        expect(policy).toContain('syncHeaderShellSwitch');
 
         const css = read('app.css');
         expect(css).toContain('.ms365-header-nav');

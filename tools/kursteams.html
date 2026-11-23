@@ -8,8 +8,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Fallback für MSAL, falls ms365-config.js nicht lädt -->
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Kursteams</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+        <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+<link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
+
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../src/shared/kursteam-m365-import-status.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
@@ -34,11 +39,11 @@
         .kt-step-badge {
             width: 44px; height: 44px; min-width: 44px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+            background: var(--brand1);
             color: #fff;
             display: flex; align-items: center; justify-content: center;
             font-size: 1.3em;
-            box-shadow: 0 4px 12px color-mix(in srgb, var(--brand1) 35%, transparent);
+            box-shadow: none;
         }
         .kt-step-header-text h2 {
             margin: 0 0 2px;
@@ -95,7 +100,7 @@
         }
         .kursteam-start-card:hover {
             border-color: var(--brand1);
-            box-shadow: 0 6px 24px color-mix(in srgb, var(--brand1) 18%, transparent);
+            box-shadow: none;
         }
         .kursteam-start-card .ks-card-icon {
             font-size: 2em;
@@ -186,7 +191,7 @@
         .kt-checklist li .kt-cl-num {
             width: 24px; height: 24px; min-width: 24px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--brand1), var(--brand2));
+            background: var(--brand1);
             color: #fff;
             display: flex; align-items: center; justify-content: center;
             font-size: 0.8em; font-weight: 700;
@@ -396,7 +401,30 @@
             display: flex; align-items: center; justify-content: center;
             padding: 20px; box-sizing: border-box; pointer-events: auto;
         }
-    </style>
+    /* Welle 3 kursteams */
+.btn-success{background:var(--brand1)!important;border-color:var(--brand1)!important;color:var(--on-accent,#04211d)!important;}
+.kt-step-badge{border-radius:10px!important;}
+
+/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+
+</style>
 </head>
 <body>
     <div class="container">
@@ -445,7 +473,7 @@
                     </div>
 
                     <div class="kt-step-header" id="kursteamSingleStep0Header" style="display:none;">
-                        <div class="kt-step-badge" style="background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);"><i class="bi bi-plus-square-fill"></i></div>
+                        <div class="kt-step-badge" style="background: var(--brand1);"><i class="bi bi-plus-square-fill"></i></div>
                         <div class="kt-step-header-text">
                             <h2>Einzelne Unterrichtsteams hinzufügen</h2>
                             <p>Eine oder mehrere Zeilen – dann direkt anlegen. Ohne Bulk-Assistent.</p>
@@ -719,7 +747,7 @@
                                 <div class="stat-label">Normalisierte Fächer</div>
                                 <div class="stat-value" id="normalizedSubjectsStat">0</div>
                             </div>
-                            <div class="stat-card" id="mergedSharedStatCard" style="display:none;background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);">
+                            <div class="stat-card" id="mergedSharedStatCard" style="display:none;background: var(--brand1);">
                                 <div class="stat-label">Zusammengeführte geteilte Unterrichte</div>
                                 <div class="stat-value" id="mergedSharedStat">0</div>
                             </div>
@@ -1174,7 +1202,7 @@
                 <!-- Schritt 8 optional (Schüler), data-step 8 -->
                 <div class="step-content" data-step="8">
                     <div class="kt-step-header">
-                        <div class="kt-step-badge" style="background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);"><i class="bi bi-people-fill"></i></div>
+                        <div class="kt-step-badge" style="background: var(--brand1);"><i class="bi bi-people-fill"></i></div>
                         <div class="kt-step-header-text">
                             <h2>Schritt 7 – Schüler als Mitglieder <small style="font-weight:400;font-size:0.7em;opacity:.7;">(optional)</small></h2>
                             <p>Schülerliste hochladen und PowerShell-Script zum Befüllen der Teams generieren.</p>
@@ -1319,7 +1347,7 @@
                         <button type="button" class="btn btn-ghost" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zurück zum Formular</button>
                     </div>
                     <div class="kt-download-box" id="kursteamBackendBox" style="border-color:var(--brand1);background:linear-gradient(135deg,#eef0ff 0%,#f5f0ff 100%);">
-                        <div class="kt-dl-icon" style="background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);color:#fff;border-radius:12px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-cloud-upload-fill"></i></div>
+                        <div class="kt-dl-icon" style="background: var(--brand1);color:#fff;border-radius:12px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-cloud-upload-fill"></i></div>
                         <div style="flex:1;">
                             <h4>Online anlegen (Azure-Backend)</h4>
                             <p>Sendet Ihre Team-Liste an die Kursteams-API (App-Only, Template <code>educationClass</code>). Fortschrittsbalken, geschätzte Restzeit und scrollbares Protokoll – Seite während des Jobs geöffnet lassen.</p>

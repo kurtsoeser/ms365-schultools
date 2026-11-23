@@ -72,10 +72,18 @@ function setBanner(text) {
     if (!text) {
         el.hidden = true;
         el.textContent = '';
+        el.classList.remove('is-error');
         return;
     }
     el.hidden = false;
+    el.classList.add('is-error');
     el.textContent = text;
+}
+
+function setNotice(text) {
+    setBanner('');
+    const el = $('adminCatStatus');
+    if (el && text) el.textContent = text;
 }
 
 function stamp(iso) {
@@ -90,9 +98,13 @@ function renderStatus() {
     if (!el) return;
     const n = ui.templates.length;
     const when = stamp(ui.remoteUpdatedAt);
-    let text = n + ' Vorlage' + (n === 1 ? '' : 'n');
-    if (ui.dirty) text += ' · Entwurf';
-    else if (when) text += ' · Stand ' + when;
+    let text;
+    if (!n && !ui.dirty && !when) text = 'Die Zentrale ist noch leer.';
+    else {
+        text = n + ' Vorlage' + (n === 1 ? '' : 'n');
+        if (ui.dirty) text += ' · Entwurf, noch nicht in der Zentrale';
+        else if (when) text += ' · Stand ' + when;
+    }
     el.textContent = text;
     const link = $('adminCatLink');
     if (link) link.href = ui.webUrl || SITE;
@@ -322,11 +334,10 @@ function applyRemote(data, discardDraft) {
         if (!ui.templates.some((t) => t.id === ui.selectedId)) {
             ui.selectedId = ui.templates[0] ? ui.templates[0].id : '';
         }
-        setBanner('In diesem Browser liegt ein Entwurf, der noch nicht in der Zentrale ist.');
         render();
         return;
     }
-    setBanner(data.missing ? 'Die Zentrale ist noch leer. Vorlagen anlegen und dann „In Zentrale schreiben“.' : '');
+    setBanner('');
     replaceWorking(data.templates || [], data.schoolForms || [], false);
 }
 
@@ -437,7 +448,7 @@ function bind() {
 
     $('adminCatOpenMaterials')?.addEventListener('click', async () => {
         const tpl = commitEditor();
-        if (!tpl) return setBanner('Zuerst eine Vorlage wählen.');
+        if (!tpl) return setNotice('Zuerst eine Vorlage wählen.');
         const path =
             normalizeMaterialsPath($('adminCatMaterialsPath')?.value) ||
             defaultMaterialsPath(tpl.id);
@@ -454,11 +465,7 @@ function bind() {
                 typeof window.ms365AdminCatalogMaterials.openForTemplate === 'function'
             ) {
                 const opened = await window.ms365AdminCatalogMaterials.openForTemplate(tpl.id, path);
-                setBanner(
-                    'Material-Ordner geöffnet: ' +
-                        opened +
-                        '. Nicht vergessen: Kanal-Vorlage mit „In Zentrale schreiben“ speichern.'
-                );
+                setNotice('Material-Ordner geöffnet: ' + opened + '.');
             } else {
                 setBanner('Material-Modul noch nicht geladen.');
             }
@@ -521,7 +528,7 @@ function bind() {
         commitEditor();
         const local = readToolLibrary();
         if (!local.templates.length) {
-            setBanner('In diesem Browser liegen keine Vorlagen aus dem Werkzeug.');
+            setNotice('In diesem Browser liegen keine Vorlagen aus dem Werkzeug.');
             return;
         }
         if (
@@ -534,7 +541,7 @@ function bind() {
         }
         const merged = mergeTemplates(ui.templates, local.templates);
         replaceWorking(merged, local.schoolForms, true);
-        setBanner('Übernommen. Noch nicht in der Zentrale – dafür „In Zentrale schreiben“.');
+        setNotice('Übernommen. Noch nicht in der Zentrale.');
     });
     $('adminCatImport')?.addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
@@ -547,7 +554,7 @@ function bind() {
             let forms = ui.schoolForms.slice();
             for (const t of parsed.templates) forms = rememberSchoolForm(forms, t.schoolForm);
             replaceWorking(merged, forms, true);
-            setBanner(parsed.templates.length + ' Vorlage(n) in den Entwurf importiert.');
+            setNotice(parsed.templates.length + ' Vorlage(n) in den Entwurf importiert.');
         } catch (err) {
             setBanner((err && err.message) || String(err));
         }
@@ -555,7 +562,7 @@ function bind() {
     $('adminCatPublish')?.addEventListener('click', async () => {
         commitEditor();
         if (!ui.templates.length) {
-            setBanner('Der Entwurf ist leer.');
+            setNotice('Der Entwurf ist leer.');
             return;
         }
         if (
@@ -575,7 +582,7 @@ function bind() {
             ui.remoteUpdatedAt = data.updatedAt || null;
             ui.webUrl = data.webUrl || data.siteWebUrl || '';
             replaceWorking(data.templates || ui.templates, data.schoolForms || [], false);
-            setBanner('Zentrale aktualisiert. Schulen sehen diesen Stand nach „Zentrale“ im Werkzeug.');
+            setNotice('Zentrale aktualisiert. Schulen sehen diesen Stand nach „Zentrale“ im Werkzeug.');
         } catch (err) {
             setBanner(setupHint((err && err.message) || String(err)));
             renderStatus();
@@ -597,7 +604,17 @@ function init() {
     if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
         reloadFromCentral('keep-draft');
     } else {
-        setBanner('Mit dem Betreiber-Konto anmelden, dann lädt die Zentrale.');
+        setBanner('');
+        const status = $('adminCatStatus');
+        if (status && !ui.templates.length) {
+            status.textContent = 'Mit dem Betreiber-Konto anmelden, dann lädt die Zentrale.';
+        } else if (status && ui.templates.length) {
+            status.textContent =
+                ui.templates.length +
+                ' Vorlage' +
+                (ui.templates.length === 1 ? '' : 'n') +
+                ' · Entwurf. Die Zentrale lädt nach der Anmeldung.';
+        }
         window.addEventListener('ms365-auth-state-changed', function onAuth(ev) {
             if (ev.detail && ev.detail.loggedIn) {
                 window.removeEventListener('ms365-auth-state-changed', onAuth);

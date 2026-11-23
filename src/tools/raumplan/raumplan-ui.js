@@ -285,9 +285,20 @@ export function mountApp(root) {
                   .join('')
             : '<p class="ag-item__meta">Keine Treffer.</p>';
 
+        const n = st.total;
         return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">Übersicht</h2>' +
-            '<div class="ag-cards">' +
+            '<h1 class="fb-greet"><span class="fb-num">' +
+            n +
+            '</span> ' +
+            (n === 1 ? 'Raum' : 'Räume') +
+            '</h1>' +
+            '<p class="fb-sub">' +
+            st.gebaeude +
+            (st.gebaeude === 1 ? ' Gebäude' : ' Gebäude') +
+            ' · ' +
+            st.fachraeume +
+            ' Fachräume.</p>' +
+            '<div class="ag-cards ag-cards--quiet" aria-label="Kennzahlen">' +
             card('Räume', st.total) +
             card('Gebäude', st.gebaeude) +
             card('Fachräume', st.fachraeume) +

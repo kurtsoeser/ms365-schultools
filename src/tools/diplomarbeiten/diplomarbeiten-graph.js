@@ -1,6 +1,9 @@
 /**
  * Graph: Dach-Team (Maturajahrgang) + privater Kanal je Arbeit.
+ * Transport: shared/graph-client.js (R22 / b11).
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
+
 import {
     addChannelMember,
     createPrivateChannel,
@@ -41,7 +44,7 @@ async function resolveUserId(tok, email) {
         return (await api.resolveUserIdByEmail(tok, em)) || '';
     }
     try {
-        const data = await api.graphJson(
+        const data = await sharedGraphJson(
             'GET',
             "/users?$filter=mail eq '" +
                 em.replace(/'/g, "''") +
@@ -115,7 +118,7 @@ export async function provisionCohortTeam(cohortId, opts) {
 
     let webUrl = '';
     try {
-        const team = await api.graphJson(
+        const team = await sharedGraphJson(
             'GET',
             '/teams/' + encodeURIComponent(gid) + '?$select=id,webUrl',
             tok,
@@ -341,7 +344,7 @@ export async function searchTeamsGroups(query) {
     /** @type {object[]} */
     let rows = [];
     try {
-        const data = await api.graphJson(
+        const data = await sharedGraphJson(
             'GET',
             "/groups?$filter=startswith(displayName,'" +
                 safe +
@@ -354,7 +357,7 @@ export async function searchTeamsGroups(query) {
         );
         rows = (data && data.value) || [];
     } catch {
-        const data = await api.graphJson(
+        const data = await sharedGraphJson(
             'GET',
             "/groups?$filter=startswith(displayName,'" + safe + "')&$select=" + select + '&$top=25',
             tok,
@@ -399,7 +402,7 @@ export async function linkCohortTeamEnsured(cohortId, groupId, opts) {
     log('Lade Gruppe …');
     let g = null;
     try {
-        g = await api.graphJson(
+        g = await sharedGraphJson(
             'GET',
             '/groups/' +
                 encodeURIComponent(gid) +
@@ -431,7 +434,7 @@ export async function linkCohortTeamEnsured(cohortId, groupId, opts) {
 
     let webUrl = '';
     try {
-        const team = await api.graphJson(
+        const team = await sharedGraphJson(
             'GET',
             '/teams/' + encodeURIComponent(gid) + '?$select=id,webUrl',
             tok,

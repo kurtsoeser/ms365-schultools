@@ -61,7 +61,7 @@ describe('app-role-switcher-policy', () => {
         ).toBe('Noch nicht zugeordnet');
         expect(primaryPersonaLabel({ loggedIn: false })).toBe('');
         expect(primaryPersonaHint({ loggedIn: true, isLehrer: true })).toMatch(/kein Umschalter/i);
-        expect(primaryPersonaHint({ loggedIn: true, isIt: true })).toMatch(/IT-Backend/i);
+        expect(primaryPersonaHint({ loggedIn: true, isIt: true })).toBe('');
     });
 
     it('unknownPersonaHint: Domain ≠ Lehrkraft, konkrete Checklist', () => {

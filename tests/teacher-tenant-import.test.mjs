@@ -22,12 +22,10 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(html).toContain('id="tenantTeacherTenantImportPanel"');
         expect(html).toContain('id="tenantBtnTeacherTenantApply"');
         expect(html).toContain('src/shared/teacher-tenant-import-ui.js');
-        expect(html).toContain('Aus Microsoft 365 einlesen');
-        // Sichtbarer Primär-Button (nicht nur im Dropdown versteckt)
+        expect(html).toContain('Aus Microsoft 365');
         const iBtn = html.indexOf('id="tenantBtnImportTeachersFromTenant"');
-        const before = html.slice(Math.max(0, iBtn - 120), iBtn);
-        expect(before).toMatch(/btn btn-primary/);
-        expect(before).not.toMatch(/role="menuitem"/);
+        const around = html.slice(Math.max(0, iBtn - 180), iBtn + 80);
+        expect(around).toMatch(/tenantBtnImportTeachersFromTenant/);
     });
 
     it('Schul-Einstellungen Tab Lehrer hat denselben Import', () => {

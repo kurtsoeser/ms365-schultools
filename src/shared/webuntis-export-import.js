@@ -135,7 +135,9 @@
 
     function cell(row, idx) {
         if (idx < 0 || !row) return '';
-        return normStr(row[idx]);
+        const s = normStr(row[idx]);
+        if (!s || /^undefined$/i.test(s) || /^null$/i.test(s)) return '';
+        return s.replace(/\bundefined\b/gi, ' ').replace(/\s+/g, ' ').trim();
     }
 
     function parseDateDe(s) {

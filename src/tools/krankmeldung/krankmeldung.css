@@ -580,3 +580,21 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Welle 3 quiet */
+.km-cards--quiet { gap: 10px; }
+.km-cards--quiet .km-card {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 4px 8px 8px 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--hairline, var(--border));
+}
+.km-cards--quiet .km-card__value {
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+.km-head .fb-greet { margin: 0 0 4px; }
+.km-head .fb-sub { margin: 0; }

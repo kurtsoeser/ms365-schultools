@@ -8,6 +8,22 @@
     function initDraggableTabOrder(containerId, storageKey) {
         const container = document.getElementById(containerId);
         if (!container) return;
+        // Admin-Schiene mit festen Rubriken: keine Drag-Reihenfolge (zerstört Gruppierung).
+        if (
+            container.getAttribute('data-rail-fixed-groups') === '1' ||
+            container.querySelector('.ts-admin-rail__group, .ts-admin-rail__sec')
+        ) {
+            try {
+                localStorage.removeItem(storageKey);
+            } catch {
+                // ignore
+            }
+            container.querySelectorAll('.tab-btn[draggable="true"]').forEach(function (btn) {
+                btn.removeAttribute('draggable');
+                if (btn.title === 'Zum Umsortieren ziehen') btn.removeAttribute('title');
+            });
+            return;
+        }
         const buttons = Array.from(container.querySelectorAll('.tab-btn[role="tab"]')).filter(function (btn) {
             return btn.id !== 'tabMainOrganigramm' && !btn.classList.contains('tab-btn--header-route') && !btn.hidden;
         });
@@ -172,6 +188,17 @@
             }
             const mapping = {
                 stammdaten: 'tabMainStammdaten',
+                profile: 'tabMainStammdaten',
+                profil: 'tabMainStammdaten',
+                schulprofil: 'tabMainStammdaten',
+                email: 'tabMainStammdaten',
+                'spo-lists': 'tabMainStammdaten',
+                'spo-planer': 'tabMainStammdaten',
+                'spo-it': 'tabMainStammdaten',
+                'spo-hub': 'tabMainStammdaten',
+                'planer-apps': 'tabMainStammdaten',
+                planer: 'tabMainStammdaten',
+                'tool-site': 'tabMainStammdaten',
                 faecher: 'tabMainSubjects',
                 subjects: 'tabMainSubjects',
                 arge: 'tabMainArges',

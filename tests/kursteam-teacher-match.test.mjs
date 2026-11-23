@@ -15,10 +15,10 @@ describe('kursteam-teacher-match-logic', () => {
     it('resolveTeacherMatch: exakter Code', () => {
         const { resolveTeacherMatch } = api();
         const hit = resolveTeacherMatch('ENGEL', [
-            { code: 'engel', name: 'Anita Engelmann', email: 'anita.engelmann@hak-steyr.at' }
+            { code: 'engel', name: 'Anita Engelmann', email: 'anita.engelmann@schule.example' }
         ]);
         expect(hit.method).toBe('exact');
-        expect(hit.email).toBe('anita.engelmann@hak-steyr.at');
+        expect(hit.email).toBe('anita.engelmann@schule.example');
     });
 
     it('resolveTeacherMatch: Umlaut-Normalisierung', () => {
@@ -33,11 +33,11 @@ describe('kursteam-teacher-match-logic', () => {
     it('resolveTeacherMatch: eindeutiger Nachname-Präfix', () => {
         const { resolveTeacherMatch } = api();
         const hit = resolveTeacherMatch('ENGEL', [
-            { code: 'AE', name: 'Anita Engelmann', email: 'anita.engelmann@hak-steyr.at' },
+            { code: 'AE', name: 'Anita Engelmann', email: 'anita.engelmann@schule.example' },
             { code: 'XY', name: 'Max Muster', email: 'max@schule.at' }
         ]);
         expect(hit.method).toBe('namePrefix');
-        expect(hit.email).toBe('anita.engelmann@hak-steyr.at');
+        expect(hit.email).toBe('anita.engelmann@schule.example');
     });
 
     it('resolveTeacherMatch: kein Treffer bei mehrdeutigen Namen', () => {
@@ -63,13 +63,13 @@ describe('kursteam-teacher-match-logic', () => {
             { KEEP: 'keep@schule.at' },
             ['ENGEL', 'FRECH', 'KEEP'],
             [
-                { code: 'ENGEL', name: 'Anita Engelmann', email: 'anita.engelmann@hak-steyr.at' },
-                { code: 'FRECH', name: 'Michaela Frech', email: 'michaela.frech@hak-steyr.at' }
+                { code: 'ENGEL', name: 'Anita Engelmann', email: 'anita.engelmann@schule.example' },
+                { code: 'FRECH', name: 'Michaela Frech', email: 'michaela.frech@schule.example' }
             ]
         );
         expect(r.added).toBe(2);
-        expect(r.mapping.ENGEL).toBe('anita.engelmann@hak-steyr.at');
-        expect(r.mapping.FRECH).toBe('michaela.frech@hak-steyr.at');
+        expect(r.mapping.ENGEL).toBe('anita.engelmann@schule.example');
+        expect(r.mapping.FRECH).toBe('michaela.frech@schule.example');
         expect(r.mapping.KEEP).toBe('keep@schule.at');
     });
 });

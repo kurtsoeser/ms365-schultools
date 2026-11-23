@@ -118,7 +118,7 @@ export const PROFILE_HAK = {
     defaultSeminare: [],
     lfsHints: LFS_HINTS,
     lfsFieldLabel: 'LFS',
-    extraColumnNames: ['LFS', 'LehrerLFS', 'LehrerBKO'],
+    extraColumnNames: ['LFS', 'LehrerLFS', 'LehrerBKO', 'LehrerAM'],
     formSections: [
         { displayname: 'Person & Klasse', fields: ['Klasse', 'Nachname', 'Vorname'] },
         {
@@ -283,7 +283,8 @@ export const PROFILE_BAFEB = {
         'LehrerLFS',
         'Fachtheorie',
         'LehrerFachtheorie',
-        'MuendlichExtra'
+        'MuendlichExtra',
+        'LehrerMuendlichExtra'
     ],
     formSections: [
         { displayname: 'Person & Klasse', fields: ['Klasse', 'Nachname', 'Vorname'] },

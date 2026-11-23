@@ -74,8 +74,8 @@ in Ihrem Deployment (Pages/Hosting) separat ab – dann muss die Datei weiterhin
 
 | Umgebung | Lizenz-API |
 |----------|------------|
-| **Lokal (Entwicklung)** | `ms365-config.local.js` (Kopie von `ms365-config.local.example.js`, steht in `.gitignore`) |
-| **GitHub Pages (Live)** | Repository → **Settings → Secrets and variables → Actions** → `LICENSE_API_BASE_URL` und optional `LICENSE_FUNCTION_KEY`. Der Workflow schreibt `dist/ms365-config.local.js`. |
+| **Lokal (Entwicklung)** | `ms365-config.local.js` (Kopie von `ms365-config.local.example.js`, steht in `.gitignore`) – hier dürfen `-dev`-URLs stehen |
+| **Produktion (FTP/Pages)** | Secrets `LICENSE_API_BASE_URL` (+ optional Kursteams/Election). **Kein Function Key** in `dist/` – Auth über Entra-Token. Solange in Azure nur `*-dev`-Apps existieren, dürfen Secrets noch auf `-dev` zeigen (Warnung im Deploy). Sobald Prod-Apps stehen: Secrets umstellen und Repo-Variable `MS365_REQUIRE_PROD_URLS=true` |
 
 Vor dem Push lokal: `npm run check:secrets`.
 
@@ -192,4 +192,6 @@ git remote -v
 
 ## Lizenz
 
-Keine Lizenz gesetzt – ergänzen Sie bei Bedarf eine `LICENSE` im Repository.
+**Source visible, nicht frei nutzbar.** Der Code liegt bewusst öffentlich (Transparenz), ist aber **kein Open Source**: Produktivnutzung, Hosting und Weitergabe brauchen eine Schullizenz bzw. schriftliche Vereinbarung. Details: [`LICENSE`](LICENSE).
+
+Kurz: Ansehen und lokale Evaluation ok · Schulbetrieb und Vermarktung nur mit Vertrag · siehe [ms365.schule](https://ms365.schule/).

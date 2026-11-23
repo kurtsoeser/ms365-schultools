@@ -1,6 +1,8 @@
 /**
  * Diplomarbeiten / VWA UI – Setup (Option C), Jahrgänge/Kanäle, Legacy-Teams.
+ * Transport: shared/graph-client.js (R22 / b11) für Graph-JSON; Token weiter über Unified Groups.
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
 import { pickEntraUser, pickEntraUsers } from '../../shared/entra-user-picker.js';
 import { escapeHtml } from '../../shared/utils/strings.js';
 import {
@@ -170,7 +172,7 @@ async function loadDiplomList() {
     let page = 0;
     while (next && page < 30) {
         page++;
-        const data = await G.graphJson('GET', next, token, undefined);
+        const data = await sharedGraphJson('GET', next, token, undefined);
         if (Array.isArray(data.value)) all.push.apply(all, data.value);
         next = data['@odata.nextLink'] || null;
         if (status) status.textContent = 'Gruppen: ' + all.length;

@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setFetchImpl } from '../src/shared/graph-client.js';
 import {
     alignPrivateChannelOwnership,
     buildPrivateChannelMembersPayload,
@@ -91,6 +92,10 @@ describe('klassenchats-graph errors', () => {
         ]);
     });
 
+    afterEach(() => {
+        setFetchImpl(null);
+    });
+
     it('alignPrivateChannelOwnership stuft KV hoch und andere herab', async () => {
         /** @type {Array<{ id: string, userId: string, roles: string[] }>} */
         let members = [
@@ -99,40 +104,68 @@ describe('klassenchats-graph errors', () => {
             { id: 'm-t1', userId: 't1-id', roles: ['owner'] }
         ];
         const patches = [];
-        const G = {
-            graphJson: async (method, path, _token, body) => {
-                if (method === 'GET' && path.indexOf('/members') !== -1) {
-                    return { value: members.map((m) => ({ ...m, roles: m.roles.slice() })) };
-                }
-                if (method === 'PATCH' && path.indexOf('/members/') !== -1) {
-                    const mid = decodeURIComponent(path.split('/members/')[1]);
-                    const m = members.find((x) => x.id === mid);
-                    const roles = body && Array.isArray(body.roles) ? body.roles.slice() : [];
-                    patches.push({ mid, roles });
-                    if (m) m.roles = roles;
-                    return { ...m };
-                }
-                if (method === 'DELETE' && path.indexOf('/members/') !== -1) {
-                    const mid = decodeURIComponent(path.split('/members/')[1]);
-                    members = members.filter((x) => x.id !== mid);
-                    return undefined;
-                }
-                throw new Error('unexpected ' + method + ' ' + path);
+        const prevWindow = globalThis.window;
+        globalThis.window = {
+            ms365GraphUnifiedGroups: {
+                GRAPH_SCOPES: ['https://graph.microsoft.com/User.Read'],
+                getGraphToken: async () => 'tok'
             }
         };
-        const res = await alignPrivateChannelOwnership(
-            G,
-            'tok',
-            'team',
-            'chan',
-            ['kv-id'],
-            ['kv-id', 't1-id'],
-            'admin-id'
-        );
-        expect(res.verifiedOwnerIds).toEqual(['kv-id']);
-        expect(members.find((m) => m.userId === 'kv-id').roles).toEqual(['owner']);
-        expect(members.find((m) => m.userId === 't1-id').roles).toEqual([]);
-        expect(members.find((m) => m.userId === 'admin-id')).toBeFalsy();
-        expect(patches.some((p) => p.mid === 'm-kv' && p.roles[0] === 'owner')).toBe(true);
+        setFetchImpl(async (url, init) => {
+            const method = String((init && init.method) || 'GET').toUpperCase();
+            const path = String(url || '').replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, '');
+            let body = null;
+            if (init && init.body) {
+                try {
+                    body = JSON.parse(String(init.body));
+                } catch {
+                    body = null;
+                }
+            }
+            if (method === 'GET' && path.indexOf('/members') !== -1) {
+                return new Response(
+                    JSON.stringify({ value: members.map((m) => ({ ...m, roles: m.roles.slice() })) }),
+                    { status: 200, headers: { 'Content-Type': 'application/json' } }
+                );
+            }
+            if (method === 'PATCH' && path.indexOf('/members/') !== -1) {
+                const mid = decodeURIComponent(path.split('/members/')[1]);
+                const m = members.find((x) => x.id === mid);
+                const roles = body && Array.isArray(body.roles) ? body.roles.slice() : [];
+                patches.push({ mid, roles });
+                if (m) m.roles = roles;
+                return new Response(JSON.stringify({ ...m }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+            if (method === 'DELETE' && path.indexOf('/members/') !== -1) {
+                const mid = decodeURIComponent(path.split('/members/')[1]);
+                members = members.filter((x) => x.id !== mid);
+                return new Response(null, { status: 204 });
+            }
+            return new Response(JSON.stringify({ error: { message: 'unexpected ' + method + ' ' + path } }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        });
+        try {
+            const res = await alignPrivateChannelOwnership(
+                {},
+                'tok',
+                'team',
+                'chan',
+                ['kv-id'],
+                ['kv-id', 't1-id'],
+                'admin-id'
+            );
+            expect(res.verifiedOwnerIds).toEqual(['kv-id']);
+            expect(members.find((m) => m.userId === 'kv-id').roles).toEqual(['owner']);
+            expect(members.find((m) => m.userId === 't1-id').roles).toEqual([]);
+            expect(members.find((m) => m.userId === 'admin-id')).toBeFalsy();
+            expect(patches.some((p) => p.mid === 'm-kv' && p.roles[0] === 'owner')).toBe(true);
+        } finally {
+            globalThis.window = prevWindow;
+        }
     });
 });

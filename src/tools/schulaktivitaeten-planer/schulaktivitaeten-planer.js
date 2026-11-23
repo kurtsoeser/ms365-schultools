@@ -2561,14 +2561,28 @@ async function ensureAktSiteUrl(opts) {
 function boot() {
     root = document.getElementById('aktApp');
     if (!root) return;
-    state.demoRoleOverride = readDemoRoleOverrideFromUrl(false);
+    const params = new URLSearchParams(window.location.search || '');
+    const landingShot = params.get('landingShot') === '1';
+    state.demoRoleOverride = readDemoRoleOverrideFromUrl(false) || landingShot;
     state.role = resolveRole();
+    if (landingShot) {
+        const roleQ = params.get('role');
+        if (roleQ === 'admin' || roleQ === 'lehrer' || roleQ === 'kv' || roleQ === 'direktion') {
+            state.role = roleQ === 'direktion' ? 'admin' : roleQ;
+        } else {
+            state.role = 'admin';
+        }
+    }
     state.siteUrl = loadSavedSiteUrl() || state.siteUrl;
     refreshFeedMetaForCurrentSite();
     state.stammdaten = loadStammdaten();
     state.form = emptyForm(prefillTeacher());
     window.addEventListener('ms365-auth-state-changed', () => {
         void (async () => {
+            if (state.localDemoOnly && (state.items || []).length) {
+                paint();
+                return;
+            }
             await syncAccountAndRole({ preferShellDefault: true });
             paint();
             // Nach Konto-Wechsel Site aus Lizenz holen und Klassen neu lesen
@@ -2600,6 +2614,18 @@ function boot() {
         void refreshData().catch(() => {});
     });
     paint();
+    if (landingShot) {
+        try {
+            applyLocalDemo(getDemoSeedPackage());
+            state.view = 'liste';
+            state.error = '';
+            paint();
+        } catch (e) {
+            console.warn('[akt-landingShot]', e);
+            paint();
+        }
+        return;
+    }
     void (async () => {
         await syncAccountAndRole({ preferShellDefault: true });
         const url = await ensureAktSiteUrl();

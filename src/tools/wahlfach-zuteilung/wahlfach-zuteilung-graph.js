@@ -1,7 +1,9 @@
 /**
  * SharePoint-CRUD Wahlfach-Zuteilung (4 Listen = System of Record).
  * Local-first: Fehler (inkl. 403) wipe’t den lokalen Store nicht.
+ * Transport: shared/graph-client.js (R22 / b11); Token/Site-Helfer weiter über spo-graph-shared.
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
 
 import { loadSettings } from './wahlfach-zuteilung-settings.js';
 import {
@@ -24,6 +26,12 @@ function G() {
     return api;
 }
 
+async function graphJson(method, pathOrUrl, token, body, version) {
+    return sharedGraphJson(method, pathOrUrl, token, body, undefined, {
+        version: version === 'beta' ? 'beta' : 'v1.0'
+    });
+}
+
 async function token() {
     return await G().getGraphToken(SCOPES);
 }
@@ -35,7 +43,7 @@ async function findListByTitle(tok, siteId, listTitle) {
         '/lists?$filter=' +
         encodeURIComponent("displayName eq '" + title.replace(/'/g, "''") + "'") +
         '&$select=id,displayName,webUrl';
-    const data = await G().graphJson('GET', path, tok, undefined, 'v1.0');
+    const data = await graphJson('GET', path, tok, undefined, 'v1.0');
     return ((data && data.value) || [])[0] || null;
 }
 
@@ -47,7 +55,7 @@ async function fetchAllItems(tok, siteId, listId) {
         '/items?$expand=fields&$top=100';
     const out = [];
     while (path) {
-        const data = await G().graphJson(
+        const data = await graphJson(
             'GET',
             path.indexOf('http') === 0 ? path : path,
             tok,
@@ -93,13 +101,13 @@ function itemFieldsPath(ctx, listKey, spoItemId) {
 
 async function createListItem(ctx, listKey, fields) {
     const tok = await token();
-    const created = await G().graphJson('POST', itemsPath(ctx, listKey), tok, { fields }, 'v1.0');
+    const created = await graphJson('POST', itemsPath(ctx, listKey), tok, { fields }, 'v1.0');
     return created;
 }
 
 async function patchListItemFields(ctx, listKey, spoItemId, fields) {
     const tok = await token();
-    await G().graphJson('PATCH', itemFieldsPath(ctx, listKey, spoItemId), tok, fields, 'v1.0');
+    await graphJson('PATCH', itemFieldsPath(ctx, listKey, spoItemId), tok, fields, 'v1.0');
 }
 
 async function deleteListItem(ctx, listKey, spoItemId) {
@@ -107,7 +115,7 @@ async function deleteListItem(ctx, listKey, spoItemId) {
     if (!spoId) return;
     const tok = await token();
     const path = itemsPath(ctx, listKey) + '/' + encodeURIComponent(spoId);
-    await G().graphJson('DELETE', path, tok, undefined, 'v1.0');
+    await graphJson('DELETE', path, tok, undefined, 'v1.0');
 }
 
 async function findItemByBusinessId(ctx, listKey, fieldName, businessId) {

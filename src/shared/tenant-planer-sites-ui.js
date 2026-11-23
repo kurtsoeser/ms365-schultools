@@ -266,12 +266,52 @@ async function verifyDefaultSite() {
         if (!id) throw new Error('Site konnte nicht aufgelöst werden.');
         if (input) input.value = webUrl;
         persistForm();
+        const found =
+            (name ? 'Website gefunden: „' + name + '“' : 'Website erkannt.') +
+            (site.webUrl ? ' · ' + site.webUrl : '');
         setStatus(
             'tenantPlanerDefaultSiteStatus',
-            (name ? 'Website gefunden: „' + name + '“' : 'Website erkannt.') +
-                (site.webUrl ? ' · ' + site.webUrl : ''),
+            found + ' · Adresse wird für den Betrieb hinterlegt (nur URL, keine Schuldaten).',
             'ok'
         );
+        try {
+            const reportUrl = String((site && site.webUrl) || webUrl || '').trim();
+            const afterReport = function (res) {
+                if (res && res.ok) {
+                    setStatus(
+                        'tenantPlanerDefaultSiteStatus',
+                        found +
+                            ' · Primär-Site-Adresse hinterlegt. Inhalte bleiben in Ihrem Schul-SharePoint – der Betreiber sieht nur die Webadresse.',
+                        'ok'
+                    );
+                }
+            };
+            if (typeof window.ms365ReportToolSiteUrl === 'function') {
+                void window
+                    .ms365ReportToolSiteUrl(reportUrl, {
+                        force: true,
+                        toast: true,
+                        source: 'planer-verify'
+                    })
+                    .then(afterReport);
+            } else {
+                import('./report-tool-site-url.js')
+                    .then(function (m) {
+                        if (m && typeof m.reportSchoolToolSiteUrl === 'function') {
+                            return m
+                                .reportSchoolToolSiteUrl(reportUrl, {
+                                    force: true,
+                                    toast: true,
+                                    source: 'planer-verify'
+                                })
+                                .then(afterReport);
+                        }
+                    })
+                    .catch(function () {});
+            }
+        } catch {
+            /* ignore */
+        }
     } catch (e) {
         setStatus(
             'tenantPlanerDefaultSiteStatus',

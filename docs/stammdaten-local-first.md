@@ -25,7 +25,11 @@ Beim **Schulaktivitäten-Listen-Paket** werden Lehrer- und Klassen-Listen mit Sc
 
 **Häufiger Fehlgriff:** „Nur Berechtigungen“ setzt ACL, schreibt aber **keine** Zeilen. Health meldet leere Klassen-/Lehrerlisten jetzt als Fehler (`0 Einträge`). Im Planer erscheinen Hinweise, wenn Live-Klassen fehlen.
 
-**Lehrer-Browser ohne IT-Kontext:** Domain/Site/Gruppen liegen local-first beim IT-Admin. Ohne **ToolSiteUrl** in der Lizenz und ohne IT-Sicherung auf SharePoint zeigt ein frischer Lehrer-Login oft leere Domain, „Noch nicht zugeordnet“ und keine Klassen. Fix: Admin → Schule → Tool-Site-URL setzen, IT-Sicherung ablegen, Lehrer neu anmelden (Bootstrap übernimmt die URL).
+**Lehrer-Browser ohne IT-Kontext (R13):** Domain/Site/Gruppen liegen local-first beim IT-Admin. Ohne **ToolSiteUrl** in der Lizenz und ohne IT-Sicherung auf SharePoint zeigt ein frischer Lehrer-Login oft leere Domain, „Noch nicht zugeordnet“ und keine Klassen.
+
+- **Schule nicht freigeschaltet:** License-Gate mit Hinweis an IT-Admin + CTA **Anfrage stellen** → [ms365.schule/#kontakt](https://ms365.schule/#kontakt).
+- **Freigeschaltet, Einrichtung unvollständig:** dezenter Banner im Lehrer-Portal („Portal bereit?“ in `lehrer-portal-readiness.js`) – IT soll Tool-Site, Listen und IT-Sicherung nachziehen; Lehrer-Tour startet erst, wenn das Portal bereit ist (Menü-Start bleibt möglich).
+- **Fix für IT:** Admin → Schule → Tool-Site-URL setzen, IT-Sicherung ablegen, Listen befüllen; Lehrkraft neu anmelden (Bootstrap übernimmt die URL).
 
 ## Schul-Site-Zeiger (Lizenz)
 

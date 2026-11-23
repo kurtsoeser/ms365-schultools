@@ -240,7 +240,7 @@
         return '';
     }
 
-    function openDialog() {
+    function openDialog(opts) {
         var dlg = ensureDialog();
         pendingFiles.forEach(function (f) {
             try {
@@ -259,6 +259,25 @@
             ? 'Wird gesendet als ' + who + ' · Seite: ' + location.pathname
             : 'Bitte zuerst mit Microsoft 365 anmelden. · Seite: ' + location.pathname;
         setStatus('', '');
+        try {
+            var pre = opts && typeof opts === 'object' ? opts : null;
+            if (pre && pre.title) {
+                var titleInput = $('ms365FeedbackTitleInput');
+                if (titleInput) titleInput.value = String(pre.title).slice(0, 200);
+            }
+            if (pre && pre.body) {
+                var bodyInput = $('ms365FeedbackBody');
+                if (bodyInput) bodyInput.value = String(pre.body).slice(0, 8000);
+            }
+            if (pre && pre.category) {
+                var kindPref = dlg.querySelector(
+                    'input[name="ms365FbKind"][value="' + String(pre.category).replace(/"/g, '') + '"]'
+                );
+                if (kindPref) kindPref.checked = true;
+            }
+        } catch (e) {
+            /* ignore */
+        }
         if (typeof dlg.showModal === 'function') dlg.showModal();
         else dlg.setAttribute('open', '');
         setTimeout(function () {

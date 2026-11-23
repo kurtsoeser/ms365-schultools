@@ -27,6 +27,35 @@ describe('app-role-chrome', () => {
         expect(appRoleChromeText(model)).toBe('Freistellungen Lehrkräfte · Konto wird gelesen');
     });
 
+    it('nach abgeschlossenem Auth-Boot ohne Konto zeigt Nicht angemeldet statt endloses Lesen', () => {
+        const model = appRoleChromeModel(
+            matchSchoolAppFromPath('freistellung-planer.html'),
+            { email: '', authSettled: true }
+        );
+        expect(model.pending).toBe(false);
+        expect(appRoleChipLabel(model)).toBe('Nicht angemeldet');
+        expect(appRoleChromeText(model)).toBe('Freistellungen Schüler · Nicht angemeldet');
+    });
+
+    it('bleibt bei angemeldetem Zustand ohne gelesene E-Mail auf Konto wird gelesen', () => {
+        const model = appRoleChromeModel(
+            matchSchoolAppFromPath('schularbeiten-planer.html'),
+            { email: '', authSettled: true, loggedInWithoutEmail: true }
+        );
+        expect(model.pending).toBe(true);
+        expect(appRoleChipLabel(model)).toBe('Konto wird gelesen');
+    });
+
+    it('zeigt Kein Zugriff erst wenn E-Mail gelesen und Zugriff verweigert ist', () => {
+        const model = appRoleChromeModel(
+            matchSchoolAppFromPath('schularbeiten-planer.html'),
+            { email: 'gast@privat.at', accessDenied: true }
+        );
+        expect(model.pending).toBe(false);
+        expect(appRoleChipLabel(model)).toBe('Kein Zugriff');
+        expect(model.email).toBe('gast@privat.at');
+    });
+
     it('Direktor zeigt Rolle und Quelle dieser App', () => {
         const model = appRoleChromeModel(
             matchSchoolAppFromPath('lehrer-freistellung-planer.html'),

@@ -6,6 +6,10 @@ import {
     buildPruefplanDetail,
     isSeminarWahlfach,
     validateAnmeldungDraft,
+    describeExamSlots,
+    parseTeacherList,
+    serializeTeacherList,
+    normalizeExamPartKey,
     filterAbschlussklassen,
     suggestLfsChoices,
     teacherChoiceLabels,
@@ -25,6 +29,14 @@ import {
     resolveStudentAssignedKlasse,
     klasseCodeFromGroupName
 } from '../src/tools/srdp-anmeldung/srdp-anmeldung-logic.js';
+import {
+    parseAbaPortalRows,
+    splitStudentNames,
+    parseAbaKlasseField,
+    findAbschlussarbeitenForPerson,
+    abschlussarbeitPrefillFields
+} from '../src/tools/srdp-anmeldung/srdp-abschlussarbeiten-parse.js';
+import { abschlussarbeitenListTitleForYear } from '../src/tools/srdp-anmeldung/srdp-abschlussarbeiten-schema.js';
 import { renderAntragWizard } from '../src/tools/srdp-anmeldung/srdp-anmeldung-wizard-ui.js';
 import { listTitleForYear, buildAnmeldungColumns, HAK_VARIANTS, PROFILE_IDS, getProfile } from '../src/tools/srdp-anmeldung/srdp-anmeldung-schema.js';
 
@@ -103,27 +115,60 @@ describe('srdp-anmeldung-logic', () => {
         expect(findAnmeldungBySchuelerEmail([], 'x@y.at')).toBe(null);
     });
 
+    it('describeExamSlots HAK oral vs written teachers', () => {
+        const v1 = describeExamSlots('Variante 1', 'hak');
+        expect(v1.needsLfsCode).toBe(true);
+        expect(v1.schriftlich.map((s) => s.key)).toEqual(expect.arrayContaining(['d', 'bfk', 'lfs']));
+        expect(v1.muendlich.find((s) => s.key === 'am')?.needsTeacher).toBe(true);
+        expect(v1.muendlich.find((s) => s.key === 'lfs')).toBeFalsy();
+        const v2 = describeExamSlots('Variante 2', 'hak');
+        expect(v2.muendlich.find((s) => s.key === 'lfs')?.needsTeacher).toBe(true);
+        expect(v2.muendlich.find((s) => s.key === 'am')).toBeFalsy();
+        expect(normalizeExamPartKey('LFS (5h)')).toBe('lfs');
+        expect(serializeTeacherList(['A', 'B'])).toBe('A; B');
+        expect(parseTeacherList('A; B ; C')).toEqual(['A', 'B', 'C']);
+    });
+
     it('validateAnmeldungDraft', () => {
         const ok = validateAnmeldungDraft({
             variante: 'Variante 1',
             nachname: 'Huber',
             vorname: 'Max',
             lfs: 'ENWS',
-            lehrerLfs: 'Müller',
+            lehrerBKO: 'Hofer',
+            lehrerAM: 'Schmidt',
             wahlfach: 'Recht',
+            wahlfachMuendlich: 'Recht',
+            lehrerWahlfach: 'Wagner',
             bestaetigung: true
         });
         expect(ok.ok).toBe(true);
         expect(ok.title).toBe('Huber, Max');
         expect(ok.pruefplanKurz).toMatch(/LFS/);
 
+        const noLfsTeacherOk = validateAnmeldungDraft({
+            variante: 'Variante 1',
+            nachname: 'Huber',
+            vorname: 'Max',
+            lfs: 'ENWS',
+            lehrerBKO: 'Hofer',
+            lehrerAM: 'Schmidt',
+            wahlfachMuendlich: 'Recht',
+            lehrerWahlfach: 'Wagner',
+            bestaetigung: true
+        });
+        expect(noLfsTeacherOk.ok).toBe(true);
+
         const bad = validateAnmeldungDraft({
             variante: 'Variante 2',
             nachname: 'X',
             vorname: 'Y',
             lfs: 'ENWS',
-            lehrerLfs: 'Z',
+            lehrerLFS: 'Z',
+            lehrerBKO: 'B',
             wahlfach: 'Seminar',
+            wahlfachMuendlich: 'Seminar',
+            lehrerWahlfach: 'W',
             seminar: '',
             bestaetigung: true
         });
@@ -174,6 +219,12 @@ describe('srdp-anmeldung-logic', () => {
         };
         expect(teacherRolesOnItem(item, 'Mag. Müller').map((r) => r.role)).toEqual(['da', 'wahlfach']);
         expect(filterItemsForTeacher([item], 'Mag. Schmidt')).toHaveLength(1);
+        expect(
+            teacherRolesOnItem(
+                { ...item, lehrerBKO: 'Mag. Hofer; Mag. Extra' },
+                'Mag. Extra'
+            ).map((r) => r.role)
+        ).toEqual(['bko']);
         expect(filterItemsForKlassen([item, { klasse: '5a' }, { klasse: '4B' }], ['5A'])).toHaveLength(1);
         expect(preferredSrdpTerminJahr(new Date('2026-11-20'), '2026')).toBe('2027');
         expect(preferredSrdpTerminJahr(new Date('2026-11-20'), '2028')).toBe('2028');
@@ -215,6 +266,8 @@ describe('srdp-anmeldung-schema', () => {
         const seminar = cols.find((c) => c.name === 'Seminar');
         expect(seminar?.choice?.allowTextEntry).toBe(true);
         expect(cols.map((c) => c.name)).toContain('LehrerLFS');
+        expect(cols.map((c) => c.name)).toContain('LehrerAM');
+        expect(cols.find((c) => c.name === 'LehrerBKO')?.choice?.allowTextEntry).toBe(true);
     });
 
     it('HTL/HLW/BAFEB/AHS Spalten', () => {
@@ -223,6 +276,58 @@ describe('srdp-anmeldung-schema', () => {
         expect(buildAnmeldungColumns({ profileId: 'bafeb' }).map((c) => c.name)).toContain('Fachtheorie');
         expect(buildAnmeldungColumns({ profileId: 'ahs' }).map((c) => c.name)).toContain('HatABA');
         expect(buildAnmeldungColumns({ profileId: 'ahs' }).map((c) => c.name)).not.toContain('TitelDiplomarbeit');
+        expect(abschlussarbeitenListTitleForYear(2027, 'hak')).toBe('sRDP-Abschlussarbeiten HAK 2027');
+        expect(abschlussarbeitenListTitleForYear(2027, 'ahs')).toBe('sRDP-Abschlussarbeiten AHS 2027');
+    });
+});
+
+describe('ABA-Portal Parse', () => {
+    it('splitStudentNames und Klasse', () => {
+        expect(splitStudentNames('Tim Breitfuß, Oskar Kofler und Michael Mayr')).toEqual([
+            'Tim Breitfuß',
+            'Oskar Kofler',
+            'Michael Mayr'
+        ]);
+        expect(parseAbaKlasseField('5chk - 2026/27')).toEqual({
+            klasseCode: '5chk',
+            schuljahr: '2026/27',
+            terminJahrHint: '2027'
+        });
+    });
+
+    it('parseAbaPortalRows explodiert Teams und filtert Jahr', () => {
+        const parsed = parseAbaPortalRows(
+            [
+                {
+                    Titel: 'Thema A',
+                    'Schüler/in': 'Lena Bauer, Anna Huber',
+                    Klasse: '5AHAK - 2026/27',
+                    'Betreuer/in': 'Mag. Müller',
+                    Status: 'Genehmigt durch DIR'
+                },
+                {
+                    Titel: 'Alt',
+                    'Schüler/in': 'Max Alt',
+                    Klasse: '5AHAK - 2024/25',
+                    'Betreuer/in': 'X',
+                    Status: 'Genehmigt durch DIR'
+                }
+            ],
+            { terminJahr: '2027' }
+        );
+        expect(parsed.rows).toHaveLength(2);
+        expect(parsed.rows.map((r) => r.schuelerName)).toEqual(['Lena Bauer', 'Anna Huber']);
+        expect(parsed.summary.skippedYear).toBe(1);
+        const hits = findAbschlussarbeitenForPerson(parsed.rows, {
+            vorname: 'Lena',
+            nachname: 'Bauer',
+            klasse: '5AHAK'
+        });
+        expect(hits).toHaveLength(1);
+        const prefill = abschlussarbeitPrefillFields(hits[0], 'hak', ['Mag. Müller', 'Mag. Schmidt']);
+        expect(prefill.titelDiplomarbeit).toBe('Thema A');
+        expect(prefill.betreuungslehrerDA).toBe('Mag. Müller');
+        expect(abschlussarbeitPrefillFields(hits[0], 'ahs', ['Mag. Müller']).titelABA).toBe('Thema A');
     });
 });
 
@@ -266,5 +371,51 @@ describe('Schülerklasse für die Anmeldung', () => {
         expect(html).toContain('selected');
         expect(html).not.toContain('noch keiner Klasse zugeordnet');
         expect(html).not.toContain('disabled');
+    });
+
+    it('Wizard Schritt 2/3 zeigt Varianten-Karten und Multi-Lehrer nur mündlich', () => {
+        const step2 = renderAntragWizard({
+            form: { wizardStep: 2, vorname: 'Lena', nachname: 'Bauer', klasse: '5A', variante: '' },
+            options: {
+                jahr: '2027',
+                profileId: 'hak',
+                profileLabel: 'HAK',
+                klassen: ['5A'],
+                lehrer: ['Mag. Müller', 'Mag. Hofer'],
+                variants: getProfile('hak').variants
+            },
+            accountEmail: 'lena@demo.at',
+            stammdaten: { students: [], classes: [] },
+            memberGroups: []
+        });
+        expect(step2).toContain('srdp-variant-card');
+        expect(step2).toContain('Variante 1');
+        const step3 = renderAntragWizard({
+            form: {
+                wizardStep: 3,
+                vorname: 'Lena',
+                nachname: 'Bauer',
+                klasse: '5A',
+                variante: 'Variante 1',
+                lfs: 'ENWS'
+            },
+            options: {
+                jahr: '2027',
+                profileId: 'hak',
+                profileLabel: 'HAK',
+                klassen: ['5A'],
+                lfs: ['ENWS'],
+                wahlfaecher: ['Recht'],
+                lehrer: ['Mag. Müller', 'Mag. Hofer'],
+                variants: getProfile('hak').variants
+            },
+            accountEmail: 'lena@demo.at',
+            stammdaten: { students: [], classes: [] },
+            memberGroups: []
+        });
+        expect(step3).toContain('lehrerAM');
+        expect(step3).toContain('srdp-teacher-multi');
+        expect(step3).toContain('zentral / schulisch');
+        expect(step3).toMatch(/data-srdp-teacher-field="lehrerAM"/);
     });
 });

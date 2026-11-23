@@ -965,7 +965,15 @@
                 showSetupStep(cur + 1);
             });
         }
-        showSetupStep(loadSetupStep());
+        // Deep-Link: ?step=1…7 (Playbook-Kontrakt, siehe playbook-deeplink.js)
+        let initialStep = loadSetupStep();
+        try {
+            const q = parseInt(new URLSearchParams(window.location.search || '').get('step') || '', 10);
+            if (q >= 1 && q <= SETUP_STEP_COUNT) initialStep = q;
+        } catch (e) {
+            /* ignore */
+        }
+        showSetupStep(initialStep);
     }
 
     function wire() {

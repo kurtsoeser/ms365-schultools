@@ -45,27 +45,27 @@ describe('person-email-from-name', () => {
 
     it('nutzt standardmäßig nur den ersten Vornamen', () => {
         const r = api.suggestEmail(
-            { foreName: 'Anna-Sophie', longName: 'Bindlehner' },
-            { domain: 'hak-steyr.at', pattern: 'vorname.nachname' }
+            { foreName: 'Anna-Sophie', longName: 'Beispiel' },
+            { domain: 'schule.example', pattern: 'vorname.nachname' }
         );
-        expect(r.email).toBe('anna.bindlehner@hak-steyr.at');
+        expect(r.email).toBe('anna.beispiel@schule.example');
         expect(r.firstNameMode).toBe('first');
     });
 
     it('kann alle Vornamen für die Mail verwenden', () => {
         const r = api.suggestEmail(
-            { foreName: 'Anna-Sophie', longName: 'Bindlehner' },
-            { domain: 'hak-steyr.at', pattern: 'vorname.nachname', firstNameMode: 'all' }
+            { foreName: 'Anna-Sophie', longName: 'Beispiel' },
+            { domain: 'schule.example', pattern: 'vorname.nachname', firstNameMode: 'all' }
         );
-        expect(r.email).toBe('anna.sophie.bindlehner@hak-steyr.at');
+        expect(r.email).toBe('anna.sophie.beispiel@schule.example');
         expect(r.firstNameMode).toBe('all');
     });
 
     it('liefert Doppelname-Varianten', () => {
-        const locals = api.localPartCandidates('Devran Eren', 'Acikdilli', 'vorname.nachname', 'first');
-        expect(locals[0]).toBe('devran.acikdilli');
+        const locals = api.localPartCandidates('Devran Eren', 'Doppelnamen', 'vorname.nachname', 'first');
+        expect(locals[0]).toBe('devran.doppelnamen');
         expect(locals.some((x) => x.includes('devran'))).toBe(true);
-        expect(locals.some((x) => x.includes('acikdilli'))).toBe(true);
+        expect(locals.some((x) => x.includes('doppelnamen'))).toBe(true);
         expect(locals.length).toBeGreaterThan(2);
     });
 
@@ -102,10 +102,10 @@ describe('webuntis-export-import', () => {
         expect(students.length).toBe(4);
         const amir = students.find((s) => s.untisInternalId === '8613');
         expect(amir.klasse).toBe('2BS');
-        expect(amir.name).toBe('Amirhan Abubakarov');
-        expect(amir.phone).toContain('677');
+        expect(amir.name).toBe('Amir Muster');
+        expect(amir.phone).toContain('664');
         const emin = students.find((s) => s.untisInternalId === '4937');
-        expect(emin.email).toBe('emin.acikyuerek@hak-steyr.at');
+        expect(emin.email).toBe('emin.beispiel@schule.example');
         const noClass = students.find((s) => s.untisInternalId === '6894');
         expect(noClass.klasse).toBe('');
         expect(wu.detectExportKindFromAoa(loadJson('student-stammdaten-aoa.json'))).toBe('student');
@@ -123,14 +123,14 @@ describe('webuntis-export-import', () => {
     it('parst LegalGuardian_*.csv (WebUntis Stammdaten)', () => {
         const rows = wu.parseGuardiansAoa(loadJson('legal-guardian-stammdaten-aoa.json'));
         expect(rows.length).toBe(3);
-        const both = rows.find((g) => g.email === 'spanring@reload.co.at');
+        const both = rows.find((g) => g.email === 'mathias.erziehungs@mail.example');
         expect(both.studentInternalId).toBe('6165');
-        expect(both.name).toBe('Mathias Spanring');
-        const singleName = rows.find((g) => g.email === 'dario_glavas91@gmx.at');
-        expect(singleName.name).toContain('Glavas');
-        const orphan = rows.find((g) => g.email === 'sonja.hinterleitner@gmail.com');
+        expect(both.name).toBe('Mathias Erziehungs');
+        const singleName = rows.find((g) => g.email === 'eltern.beispiel@mail.example');
+        expect(singleName.name).toContain('Beispiel');
+        const orphan = rows.find((g) => g.email === 'sonja.ohnekind@mail.example');
         expect(orphan.studentInternalId).toBe('');
-        expect(orphan.phone).toMatch(/0699|4369910758267/);
+        expect(orphan.phone).toMatch(/0660|436600000222/);
     });
 
     it('ordnet Eltern über Untis-IDs zu', () => {
@@ -145,8 +145,8 @@ describe('webuntis-export-import', () => {
         const anna = result.records.find((s) => s.untisInternalId === '1001');
         expect(anna.parentPairs).toHaveLength(2);
         expect(anna.parentPairs.map((p) => p.email).sort()).toEqual([
-            'maria.beispiel@mail.com',
-            'thomas.beispiel@mail.com'
+            'maria.beispiel@mail.example',
+            'thomas.beispiel@mail.example'
         ]);
         expect(result.matchCounts.byInternalId).toBeGreaterThanOrEqual(3);
         expect(result.unmatchedGuardians.length).toBe(1);
@@ -155,8 +155,8 @@ describe('webuntis-export-import', () => {
 
     it('parst Lehrer nur als Primärzeilen', () => {
         const teachers = wu.parseTeachersAoa(loadJson('teacher-aoa.json'));
-        expect(teachers.map((t) => t.code)).toEqual(['ALTH', 'ANDES']);
-        expect(teachers[0].name).toBe('Lukas Althuber');
+        expect(teachers.map((t) => t.code)).toEqual(['MUSTE', 'BEISP']);
+        expect(teachers[0].name).toBe('Max Mustermann');
     });
 
     it('parst WebUntis Subject_*.pdf (Langname+Kurzname zusammengeklebt)', () => {
@@ -225,9 +225,9 @@ describe('webuntis-export-import', () => {
 
     it('parst WebUntis Teacher_*.csv (Stammdaten name/longName/foreName)', () => {
         const teachers = wu.parseTeachersAoa(loadJson('teacher-stammdaten-aoa.json'));
-        expect(teachers.map((t) => t.code)).toEqual(['ALTH', 'SOESER']);
-        expect(teachers[0].email).toBe('lukas.althuber@hak-steyr.at');
-        expect(teachers[1].name).toBe('Kurt Söser');
+        expect(teachers.map((t) => t.code)).toEqual(['MUSTE', 'BEISP']);
+        expect(teachers[0].email).toBe('max.mustermann@schule.example');
+        expect(teachers[1].name).toBe('Berta Beispiel');
     });
 
     it('SIS erkennt WebUntis-Student-Header', () => {
@@ -254,14 +254,14 @@ describe('webuntis-export-import', () => {
 
     it('behält Schüler-Mail nur auf der konfigurierten Schuldomain', () => {
         const wu = loadAll().ms365WebuntisExportImport;
-        expect(wu.sanitizeStudentEmailFromWebuntis('max@gmx.at', 'hak-steyr.at')).toBe('');
-        expect(wu.sanitizeStudentEmailFromWebuntis('max.mustermann@hak-steyr.at', 'hak-steyr.at')).toBe(
-            'max.mustermann@hak-steyr.at'
+        expect(wu.sanitizeStudentEmailFromWebuntis('max@gmx.at', 'schule.example')).toBe('');
+        expect(wu.sanitizeStudentEmailFromWebuntis('max.mustermann@schule.example', 'schule.example')).toBe(
+            'max.mustermann@schule.example'
         );
         expect(wu.sanitizeStudentEmailFromWebuntis('privat@web.de', '')).toBe('');
         // Ohne Domain: Schul-UPN behalten, Consumer-Mail verwerfen
-        expect(wu.sanitizeStudentEmailFromWebuntis('max.mustermann@hak-steyr.at', '')).toBe(
-            'max.mustermann@hak-steyr.at'
+        expect(wu.sanitizeStudentEmailFromWebuntis('max.mustermann@schule.example', '')).toBe(
+            'max.mustermann@schule.example'
         );
         expect(wu.sanitizeStudentEmailFromWebuntis('max@gmail.com', '')).toBe('');
     });

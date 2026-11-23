@@ -7,6 +7,11 @@ import { loadMsalBrowser } from './msal-loader.js';
 
     const DEFAULT_SCOPES = ['https://graph.microsoft.com/User.Read'];
 
+    /**
+     * Erster Consent: nur Seiten-/Portal-Scopes (a4).
+     * Nie das IT-Admin-Bundle aus graph-unified-groups.js – das würde Lehrkräfte
+     * beim Anmelden mit User.ReadWrite.All / Group.ReadWrite.All konfrontieren.
+     */
     function resolvePreferredLoginScopes() {
         try {
             const pageScopes = window.MS365_AUTH_LOGIN_SCOPES;
@@ -17,9 +22,11 @@ import { loadMsalBrowser } from './msal-loader.js';
             /* ignore */
         }
         try {
-            const g = window.ms365GraphUnifiedGroups;
-            if (g && Array.isArray(g.GRAPH_SCOPES) && g.GRAPH_SCOPES.length) {
-                return g.GRAPH_SCOPES.slice();
+            const mod = window.__ms365AuthLoginScopesMod;
+            if (mod && typeof mod.resolveLoginScopesForPath === 'function') {
+                return mod.resolveLoginScopesForPath(
+                    (window.location && window.location.pathname) || ''
+                );
             }
         } catch {
             /* ignore */
@@ -61,6 +68,21 @@ import { loadMsalBrowser } from './msal-loader.js';
             authority: cfg.authority || 'https://login.microsoftonline.com/organizations',
             redirectUri: (cfg.redirectUri || window.location.href.split('#')[0]).trim()
         };
+    }
+
+    /**
+     * IT-Scopes über die zweite App. `null` = Portal-App.
+     * Fehlt die IT-Client-ID, wirft der Helfer – kein Rückfall auf diese PCA.
+     * @param {string[]} scopes
+     * @param {'interactive'|'popup'|'silent'|'fresh'} mode
+     * @returns {Promise<string|null>}
+     */
+    async function tokenFromItAppIfNeeded(scopes, mode) {
+        const list = Array.isArray(scopes) ? scopes.filter(Boolean) : [];
+        if (!list.length) return null;
+        const mod = await import('./it-app-auth.js');
+        if (!mod.scopesRequireItApp(list)) return null;
+        return mod.acquireItAppToken(list, { mode: mode || 'interactive' });
     }
 
     async function loadMsal() {
@@ -120,6 +142,15 @@ import { loadMsalBrowser } from './msal-loader.js';
                     cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
                 });
                 await withTimeout(instance.initialize(), 8000);
+                try {
+                    const itMod = await import('./it-app-auth.js');
+                    const itId = itMod.resolveItClientId();
+                    if (itId && itMod.redirectStateMatchesClient(itId)) {
+                        await withTimeout(itMod.ensureItPca(), 8000);
+                    }
+                } catch {
+                    // IT-Redirect ist optional; Portal-Login bleibt nutzbar
+                }
                 try {
                     await withTimeout(instance.handleRedirectPromise(), 8000);
                 } catch {
@@ -271,91 +302,28 @@ import { loadMsalBrowser } from './msal-loader.js';
         if (open) {
             applyLocalFirstBackupPanel(wrap);
             refreshBackupHeaderStatus();
-        }
-    }
-
-    const MENU_BRANDS = ['teal', 'classic', 'wine', 'azure', 'forest', 'amber', 'custom'];
-    const MENU_BRAND_LABELS = {
-        teal: 'Blau-Grün',
-        classic: 'Klassisch',
-        wine: 'Wein',
-        azure: 'Blau',
-        forest: 'Grün',
-        amber: 'Bernstein'
-    };
-
-    function normalizeMenuBrand(brand) {
-        return MENU_BRANDS.indexOf(brand) !== -1 ? brand : 'teal';
-    }
-
-    function brandGridHtml() {
-        return MENU_BRANDS.filter(function (id) {
-            return id !== 'custom';
-        })
-            .map(function (id) {
-                return (
-                    '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="' +
-                    id +
-                    '" aria-checked="' +
-                    (id === 'teal' ? 'true' : 'false') +
-                    '">' +
-                    '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--' +
-                    id +
-                    '" aria-hidden="true"></span>' +
-                    MENU_BRAND_LABELS[id] +
-                    '</button>'
+            try {
+                window.dispatchEvent(
+                    new CustomEvent('ms365-backup-header-opened', {
+                        detail: { source: 'ms365BackupHeaderBtn' }
+                    })
                 );
-            })
-            .join('');
-    }
-
-    function customSeedsFromInputs() {
-        const boot = window.ms365BrandBoot;
-        const first = document.getElementById('ms365BrandCustom1');
-        const second = document.getElementById('ms365BrandCustom2');
-        const brand1 = boot && boot.parseHex ? boot.parseHex(first && first.value) : '';
-        const brand2 = boot && boot.parseHex ? boot.parseHex(second && second.value) : '';
-        return {
-            brand1: brand1 || '#0d9f8a',
-            brand2: brand2 || '#12b59c'
-        };
-    }
-
-    function paintCustomPreview() {
-        const preview = document.getElementById('ms365BrandCustomPreview');
-        const boot = window.ms365BrandBoot;
-        if (!preview || !boot || typeof boot.darkenForHeader !== 'function') return;
-        const seeds = customSeedsFromInputs();
-        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-        preview.style.setProperty('--preview-1', boot.darkenForHeader(seeds.brand1));
-        preview.style.setProperty('--preview-2', boot.darkenForHeader(seeds.brand2));
-        preview.style.setProperty('--preview-tint', seeds.brand1);
-        preview.style.setProperty('--preview-page', dark ? '#070b12' : '#f6f7f9');
-    }
-
-    function loadCustomInputs() {
-        const boot = window.ms365BrandBoot;
-        const seeds = boot && typeof boot.readCustom === 'function' ? boot.readCustom() : null;
-        const first = document.getElementById('ms365BrandCustom1');
-        const second = document.getElementById('ms365BrandCustom2');
-        if (document.activeElement === first || document.activeElement === second) {
-            paintCustomPreview();
-            return;
+            } catch {
+                /* ignore */
+            }
         }
-        if (first) first.value = seeds ? seeds.brand1 : '#0d9f8a';
-        if (second) second.value = seeds ? seeds.brand2 : '#12b59c';
-        paintCustomPreview();
     }
 
-    function saveCustomBrand() {
-        const seeds = customSeedsFromInputs();
-        const key = (window.ms365BrandBoot && window.ms365BrandBoot.customKey) || 'ms365-brand-custom-v1';
-        try {
-            localStorage.setItem(key, JSON.stringify(seeds));
-        } catch (_) {
-            /* ignore */
-        }
-        applyMenuBrandChoice('custom');
+    /** Eine Signatur: nur Teal. Alte Marken-IDs werden auf teal normalisiert. */
+    const MENU_BRANDS = ['teal'];
+
+    function normalizeMenuBrand(_brand) {
+        return 'teal';
+    }
+
+    /** Früher Marken-Kachel; Teal-only → leer (nur Hell/Dunkel-Toggle). */
+    function brandGridHtml() {
+        return '';
     }
 
     function applyMenuBrandChoice(brand) {
@@ -405,8 +373,14 @@ import { loadMsalBrowser } from './msal-loader.js';
     async function login(scopes, opts) {
         const instance = await ensurePca();
         rememberPostLoginReturnUrl();
+        // Ohne Argument: Seiten-/Portal-Scopes (MS365_AUTH_LOGIN_SCOPES / auth-login-scopes),
+        // nicht stillschweigend nur User.Read und nicht das IT-Admin-Bundle.
+        const scopeList =
+            Array.isArray(scopes) && scopes.length ? scopes : resolvePreferredLoginScopes();
+        const itToken = await tokenFromItAppIfNeeded(scopeList, 'interactive');
+        if (itToken) return { accessToken: itToken };
         const req = {
-            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES
+            scopes: scopeList
         };
         if (opts && typeof opts.prompt === 'string' && opts.prompt) {
             req.prompt = opts.prompt;
@@ -541,14 +515,17 @@ import { loadMsalBrowser } from './msal-loader.js';
     }
 
     async function acquireToken(scopes) {
+        const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
+        const itToken = await tokenFromItAppIfNeeded(scopeList, 'interactive');
+        if (itToken) return itToken;
         const instance = await ensurePca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {
-            await login(scopes);
+            await login(scopeList);
             throw new Error('Weiterleitung zur Anmeldung …');
         }
         const a = getAccount() || accounts[0];
-        const req = { scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES, account: a };
+        const req = { scopes: scopeList, account: a };
         try {
             return (await instance.acquireTokenSilent(req)).accessToken;
         } catch (e) {
@@ -583,6 +560,9 @@ import { loadMsalBrowser } from './msal-loader.js';
      * @returns {Promise<string>}
      */
     async function acquireTokenSilentOnly(scopes) {
+        const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
+        const itToken = await tokenFromItAppIfNeeded(scopeList, 'silent');
+        if (itToken) return itToken;
         const instance = await ensurePca();
         const accounts = instance.getAllAccounts();
         if (!accounts.length) {
@@ -590,7 +570,7 @@ import { loadMsalBrowser } from './msal-loader.js';
         }
         const a = getAccount() || accounts[0];
         const req = {
-            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES,
+            scopes: scopeList,
             account: a
         };
         return (await instance.acquireTokenSilent(req)).accessToken;
@@ -602,12 +582,15 @@ import { loadMsalBrowser } from './msal-loader.js';
      * @param {string[]} [scopes]
      */
     async function acquireTokenFresh(scopes) {
+        const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
+        const itToken = await tokenFromItAppIfNeeded(scopeList, 'fresh');
+        if (itToken) return itToken;
         const instance = await ensurePca();
         const accounts = instance.getAllAccounts();
         if (!accounts.length) throw new Error('Nicht angemeldet.');
         const a = getAccount() || accounts[0];
         const req = {
-            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES,
+            scopes: scopeList,
             account: a,
             forceRefresh: true
         };
@@ -616,8 +599,10 @@ import { loadMsalBrowser } from './msal-loader.js';
 
     /** Popup-Anmeldung (ohne Seiten-Redirect) – für Einrichtung und Werkzeuge mit lokalen Formularen. */
     async function acquireTokenPopup(scopes) {
-        const instance = await ensurePca();
         const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
+        const itToken = await tokenFromItAppIfNeeded(scopeList, 'popup');
+        if (itToken) return itToken;
+        const instance = await ensurePca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {
             try {
@@ -775,22 +760,24 @@ import { loadMsalBrowser } from './msal-loader.js';
         trigger.setAttribute('aria-expanded', 'false');
         trigger.setAttribute('aria-controls', 'ms365AuthDropdown');
         trigger.setAttribute('aria-label', 'Konto');
+        /* Geschlossen: Chevron nach oben (Panel öffnet darüber). Offen: rotiert nach unten. */
         trigger.innerHTML =
             '<i class="bi bi-person-circle" aria-hidden="true"></i>' +
             '<span id="ms365AuthBadgeText">–</span>' +
-            '<i class="bi bi-chevron-down ms365-auth-menu__chevron" aria-hidden="true"></i>';
+            '<i class="bi bi-chevron-up ms365-auth-menu__chevron" aria-hidden="true"></i>';
 
         const drop = document.createElement('div');
         drop.id = 'ms365AuthDropdown';
         drop.className = 'ms365-auth-menu__panel';
         drop.setAttribute('role', 'menu');
         drop.hidden = true;
-        drop.setAttribute('data-ms365-auth-menu-v', '3');
+        drop.setAttribute('data-ms365-auth-menu-v', '12');
         drop.innerHTML =
             '<div class="ms365-auth-menu__meta">' +
             '<div class="ms365-auth-menu__meta-name" id="ms365AuthMenuName"></div>' +
             '<div class="ms365-auth-menu__meta-mail" id="ms365AuthMenuMail"></div>' +
             '</div>' +
+            '<div class="ms365-auth-menu__body">' +
             '<div class="ms365-auth-menu__section ms365-auth-menu__section--ctx" aria-label="Kontext">' +
             '<div class="ms365-auth-menu__section-label">Kontext</div>' +
             '<div class="ms365-auth-menu__ctx">' +
@@ -798,26 +785,15 @@ import { loadMsalBrowser } from './msal-loader.js';
             '<span class="ms365-auth-menu__ctx-k">Schuljahr</span>' +
             '<div class="ms365-auth-menu__year-wrap">' +
             '<select class="ms365-auth-menu__year-select" id="schoolYearSelect" aria-label="Aktives Schuljahr"></select>' +
-            '<button type="button" class="ms365-auth-menu__year-add" id="schoolYearAddBtn" title="Weiteres Schuljahr anlegen" aria-label="Neues Schuljahr anlegen">' +
-            '<i class="bi bi-plus-lg" aria-hidden="true"></i></button>' +
             '</div></div>' +
             '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Domain</span>' +
             '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxDomain">–</span></div>' +
-            '<div class="ms365-auth-menu__ctx-row ms365-auth-menu__ctx-row--tenant" hidden>' +
-            '<span class="ms365-auth-menu__ctx-k">Tenant-ID</span>' +
-            '<span class="ms365-auth-menu__ctx-v ms365-auth-menu__tenant">' +
-            '<code id="ms365AuthCtxTenant">–</code>' +
-            '<button type="button" class="ms365-auth-menu__copy" id="ms365AuthTenantCopyBtn" title="Tenant-ID kopieren" aria-label="Tenant-ID kopieren">' +
-            '<i class="bi bi-clipboard" aria-hidden="true"></i></button>' +
-            '</span></div>' +
-            '</div></div>' +
-            '<div class="ms365-auth-menu__section" id="ms365AuthPersonaSection" hidden>' +
-            '<div class="ms365-auth-menu__section-label">Portal-Rolle</div>' +
-            '<div class="ms365-auth-menu__persona-row">' +
+            '<div class="ms365-auth-menu__ctx-row" id="ms365AuthPersonaSection" hidden>' +
+            '<span class="ms365-auth-menu__ctx-k">Rolle</span>' +
             '<span class="ms365-auth-menu__persona-value" id="ms365AuthPersonaValue">–</span>' +
-            '</div>' +
             '<p class="ms365-auth-menu__dash-hint" id="ms365AuthPersonaHint" hidden></p>' +
             '</div>' +
+            '</div></div>' +
             '<div class="ms365-auth-menu__section" id="ms365AuthDashViewSection" role="group" aria-label="Bereich" hidden>' +
             '<div class="ms365-auth-menu__section-label" id="ms365AuthDashViewLabel">Bereich</div>' +
             '<div class="ms365-auth-menu__dash-seg" role="group" aria-labelledby="ms365AuthDashViewLabel">' +
@@ -830,41 +806,32 @@ import { loadMsalBrowser } from './msal-loader.js';
             '</div>' +
             '<p class="ms365-auth-menu__dash-hint" id="ms365AuthDashViewHint" hidden></p>' +
             '</div>' +
-            '<div class="ms365-auth-menu__section" role="group" aria-label="Design">' +
+            '<div class="ms365-auth-menu__section ms365-auth-menu__section--design" role="group" aria-label="Darstellung">' +
             '<div class="ms365-auth-menu__design-head">' +
-            '<div class="ms365-auth-menu__section-label">Design</div>' +
-            '<button type="button" class="ms365-auth-menu__theme-switch" role="switch" data-ms365-auth-theme-toggle="1" aria-checked="false" title="Dunkelmodus">' +
+            '<span class="ms365-auth-menu__theme-label" id="ms365AuthThemeLabel">Dunkles Design</span>' +
+            '<div class="ms365-auth-menu__design-actions">' +
+            '<button type="button" class="ms365-auth-menu__theme-switch" role="switch" data-ms365-auth-theme-toggle="1" aria-checked="false" title="Dunkles Design ein- oder ausschalten" aria-label="Dunkles Design" aria-labelledby="ms365AuthThemeLabel">' +
             '<span class="ms365-auth-menu__theme-switch-track" aria-hidden="true">' +
             '<span class="ms365-auth-menu__theme-switch-thumb"></span></span>' +
-            '</button></div>' +
-            '<div class="ms365-auth-menu__brand-row">' +
+            '</button></div></div>' +
             brandGridHtml() +
             '</div>' +
-            '<div class="ms365-auth-menu__custom">' +
-            '<div class="ms365-auth-menu__section-label">Eigene Farbe</div>' +
-            '<div class="ms365-auth-menu__custom-preview" id="ms365BrandCustomPreview" aria-hidden="true">' +
-            '<span class="ms365-auth-menu__custom-preview-header"></span>' +
-            '<span class="ms365-auth-menu__custom-preview-page"></span>' +
-            '</div>' +
-            '<div class="ms365-auth-menu__custom-fields">' +
-            '<label class="ms365-auth-menu__custom-field">Farbe 1' +
-            '<input type="color" id="ms365BrandCustom1" value="#0d9f8a" aria-label="Eigene Farbe 1"></label>' +
-            '<label class="ms365-auth-menu__custom-field">Farbe 2' +
-            '<input type="color" id="ms365BrandCustom2" value="#12b59c" aria-label="Eigene Farbe 2"></label>' +
-            '</div>' +
-            '<button type="button" class="ms365-auth-menu__custom-save" id="ms365BrandCustomSave" data-ms365-brand="custom" aria-checked="false">Speichern</button>' +
-            '</div></div>' +
-            '<div class="ms365-auth-menu__section ms365-auth-menu__section--links" role="group" aria-label="Verwaltung">' +
+            '<div class="ms365-auth-menu__section ms365-auth-menu__section--actions" role="group" aria-label="Konto">' +
+            '<div class="ms365-auth-menu__section-label">Konto</div>' +
+            '<div class="ms365-auth-menu__actions">' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
-            '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin-Bereich</a>' +
+            '<i class="bi bi-shield-lock" aria-hidden="true"></i><span>Admin-Bereich</span></a>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthActionLogLink" href="action-log.html">' +
-            '<i class="bi bi-journal-text" aria-hidden="true"></i>Aktionsprotokoll</a>' +
-            '</div>' +
-            '<div class="ms365-auth-menu__section ms365-auth-menu__section--account" role="group" aria-label="Konto">' +
+            '<i class="bi bi-journal-text" aria-hidden="true"></i><span>Aktionsprotokoll</span></a>' +
+            '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthItTourBtn" hidden title="First-Run-Tour für Schul-IT von vorn starten">' +
+            '<i class="bi bi-compass" aria-hidden="true"></i><span>IT-Tour erneut</span></button>' +
+            '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthLehrerTourBtn" hidden title="First-Run-Tour für das Lehrer-Portal von vorn starten">' +
+            '<i class="bi bi-mortarboard" aria-hidden="true"></i><span>Lehrer-Tour erneut</span></button>' +
             '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthSwitchBtn" title="Konto wechseln / Anmeldung zurücksetzen">' +
-            '<i class="bi bi-arrow-repeat" aria-hidden="true"></i>Konto wechseln</button>' +
+            '<i class="bi bi-arrow-repeat" aria-hidden="true"></i><span>Konto wechseln</span></button>' +
             '<button type="button" class="ms365-auth-menu__item ms365-auth-menu__item--danger" role="menuitem" id="ms365AuthLogoutBtn">' +
-            '<i class="bi bi-box-arrow-right" aria-hidden="true"></i>Abmelden</button>' +
+            '<i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>Abmelden</span></button>' +
+            '</div></div>' +
             '</div>';
 
         menu.appendChild(trigger);
@@ -920,29 +887,6 @@ import { loadMsalBrowser } from './msal-loader.js';
                 logout().catch(function () {});
             });
         }
-        const tenantCopyBtn = document.getElementById('ms365AuthTenantCopyBtn');
-        if (tenantCopyBtn && !tenantCopyBtn.dataset.bound) {
-            tenantCopyBtn.dataset.bound = '1';
-            tenantCopyBtn.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const el = document.getElementById('ms365AuthCtxTenant');
-                const tid = el ? String(el.textContent || '').trim() : '';
-                if (!tid || tid === '–') return;
-                const done = function () {
-                    if (typeof window.ms365ToastOrAlert === 'function') {
-                        window.ms365ToastOrAlert('Tenant-ID kopiert');
-                    }
-                };
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(tid).then(done).catch(function () {
-                        window.prompt('Tenant-ID kopieren:', tid);
-                    });
-                } else {
-                    window.prompt('Tenant-ID kopieren:', tid);
-                }
-            });
-        }
         const themeBtn = document.querySelector('#ms365AuthDropdown [data-ms365-auth-theme-toggle]');
         if (themeBtn && !themeBtn.dataset.bound) {
             themeBtn.dataset.bound = '1';
@@ -954,48 +898,7 @@ import { loadMsalBrowser } from './msal-loader.js';
                 }
             });
         }
-        const brandBtns = document.querySelectorAll('#ms365AuthDropdown [data-ms365-brand]');
-        brandBtns.forEach(function (btn) {
-            if (btn.dataset.bound) return;
-            btn.dataset.bound = '1';
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (btn.id === 'ms365BrandCustomSave') {
-                    saveCustomBrand();
-                    return;
-                }
-                applyMenuBrandChoice(btn.getAttribute('data-ms365-brand'));
-            });
-        });
-        ['ms365BrandCustom1', 'ms365BrandCustom2'].forEach(function (id) {
-            const input = document.getElementById(id);
-            if (!input || input.dataset.bound) return;
-            input.dataset.bound = '1';
-            input.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
-            const applyPicked = function (e) {
-                e.stopPropagation();
-                paintCustomPreview();
-                saveCustomBrand();
-            };
-            input.addEventListener('input', applyPicked);
-            input.addEventListener('change', applyPicked);
-        });
-        loadCustomInputs();
-        if (!paintCustomPreview.themeBound) {
-            paintCustomPreview.themeBound = true;
-            window.addEventListener('ms365-theme-change', paintCustomPreview);
-        }
-        if (window.ms365Theme && typeof window.ms365Theme.getBrand === 'function') {
-            const cur = window.ms365Theme.getBrand();
-            document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
-                const on = el.getAttribute('data-ms365-brand') === cur;
-                el.setAttribute('aria-checked', on ? 'true' : 'false');
-                el.classList.toggle('is-active', on);
-            });
-        }
+        applyMenuBrandChoice('teal');
         if (window.ms365Theme && typeof window.ms365Theme.syncAuthMenuTheme === 'function') {
             window.ms365Theme.syncAuthMenuTheme();
         }
@@ -1621,7 +1524,7 @@ import { loadMsalBrowser } from './msal-loader.js';
             wrap &&
             wrap.querySelector('#ms365AuthDropdown') &&
             wrap.querySelector('#ms365AuthDropdown').getAttribute('data-ms365-auth-menu-v');
-        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '3') {
+        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '12') {
             if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
             wrap = createAuthWidget();
         }
@@ -1714,6 +1617,18 @@ import { loadMsalBrowser } from './msal-loader.js';
             ensureBackupHeaderControl(cluster);
         }
         ensureAuthMenuBindings();
+        import('./dashboard-auth-menu-policy.js')
+            .then(function (m) {
+                if (m && typeof m.ensureHeaderShellSwitch === 'function') {
+                    m.ensureHeaderShellSwitch(document.getElementById('adminAppTopActions'));
+                }
+                if (m && typeof m.refreshAuthMenuAudiencePolicy === 'function') {
+                    return m.refreshAuthMenuAudiencePolicy();
+                }
+            })
+            .catch(function () {
+                /* ignore */
+            });
         import('./app-header-chrome.js')
             .then(function (m) {
                 if (m && typeof m.normalizeAppHeaderActionsOrder === 'function') {
@@ -1800,19 +1715,6 @@ import { loadMsalBrowser } from './msal-loader.js';
         if (menuMeta) menuMeta.hidden = !a;
         if (switchBtn) switchBtn.hidden = !a;
         if (logoutBtn) logoutBtn.hidden = !a;
-        const tenantEl = document.getElementById('ms365AuthCtxTenant');
-        if (tenantEl) {
-            let tid = '';
-            try {
-                if (a) {
-                    const claims = a.idTokenClaims || {};
-                    tid = String(a.tenantId || claims.tid || '').trim();
-                }
-            } catch {
-                tid = '';
-            }
-            tenantEl.textContent = tid || '–';
-        }
         const adminLink = document.getElementById('ms365AuthAdminLink');
         const applyAdminLink = function () {
             if (!adminLink) return;
@@ -1940,64 +1842,103 @@ import { loadMsalBrowser } from './msal-loader.js';
         }
     }
 
+    let authBootSettled = false;
+    let resolveAuthBoot = null;
+    const authBootPromise = new Promise(function (resolve) {
+        resolveAuthBoot = resolve;
+    });
+    function markAuthBootSettled() {
+        if (authBootSettled) return;
+        authBootSettled = true;
+        if (typeof resolveAuthBoot === 'function') resolveAuthBoot();
+        try {
+            window.dispatchEvent(
+                new CustomEvent('ms365-auth-boot-settled', {
+                    detail: { loggedIn: !!getAccount() }
+                })
+            );
+        } catch {
+            /* ignore */
+        }
+    }
+
     async function init() {
         if (typeof document === 'undefined') return;
         try {
-            const headerMod = await import('./app-global-header.js');
-            if (headerMod && typeof headerMod.ensureAppHeaderChrome === 'function') {
-                headerMod.ensureAppHeaderChrome();
-            } else if (headerMod && typeof headerMod.mountAppGlobalHeader === 'function') {
-                headerMod.mountAppGlobalHeader();
-            }
-        } catch {
-            /* ignore */
-        }
-        try {
-            const chromePol = await import('./frontend-planner-chrome-policy.js');
-            if (chromePol && typeof chromePol.bootFrontendPlannerChromePolicy === 'function') {
-                chromePol.bootFrontendPlannerChromePolicy();
-            }
-        } catch {
-            /* ignore */
-        }
-        ensureHeaderWidget();
-        try {
-            window.dispatchEvent(new CustomEvent('ms365-auth-widget-ready'));
-        } catch {
-            // ignore
-        }
-        try {
-            await withTimeout(ensurePca(), 8000);
-        } catch {
-            // ignore (widget still renders; Anmelden bleibt nutzbar)
-        }
-        setWidgetState();
-        import('./dashboard-auth-menu-policy.js')
-            .then(function (m) {
-                if (m && typeof m.bootAuthMenuAudiencePolicy === 'function') {
-                    m.bootAuthMenuAudiencePolicy();
-                }
-            })
-            .catch(function () {
-                /* ignore */
-            });
-        // Admin: kein SSO-Silent (vermeidet Hänger/Freezes auf localhost)
-        const path = String((window.location && window.location.pathname) || '');
-        const isAdmin = /\/admin\.html(?:\?|#|$)/i.test(path);
-        if (!isAdmin) {
             try {
-                if (pca && !getAccount()) {
-                    await trySsoSilent(DEFAULT_SCOPES);
+                const headerMod = await import('./app-global-header.js');
+                if (headerMod && typeof headerMod.ensureAppHeaderChrome === 'function') {
+                    headerMod.ensureAppHeaderChrome();
+                } else if (headerMod && typeof headerMod.mountAppGlobalHeader === 'function') {
+                    headerMod.mountAppGlobalHeader();
                 }
+            } catch {
+                /* ignore */
+            }
+            try {
+                const chromePol = await import('./frontend-planner-chrome-policy.js');
+                if (chromePol && typeof chromePol.bootFrontendPlannerChromePolicy === 'function') {
+                    chromePol.bootFrontendPlannerChromePolicy();
+                }
+            } catch {
+                /* ignore */
+            }
+            ensureHeaderWidget();
+            try {
+                const scopeMod = await import('./auth-login-scopes.js');
+                window.__ms365AuthLoginScopesMod = scopeMod;
+                if (typeof scopeMod.applyPreferredLoginScopes === 'function') {
+                    scopeMod.applyPreferredLoginScopes();
+                }
+            } catch {
+                /* ignore – Fallback User.Read */
+            }
+            try {
+                window.dispatchEvent(new CustomEvent('ms365-auth-widget-ready'));
             } catch {
                 // ignore
             }
+            try {
+                await withTimeout(ensurePca(), 8000);
+            } catch {
+                // ignore (widget still renders; Anmelden bleibt nutzbar)
+            }
             setWidgetState();
+            import('./dashboard-auth-menu-policy.js')
+                .then(function (m) {
+                    if (m && typeof m.bootAuthMenuAudiencePolicy === 'function') {
+                        m.bootAuthMenuAudiencePolicy();
+                    }
+                })
+                .catch(function () {
+                    /* ignore */
+                });
+            // Admin: kein SSO-Silent (vermeidet Hänger/Freezes auf localhost)
+            const path = String((window.location && window.location.pathname) || '');
+            const isAdmin = /\/admin\.html(?:\?|#|$)/i.test(path);
+            if (!isAdmin) {
+                try {
+                    if (pca && !getAccount()) {
+                        await trySsoSilent(DEFAULT_SCOPES);
+                    }
+                } catch {
+                    // ignore
+                }
+                setWidgetState();
+            }
+        } finally {
+            markAuthBootSettled();
         }
     }
 
     // Public API for tools
     window.ms365AuthEnsureInitialized = ensurePca;
+    window.ms365AuthEnsureBootSettled = function () {
+        return authBootPromise;
+    };
+    window.ms365AuthIsBootSettled = function () {
+        return authBootSettled;
+    };
     window.ms365AuthGetActionSlot = function () {
         try {
             return document.getElementById('ms365AuthActions');

@@ -22,13 +22,13 @@ export const DASHBOARD_CATALOG_TAB_IDS = [
 
 /** @type {Record<string, string>} */
 export const TAB_LABEL_BY_PANEL = {
-    gruppen: '01 Mitgliedschaften',
-    unterricht: '02 Klassen & Unterricht',
-    personen: '03 Personen & Gäste',
-    schuljahr: '04 Schuljahresstart',
-    intranet: '05 Intranet',
-    schulapps: '06 Schul-Apps',
-    kommunikation: '07 Aufräumen & Audit',
+    gruppen: 'Mitgliedschaften',
+    unterricht: 'Klassen & Unterricht',
+    personen: 'Personen & Gäste',
+    schuljahr: 'Schuljahresstart',
+    intranet: 'Intranet',
+    schulapps: 'Schul-Apps',
+    kommunikation: 'Aufräumen & Audit',
     automationen: 'Automatisieren'
 };
 

@@ -145,6 +145,24 @@ test('fieldsFromBody writes extra values', () => {
     assert.equal(fields.Flag, true);
 });
 
+test('fieldsFromBody ignoriert unbekannte Extra-Spalten', () => {
+    const fields = fieldsFromBody(
+        {
+            schoolName: 'A',
+            tenantId: '11111111-1111-4111-8111-111111111111',
+            status: 'active',
+            extra: { Direktion: 'Max', DirektionEmail: 'max@schule.at', Ghost: 'x' }
+        },
+        {
+            partial: true,
+            extraColumns: [{ name: 'Direktion', type: 'text' }]
+        }
+    );
+    assert.equal(fields.Direktion, 'Max');
+    assert.equal(fields.DirektionEmail, undefined);
+    assert.equal(fields.Ghost, undefined);
+});
+
 test('fieldsFromBody erlaubt PENDING-Tenant', () => {
     const fields = fieldsFromBody(
         {

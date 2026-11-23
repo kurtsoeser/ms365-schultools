@@ -433,11 +433,19 @@ export function mountApp(root) {
                           '<button type="button" class="btn btn-success" data-ag-go="neu">Neue Aufgabe</button>'
                   });
 
+        const n = st.meineOffen;
         return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">Meine Aufgaben</h2>' +
+            '<h1 class="fb-greet"><span class="fb-num">' +
+            n +
+            '</span> ' +
+            (n === 1 ? 'Aufgabe offen' : 'Aufgaben offen') +
+            '</h1>' +
+            '<p class="fb-sub">Dir zugewiesen' +
+            (st.ueberfaellig ? ' · ' + st.ueberfaellig + ' überfällig' : '') +
+            '.</p>' +
             banner +
             renderPipelineLegend() +
-            '<div class="ag-cards">' +
+            '<div class="ag-cards ag-cards--quiet" aria-label="Kennzahlen">' +
             card('Mir offen', st.meineOffen) +
             card('Überfällig', st.ueberfaellig) +
             card('Dringend', st.dringend) +

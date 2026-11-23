@@ -455,12 +455,20 @@ export function mountApp(root) {
                       text: 'Aktuell keine offenen Technik-Tickets.'
                   });
 
+        const n = st.offen;
         return (
-            '<h2 style="margin:0 0 12px;font-size:1.15rem;">IT-Inbox</h2>' +
+            '<h1 class="fb-greet"><span class="fb-num">' +
+            n +
+            '</span> ' +
+            (n === 1 ? 'Ticket offen' : 'Tickets offen') +
+            '</h1>' +
+            '<p class="fb-sub">IT-Inbox' +
+            (st.dringend ? ' · ' + st.dringend + ' dringend' : '') +
+            '.</p>' +
             renderSyncHint() +
             banner +
             renderPipelineLegend() +
-            '<div class="ag-cards">' +
+            '<div class="ag-cards ag-cards--quiet" aria-label="Kennzahlen">' +
             card('Offen', st.offen) +
             card('In Arbeit', st.inArbeit) +
             card('Dringend', st.dringend) +

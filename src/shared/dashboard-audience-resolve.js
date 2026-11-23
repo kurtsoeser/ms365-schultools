@@ -7,7 +7,8 @@
  * 3. Planer-Rollen / Stammdaten-Lehrer-E-Mail → Lehrkraft
  *    (auch wenn nur in Schüler-Gruppe oder in keiner Dashboard-Gruppe)
  * 4. Mitglieder der konfigurierten Dashboard-Schüler-Entra-Gruppe → Schüler
- * 5. Jeder andere angemeldete Nutzer → Schüler-Ansicht (Minimum)
+ * 5. Explizite Planer-/Stammdaten-Schüler → Schüler
+ * 6. Sonst (vor Verzeichnis-Sync) → unknownUser, neutrale Begrüßung (nicht Schüler/in)
  */
 import { resolveDashboardPersonaFromEntraGroups } from './dashboard-audience-entra.js';
 import { dashboardAudienceGroupsConfigured } from './dashboard-audience-groups-store.js';
@@ -367,11 +368,21 @@ export function resolveNonItDashboardPersona(opts) {
         };
     }
 
+    // Explizit Schüler (Planer/Stammdaten) → Schüler-Portal.
+    // Sonst: noch nicht zugeordnet (z. B. vor Verzeichnis-Sync) – nicht als Schüler/in begrüßen.
+    if (explicitPlanerSchueler || studentMatch) {
+        return {
+            isLehrer: false,
+            isSchueler: true,
+            personaSource: groupsConfigured && !entra ? 'dashboard-entra-none' : 'default-schueler'
+        };
+    }
+
     return {
         isLehrer: false,
-        isSchueler: true,
-        unknownUser: !explicitPlanerSchueler && !studentMatch,
-        personaSource: groupsConfigured && !entra ? 'dashboard-entra-none' : 'default-schueler'
+        isSchueler: false,
+        unknownUser: true,
+        personaSource: groupsConfigured && !entra ? 'dashboard-entra-none' : 'pending-directory'
     };
 }
 
@@ -398,9 +409,74 @@ export function resolveNonItDashboardPersona(opts) {
  */
 
 /**
+ * Nur für Homepage-Screenshots (`?landingShot=1&persona=it|lehrer|schueler`).
+ * Echte Anmeldung und Stammdaten bleiben unberührt, solange der Parameter fehlt.
+ *
+ * @param {string} [search]
+ * @returns {DashboardPersonas|null}
+ */
+export function landingShotDashboardPersonas(search) {
+    let raw = search;
+    if (raw == null) {
+        try {
+            raw = typeof location !== 'undefined' ? location.search || '' : '';
+        } catch {
+            raw = '';
+        }
+    }
+    let who = '';
+    try {
+        const q = new URLSearchParams(String(raw || '').replace(/^\?/, ''));
+        if (q.get('landingShot') !== '1') return null;
+        who = String(q.get('persona') || '')
+            .trim()
+            .toLowerCase();
+    } catch {
+        return null;
+    }
+    if (who !== 'it' && who !== 'lehrer' && who !== 'schueler') return null;
+
+    const shellValue = who === 'it' ? 'full' : who === 'schueler' ? 'schueler' : 'portal';
+    try {
+        localStorage.setItem('ms365-dashboard-it-preview-v1', shellValue);
+        localStorage.setItem('ms365-dashboard-it-preview-v1:demo-tenant', shellValue);
+    } catch {
+        /* ignore */
+    }
+
+    if (who === 'it') {
+        return {
+            filtering: false,
+            loggedIn: true,
+            isIt: true,
+            isLehrer: false,
+            isSchueler: false,
+            globalAdmin: true,
+            personaSource: 'landing-shot',
+            schularbeitenRoles: ['admin'],
+            freistellungRoles: ['direktion']
+        };
+    }
+
+    return {
+        filtering: true,
+        loggedIn: true,
+        isIt: false,
+        isLehrer: who === 'lehrer',
+        isSchueler: who === 'schueler',
+        personaSource: 'landing-shot',
+        schularbeitenRoles: who === 'schueler' ? ['schueler'] : ['lehrer'],
+        freistellungRoles: who === 'schueler' ? ['schueler'] : ['lehrer']
+    };
+}
+
+/**
  * @returns {Promise<DashboardPersonas>}
  */
 export async function resolveDashboardPersonas() {
+    const landingShot = landingShotDashboardPersonas();
+    if (landingShot) return landingShot;
+
     if (!isLoggedIn()) {
         return {
             filtering: false,

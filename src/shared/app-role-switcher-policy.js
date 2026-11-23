@@ -160,7 +160,7 @@ export function unknownPersonaHint(personas) {
 export function primaryPersonaHint(personas) {
     if (!personas || !personas.loggedIn) return '';
     if (personas.isIt) {
-        return 'Bereich darunter: Portal / IT-Backend / Schüler-Vorschau wechseln.';
+        return '';
     }
     if (personas.unknownUser) {
         return unknownPersonaHint(personas);

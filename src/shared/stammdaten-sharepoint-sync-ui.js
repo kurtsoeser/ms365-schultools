@@ -160,20 +160,34 @@ async function runLoad(btns) {
         const fileName = String((item && item.name) || preview.fileName || 'Backup').trim();
         const when = String((obj && obj.exportedAt) || (item && item.lastModifiedDateTime) || '').trim();
         const school = String((obj && (obj.schoolName || obj.domain)) || '').trim();
-        const summary = String((obj && obj.inventorySummary) || '').trim();
+        const summaryRaw = String((obj && obj.inventorySummary) || '').trim();
+        const summaryLines = summaryRaw
+            ? summaryRaw
+                  .split(/\s*[·•|]\s*|\s*;\s*/)
+                  .map(function (s) {
+                      return String(s || '').trim();
+                  })
+                  .filter(Boolean)
+                  .map(function (s) {
+                      return '• ' + s;
+                  })
+                  .join('\n')
+            : '';
         const ok = await confirmAsync(
-            'Dieses Backup aus der IT-Bibliothek jetzt in diesem Browser übernehmen?\n\n' +
+            'Dieses Backup jetzt in diesem Browser übernehmen?\n\n' +
                 'Datei: ' +
                 fileName +
                 (when ? '\nStand: ' + when.replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : '') +
                 (school ? '\nSchule: ' + school : '') +
-                (summary ? '\n\nEnthalten: ' + summary : '') +
+                (summaryLines ? '\n\nEnthalten:\n' + summaryLines : '') +
                 '\n\nAlle lokalen Schuldaten und Werkzeugstände werden ersetzt. ' +
-                'Microsoft-Anmeldung bleibt unberührt. Es findet kein Abgleich statt.',
+                'Microsoft-Anmeldung bleibt unberührt.',
             {
                 title: 'Von IT-Bibliothek importieren',
                 confirmLabel: 'Importieren',
                 cancelLabel: 'Abbrechen',
+                okText: 'Importieren',
+                cancelText: 'Abbrechen',
                 danger: true
             }
         );

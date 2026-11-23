@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trust – Datenfluss &amp; Rechte · MS365-Schul-Tools</title>
+  <meta name="description" content="Nachweisbar: wo Schuldaten liegen, welche Microsoft-Rechte je Persona gelten, und welcher Build ausgeliefert wird.">
+  <meta name="robots" content="index,follow">
+  <meta name="ms365-landing-build" content="2026-11-23T12:59:42.505Z|20261123|4fb9290">
+  <link rel="icon" href="assets/schooltool.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="legal-page">
+  <a class="skip-link" href="#inhalt">Zum Inhalt</a>
+
+  <header class="site-nav is-scrolled" data-nav>
+    <a class="nav-brand" href="index.html">
+      <img src="assets/schooltool.png" alt="" width="40" height="40">
+      <span>MS365-Schul-Tools</span>
+    </a>
+    <nav class="nav-links" aria-label="Seitennavigation">
+      <a href="index.html#ablauf">Ablauf</a>
+      <a href="index.html#funktionen">Funktionen</a>
+      <a href="datenschutz.html">Datenschutz</a>
+      <a href="trust.html" aria-current="page">Trust</a>
+    </nav>
+    <a class="btn btn-nav" href="https://app.ms365.schule/">App öffnen</a>
+  </header>
+
+  <main id="inhalt" class="legal-main">
+    <div class="legal-inner">
+      <p class="eyebrow">Nachweis statt Versprechen</p>
+      <h1>Trust: Datenfluss, Rechte, Build</h1>
+      <p class="legal-lead">
+        Diese Seite macht die Datenschutzaussagen prüfbar. Öffnen Sie parallel den
+        <strong>Netzwerk-Tab</strong> der Browser-Entwicklertools auf
+        <a href="https://app.ms365.schule/">app.ms365.schule</a>: Sie sehen nur die eigene Domain,
+        Microsoft-Anmelde-/Graph-Endpunkte und – falls freigeschaltet – die schlanken Betreiber-APIs.
+      </p>
+      <p class="legal-note">
+        Stand: 21.11.2026 · Ergänzt die
+        <a href="datenschutz.html">Datenschutzerklärung</a>.
+        Scope-Katalog im Code: <code>src/shared/auth-login-scopes.js</code>.
+      </p>
+
+      <section class="legal-block" aria-labelledby="flow">
+        <h2 id="flow">1. Datenflusskarte</h2>
+        <ol class="trust-flow">
+          <li>
+            <strong>Browser der bedienenden Person</strong>
+            <span>Stammdaten und Arbeitsstand in <code>localStorage</code> / optional IndexedDB. Kein Schülerstamm als Betreiber-Datenbank.</span>
+          </li>
+          <li>
+            <strong>Microsoft 365 der Schule</strong>
+            <span>SharePoint-Listen, Teams, Kalender, Graph – nur mit dem Schulkonto der angemeldeten Person.</span>
+          </li>
+          <li>
+            <strong>Statisches App-Hosting</strong>
+            <span><code>app.ms365.schule</code> liefert HTML/JS/CSS. Keine Klassenlisten im Request-Body an den Host.</span>
+          </li>
+          <li>
+            <strong>Betreiber-Minimaldienste (optional)</strong>
+            <span>Lizenz-API: Tenant-ID, Freischaltung, Kontakte, Site-URL-Zeiger. Keine Stammlisten. Weitere Portale nur bei Modul-Freigabe.</span>
+          </li>
+        </ol>
+        <p>
+          Im Netzwerk-Tab erwarten Sie typischerweise:
+          <code>app.ms365.schule</code>,
+          <code>login.microsoftonline.com</code>,
+          <code>graph.microsoft.com</code>,
+          SharePoint-Host der Schule,
+          optional <code>*.azurewebsites.net</code> der Lizenz-/Portal-APIs.
+          Fremde Skript-CDNs gehören in der App nicht dazu (CSP <code>script-src 'self'</code>).
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="scopes">
+        <h2 id="scopes">2. Microsoft-Rechte je Persona (Deutsch)</h2>
+        <p>
+          Der Anmelden-Button fordert nicht mehr das IT-Admin-Bundle. Lehrkräfte sehen beim ersten Login
+          nur Profil plus die Rechte des geöffneten Werkzeugs.
+        </p>
+        <table class="trust-table">
+          <thead>
+            <tr>
+              <th scope="col">Persona</th>
+              <th scope="col">Rechte beim Anmelden</th>
+              <th scope="col">Erklärung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Lehrkraft / Schüler/in – Dashboard</td>
+              <td><code>User.Read</code></td>
+              <td>Nur eigenes Profil. Werkzeuge fordern später eigene Rechte.</td>
+            </tr>
+            <tr>
+              <td>Lehrkraft – Planer (Freistellung, Schulaktivitäten, sRDP, Schularbeiten)</td>
+              <td><code>User.Read</code>, <code>Sites.ReadWrite.All</code></td>
+              <td>Profil plus Lesen/Schreiben in SharePoint-Listen der Schule.</td>
+            </tr>
+            <tr>
+              <td>Lehrkraft – Termine-Hub</td>
+              <td><code>User.Read</code>, Kalender lesen/schreiben, <code>Group.Read.All</code></td>
+              <td>Outlook-Kalender; Gruppen nur lesen für ARGE-/Lehrerkalender.</td>
+            </tr>
+            <tr>
+              <td>Schul-IT – Stammdaten</td>
+              <td>erster Login: <code>User.Read</code></td>
+              <td>Verzeichnis-, Gruppen- und Team-Rechte erscheinen erst bei der konkreten IT-Aktion.</td>
+            </tr>
+            <tr>
+              <td>Betreiber</td>
+              <td>kein Graph auf Schuldaten</td>
+              <td>Lizenz-API ohne Klassenlisten.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="legal-note">
+          Technische Quelle: <code>src/shared/auth-login-scopes.js</code> und
+          <code>src/shared/msal-auth-ui.js</code> (kein Fallback mehr auf Admin-<code>GRAPH_SCOPES</code>).
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="build">
+        <h2 id="build">3. Build-Hash</h2>
+        <p>
+          Jede ausgelieferte Landing-Version trägt einen Build-Hinweis im Footer und im Meta-Tag
+          <code>ms365-landing-build</code>. So können Schulen prüfen, ob die öffentliche Seite zum
+          veröffentlichten Stand passt.
+        </p>
+        <p id="trust-build-line" class="trust-build">
+          Build wird aus dem Meta-Tag gelesen …
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="docs">
+        <h2 id="docs">4. Vorlagen für Schulen</h2>
+        <ul class="legal-list">
+          <li>
+            <a href="https://github.com/kurtsoeser/ms365-schultools/blob/main/LICENSE">LICENSE</a>
+            – Quellcode sichtbar, Produktivnutzung nur mit Schullizenz
+          </li>
+          <li>
+            <a href="https://github.com/kurtsoeser/ms365-schultools/blob/main/docs/avv-vorlage.md">AVV-Vorlage</a>
+            – Auftragsverarbeitung zwischen Schule und Betreiber
+          </li>
+          <li>
+            <a href="https://github.com/kurtsoeser/ms365-schultools/blob/main/docs/sicherheitspruefung-bericht.md">Sicherheitsprüfbericht</a>
+            – aktueller Kontrollstand und empfohlener externer Test
+          </li>
+          <li>
+            <a href="datenschutz.html">Datenschutzerklärung</a>
+          </li>
+        </ul>
+      </section>
+
+      <p class="legal-back">
+        <a class="btn btn-primary" href="https://app.ms365.schule/">App öffnen und Netzwerk-Tab prüfen</a>
+        <a class="btn btn-ghost" href="datenschutz.html" style="margin-left:0.5rem">Datenschutz</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <p class="footer-mark">
+          <img src="assets/schooltool.png" alt="" width="36" height="36">
+          <span>MS365-Schul-Tools</span>
+        </p>
+        <p>#kurtrocks edu.innovation.consulting · Kurt Söser, Steyr</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Start</a>
+        <a href="https://app.ms365.schule/">App</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="trust.html" aria-current="page">Trust</a>
+        <a href="impressum.html">Impressum</a>
+      </div>
+      <p class="footer-updated" id="landing-last-updated"><span class="footer-updated__label">Homepage zuletzt aktualisiert:</span> <time datetime="2026-11-23T12:59:42.505Z">23.11.2026, 13:59</time> <span class="footer-updated__screens">· Screens v20261123</span> <span class="footer-updated__sha">· Build 4fb9290</span></p>
+      <p class="footer-note">© <span data-year></span> Kurt Söser · ms365.schule</p>
+    </div>
+  </footer>
+
+  <script src="main.js" defer></script>
+  <script src="trust.js" defer></script>
+</body>
+</html>

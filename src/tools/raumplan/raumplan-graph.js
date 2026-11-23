@@ -1,6 +1,9 @@
 /**
  * SharePoint-CRUD für Raumplan / Raeume (Live-Anbindung).
+ * Transport: shared/graph-client.js (R22 / b11); Token/Site-Helfer weiter über spo-graph-shared.
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
+
 import { LIST_TITLES } from './raumplan-schema.js';
 import { normalizeRaum } from './raumplan-model.js';
 import { loadRaumplanSpSettings, resolveRaumplanSiteUrl } from './raumplan-settings.js';
@@ -14,6 +17,12 @@ function G() {
     const api = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
     if (!api) throw new Error('SharePoint-Graph-Hilfen nicht geladen (spo-graph-shared).');
     return api;
+}
+
+async function graphJson(method, pathOrUrl, token, body, version) {
+    return sharedGraphJson(method, pathOrUrl, token, body, undefined, {
+        version: version === 'beta' ? 'beta' : 'v1.0'
+    });
 }
 
 async function token() {
@@ -38,7 +47,7 @@ async function findListByTitle(tok, siteId, listTitle) {
         '/lists?$filter=' +
         encodeURIComponent("displayName eq '" + title.replace(/'/g, "''") + "'") +
         '&$select=id,displayName,webUrl';
-    const data = await G().graphJson('GET', path, tok, undefined, 'v1.0');
+    const data = await graphJson('GET', path, tok, undefined, 'v1.0');
     return ((data && data.value) || [])[0] || null;
 }
 
@@ -50,7 +59,7 @@ async function fetchAllItems(tok, siteId, listId) {
         '/items?$expand=fields&$top=100';
     const out = [];
     while (path) {
-        const data = await G().graphJson(
+        const data = await graphJson(
             'GET',
             path.indexOf('http') === 0 ? path : path,
             tok,
@@ -166,12 +175,12 @@ export async function createRaumItem(ctx, raum) {
     let fields = mapRaumToFields(raum, { omitOptional: false });
     let created;
     try {
-        created = await G().graphJson('POST', path, tok, { fields }, 'v1.0');
+        created = await graphJson('POST', path, tok, { fields }, 'v1.0');
     } catch (e) {
         const msg = String((e && e.message) || e || '');
         if (/SeedTag|RaumId/i.test(msg)) {
             fields = mapRaumToFields(raum, { omitOptional: true });
-            created = await G().graphJson('POST', path, tok, { fields }, 'v1.0');
+            created = await graphJson('POST', path, tok, { fields }, 'v1.0');
         } else {
             throw e;
         }
@@ -203,12 +212,12 @@ export async function updateRaumItem(ctx, raum) {
         '/fields';
     let fields = mapRaumToFields(raum, { omitOptional: false });
     try {
-        await G().graphJson('PATCH', path, tok, fields, 'v1.0');
+        await graphJson('PATCH', path, tok, fields, 'v1.0');
     } catch (e) {
         const msg = String((e && e.message) || e || '');
         if (/SeedTag|RaumId/i.test(msg)) {
             fields = mapRaumToFields(raum, { omitOptional: true });
-            await G().graphJson('PATCH', path, tok, fields, 'v1.0');
+            await graphJson('PATCH', path, tok, fields, 'v1.0');
         } else {
             throw e;
         }
@@ -230,7 +239,7 @@ export async function deleteRaumItem(ctx, spoItemId) {
         encodeURIComponent(ctx.list.id) +
         '/items/' +
         encodeURIComponent(spoId);
-    await G().graphJson('DELETE', path, tok, undefined, 'v1.0');
+    await graphJson('DELETE', path, tok, undefined, 'v1.0');
 }
 
 export { SCOPES as RAUMPLAN_GRAPH_SCOPES };

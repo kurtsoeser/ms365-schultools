@@ -460,8 +460,11 @@ async function fetchListDescriptionViaSpoRest(siteWebUrl, listId) {
         return '';
     }
     if (!host) return '';
-    const spoScope = 'https://' + host + '/AllSites.Read';
-    const spoTok = await G().getGraphToken([spoScope, 'https://graph.microsoft.com/User.Read']);
+    const graphApi = G();
+    const spoTok =
+        typeof graphApi.acquireSharePointToken === 'function'
+            ? await graphApi.acquireSharePointToken(host)
+            : await graphApi.getGraphToken(['https://' + host + '/AllSites.Read']);
     const digest = await G().getSpoRequestDigest(url, spoTok);
     const api = "/_api/web/lists(guid'" + id.replace(/'/g, "''") + "')?$select=Description";
     const res = await G().spoRestFetch(url, spoTok, digest, 'GET', api);

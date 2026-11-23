@@ -64,11 +64,18 @@
     }
 
     async function acquireToken(G) {
+        if (G && typeof G.getGraphTokenFor === 'function') {
+            return G.getGraphTokenFor('group-write');
+        }
+        const scopes = [
+            'https://graph.microsoft.com/User.Read',
+            'https://graph.microsoft.com/Group.ReadWrite.All'
+        ];
         if (typeof window.ms365AuthAcquireToken === 'function') {
-            return window.ms365AuthAcquireToken(G.GRAPH_SCOPES || []);
+            return window.ms365AuthAcquireToken(scopes);
         }
         if (G && typeof G.getGraphToken === 'function') {
-            return G.getGraphToken();
+            return G.getGraphToken(scopes);
         }
         throw new Error('Graph-Anmeldung nicht verfügbar.');
     }

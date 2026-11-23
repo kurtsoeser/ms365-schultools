@@ -4,6 +4,7 @@ const {
     parseEntitlementsRaw,
     resolveFeatureEntitlements
 } = require('./feature-catalog');
+const { pickSchoolStammdatenFromFields } = require('./school-profile-sync');
 
 /**
  * Domains/URLs aus Listenzeile normalisieren (eine pro Zeile, Komma oder Semikolon).
@@ -120,6 +121,7 @@ function evaluateLicense(input) {
         contactEmail: null,
         contactEmails: [],
         toolSiteUrl: null,
+        schoolStammdaten: {},
         entitlements: emptyEntitlements
     };
 
@@ -174,6 +176,8 @@ function evaluateLicense(input) {
     }
     toolSiteUrl = toolSiteUrl || null;
 
+    const schoolStammdaten = pickSchoolStammdatenFromFields(fields);
+
     const base = {
         schoolName,
         status,
@@ -183,6 +187,7 @@ function evaluateLicense(input) {
         contactEmail,
         contactEmails,
         toolSiteUrl,
+        schoolStammdaten,
         entitlements
     };
 
@@ -238,21 +243,82 @@ function evaluateLicense(input) {
  * @param {string} tenantId
  */
 function findFieldsForTenant(items, tenantId) {
+    const hit = findLicenseItemForTenant(items, tenantId);
+    return hit ? hit.fields : null;
+}
+
+/**
+ * Listenzeile inkl. Item-ID (für PATCH toolSiteUrl durch Schul-IT).
+ * @param {unknown} items
+ * @param {string} tenantId
+ * @returns {{ id: string, fields: Record<string, unknown> } | null}
+ */
+function findLicenseItemForTenant(items, tenantId) {
     const want = String(tenantId || '').trim().toLowerCase();
     const rows = Array.isArray(items) ? items : [];
     for (let i = 0; i < rows.length; i++) {
-        const fields = rows[i] && rows[i].fields ? rows[i].fields : null;
+        const row = rows[i];
+        const fields = row && row.fields ? row.fields : null;
         if (!fields) continue;
         const tid = String(fields.TenantId || '').trim().toLowerCase();
-        if (tid && tid === want) return fields;
+        if (tid && tid === want) {
+            return { id: String(row.id || ''), fields };
+        }
     }
     return null;
+}
+
+/**
+ * Darf die Schul-Person die Tool-Site-URL an den Betreiber melden?
+ * Designierter IT-Kontakt; oder (Pilot) niemand hinterlegt → jeder mit gültiger Lizenz.
+ * @param {{ allowed?: boolean, contactEmails?: string[], upn?: string }} input
+ */
+function canReportToolSiteUrl(input) {
+    const o = input || {};
+    if (!o.allowed) return { ok: false, reason: 'license_denied' };
+    const contacts = Array.isArray(o.contactEmails) ? o.contactEmails : [];
+    if (!contacts.length) return { ok: true, reason: 'no_contacts_bootstrap' };
+    if (upnMatchesDesignatedItContact(o.upn, contacts)) {
+        return { ok: true, reason: 'designated_it' };
+    }
+    return { ok: false, reason: 'not_designated_it' };
+}
+
+/**
+ * Nur https SharePoint-/Sites-URLs als Tool-Site akzeptieren.
+ * @param {unknown} raw
+ * @returns {{ ok: true, url: string } | { ok: false, reason: string }}
+ */
+function normalizeReportedToolSiteUrl(raw) {
+    const s = String(raw || '')
+        .trim()
+        .replace(/\/+$/, '');
+    if (!s) return { ok: false, reason: 'empty' };
+    let u;
+    try {
+        u = new URL(s);
+    } catch {
+        return { ok: false, reason: 'invalid_url' };
+    }
+    if (!/^https:$/i.test(u.protocol)) return { ok: false, reason: 'not_https' };
+    const host = String(u.hostname || '').toLowerCase();
+    const path = String(u.pathname || '');
+    const looksSharePoint =
+        host.endsWith('.sharepoint.com') ||
+        host === 'sharepoint.com' ||
+        /\/sites\//i.test(path) ||
+        /\/teams\//i.test(path);
+    if (!looksSharePoint) return { ok: false, reason: 'not_sharepoint' };
+    return { ok: true, url: (u.origin + u.pathname).replace(/\/+$/, '') };
 }
 
 module.exports = {
     evaluateLicense,
     findFieldsForTenant,
+    findLicenseItemForTenant,
     parseDomainList,
     parseContactEmails,
-    upnMatchesDesignatedItContact
+    upnMatchesDesignatedItContact,
+    canReportToolSiteUrl,
+    normalizeReportedToolSiteUrl
 };

@@ -96,6 +96,7 @@ export function mountTenantSchoolEmailPatternUi(opts) {
     const givenSel = document.getElementById(o.givenNamesSelectId || 'tenantSchoolEmailGivenNames');
     const zone = document.getElementById(o.builderZoneId || 'tenantSchoolEmailPatternBuilder');
     const previewEl = document.getElementById(o.previewId || 'tenantSchoolEmailPatternPreview');
+    const presetLabelEl = document.getElementById(o.presetLabelId || 'tenantSchoolEmailPatternPresetLabel');
     const modeHint = document.getElementById(o.modeHintId || 'tenantSchoolEmailPatternModeHint');
     const customPanel = document.getElementById(o.customPanelId || 'tenantSchoolEmailPatternCustom');
     if (!patternInput || !zone || !card) return;
@@ -173,12 +174,18 @@ export function mountTenantSchoolEmailPatternUi(opts) {
         });
         const customBtn = card.querySelector('[data-email-preset="custom"]');
         if (customBtn) customBtn.classList.toggle('is-active', parsed.kind === 'build');
+        const presetText =
+            parsed.kind === 'build'
+                ? 'Eigene Bausteine'
+                : EMAIL_PATTERN_PRESETS.find(function (x) {
+                      return x.id === parsed.id;
+                  })?.label || parsed.id;
         if (parsed.kind === 'build') {
             renderBuilder(parsed.tokens);
         } else if (modeHint) {
-            modeHint.textContent =
-                'Preset: ' + (EMAIL_PATTERN_PRESETS.find(function (x) { return x.id === parsed.id; })?.label || parsed.id);
+            modeHint.textContent = 'Preset: ' + presetText;
         }
+        if (presetLabelEl) presetLabelEl.textContent = presetText;
         if (customPanel) customPanel.hidden = parsed.kind !== 'build';
     }
 

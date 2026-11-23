@@ -17,6 +17,9 @@ test('Stammdaten-Katalog enthält Adresse und Rollen', () => {
     assert.ok(names.includes('Standort'));
     assert.ok(names.includes('Strasse'));
     assert.ok(names.includes('Direktion'));
+    assert.ok(names.includes('DirektionEmail'));
+    assert.ok(names.includes('SchuladministrationEmail'));
+    assert.ok(names.includes('ItM365AdminEmail'));
     assert.ok(names.includes('Schulnummer'));
     assert.ok(names.includes('ItM365Admin'));
     assert.ok(names.includes('OffenePunkte'));

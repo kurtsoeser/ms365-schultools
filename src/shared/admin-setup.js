@@ -61,24 +61,112 @@
         );
     }
 
-    async function refreshSchemaStatus() {
+    function isAuthInteractionError(e) {
+        var msg = String((e && e.message) || e || '');
+        var code = String((e && (e.errorCode || e.code)) || '');
+        return /monitor_window_timeout|interaction_required|login_required|consent_required|popup_window|iframe|silent.?token|nicht angemeldet/i.test(
+            msg + ' ' + code
+        );
+    }
+
+    function friendlySchemaAuthDetail() {
+        return 'Anmeldung für die Prüfung nötig. Bitte „Status prüfen“ klicken und ggf. das Anmeldefenster erlauben.';
+    }
+
+    /**
+     * Schema über License-API (Server-Graph) – ohne Sites.Manage.All im Browser/iframe.
+     * @param {{ interactive?: boolean }} [opts]
+     * @returns {Promise<boolean>} true wenn erledigt
+     */
+    async function refreshSchemaViaLicenseApi(opts) {
+        var interactive = !!(opts && opts.interactive);
+        var api = window.ms365LicenseApi;
+        if (!apiBase() || !api || typeof api.adminEnsureSchema !== 'function') return false;
+        if (typeof api.acquireLicenseToken !== 'function') return false;
+
+        var token = await api.acquireLicenseToken(
+            interactive ? { popup: true } : { silentOnly: true }
+        );
+        var result = await api.adminEnsureSchema(token);
+        var stamm = result && result.stammdaten ? result.stammdaten : {};
+        var created = Array.isArray(stamm.created) ? stamm.created : [];
+        var existing = Array.isArray(stamm.existing) ? stamm.existing : [];
+        var detailParts = [];
+        if (created.length) detailParts.push('neu: ' + created.join(', '));
+        if (existing.length) {
+            detailParts.push(
+                existing.length + ' Stammdaten-Spalte(n) vorhanden' + (created.length ? '' : '')
+            );
+        }
+        if (result && result.toolSiteUrlColumn && result.toolSiteUrlColumn.created) {
+            detailParts.push('ToolSiteUrl angelegt');
+        }
+        setCheck(
+            $('licCheckSchema'),
+            'ok',
+            created.length ? 'Schema aktualisiert' : 'Liste & Spalten vollständig',
+            detailParts.length
+                ? detailParts.join(' · ')
+                : 'License-API hat das Schema geprüft (inkl. Rollen-E-Mail-Spalten).'
+        );
+        return true;
+    }
+
+    /**
+     * @param {{ interactive?: boolean }} [opts]
+     */
+    async function refreshSchemaStatus(opts) {
+        var interactive = !!(opts && opts.interactive);
+        setCheck($('licCheckSchema'), 'pending', 'SharePoint-Schema wird geprüft …', '');
+
+        // 1) Bevorzugt License-API (kein iframe / Sites.Manage.All)
+        try {
+            var viaApi = await refreshSchemaViaLicenseApi({ interactive: interactive });
+            if (viaApi) return;
+        } catch (apiErr) {
+            if (!interactive && isAuthInteractionError(apiErr)) {
+                setCheck(
+                    $('licCheckSchema'),
+                    'warn',
+                    'Schema noch nicht geprüft',
+                    friendlySchemaAuthDetail()
+                );
+                return;
+            }
+            if (interactive && isAuthInteractionError(apiErr)) {
+                setCheck(
+                    $('licCheckSchema'),
+                    'warn',
+                    'Anmeldung für Schema-Prüfung nötig',
+                    friendlySchemaAuthDetail()
+                );
+                return;
+            }
+            // API-Fehler: Fallback auf Browser-Graph unten
+            console.warn('[admin-setup] License-API Schema:', apiErr);
+        }
+
         var setup = window.ms365LicenseListSetup;
         if (!setup || typeof setup.checkSchemaStatus !== 'function') {
             setCheck(
                 $('licCheckSchema'),
-                'pending',
+                interactive ? 'warn' : 'pending',
                 'SharePoint-Schema',
-                'Bitte mit MS365 anmelden, dann „Status prüfen“.'
+                interactive
+                    ? 'License-API Schema nicht verfügbar – bitte API prüfen oder „Liste / Spalten aktualisieren“.'
+                    : 'Bitte mit MS365 anmelden, dann „Status prüfen“.'
             );
             return;
         }
-        setCheck($('licCheckSchema'), 'pending', 'SharePoint-Schema wird geprüft …', '');
+
         try {
             var st = await setup.checkSchemaStatus();
             var open = $('licOpenLink');
             if (open && st.webUrl) {
                 open.href = st.webUrl;
                 open.hidden = false;
+                var openLabel = $('licOpenLinkLabel');
+                if (openLabel) openLabel.textContent = 'Liste öffnen';
             }
             if (!st.listExists) {
                 setCheck(
@@ -105,6 +193,15 @@
                 'Alle benötigten Felder sind vorhanden (inkl. AdditionalDomains).'
             );
         } catch (e) {
+            if (isAuthInteractionError(e)) {
+                setCheck(
+                    $('licCheckSchema'),
+                    'warn',
+                    interactive ? 'Anmeldung für Schema-Prüfung nötig' : 'Schema noch nicht geprüft',
+                    friendlySchemaAuthDetail()
+                );
+                return;
+            }
             setCheck(
                 $('licCheckSchema'),
                 'warn',
@@ -116,7 +213,7 @@
 
     function acquireToken() {
         if (window.ms365LicenseApi && typeof window.ms365LicenseApi.acquireLicenseToken === 'function') {
-            return window.ms365LicenseApi.acquireLicenseToken();
+            return window.ms365LicenseApi.acquireLicenseToken({ popup: true });
         }
         return Promise.reject(new Error('Bitte zuerst mit MS365 anmelden.'));
     }
@@ -181,15 +278,11 @@
         var btnRefresh = $('licBtnSchemaStatus');
         if (btnRefresh) {
             btnRefresh.addEventListener('click', function () {
-                refreshSchemaStatus().then(function () {
-                    toast('Schema-Status aktualisiert.');
-                });
+                refreshSchemaStatus({ interactive: true }).then(function () { toast('Schema-Status aktualisiert.'); });
             });
         }
 
-        document.addEventListener('ms365-license-list-setup-done', function () {
-            refreshSchemaStatus();
-        });
+        document.addEventListener('ms365-license-list-setup-done', function () { refreshSchemaStatus({ interactive: false }); });
     }
 
     function goLicensesTab() {
@@ -212,27 +305,41 @@
         setCheck(
             $('licCheckLicenses'),
             'off',
-            'Schulen freischalten – nicht hier',
-            'Erledigt im Tab „Lizenzen“. Manuelle SharePoint-Zeilen brauchst du im Alltag nicht mehr.'
+            'Freischalten unter Lizenzen',
+            'Hier nur Schema und API – Schulen anlegen im Tab Lizenzen.'
         );
         refreshApiConfigUi();
 
         var goBtn = $('licBtnGoLicenses');
         if (goBtn) goBtn.addEventListener('click', goLicensesTab);
 
+        setCheck(
+            $('licCheckSchema'),
+            'off',
+            'SharePoint-Schema',
+            'Noch nicht geprüft.'
+        );
+
         wireApiTests();
         wireSchemaActions();
 
-        // Schema erst prüfen, wenn User ggf. schon angemeldet ist
         setTimeout(function () {
             if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
-                refreshSchemaStatus();
+                // Still – kein Popup/iframe-Zwang beim Tab-Öffnen
+                refreshSchemaStatus({ interactive: false });
             }
         }, 600);
         window.addEventListener('ms365-auth-state-changed', function () {
             refreshApiConfigUi();
             if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
-                refreshSchemaStatus();
+                refreshSchemaStatus({ interactive: false });
+            } else {
+                setCheck(
+                    $('licCheckSchema'),
+                    'off',
+                    'SharePoint-Schema',
+                    'Noch nicht geprüft.'
+                );
             }
         });
     }

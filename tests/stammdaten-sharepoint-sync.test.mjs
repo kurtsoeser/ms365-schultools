@@ -347,10 +347,23 @@ describe('IT-Bibliothek Graph-Helfer Einbindung', () => {
         const pinGate = readFileSync(join(projectRoot, 'src/shared/pin-gate.js'), 'utf8');
         expect(pinGate).toContain('spo-graph-shared.js');
         expect(pinGate).toContain('data-ms365-spo-graph');
+        expect(pinGate).toContain('graph-client.js');
+        const clientIdx = pinGate.indexOf('graph-client.js');
         const graphIdx = pinGate.indexOf('spo-graph-shared.js');
         const syncIdx = pinGate.indexOf('stammdaten-sharepoint-sync-ui.js');
         expect(graphIdx).toBeGreaterThan(-1);
+        expect(clientIdx).toBeGreaterThan(-1);
+        expect(graphIdx).toBeGreaterThan(clientIdx);
         expect(syncIdx).toBeGreaterThan(graphIdx);
+    });
+
+    it('spo-graph-shared bleibt klassisches Script (kein import für Vite-ESM-Rewrite)', () => {
+        const code = readFileSync(join(projectRoot, 'src/tools/sharepoint/spo-graph-shared.js'), 'utf8');
+        // Kein ESM: weder top-level import noch dynamic import(…) – sonst injiziert Vite
+        // ein import-Statement und die Datei scheitert als klassisches <script src>.
+        expect(code).not.toMatch(/(?:^|[^\w.])import\s*\(/m);
+        expect(code).not.toMatch(/^\s*import\s/m);
+        expect(code).toContain('global.ms365SpoGraph');
     });
 
     it('index und tenant binden spo-graph-shared ein', () => {

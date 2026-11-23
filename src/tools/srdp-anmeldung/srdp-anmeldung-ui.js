@@ -150,6 +150,17 @@ function phaseBadge(state) {
 }
 
 function renderTop(state) {
+    const selfTitled =
+        state.view === 'dashboard' ||
+        state.view === 'liste' ||
+        state.view === 'meine' ||
+        state.view === 'anmelden' ||
+        state.view === 'auswertung';
+    if (selfTitled) {
+        return `<div class="srdp-top-refresh">${phaseBadge(state)}${
+            state.localDemoOnly ? '<span class="fb-pill fb-pill--warn">Demo lokal</span>' : ''
+        }</div>`;
+    }
     return `<header class="srdp-top">
       <div>
         <h2>${esc(topTitle(state))}</h2>
@@ -159,7 +170,7 @@ function renderTop(state) {
         ${phaseBadge(state)}
         ${
             state.localDemoOnly
-                ? '<span class="srdp-badge srdp-badge--warn">Demo lokal</span>'
+                ? '<span class="fb-pill fb-pill--warn">Demo lokal</span>'
                 : ''
         }
         ${
@@ -441,45 +452,33 @@ function renderBars(buckets, total) {
 function renderLehrerDashboard(state) {
     const mine = itemsForCurrentRole(state);
     const kv = kvKlasseCodesForState(state);
-    let action = quietEmpty(
-        '<strong>Alles erledigt</strong> · Aktuell ist keine Prüfung bei dir offen.',
-        `<div class="srdp-actions"><button type="button" class="btn" data-srdp-view-jump="liste">Alle Anmeldungen</button></div>`
-    );
-    if (mine.length) {
-        const first = mine[0];
-        action = `<section class="srdp-calm-banner srdp-calm-banner--action" role="status">
-      <div class="srdp-calm-banner__text">
-        <p class="srdp-calm-banner__eyebrow">Was braucht deine Aufmerksamkeit?</p>
-        <p><strong>${
-            mine.length === 1
-                ? '1 Prüfung ist dir zugeordnet'
-                : mine.length + ' Prüfungen sind dir zugeordnet'
-        }</strong></p>
-        <p class="muted">${esc(first.title || first.nachname)} · ${esc(first.klasse)} · ${esc(
-            first.variante
-        )}</p>
-      </div>
-      <button type="button" class="btn btn-success" data-srdp-view-jump="meine-pruefungen">Meine Prüfungen →</button>
-    </section>`;
+    const headline =
+        mine.length === 1
+            ? '<span class="fb-num">1</span> Prüfung ist dir zugeordnet.'
+            : `<span class="fb-num">${mine.length}</span> Prüfungen sind dir zugeordnet.`;
+    const sub = mine.length
+        ? 'Zuordnungen als Betreuung, LFS, BKO oder Wahlfach.'
+        : 'Aktuell ist keine Prüfung bei dir offen.';
+    return `
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${
+        mine.length
+            ? `<div class="fb-sec-label">MEINE ZUORDNUNGEN</div>${renderTable(mine.slice(0, 6), state, {
+                  showRoles: true,
+                  groupBy: ''
+              })}`
+            : quietEmpty('<strong>Alles erledigt</strong> · Keine offenen Zuordnungen.')
     }
-    return `${action}
-    <section class="srdp-panel srdp-panel--calm">
-      <h3>Als Nächstes</h3>
-      <p class="srdp-panel__hint">Zuordnungen als Betreuung, LFS, BKO oder Wahlfach.</p>
+    <div class="fb-actions-row">
+      <button type="button" class="fb-btn" data-srdp-view-jump="meine-pruefungen">Meine Prüfungen</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-srdp-view-jump="liste">Alle Anmeldungen</button>
       ${
-          mine.length
-              ? renderTable(mine.slice(0, 6), state, { showRoles: true, groupBy: '' })
-              : '<p class="muted">Keine kommenden Zuordnungen.</p>'
+          kv.length
+              ? '<button type="button" class="fb-btn fb-btn--ghost" data-srdp-view-jump="meine-klasse">Meine Klasse</button>'
+              : ''
       }
-      <div class="srdp-actions">
-        <button type="button" class="srdp-text-link" data-srdp-view-jump="meine-pruefungen">Alle meine Prüfungen →</button>
-        ${
-            kv.length
-                ? '<button type="button" class="srdp-text-link" data-srdp-view-jump="meine-klasse">Meine Klasse →</button>'
-                : ''
-        }
-      </div>
-    </section>`;
+    </div>`;
 }
 
 function renderLeitungDashboard(state) {
@@ -488,56 +487,33 @@ function renderLeitungDashboard(state) {
     const fehlend = klassenOhneAnmeldung(items, o.klassen || []);
     const nacharbeit = countNacharbeitPending(items);
     const stats = computeAnmeldungStats(items);
-
-    const attention = fehlend.length
-        ? `<section class="srdp-calm-banner srdp-calm-banner--action" role="status">
-      <div class="srdp-calm-banner__text">
-        <p class="srdp-calm-banner__eyebrow">Was braucht deine Aufmerksamkeit?</p>
-        <p><strong>${
-            fehlend.length === 1
-                ? '1 Klasse ohne Anmeldung'
-                : fehlend.length + ' Klassen ohne Anmeldung'
-        }</strong></p>
-        <p class="muted">${esc(fehlend.slice(0, 4).join(', '))}${fehlend.length > 4 ? ' …' : ''}</p>
-      </div>
-      <button type="button" class="btn btn-success" data-srdp-jump-liste data-srdp-jump-klasse="${esc(
-          fehlend[0] || ''
-      )}">Liste öffnen →</button>
-    </section>`
-        : quietEmpty('<strong>Aktuell wartet keine Klasse ohne Anmeldung.</strong>');
-
-    const ops = nacharbeit
-        ? `<section class="srdp-calm-banner srdp-calm-banner--ops" role="status">
-      <div class="srdp-calm-banner__icon" aria-hidden="true"><i class="bi bi-clipboard-check"></i></div>
-      <div class="srdp-calm-banner__text">
-        <p class="srdp-calm-banner__eyebrow">Organisatorische Nacharbeit</p>
-        <p><strong>${
-            nacharbeit === 1
-                ? '1 bestätigte Anmeldung wartet auf die Prüfungsliste'
-                : nacharbeit + ' bestätigte Anmeldungen warten auf die Prüfungsliste'
-        }</strong></p>
-        <p class="muted">Bestätigung (Schüler) und Prüfungsliste sind getrennt.</p>
-      </div>
-      <button type="button" class="btn" data-srdp-view-jump="liste">Anmeldungen →</button>
-    </section>`
-        : '';
+    const headline =
+        fehlend.length === 1
+            ? '<span class="fb-num">1</span> Klasse ohne Anmeldung.'
+            : `<span class="fb-num">${fehlend.length}</span> Klassen ohne Anmeldung.`;
+    const sub = fehlend.length
+        ? `${fehlend.slice(0, 4).join(', ')}${fehlend.length > 4 ? ' …' : ''}`
+        : nacharbeit
+          ? `${nacharbeit} bestätigte Anmeldung${nacharbeit === 1 ? '' : 'en'} warten auf die Prüfungsliste.`
+          : 'Aktuell wartet keine Klasse ohne Anmeldung.';
 
     return `
-    <section class="srdp-panel srdp-panel--calm">
-      <h2 class="srdp-sr-only">Aufmerksamkeit</h2>
-      ${attention}
-      ${ops}
-    </section>
-    <section class="srdp-panel srdp-panel--calm">
-      <h3>Stand ${esc(o.jahr || '')}</h3>
-      <div class="srdp-kpis">
-        <div class="srdp-kpi"><strong>${stats.total}</strong><span>Anmeldungen</span></div>
-        <div class="srdp-kpi"><strong>${stats.byKlasse.length}</strong><span>Klassen</span></div>
-        <div class="srdp-kpi"><strong>${stats.byVariante.length}</strong><span>Varianten</span></div>
-        <div class="srdp-kpi"><strong>${nacharbeit}</strong><span>Nacharbeit offen</span></div>
-      </div>
-      <button type="button" class="srdp-text-link" data-srdp-view-jump="auswertung">Zur Auswertung →</button>
-    </section>`;
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    <div class="fb-sec-label">STAND ${esc(o.jahr || '')}</div>
+    <p class="muted" style="margin:6px 0 0;">${stats.total} Anmeldungen · ${stats.byKlasse.length} Klassen · ${
+        stats.byVariante.length
+    } Varianten · ${nacharbeit} Nacharbeit offen.</p>
+    <div class="fb-actions-row">
+      ${
+          fehlend.length
+              ? `<button type="button" class="fb-btn" data-srdp-jump-liste data-srdp-jump-klasse="${esc(
+                    fehlend[0] || ''
+                )}">Liste öffnen</button>`
+              : '<button type="button" class="fb-btn" data-srdp-view-jump="liste">Anmeldungen</button>'
+      }
+      <button type="button" class="fb-btn fb-btn--ghost" data-srdp-view-jump="auswertung">Auswertung</button>
+    </div>`;
 }
 
 function renderDashboard(state) {
@@ -759,7 +735,7 @@ function renderSystem(state) {
           <span class="ms-sys-card__step">2</span>
           <div>
             <h3>Berechtigungen</h3>
-            <p>Admin, Lehrkräfte und Kandidat:innen – Detailpflege im Listen-Assistenten.</p>
+            <p>Vollzugriff, Lesende Rechte und Kandidat:innen – Detailpflege im Listen-Assistenten.</p>
           </div>
         </header>
         <div class="ms-sys-callout" role="note">
@@ -772,8 +748,8 @@ function renderSystem(state) {
           }</span>
         </div>
         <dl class="ms-sys-dl">
-          <dt>Admin / Direktion</dt><dd>${esc(adminSum)}</dd>
-          <dt>Lehrkräfte</dt><dd>${esc(lehrerSum)}</dd>
+          <dt>Vollzugriff</dt><dd>${esc(adminSum)}</dd>
+          <dt>Lesende Rechte</dt><dd>${esc(lehrerSum)}</dd>
           <dt>Kandidat:innen</dt><dd>${esc(kandSum)}</dd>
         </dl>
         <div class="ms-sys-links">
@@ -846,6 +822,31 @@ function renderSystem(state) {
               <button type="button" class="btn ms-sys-btn-secondary" data-srdp-demo><i class="bi bi-database"></i>Demo lokal</button>
               <a class="btn ms-sys-btn-ghost" href="../hilfe.html#tool-srdp-anmeldung"><i class="bi bi-life-preserver"></i>Hilfe</a>
             </div>
+          </div>
+        </div>
+        <div class="ms-sys-split" style="margin-top:1rem">
+          <div class="ms-sys-split__block ms-sys-split__block--wide">
+            <h4>Abschlussarbeiten (ABA-Portal)</h4>
+            <p class="muted">Excel-Export vom ABA-Portal hochladen – Titel und Betreuer werden bei der Anmeldung vorausgefüllt. Pro Schule und Terminjahr.</p>
+            <p class="muted">Aktuell: ${Number((state.abschlussarbeitenMeta && state.abschlussarbeitenMeta.count) || (state.abschlussarbeiten || []).length) || 0} Einträge${
+                state.abschlussarbeitenMeta && state.abschlussarbeitenMeta.listTitle
+                    ? ' · Liste „' + esc(state.abschlussarbeitenMeta.listTitle) + '“'
+                    : ''
+            }${
+                state.abschlussarbeitenMeta && state.abschlussarbeitenMeta.lastImportAt
+                    ? ' · Import ' + esc(String(state.abschlussarbeitenMeta.lastImportAt).slice(0, 19))
+                    : ''
+            }</p>
+            <div class="ms-sys-actions">
+              <input type="file" id="srdpAbaFile" accept=".xlsx,.xls,.csv" hidden>
+              <button type="button" class="btn ms-sys-btn-primary" data-srdp-aba-pick-file><i class="bi bi-upload"></i>ABA-Excel wählen</button>
+              <button type="button" class="btn ms-sys-btn-secondary" data-srdp-aba-reload${
+                  state.localDemoOnly ? ' disabled' : ''
+              }><i class="bi bi-arrow-repeat"></i>Aus SharePoint laden</button>
+            </div>
+            <p class="srdp-field__hint">Erwartete Spalten: Titel, Schüler/in, Klasse, Betreuer/in, Status. Team-Zeilen werden pro Person aufgeteilt. Bestehende Import-Daten des Terminjahrs werden ersetzt. Muster:
+              <a href="../assets/srdp/ABA-Portal-Demo-Diplomarbeiten.xlsx" download>ABA-Portal-Demo-Diplomarbeiten.xlsx</a>
+              · IT-Setup: <a href="sharepoint-liste-srdp.html">Listen anlegen &amp; ABA hochladen</a>.</p>
           </div>
         </div>
       </section>
@@ -1235,6 +1236,24 @@ export function renderApp(state, root) {
 /**
  * @param {object} [prev] bisheriger Formularzustand (Hidden-Felder / andere Wizard-Schritte)
  */
+function readTeacherMulti(fieldName, fallback) {
+    const boxes = document.querySelectorAll(
+        'input[type="checkbox"][data-srdp-teacher-field="' + fieldName + '"]'
+    );
+    if (boxes && boxes.length) {
+        const picked = [];
+        boxes.forEach((el) => {
+            if (el.checked) picked.push(String(el.value || '').trim());
+        });
+        return picked.filter(Boolean).join('; ');
+    }
+    const hidden = document.querySelector('input[name="' + fieldName + '"]');
+    if (hidden && hidden.value != null && String(hidden.value).trim()) {
+        return String(hidden.value).trim();
+    }
+    return fallback;
+}
+
 export function readFormFromDom(prev) {
     const g = (id) => document.getElementById(id);
     const p = prev && typeof prev === 'object' ? prev : {};
@@ -1253,23 +1272,59 @@ export function readFormFromDom(prev) {
     const step = formEl
         ? Number(formEl.getAttribute('data-srdp-wizard-step') || p.wizardStep || 1)
         : Number(p.wizardStep) || 1;
+    const radio = document.querySelector('input[type="radio"][name="variante"]:checked');
+    const variante = radio
+        ? String(radio.value || '').trim()
+        : val('srdpVariante', p.variante);
+    const hatAbaEl = g('srdpHatAba');
+    const betreuung = val('srdpBetreuung', '');
+    const daTitle = val('srdpDA', '');
+    const isAbaBetreuung =
+        !!(g('srdpBetreuung') && g('srdpBetreuung').getAttribute('name') === 'betreuungslehrerABA');
     return emptyForm({
         klasse: val('srdpKlasse', p.klasse),
         nachname: val('srdpNachname', p.nachname),
         vorname: val('srdpVorname', p.vorname),
-        titelDiplomarbeit: val('srdpDA', p.titelDiplomarbeit),
-        betreuungslehrerDA: val('srdpBetreuung', p.betreuungslehrerDA),
-        variante: val('srdpVariante', p.variante),
+        titelDiplomarbeit: isAbaBetreuung
+            ? p.titelDiplomarbeit || ''
+            : daTitle || p.titelDiplomarbeit,
+        betreuungslehrerDA: isAbaBetreuung
+            ? p.betreuungslehrerDA || ''
+            : betreuung || p.betreuungslehrerDA,
+        hatABA: hatAbaEl ? !!hatAbaEl.checked : !!p.hatABA,
+        titelABA: isAbaBetreuung ? daTitle || p.titelABA : p.titelABA || '',
+        betreuungslehrerABA: isAbaBetreuung
+            ? betreuung || p.betreuungslehrerABA
+            : p.betreuungslehrerABA || '',
+        abaPrefill: !!p.abaPrefill,
+        variante,
         lfs: val('srdpLfs', p.lfs),
-        lehrerLFS: val('srdpLehrerLfs', p.lehrerLFS),
-        lehrerBKO: val('srdpLehrerBko', p.lehrerBKO),
+        lehrerLFS: readTeacherMulti('lehrerLFS', p.lehrerLFS),
+        lehrerBKO: readTeacherMulti('lehrerBKO', p.lehrerBKO),
+        lehrerAM: readTeacherMulti('lehrerAM', p.lehrerAM),
         wahlfachMuendlich: val('srdpWahlfach', p.wahlfachMuendlich || p.wahlfach),
         seminar: (function () {
             const typed = String((g('srdpSeminarText') && g('srdpSeminarText').value) || '').trim();
             const picked = String((g('srdpSeminar') && g('srdpSeminar').value) || '').trim();
             return typed || picked || String(p.seminar || '').trim();
         })(),
-        lehrerWahlfach: val('srdpLehrerWahl', p.lehrerWahlfach),
+        lehrerWahlfach: readTeacherMulti('lehrerWahlfach', p.lehrerWahlfach),
+        schwerpunktFach: val('srdpSchwerpunkt', p.schwerpunktFach),
+        lehrerSchwerpunkt: readTeacherMulti('lehrerSchwerpunkt', p.lehrerSchwerpunkt),
+        fachkolloquium: val('srdpFachkolloquium', p.fachkolloquium),
+        lehrerFachkolloquium: readTeacherMulti('lehrerFachkolloquium', p.lehrerFachkolloquium),
+        fachtheorie: val('srdpFachtheorie', p.fachtheorie),
+        lehrerFachtheorie: readTeacherMulti('lehrerFachtheorie', p.lehrerFachtheorie),
+        klausurKombi: val('srdpKlausurKombi', p.klausurKombi),
+        muendlichExtra: val('srdpMuendlichExtra', p.muendlichExtra),
+        lehrerMuendlichExtra: readTeacherMulti('lehrerMuendlichExtra', p.lehrerMuendlichExtra),
+        vierteKlausur: val('srdpVierteKlausur', p.vierteKlausur),
+        muendlich1: val('srdpMuendlich1', p.muendlich1),
+        muendlich2: val('srdpMuendlich2', p.muendlich2),
+        muendlich3: val('srdpMuendlich3', p.muendlich3),
+        lehrerMuendlich1: readTeacherMulti('lehrerMuendlich1', p.lehrerMuendlich1),
+        lehrerMuendlich2: readTeacherMulti('lehrerMuendlich2', p.lehrerMuendlich2),
+        lehrerMuendlich3: readTeacherMulti('lehrerMuendlich3', p.lehrerMuendlich3),
         bestaetigung,
         wizardStep: step
     });

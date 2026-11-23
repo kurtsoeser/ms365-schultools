@@ -39,10 +39,12 @@ jobs:
           VITE_BASE: "/"
         run: npm run build
 
-      - name: License-URL (GitHub Secrets → dist/)
+      - name: API-URLs (GitHub Secrets → dist/, ohne Function Key)
         env:
+          MS365_DEPLOY_ENV: production
           LICENSE_API_BASE_URL: ${{ secrets.LICENSE_API_BASE_URL }}
-          LICENSE_FUNCTION_KEY: ${{ secrets.LICENSE_FUNCTION_KEY }}
+          KURSTEAMS_API_BASE_URL: ${{ secrets.KURSTEAMS_API_BASE_URL }}
+          ELECTION_API_BASE_URL: ${{ secrets.ELECTION_API_BASE_URL }}
         run: node scripts/write-kursteams-local-config.mjs
 
       - name: lftp installieren

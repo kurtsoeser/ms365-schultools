@@ -2,7 +2,12 @@
 
 const { getConfig } = require('./config');
 const { getOperatorGraphToken } = require('./msal-app-only');
-const { findFieldsForTenant, parseDomainList, parseContactEmails } = require('./evaluate-license');
+const {
+    findFieldsForTenant,
+    findLicenseItemForTenant,
+    parseDomainList,
+    parseContactEmails
+} = require('./evaluate-license');
 const {
     ENTITLEMENTS_FIELD,
     parseEntitlementsRaw,
@@ -559,12 +564,21 @@ function fieldsFromBody(body, opts) {
     }
 
     if (extraSrc) {
+        /** @type {Record<string, string>} */
+        const knownByLower = {};
+        Object.keys(typeByName).forEach((n) => {
+            knownByLower[String(n).toLowerCase()] = n;
+        });
         Object.keys(extraSrc).forEach((name) => {
             if (!isExtraColumnName(name)) return;
-            const type = typeByName[name] || 'text';
+            // Nur Spalten schreiben, die in der Liste wirklich existieren
+            // (sonst Graph 400 → „Anfrage abgelehnt“). Schema-Ensure legt fehlende an.
+            const liveName = knownByLower[String(name).toLowerCase()];
+            if (!liveName) return;
+            const type = typeByName[liveName] || 'text';
             const normalized = normalizeExtraValue(extraSrc[name], type);
             if (normalized === undefined) return;
-            set(name, normalized);
+            set(liveName, normalized);
         });
     }
 
@@ -767,10 +781,19 @@ async function deleteExtraColumn(columnName) {
  * @param {string} tenantId
  */
 async function lookupLicenseFields(tenantId) {
+    const hit = await lookupLicenseItem(tenantId);
+    return hit ? hit.fields : null;
+}
+
+/**
+ * @param {string} tenantId
+ * @returns {Promise<{ id: string, fields: Record<string, unknown> } | null>}
+ */
+async function lookupLicenseItem(tenantId) {
     const token = await getOperatorGraphToken();
     const ids = await resolveSiteAndList(token);
     const items = await loadAllListItems(ids.siteId, ids.listId, token);
-    return findFieldsForTenant(items, tenantId);
+    return findLicenseItemForTenant(items, tenantId);
 }
 
 /**
@@ -885,6 +908,69 @@ async function ensureStammdatenColumns(siteId, listId, token) {
     }
     if (created.length) columnCache = null;
     return { created, existing, total: SCHOOL_STAMMDATEN_FIELDS.length };
+}
+
+/**
+ * Fehlende Katalog-Spalten aus body.extra nachziehen (z. B. DirektionEmail),
+ * falls ensureStammdatenColumns auf älterem Katalog noch nicht alles angelegt hat.
+ * @param {string} siteId
+ * @param {string} listId
+ * @param {string} token
+ * @param {Record<string, unknown>|null|undefined} extra
+ */
+async function ensureStammdatenExtrasFromBody(siteId, listId, token, extra) {
+    const src = extra && typeof extra === 'object' ? extra : {};
+    const keys = Object.keys(src).filter((k) => isExtraColumnName(k));
+    if (!keys.length) return { created: [] };
+
+    const raw = await loadListColumnsRaw(siteId, listId, token);
+    /** @type {Record<string, true>} */
+    const have = {};
+    for (let i = 0; i < raw.length; i++) {
+        const n = String((raw[i] && raw[i].name) || '')
+            .trim()
+            .toLowerCase();
+        if (n) have[n] = true;
+    }
+
+    const created = [];
+    for (let i = 0; i < keys.length; i++) {
+        const key = String(keys[i] || '').trim();
+        if (!key || have[key.toLowerCase()]) continue;
+        const catalog =
+            SCHOOL_STAMMDATEN_FIELDS.find(
+                (f) => String(f.name).toLowerCase() === key.toLowerCase()
+            ) || null;
+        const def = buildColumnDefinition({
+            name: catalog ? catalog.name : key,
+            displayName: catalog ? catalog.displayName : key,
+            type: catalog ? catalog.type : 'text'
+        });
+        try {
+            await graphJson(
+                'POST',
+                GRAPH +
+                    '/sites/' +
+                    encodeURIComponent(siteId) +
+                    '/lists/' +
+                    encodeURIComponent(listId) +
+                    '/columns',
+                token,
+                def
+            );
+            have[String(def.name).toLowerCase()] = true;
+            created.push(def.name);
+        } catch (e) {
+            const msg = e && e.message ? String(e.message) : String(e);
+            if (/already exists|existiert bereits|409/i.test(msg)) {
+                have[String(def.name).toLowerCase()] = true;
+                continue;
+            }
+            throw e;
+        }
+    }
+    if (created.length) columnCache = null;
+    return { created };
 }
 
 /**
@@ -1010,6 +1096,12 @@ async function updateLicense(itemId, body) {
     const ids = await resolveSiteAndList(token);
     // Immer Schema sichern (u. a. ToolSiteUrl) – sonst schlägt PATCH fehl / Feld bleibt leer
     const schema = await ensureLicenseListSchema(ids.siteId, ids.listId, token);
+    const bodyExtra =
+        body && body.extra && typeof body.extra === 'object' && !Array.isArray(body.extra)
+            ? body.extra
+            : null;
+    // Rollen-E-Mails u. a.: fehlende Extra-Spalten aus dem PATCH-Body nachziehen
+    await ensureStammdatenExtrasFromBody(ids.siteId, ids.listId, token, bodyExtra);
     const columns = await listExtraColumns({ force: true });
     const toolCol = (schema && schema.toolSiteUrlColumn) || {};
     const fields = fieldsFromBody(body, {
@@ -1051,6 +1143,13 @@ async function updateLicense(itemId, body) {
                     msg
             );
             err.status = e.status || 400;
+            throw err;
+        }
+        if (/field|invalid|not recognized|nicht erkannt|does not exist|Property/i.test(msg)) {
+            const err = new Error(
+                'SharePoint-Feld fehlt oder ist ungültig. Bitte im Admin „Schema sicherstellen“ ausführen und erneut speichern.'
+            );
+            err.status = e.status && e.status >= 400 && e.status < 500 ? e.status : 400;
             throw err;
         }
         throw e;
@@ -1166,6 +1265,7 @@ async function migrateSchoolEntitlements(opts) {
 module.exports = {
     graphJson,
     lookupLicenseFields,
+    lookupLicenseItem,
     listLicenses,
     createLicense,
     updateLicense,

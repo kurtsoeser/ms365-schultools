@@ -89,7 +89,7 @@ export function matchSchoolAppFromPath(pathname) {
 
 /**
  * @param {SchoolAppChrome|null} app
- * @param {{ role?: string, source?: string, email?: string, name?: string }} [input]
+ * @param {{ role?: string, source?: string, email?: string, name?: string, authSettled?: boolean, loggedInWithoutEmail?: boolean, accessDenied?: boolean, demoMode?: boolean }} [input]
  */
 export function appRoleChromeModel(app, input) {
     const info = input || {};
@@ -99,13 +99,32 @@ export function appRoleChromeModel(app, input) {
     const role = String(info.role || '');
     const source = String(info.source || '');
     const title = app ? app.title : 'Schul-App';
-    if (!email) {
+    if (!email && !info.demoMode) {
+        if (info.authSettled && !info.loggedInWithoutEmail) {
+            return {
+                appTitle: title,
+                roleLabel: 'Nicht angemeldet',
+                sourceLabel: '',
+                email: '',
+                pending: false
+            };
+        }
         return {
             appTitle: title,
             roleLabel: 'Konto wird gelesen',
             sourceLabel: '',
             email: '',
             pending: true
+        };
+    }
+    if (email && info.accessDenied) {
+        return {
+            appTitle: title,
+            roleLabel: 'Kein Zugriff',
+            sourceLabel: '',
+            email,
+            name: String(info.name || '').trim(),
+            pending: false
         };
     }
     if (!role && !(app && app.portalOnly)) {
@@ -160,20 +179,121 @@ let currentModel = null;
 
 /**
  * @param {string} appId
- * @param {{ role?: string, source?: string, email?: string, name?: string, planerRoleSources?: Record<string, string>, roleSource?: string, accountEmail?: string, accountName?: string }} state
+ * @param {{ role?: string, source?: string, email?: string, name?: string, planerRoleSources?: Record<string, string>, roleSource?: string, accountEmail?: string, accountName?: string, authRolePending?: boolean, authSettled?: boolean, kontoOffen?: boolean, planerAccessDenied?: boolean, demoRoleOverride?: boolean, localDemoOnly?: boolean, loading?: boolean }} state
  */
 export function announcePlannerState(appId, state) {
     const s = state || {};
-    const role = String(s.role || '');
+    const demoMode = !!(s.demoRoleOverride || s.localDemoOnly);
+    const pendingRole = !!s.authRolePending && !demoMode;
+    const role = pendingRole ? '' : String(s.role || '');
     const sources = s.planerRoleSources || {};
-    const source = String(sources[role] || s.roleSource || s.source || '');
+    const source = pendingRole ? '' : String(sources[role] || s.roleSource || s.source || '');
     announceAppRole({
         appId,
         role,
         source,
         email: s.accountEmail || s.email || '',
-        name: s.accountName || s.name || ''
+        name: s.accountName || s.name || '',
+        authSettled: !!s.authSettled && !pendingRole,
+        loggedInWithoutEmail: !!s.kontoOffen,
+        accessDenied: !!s.planerAccessDenied && !pendingRole && !s.kontoOffen,
+        demoMode
     });
+}
+
+/**
+ * Liest den aktuellen MSAL-/Mock-Kontostand über alle unterstützten Quellen.
+ * @returns {{ email: string, name: string, loggedIn: boolean, bootSettled: boolean }}
+ */
+export function readAuthAccountSnapshot() {
+    let email = '';
+    let name = '';
+    let loggedIn = false;
+    let bootSettled = false;
+    try {
+        if (typeof window !== 'undefined') {
+            const info =
+                typeof window.ms365AuthGetAccountInfo === 'function'
+                    ? window.ms365AuthGetAccountInfo()
+                    : null;
+            const upn =
+                typeof window.ms365AuthGetUserPrincipalName === 'function'
+                    ? window.ms365AuthGetUserPrincipalName()
+                    : '';
+            const legacy =
+                typeof window.ms365GetAccountInfo === 'function'
+                    ? window.ms365GetAccountInfo()
+                    : null;
+            const msalAcc = window.msalAccount || null;
+            email = String(
+                (info && (info.email || info.username || info.mail || info.upn)) ||
+                    (legacy && (legacy.email || legacy.username || legacy.mail || legacy.upn)) ||
+                    (msalAcc && (msalAcc.username || msalAcc.mail)) ||
+                    upn ||
+                    ''
+            )
+                .trim()
+                .toLowerCase();
+            name = String(
+                (info && info.name) ||
+                    (legacy && legacy.name) ||
+                    (msalAcc && msalAcc.name) ||
+                    ''
+            ).trim();
+            loggedIn =
+                !!email ||
+                (typeof window.ms365AuthIsLoggedIn === 'function' && !!window.ms365AuthIsLoggedIn());
+            bootSettled =
+                typeof window.ms365AuthIsBootSettled === 'function'
+                    ? !!window.ms365AuthIsBootSettled()
+                    : false;
+        }
+    } catch {
+        /* ignore */
+    }
+    return { email, name, loggedIn, bootSettled };
+}
+
+/**
+ * Wartet deterministisch auf MSAL-Initialisierung + SSO-Boot, bevor ein Tool
+ * über „Nicht angemeldet“ oder „Kein Zugriff“ urteilt (siehe rollen-vertrag.md).
+ * @param {{ timeoutMs?: number }} [opts]
+ * @returns {Promise<{ email: string, name: string, loggedIn: boolean, bootSettled: boolean, settled: boolean }>}
+ */
+export async function waitForAuthAccountRead(opts) {
+    const timeoutMs = Math.max(200, Number((opts && opts.timeoutMs) || 3500));
+    const immediate = readAuthAccountSnapshot();
+    if (immediate.email) return Object.assign({}, immediate, { settled: true });
+    if (typeof window === 'undefined') {
+        return { email: '', name: '', loggedIn: false, bootSettled: true, settled: true };
+    }
+    const waitMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    try {
+        if (typeof window.ms365AuthEnsureInitialized === 'function') {
+            await Promise.race([Promise.resolve(window.ms365AuthEnsureInitialized()), waitMs(timeoutMs)]);
+        }
+    } catch {
+        /* ignore */
+    }
+    const afterPca = readAuthAccountSnapshot();
+    if (afterPca.email) return Object.assign({}, afterPca, { settled: true });
+    try {
+        if (typeof window.ms365AuthEnsureBootSettled === 'function' && !afterPca.bootSettled) {
+            await Promise.race([Promise.resolve(window.ms365AuthEnsureBootSettled()), waitMs(timeoutMs)]);
+        }
+    } catch {
+        /* ignore */
+    }
+    let current = readAuthAccountSnapshot();
+    if (current.loggedIn && !current.email) {
+        const started = Date.now();
+        while (Date.now() - started < Math.min(1000, timeoutMs)) {
+            await waitMs(80);
+            current = readAuthAccountSnapshot();
+            if (current.email || !current.loggedIn) break;
+        }
+    }
+    return Object.assign({}, current, { settled: true });
 }
 
 /**
@@ -236,20 +356,46 @@ export function bootAppRoleChrome() {
     if (typeof document === 'undefined') return;
     const app = matchSchoolAppFromPath(window.location && window.location.pathname);
     if (!currentModel || currentModel.pending) {
-        const email = signedInEmail();
-        if (app && app.portalOnly) currentModel = appRoleChromeModel(app, { email });
-        else if (!currentModel) currentModel = appRoleChromeModel(app, { email });
+        const snap = readAuthAccountSnapshot();
+        const email = snap.email || signedInEmail();
+        if (app && app.portalOnly) {
+            currentModel = appRoleChromeModel(app, {
+                email,
+                authSettled: snap.bootSettled,
+                loggedInWithoutEmail: snap.loggedIn && !email
+            });
+        } else if (!currentModel) {
+            currentModel = appRoleChromeModel(app, {
+                email,
+                authSettled: snap.bootSettled,
+                loggedInWithoutEmail: snap.loggedIn && !email
+            });
+        }
     }
     renderAppRoleChip();
     if (!bootAppRoleChrome._wired) {
         bootAppRoleChrome._wired = true;
-        window.addEventListener('ms365-auth-state-changed', function () {
+        const refreshFromAuth = function () {
             const current = matchSchoolAppFromPath(window.location && window.location.pathname);
+            const snap = readAuthAccountSnapshot();
+            const email = snap.email || signedInEmail();
             if (current && current.portalOnly) {
-                currentModel = appRoleChromeModel(current, { email: signedInEmail() });
+                currentModel = appRoleChromeModel(current, {
+                    email,
+                    authSettled: snap.bootSettled,
+                    loggedInWithoutEmail: snap.loggedIn && !email
+                });
+            } else if (currentModel && currentModel.pending && !email && snap.bootSettled) {
+                currentModel = appRoleChromeModel(current, {
+                    email: '',
+                    authSettled: true,
+                    loggedInWithoutEmail: snap.loggedIn
+                });
             }
             renderAppRoleChip();
-        });
+        };
+        window.addEventListener('ms365-auth-state-changed', refreshFromAuth);
+        window.addEventListener('ms365-auth-boot-settled', refreshFromAuth);
     }
 }
 

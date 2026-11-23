@@ -1,6 +1,9 @@
 /**
  * Graph: Team aus genehmigtem Antrag anlegen.
+ * Transport: shared/graph-client.js (R22 / b11).
  */
+import { graphJson as sharedGraphJson } from '../../shared/graph-client.js';
+
 import { buildProvisionPlan } from './teams-antrag-logic.js';
 import { STATUS } from './teams-antrag-model.js';
 import { getAntrag, setAntragStatus } from './teams-antrag-store.js';
@@ -33,9 +36,8 @@ async function resolveUserId(token, email) {
     if (typeof G.resolveUserIdByEmail === 'function') {
         return (await G.resolveUserIdByEmail(token, em)) || '';
     }
-    if (typeof G.graphJson !== 'function') return '';
     try {
-        const data = await G.graphJson(
+        const data = await sharedGraphJson(
             'GET',
             "/users?$filter=mail eq '" +
                 em.replace(/'/g, "''") +
@@ -66,7 +68,7 @@ async function addMember(token, groupId, userId, role) {
             ? '/groups/' + encodeURIComponent(groupId) + '/owners/$ref'
             : '/groups/' + encodeURIComponent(groupId) + '/members/$ref';
     try {
-        await G.graphJson('POST', path, token, {
+        await sharedGraphJson('POST', path, token, {
             '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + userId
         });
     } catch (e) {
@@ -138,7 +140,7 @@ export async function approveAndCreateTeam(antragId, opts) {
 
         let webUrl = '';
         try {
-            const team = await G.graphJson(
+            const team = await sharedGraphJson(
                 'GET',
                 '/teams/' + encodeURIComponent(gid) + '?$select=id,webUrl',
                 token,

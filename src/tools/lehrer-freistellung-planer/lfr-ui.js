@@ -88,11 +88,23 @@ function renderLfrRoleBlock(state) {
 
 function renderMainTop(state) {
     const onSystem = state.view === 'einrichtung';
+    const selfTitled =
+        state.view === 'dashboard' ||
+        state.view === 'freigabe' ||
+        state.view === 'liste' ||
+        state.view === 'meine' ||
+        state.view === 'export' ||
+        state.view === 'antrag' ||
+        !state.view;
+    if (selfTitled) {
+        if (!state.accountEmail) return '';
+        return `<div class="fr-top-refresh">
+            <button type="button" class="fb-btn fb-btn--ghost" id="lfrBtnRefresh" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>
+        </div>`;
+    }
     const lead = onSystem
         ? 'Site, Berechtigungen, Kalender und Wartung in Tabs – Danger Zone bewusst getrennt.'
-        : state.role === 'direktion'
-          ? 'Entscheidungen, Übersicht und Kalender.'
-          : 'Anträge stellen und Status verfolgen.';
+        : 'Genehmigte und offene Freistellungen im Monats- oder Wochenraster.';
     return `
         <header class="fr-top fr-top--student">
           <div class="fr-top__copy">
@@ -102,7 +114,7 @@ function renderMainTop(state) {
           <div class="fr-top__user">
             ${
                 state.accountEmail && !onSystem
-                    ? `<button type="button" class="btn" id="lfrBtnRefresh" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
+                    ? `<button type="button" class="fb-btn fb-btn--ghost" id="lfrBtnRefresh" title="Aktualisieren"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>`
                     : ''
             }
           </div>
@@ -202,6 +214,24 @@ function renderView(state) {
     }
 }
 
+function renderLfrDecisionRow(it) {
+    const id = it.antragId || it.itemId;
+    const s = normalizeStatus(it.status);
+    const pillMod = s === 'Genehmigt' ? 'ok' : s === 'Abgelehnt' ? 'bad' : 'warn';
+    const pillLabel = s === 'Ausstehend' ? 'Offen' : s;
+    const person = it.lehrerName || it.lehrerEmail || 'Lehrkraft';
+    const title = formatDisplayTextWithDeDates(it.titel) || it.kategorie || 'Freistellung';
+    const metaParts = [it.kategorie, title !== it.kategorie ? title : ''].filter(Boolean);
+    return `<button type="button" class="fb-rowbtn" data-lfr-detail="${esc(id)}">
+      <div class="fb-rowbtn__main">
+        <div class="fb-rowbtn__title">${esc(person)}</div>
+        <div class="fb-rowbtn__meta">${esc(metaParts.join(' · ') || 'Antrag')}</div>
+      </div>
+      <div class="fb-rowbtn__date">${esc(formatDeDateTimeRange(it.beginn, it.ende))}</div>
+      <span class="fb-pill fb-pill--${pillMod}">${esc(pillLabel)}</span>
+    </button>`;
+}
+
 function renderDashboard(state) {
     const items = visibleItemsForState(state, {});
     const offen = items.filter((i) => normalizeStatus(i.status) === 'Ausstehend');
@@ -218,42 +248,37 @@ function renderDashboard(state) {
         .slice(0, 5);
 
     if (state.role === 'direktion') {
-        const banner = offen.length
-            ? `<section class="fr-calm-banner fr-calm-banner--action" role="status">
-      <div class="fr-calm-banner__text">
-        <p class="fr-calm-banner__eyebrow">Was braucht deine Aufmerksamkeit?</p>
-        <p><strong>${offen.length}</strong> Antrag${offen.length === 1 ? '' : 'e'} wartet auf Entscheidung.</p>
-      </div>
-      <button type="button" class="btn fr-btn-primary" data-lfr-view-jump="freigabe">Zu Entscheidungen</button>
-    </section>`
-            : `<p class="fr-quiet-status" role="status">
-      <i class="bi bi-check-circle" aria-hidden="true"></i>
-      <span>Keine offenen Entscheidungen – alles erledigt.</span>
-    </p>`;
+        const headline =
+            offen.length === 1
+                ? '<span class="fb-num">1</span> Antrag ohne Entscheidung.'
+                : `<span class="fb-num">${offen.length}</span> ohne Entscheidung.`;
+        const sub = offen.length
+            ? 'Zeile anklicken, Grund lesen, rechts im Detailfeld entscheiden.'
+            : 'Alle eingereichten Anträge sind entschieden.';
         return `
-    ${banner}
-    <section class="fr-panel fr-panel--calm">
-      <div class="fr-section-head">
-        <h3>Offene Anträge</h3>
-        <button type="button" class="lfr-text-link" data-lfr-view-jump="liste">Alle Anträge</button>
-      </div>
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${
+        offen.length
+            ? `<div class="fb-sec-label">OFFEN</div>
+               <div class="fb-rowlist">${offen.slice(0, 8).map(renderLfrDecisionRow).join('')}</div>`
+            : ''
+    }
+    <div class="fb-sec-label">DEMNÄCHST GENEHMIGT</div>
+    ${
+        demnaechst.length
+            ? `<div class="fb-rowlist">${demnaechst.map(renderLfrDecisionRow).join('')}</div>`
+            : '<p class="muted" style="margin:6px 0 0;">In den nächsten 14 Tagen keine genehmigten Freistellungen.</p>'
+    }
+    <div class="fb-actions-row">
       ${
           offen.length
-              ? renderTable(offen.slice(0, 8))
-              : '<p class="fr-quiet-status" role="status"><i class="bi bi-inbox" aria-hidden="true"></i><span>Keine offenen Anträge.</span></p>'
+              ? '<button type="button" class="fb-btn" data-lfr-view-jump="freigabe">Entscheidungen öffnen</button>'
+              : '<button type="button" class="fb-btn" data-lfr-view-jump="antrag">Antrag stellen</button>'
       }
-    </section>
-    <section class="fr-panel fr-panel--calm">
-      <div class="fr-section-head">
-        <h3>Demnächst genehmigt</h3>
-        <button type="button" class="lfr-text-link" data-lfr-view-jump="kalender">Kalender</button>
-      </div>
-      ${
-          demnaechst.length
-              ? renderTable(demnaechst)
-              : '<p class="muted">In den nächsten 14 Tagen keine genehmigten Freistellungen.</p>'
-      }
-    </section>`;
+      <button type="button" class="fb-btn fb-btn--ghost" data-lfr-view-jump="liste">Alle Anträge</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-lfr-view-jump="kalender">Kalender</button>
+    </div>`;
     }
 
     const meineOffen = filterItems(
@@ -261,34 +286,28 @@ function renderDashboard(state) {
         { status: 'Ausstehend' },
         { scopeAll: false, accountEmail: state.accountEmail }
     );
-    const banner = meineOffen.length
-        ? `<section class="fr-calm-banner fr-calm-banner--action" role="status">
-      <div class="fr-calm-banner__text">
-        <p class="fr-calm-banner__eyebrow">Deine offenen Anträge</p>
-        <p><strong>${meineOffen.length}</strong> wartet auf die Direktion (Microsoft Approvals).</p>
-      </div>
-      <button type="button" class="btn" data-lfr-view-jump="meine">Meine Anträge</button>
-    </section>`
-        : `<section class="fr-calm-banner fr-calm-banner--action" role="status">
-      <div class="fr-calm-banner__text">
-        <p class="fr-calm-banner__eyebrow">Schnell starten</p>
-        <p>Neuen Freistellungsantrag stellen – Genehmigung über Microsoft Approvals.</p>
-      </div>
-      <button type="button" class="btn fr-btn-primary" data-lfr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>
-    </section>`;
+    const headline =
+        meineOffen.length === 1
+            ? '<span class="fb-num">1</span> eigener Antrag offen.'
+            : `<span class="fb-num">${meineOffen.length}</span> eigene Anträge offen.`;
+    const sub = meineOffen.length
+        ? 'Wartet auf Entscheidung der Direktion (Microsoft Approvals).'
+        : 'Neuen Freistellungsantrag stellen – die Genehmigung läuft über Microsoft Approvals.';
 
     return `
-    ${banner}
-    <section class="fr-panel fr-panel--calm">
-      <div class="fr-section-head">
-        <h3>Als Nächstes</h3>
-      </div>
-      <div class="fr-actions">
-        <button type="button" class="btn btn-success" data-lfr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Neuer Antrag</button>
-        <button type="button" class="btn" data-lfr-view-jump="meine"><i class="bi bi-person"></i>Meine Anträge</button>
-        <button type="button" class="btn" data-lfr-view-jump="kalender"><i class="bi bi-calendar3"></i>Mein Kalender</button>
-      </div>
-    </section>`;
+    <h1 class="fb-greet">${headline}</h1>
+    <p class="fb-sub">${esc(sub)}</p>
+    ${
+        meineOffen.length
+            ? `<div class="fb-sec-label">OFFEN</div>
+               <div class="fb-rowlist">${meineOffen.slice(0, 5).map(renderLfrDecisionRow).join('')}</div>`
+            : ''
+    }
+    <div class="fb-actions-row">
+      <button type="button" class="fb-btn" data-lfr-view-jump="antrag">Antrag stellen</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-lfr-view-jump="meine">Meine Anträge</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-lfr-view-jump="kalender">Mein Kalender</button>
+    </div>`;
 }
 
 function filterBar(state) {
@@ -328,6 +347,13 @@ function renderListe(state, opts) {
         state.filters,
         mine || state.role !== 'direktion' ? { scopeAll: false } : { scopeAll: true }
     );
+    const headline =
+        items.length === 1
+            ? `<span class="fb-num">1</span> Antrag${mine ? ' von Ihnen.' : ' im Überblick.'}`
+            : `<span class="fb-num">${items.length}</span> Anträge${mine ? ' von Ihnen.' : ' im Überblick.'}`;
+    const sub = mine
+        ? 'Eigene eingereichte Freistellungen und aktueller Status. Zeile anklicken öffnet das Detail.'
+        : 'Gefiltert oder durchsucht. Zeile anklicken öffnet das Detail.';
     let emptyHtml =
         '<p class="fr-quiet-status" role="status"><i class="bi bi-inbox" aria-hidden="true"></i><span>Keine Einträge.</span></p>';
     if (
@@ -345,12 +371,13 @@ function renderListe(state, opts) {
         (nach Vererbungsbruch). In der Systemadministration „Berechtigungen anwenden“ bzw. im IT-Setup
         Schritt&nbsp;4 speichern – Schulleitung/Genehmiger werden dabei mitberechtigt.
       </p>
-      <button type="button" class="btn" data-lfr-view-jump="einrichtung"><i class="bi bi-shield-lock"></i>Zur Systemadministration</button>
+      <button type="button" class="fb-btn fb-btn--ghost" data-lfr-view-jump="einrichtung">Zur Systemadministration</button>
     </div>`;
     }
     return `
     <section class="fr-panel fr-panel--list">
-      <h2 class="lfr-sr-only">${mine ? 'Meine Anträge' : 'Alle Anträge'}</h2>
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">${esc(sub)}</p>
       ${filterBar(state)}
       ${items.length ? renderTable(items) : emptyHtml}
     </section>`;
@@ -421,7 +448,7 @@ function renderAntrag(state) {
     const lehrerEmail = String(f.lehrerEmail || state.accountEmail || '')
         .trim()
         .toLowerCase();
-    const lockedStyle = 'background:var(--surface-2,#f4f6f8);';
+    const lockedStyle = 'background:var(--rail-bg,var(--soft));color:var(--muted);';
     const katOpts = KAT.map(
         (k) => `<option value="${esc(k)}"${f.kategorie === k ? ' selected' : ''}>${esc(k)}</option>`
     ).join('');
@@ -429,8 +456,8 @@ function renderAntrag(state) {
     <section class="fr-panel fr-panel--calm lfr-antrag-panel">
       <div class="lfr-antrag">
         <header class="lfr-antrag__head">
-          <h2>Freistellung beantragen</h2>
-          <p class="muted">Nach dem Speichern startet (mit Flow) die Genehmigung durch die Direktion – Status erscheint hier und in der Liste.</p>
+          <h1 class="fb-greet">Antrag stellen</h1>
+          <p class="fb-sub">Nach dem Speichern startet die Genehmigung durch die Direktion – der Status erscheint hier und in der Liste.</p>
         </header>
 
         <form class="lfr-antrag__form" id="lfrAntragForm" autocomplete="off">
@@ -478,9 +505,9 @@ function renderAntrag(state) {
             </div>
           </fieldset>
 
-          <div class="fr-actions lfr-antrag__actions">
-            <button type="button" class="btn btn-success" id="lfrFormSubmit"><i class="bi bi-send"></i>Antrag absenden</button>
-            <button type="button" class="btn" id="lfrFormReset">Zurücksetzen</button>
+          <div class="fb-actions-row lfr-antrag__actions">
+            <button type="button" class="fb-btn" id="lfrFormSubmit">Antrag absenden</button>
+            <button type="button" class="fb-btn fb-btn--ghost" id="lfrFormReset">Zurücksetzen</button>
           </div>
         </form>
       </div>
@@ -489,40 +516,17 @@ function renderAntrag(state) {
 
 function renderFreigabe(state) {
     const items = filterItems(state.items, { status: 'Ausstehend' }, { scopeAll: true });
+    const headline =
+        items.length === 1
+            ? '<span class="fb-num">1</span> Antrag ohne Entscheidung.'
+            : `<span class="fb-num">${items.length}</span> ohne Entscheidung.`;
     return `
     <section class="fr-panel fr-panel--calm">
-      <h2>Entscheidungen</h2>
-      <p class="muted">Manuelle Freigabe für Tests ohne Flow. In Produktion übernimmt Power Automate Approvals und schreibt Status zurück.</p>
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">Zeile anklicken, Grund lesen, rechts im Detailfeld entscheiden. In Produktion übernimmt Power Automate Approvals automatisch.</p>
       ${
           items.length
-              ? `<div class="fr-table-wrap">
-      <table class="fr-table lfr-table lfr-table--rows">
-        <thead><tr><th>Zeitraum</th><th>Titel</th><th>Lehrkraft</th><th></th><th class="lfr-table__chevron"><span class="lfr-sr-only">Öffnen</span></th></tr></thead>
-        <tbody>
-          ${items
-              .map((it) => {
-                  const id = it.antragId || it.itemId;
-                  return `<tr class="lfr-table__row" tabindex="0" role="link" data-lfr-detail="${esc(
-                      id
-                  )}" aria-label="${esc((formatDisplayTextWithDeDates(it.titel) || 'Antrag') + ' öffnen')}">
-              <td>${esc(formatDeDateTimeRange(it.beginn, it.ende))}</td>
-              <td><strong>${esc(formatDisplayTextWithDeDates(it.titel))}</strong></td>
-              <td>${esc(it.lehrerName || it.lehrerEmail)}</td>
-              <td class="fr-td-actions">
-                <button type="button" class="btn btn-sm btn-success" data-lfr-approve="${esc(
-                    id
-                )}">Genehmigen</button>
-                <button type="button" class="btn btn-sm alt" data-lfr-reject="${esc(
-                    id
-                )}">Ablehnen</button>
-              </td>
-              <td class="lfr-table__chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></td>
-            </tr>`;
-              })
-              .join('')}
-        </tbody>
-      </table>
-    </div>`
+              ? `<div class="fb-rowlist">${items.map(renderLfrDecisionRow).join('')}</div>`
               : '<p class="fr-quiet-status" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i><span>Keine offenen Anträge.</span></p>'
       }
     </section>`;
@@ -542,23 +546,26 @@ function renderExport(state) {
               state.outlookCalendarId ? ' (eigene Kalender-ID)' : ''
           }${
               otherTarget
-                  ? ' – Schreibzugriff nur, wenn dieser Kalender dir freigegeben ist (Global Admin reicht nicht).'
+                  ? ' – Schreibzugriff nur, wenn dieser Kalender Ihnen freigegeben ist.'
                   : ''
           }`
         : 'Kalender-Ziel noch nicht konfiguriert – im <a href="lehrer-freistellung-setup.html">IT-Setup</a>, oder unten „In meinen Kalender“.';
+    const headline =
+        approved.length === 1
+            ? '<span class="fb-num">1</span> genehmigter Eintrag.'
+            : `<span class="fb-num">${approved.length}</span> genehmigte Einträge.`;
     return `
     <section class="fr-panel fr-panel--calm">
-      <h2>Kalender-Export</h2>
-      <p class="muted">Genehmigte Freistellungen als Datei oder per Microsoft Graph in einen Outlook-Kalender.</p>
-      <p><strong>${approved.length}</strong> genehmigte Einträge.</p>
-      <div class="fr-actions">
-        <button type="button" class="btn btn-success" id="lfrBtnIcs"><i class="bi bi-download"></i>iCal herunterladen</button>
-        <button type="button" class="btn" id="lfrBtnOutlookSyncMe"><i class="bi bi-person-check"></i>In meinen Kalender</button>
-        <button type="button" class="btn" id="lfrBtnOutlookSync"${calUser ? '' : ' disabled'} title="${
+      <h1 class="fb-greet">${headline}</h1>
+      <p class="fb-sub">Als iCal-Datei herunterladen oder per Microsoft Graph in einen Outlook-Kalender übertragen.</p>
+      <div class="fb-actions-row">
+        <button type="button" class="fb-btn" id="lfrBtnIcs">iCal herunterladen</button>
+        <button type="button" class="fb-btn fb-btn--ghost" id="lfrBtnOutlookSyncMe">In meinen Kalender</button>
+        <button type="button" class="fb-btn fb-btn--ghost" id="lfrBtnOutlookSync"${calUser ? '' : ' disabled'} title="${
             calUser ? 'Setup-Zielkalender' : 'Zuerst Kalender-Besitzer im IT-Setup setzen'
-        }"><i class="bi bi-calendar-plus"></i>Setup-Ziel synchronisieren</button>
+        }">Setup-Ziel synchronisieren</button>
       </div>
-      <p class="muted" style="margin-top:14px;line-height:1.45;">${calHint}</p>
+      <p class="muted" style="margin-top:16px;line-height:1.45;">${calHint}</p>
     </section>`;
 }
 

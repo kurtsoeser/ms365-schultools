@@ -17,6 +17,9 @@ scripts/nextcloud-teams-migrate/mapping.physik.json
 # Vertragsentwürfe / ausgefüllte BMB-Dokumente (nur lokal, nicht versionieren)
 docs/edtech-vertragsentwurf/
 
+# Interne Verkaufs-Playbooks / Folien-Prompts (nicht öffentlich)
+docs/verkauf-privat/
+
 # OS / editor
 .DS_Store
 Thumbs.db

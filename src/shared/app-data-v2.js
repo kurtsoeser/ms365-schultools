@@ -46,6 +46,8 @@
             completedSteps: [],
             finishedAt: null,
             lastVisitedAt: null,
+            /** ISO-Zeitstempel: IT hat Lehrer-Portal freigegeben (b6); leer = nicht freigegeben */
+            portalReleasedAt: '',
             matched: {
                 schuelerGroupId: null,
                 lehrerGroupId: null,
@@ -177,12 +179,13 @@
             stammdatenItLibrary: null,
             sisImportHistory: [],
             elternSetup: { completedSteps: [], lastDiagnoseAt: null },
-            /** Logo, Adresse, Kontakt – für Intranet & Ausgaben */
+            /** Logo, Adresse, Kontakt, Rollen – für Intranet, Backup & IT-Bibliothek */
             schoolProfile: {
                 schoolCode: '',
                 logoDataUrl: '',
                 logoFileName: '',
                 logoUrl: '',
+                standort: '',
                 street: '',
                 postalCode: '',
                 city: '',
@@ -190,7 +193,14 @@
                 phone: '',
                 phoneAlt: '',
                 email: '',
-                website: ''
+                website: '',
+                direktion: '',
+                direktionEmail: '',
+                schuladministration: '',
+                schuladministrationEmail: '',
+                itM365Admin: '',
+                itM365AdminEmail: '',
+                weitereKontakte: ''
             }
         };
     }
@@ -873,6 +883,10 @@
         d.completedSteps = Array.isArray(x.completedSteps) ? x.completedSteps.map((t) => String(t)) : [];
         d.finishedAt = x.finishedAt != null && x.finishedAt !== '' ? String(x.finishedAt) : null;
         d.lastVisitedAt = x.lastVisitedAt != null && x.lastVisitedAt !== '' ? String(x.lastVisitedAt) : null;
+        d.portalReleasedAt =
+            x.portalReleasedAt != null && String(x.portalReleasedAt).trim()
+                ? String(x.portalReleasedAt).trim()
+                : '';
         const m = x.matched && typeof x.matched === 'object' ? x.matched : {};
         d.matched = {
             schuelerGroupId: m.schuelerGroupId ? String(m.schuelerGroupId).trim() : null,
@@ -1066,7 +1080,8 @@
         if (logoData && !/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(logoData)) {
             logoData = '';
         }
-        if (logoData.length > 600000) logoData = '';
+        // Data-URL-Länge begrenzen (localStorage/Backup); ~450 KB Zeichen ≈ kleines JPEG
+        if (logoData.length > 450000) logoData = '';
         let logoUrl = String(sp.logoUrl != null ? sp.logoUrl : '').trim();
         if (logoUrl) {
             try {
@@ -1082,6 +1097,7 @@
             logoDataUrl: logoData,
             logoFileName: String(sp.logoFileName != null ? sp.logoFileName : '').trim(),
             logoUrl: logoUrl,
+            standort: String(sp.standort != null ? sp.standort : '').trim(),
             street: String(sp.street != null ? sp.street : '').trim(),
             postalCode: String(sp.postalCode != null ? sp.postalCode : '').trim(),
             city: String(sp.city != null ? sp.city : '').trim(),
@@ -1089,8 +1105,47 @@
             phone: String(sp.phone != null ? sp.phone : '').trim(),
             phoneAlt: String(sp.phoneAlt != null ? sp.phoneAlt : '').trim(),
             email: String(sp.email != null ? sp.email : '').trim().toLowerCase(),
-            website: String(sp.website != null ? sp.website : '').trim()
+            website: String(sp.website != null ? sp.website : '').trim(),
+            direktion: String(sp.direktion != null ? sp.direktion : '').trim(),
+            direktionEmail: String(sp.direktionEmail != null ? sp.direktionEmail : '')
+                .trim()
+                .toLowerCase(),
+            schuladministration: String(sp.schuladministration != null ? sp.schuladministration : '').trim(),
+            schuladministrationEmail: String(
+                sp.schuladministrationEmail != null ? sp.schuladministrationEmail : ''
+            )
+                .trim()
+                .toLowerCase(),
+            itM365Admin: String(sp.itM365Admin != null ? sp.itM365Admin : '').trim(),
+            itM365AdminEmail: String(sp.itM365AdminEmail != null ? sp.itM365AdminEmail : '')
+                .trim()
+                .toLowerCase(),
+            weitereKontakte: String(sp.weitereKontakte != null ? sp.weitereKontakte : '').trim()
         };
+        // Alte Rollenfelder mit eingebetteter Mail → Name + E-Mail
+        (function migrateRoleEmails() {
+            function split(nameKey, emailKey) {
+                var name = d.schoolProfile[nameKey];
+                var email = d.schoolProfile[emailKey];
+                if (email) return;
+                if (!name) return;
+                var angled = String(name).match(/^(.+?)\s*<\s*([^>\s]+@[^>\s]+)\s*>$/);
+                if (angled) {
+                    d.schoolProfile[nameKey] = String(angled[1] || '').trim();
+                    d.schoolProfile[emailKey] = String(angled[2] || '')
+                        .trim()
+                        .toLowerCase();
+                    return;
+                }
+                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(name))) {
+                    d.schoolProfile[emailKey] = String(name).toLowerCase();
+                    d.schoolProfile[nameKey] = '';
+                }
+            }
+            split('direktion', 'direktionEmail');
+            split('schuladministration', 'schuladministrationEmail');
+            split('itM365Admin', 'itM365AdminEmail');
+        })();
         d.sisImportHistory = [];
         (Array.isArray(x.sisImportHistory) ? x.sisImportHistory : []).slice(-20).forEach(function (row) {
             if (!row || typeof row !== 'object') return;
@@ -1630,18 +1685,19 @@
 
     function saveV2(container) {
         const normalized = normalizeContainer(container);
-        try {
-            localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(normalized));
-        } catch (err) {
+        function emitWriteFailed(err, extra) {
             try {
                 if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
                     window.dispatchEvent(
                         new CustomEvent('ms365-storage-write-failed', {
-                            detail: {
-                                key: STORAGE_KEY_V2,
-                                source: 'app-data-v2',
-                                message: err && err.message ? String(err.message) : String(err || 'Quota/Write')
-                            }
+                            detail: Object.assign(
+                                {
+                                    key: STORAGE_KEY_V2,
+                                    source: 'app-data-v2',
+                                    message: err && err.message ? String(err.message) : String(err || 'Quota/Write')
+                                },
+                                extra && typeof extra === 'object' ? extra : {}
+                            )
                         })
                     );
                 }
@@ -1649,9 +1705,31 @@
                 /* ignore */
             }
         }
-        // Session-Cache immer setzen (bei Write-Fehler bis Reload sichtbar, danach weg)
-        containerCache = normalized;
-        return normalized;
+        try {
+            localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(normalized));
+            containerCache = normalized;
+            return normalized;
+        } catch (err) {
+            // Quota: einmal ohne eingebettetes Logo erneut speichern (Rest bleibt)
+            const sp = normalized.setup && normalized.setup.schoolProfile;
+            if (sp && sp.logoDataUrl) {
+                try {
+                    const slim = deepClone(normalized);
+                    slim.setup.schoolProfile.logoDataUrl = '';
+                    localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(slim));
+                    containerCache = slim;
+                    emitWriteFailed(err, { logoDropped: true });
+                    return slim;
+                } catch (err2) {
+                    emitWriteFailed(err2, { logoDropped: true });
+                }
+            } else {
+                emitWriteFailed(err);
+            }
+            // Session-Cache trotzdem setzen (bis Reload sichtbar)
+            containerCache = normalized;
+            return normalized;
+        }
     }
 
     /* Multi-Tab: Cache invalidieren, wenn ein anderer Tab schreibt */

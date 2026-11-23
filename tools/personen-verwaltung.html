@@ -7,8 +7,13 @@
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Personen</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+        <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+<link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
+
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
         .page-card { max-width: var(--app-max-width); margin: 0 auto; }
@@ -31,9 +36,9 @@
         .panel-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 10%, transparent) 0%, color-mix(in srgb, var(--brand2) 6%, transparent) 100%);
+            background: var(--soft);
         }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
+        .panel-head h2 { margin: 0; font-size: 1.05em; color: var(--heading); font-weight: 700; }
         .panel-body { padding: 14px 16px; }
         .muted { color: var(--muted); }
 
@@ -112,7 +117,7 @@
             font-size: 1.1rem;
         }
         .pv-tree-main { flex: 1 1 auto; min-width: 0; }
-        .pv-tree-title { font-weight: 800; color: #32325d; line-height: 1.25; word-break: break-word; }
+        .pv-tree-title { font-weight: 800; color: var(--heading); line-height: 1.25; word-break: break-word; }
         .pv-tree-sub { font-size: 0.86em; color: var(--muted); margin-top: 2px; word-break: break-all; }
         .pv-tree-meta { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 
@@ -148,7 +153,7 @@
             background: #fff;
             box-shadow: 0 2px 10px rgba(0,0,0,0.04);
         }
-        .stat .n { font-weight: 900; font-size: 1.15em; color: #32325d; }
+        .stat .n { font-weight: 700; font-size: 1.15em; color: var(--heading); }
         .stat .l { font-size: 0.88em; color: var(--muted); margin-top: 2px; }
 
         .gd-page-info {
@@ -205,7 +210,7 @@
             font: inherit;
             box-sizing: border-box;
             background: #f8f9fa;
-            color: #32325d;
+            color: var(--heading);
         }
         .field-full { grid-column: 1 / -1; }
 
@@ -225,7 +230,7 @@
         .pv-groups-wrap thead th {
             background: color-mix(in srgb, var(--brand1) 6%, transparent);
             font-weight: 800;
-            color: #32325d;
+            color: var(--heading);
             position: sticky;
             top: 0;
         }
@@ -234,7 +239,7 @@
             margin: 0 0 8px;
             font-size: 0.95rem;
             font-weight: 800;
-            color: #32325d;
+            color: var(--heading);
         }
         .pv-schulstruktur-table-wrap { max-height: min(36vh, 280px); }
         .pv-schulstruktur-detail {
@@ -320,8 +325,8 @@
         .pv-lic-section-title {
             margin: 16px 0 8px;
             font-size: 0.95em;
-            font-weight: 900;
-            color: #32325d;
+            font-weight: 700;
+            color: var(--heading);
         }
 
         .pv-log {
@@ -347,9 +352,9 @@
             font: inherit;
             box-sizing: border-box;
             background: #fff;
-            color: #32325d;
+            color: var(--heading);
         }
-        #pvPanelProfil .field-editable label { color: #32325d; }
+        #pvPanelProfil .field-editable label { color: var(--heading); }
         #pvPanelProfil .field-editable input,
         #pvPanelProfil .field-editable select {
             background: #fff;
@@ -397,13 +402,13 @@
         .pv-modal-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 10%, transparent) 0%, color-mix(in srgb, var(--brand2) 6%, transparent) 100%);
+            background: var(--soft);
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 10px;
         }
-        .pv-modal-head h3 { margin: 0; color: #32325d; font-size: 1.05em; font-weight: 1000; }
+        .pv-modal-head h3 { margin: 0; color: var(--heading); font-size: 1.05em; font-weight: 700; }
         .pv-modal-body { padding: 14px 16px; }
         .pv-modal-close {
             border: 1px solid color-mix(in srgb, var(--brand1) 22%, transparent);
@@ -411,8 +416,8 @@
             border-radius: 12px;
             padding: 8px 10px;
             cursor: pointer;
-            font-weight: 900;
-            color: #32325d;
+            font-weight: 700;
+            color: var(--heading);
         }
 
         .pv-onboard {
@@ -425,9 +430,9 @@
         }
         .pv-onboard__kicker {
             margin: 0 0 4px;
-            color: #32325d;
+            color: var(--heading);
             font-size: 0.95em;
-            font-weight: 900;
+            font-weight: 700;
         }
         .pv-onboard__why {
             margin: 0 0 10px;
@@ -449,7 +454,7 @@
         }
         .pv-onboard__steps li {
             background: #fff;
-            color: #32325d;
+            color: var(--heading);
             border-radius: 12px;
             border: 1px solid var(--border);
             padding: 10px 12px;
@@ -473,13 +478,13 @@
             place-items: center;
             background: linear-gradient(135deg, var(--brand1), var(--brand2));
             color: #fff;
-            font-weight: 900;
+            font-weight: 700;
             font-size: 0.85em;
         }
         .pv-onboard__t {
-            font-weight: 900;
+            font-weight: 700;
             font-size: 0.9em;
-            color: #32325d;
+            color: var(--heading);
             line-height: 1.25;
         }
         .pv-onboard__d {
@@ -488,7 +493,31 @@
             color: #495057;
             font-weight: 600;
         }
-    </style>
+    /* Welle 3 personen */
+.panel{border-radius:10px;background:var(--card);}
+.panel-head h2{font-weight:650!important;}
+.btn-success{background:var(--brand1)!important;border-color:var(--brand1)!important;color:var(--on-accent,#04211d)!important;}
+
+/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+
+</style>
 </head>
 <body>
     <div class="container page-card">
@@ -581,7 +610,7 @@
                             <li class="stat"><div class="n" id="pvStatActive">–</div><div class="l">Konto aktiv</div></li>
                         </ul>
                         <p class="hint" id="pvAdSummary" style="display:none;margin:10px 0 0;line-height:1.45;"></p>
-                        <p id="pvCacheBanner" style="display:none;margin:8px 2px 0;padding:8px 12px;background:color-mix(in srgb, var(--brand1) 9%, transparent);border:1px solid color-mix(in srgb, var(--brand1) 25%, transparent);border-radius:10px;font-size:0.9em;color:#32325d;"></p>
+                        <p id="pvCacheBanner" style="display:none;margin:8px 2px 0;padding:8px 12px;background:color-mix(in srgb, var(--brand1) 9%, transparent);border:1px solid color-mix(in srgb, var(--brand1) 25%, transparent);border-radius:10px;font-size:0.9em;color: var(--heading);"></p>
                         <p id="pvProgress" class="muted" style="margin:10px 2px 0;font-size:0.92em;min-height:1.35em;"></p>
                         <ul class="tree tree--scroll" id="pvTree" aria-label="Personen (Liste)"></ul>
                     </div>
@@ -597,9 +626,9 @@
                         </div>
 
                         <div id="pvDetail" style="display:none;">
-                            <p style="margin:0 0 8px;font-weight:900;color:#32325d;font-size:1.02em;" id="pvManageTitle"></p>
+                            <p style="margin:0 0 8px;font-weight: 700;color: var(--heading);font-size:1.02em;" id="pvManageTitle"></p>
                             <div id="pvAdSyncPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb, #fbbf24 35%, transparent);background:color-mix(in srgb, #fbbf24 10%, transparent);">
-                                <div style="font-weight:1000;color:#856404;margin-bottom:6px;">
+                                <div style="font-weight: 700;color:#856404;margin-bottom:6px;">
                                     <i class="bi bi-hdd-network" aria-hidden="true"></i>
                                     Aus lokalem Active Directory synchronisiert
                                 </div>
@@ -633,7 +662,7 @@
                                 </div>
                             </div>
                             <div id="pvCloudFlagPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--soft);">
-                                <div style="font-weight:1000;color:#32325d;margin-bottom:6px;">
+                                <div style="font-weight: 700;color: var(--heading);margin-bottom:6px;">
                                     <i class="bi bi-cloud" aria-hidden="true"></i>
                                     Cloud‑Konto (kein AD‑Sync)
                                 </div>
@@ -754,7 +783,7 @@
                 </section>
             </div>
 
-            <h3 style="margin:0 0 8px;font-size:1rem;color:#32325d;">Protokoll</h3>
+            <h3 style="margin:0 0 8px;font-size:1rem;color: var(--heading);">Protokoll</h3>
             <div id="pvLog" class="pv-log"></div>
 
             <details class="gd-page-info" id="pvPageInfo">

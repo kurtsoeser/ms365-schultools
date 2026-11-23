@@ -1,3 +1,13 @@
+/**
+ * Graph: Weitere-Teams/Gruppen Online-Anlage.
+ * Transport: shared/graph-client.js (R22 / b11).
+ */
+
+import {
+    graphRequest as sharedGraphRequest,
+    graphJson as sharedGraphJson
+} from '../../shared/graph-client.js';
+
 const GRAPH_SCOPES = [
     'https://graph.microsoft.com/User.Read',
     'https://graph.microsoft.com/Group.ReadWrite.All',
@@ -74,6 +84,9 @@ async function getPca() {
 }
 
 async function getGraphToken() {
+    const itMod = await import('../../shared/it-app-auth.js');
+    const itToken = await itMod.acquireItTokenIfRequired(GRAPH_SCOPES, { mode: 'interactive' });
+    if (itToken) return itToken;
     const instance = await getPca();
     let accounts = instance.getAllAccounts();
     if (!accounts.length) {
@@ -95,43 +108,11 @@ function sleep(ms) {
 }
 
 async function graphRequest(method, path, token, body) {
-    const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
-    let attempt = 0;
-    while (true) {
-        const headers = { Authorization: 'Bearer ' + token };
-        if (body !== undefined) headers['Content-Type'] = 'application/json';
-        const res = await fetch(url, {
-            method,
-            headers,
-            body: body !== undefined ? JSON.stringify(body) : undefined
-        });
-        if (res.status === 429 && attempt < 8) {
-            const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-            await sleep((isNaN(ra) ? 5 : ra) * 1000);
-            attempt++;
-            continue;
-        }
-        return res;
-    }
+    return sharedGraphRequest(method, path, token, body);
 }
 
 async function graphJson(method, path, token, body) {
-    const res = await graphRequest(method, path, token, body);
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
-    }
-    if (!res.ok) {
-        const msg =
-            typeof data === 'object' && data && data.error ? JSON.stringify(data.error) : text || String(res.status);
-        throw new Error(method + ' ' + path + ': ' + msg);
-    }
-    return data || {};
+    return sharedGraphJson(method, path, token, body);
 }
 
 function isGraphDuplicateRefError(err) {

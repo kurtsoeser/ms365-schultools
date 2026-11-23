@@ -12,6 +12,7 @@ import {
     belegungSnapshotFromRows
 } from './klassenlehrer-stammdaten-logic.js';
 import { pickEntraUser } from './entra-user-picker.js';
+import { collapseActionCell } from './tenant-workbench-chrome.js';
 
 const VIEW_KEY = 'ms365-tenant-klassenlehrer-view-v1';
 
@@ -107,14 +108,38 @@ export function mountKlassenlehrerPanel(opts) {
     function updateSummary(classes, rows) {
         const sum = summarizeClassTeaching(classes, rows);
         if (!summaryEl) return;
-        summaryEl.textContent =
-            sum.withTeachers +
-            ' von ' +
-            sum.classTotal +
-            ' Klassen mit Lehrkräften · ' +
-            sum.rowCount +
-            ' Belegungszeilen' +
-            (sum.withoutTeachers ? ' · ' + sum.withoutTeachers + ' ohne Belegung' : '');
+        summaryEl.replaceChildren();
+        summaryEl.append(
+            document.createTextNode(
+                sum.withTeachers +
+                    '/' +
+                    sum.classTotal +
+                    ' Klassen belegt · ' +
+                    sum.rowCount +
+                    (sum.rowCount === 1 ? ' Zuordnung' : ' Zuordnungen')
+            )
+        );
+        if (sum.withoutTeachers) {
+            const active = !!(filterEl && filterEl.value === 'without');
+            const warn = document.createElement('button');
+            warn.type = 'button';
+            warn.className = 'ts-status-warn ts-status-action';
+            warn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            warn.title = active
+                ? 'Filter aufheben und alle Klassen zeigen'
+                : 'Nur Klassen ohne Lehrkräfte anzeigen';
+            warn.textContent =
+                ' · ! ' +
+                sum.withoutTeachers +
+                (sum.withoutTeachers === 1 ? ' ohne Lehrkraft' : ' ohne Lehrkräfte');
+            warn.addEventListener('click', function () {
+                if (!filterEl) return;
+                filterEl.value = filterEl.value === 'without' ? 'all' : 'without';
+                applyViewMode('klassen');
+                refresh();
+            });
+            summaryEl.append(warn);
+        }
     }
 
     function renderGesamtliste() {
@@ -191,30 +216,72 @@ export function mountKlassenlehrerPanel(opts) {
             tr.appendChild(tdK);
         }
 
-        function cellInput(field, type, value, aria) {
+        function cellRead(field, type, value, aria) {
             const td = document.createElement('td');
-            const input = document.createElement('input');
-            input.type = type || 'text';
-            input.className = 'ts-klassen-hub__input';
-            input.value = value || '';
-            input.setAttribute('aria-label', aria);
-            input.dataset.field = field;
-            input.addEventListener('change', function () {
-                const patch = {};
-                let v = normStr(input.value);
-                if (field === 'lehrerEmail') v = v.toLowerCase();
-                if (field === 'lehrerCode') v = v.toUpperCase();
-                patch[field] = v;
-                persistRows(patchBelegungRowAt(loadRows(), index, patch));
+            td.className = 'ts-read-cell' + (value ? '' : ' is-empty');
+            td.tabIndex = 0;
+            td.setAttribute('role', 'button');
+            td.setAttribute('aria-label', aria + ' bearbeiten');
+            td.textContent = value || '–';
+            function openEditor() {
+                if (td.querySelector('input')) return;
+                td.classList.add('is-editing');
+                td.textContent = '';
+                const input = document.createElement('input');
+                input.type = type || 'text';
+                input.className = 'ts-klassen-hub__input';
+                input.value = value || '';
+                input.setAttribute('aria-label', aria);
+                input.dataset.field = field;
+                let committed = false;
+                function commit(nextRaw) {
+                    if (committed) return;
+                    committed = true;
+                    const patch = {};
+                    let v = normStr(nextRaw);
+                    if (field === 'lehrerEmail') v = v.toLowerCase();
+                    if (field === 'lehrerCode') v = v.toUpperCase();
+                    if (v === normStr(value)) {
+                        refresh();
+                        return;
+                    }
+                    patch[field] = v;
+                    persistRows(patchBelegungRowAt(loadRows(), index, patch));
+                }
+                input.addEventListener('change', function () {
+                    commit(input.value);
+                });
+                input.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        commit(input.value);
+                    } else if (ev.key === 'Escape') {
+                        ev.preventDefault();
+                        committed = true;
+                        refresh();
+                    }
+                });
+                input.addEventListener('blur', function () {
+                    commit(input.value);
+                });
+                td.appendChild(input);
+                input.focus();
+                input.select();
+            }
+            td.addEventListener('click', openEditor);
+            td.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    openEditor();
+                }
             });
-            td.appendChild(input);
             return td;
         }
 
-        tr.appendChild(cellInput('lehrerName', 'text', row.lehrerName || '', 'Name'));
-        tr.appendChild(cellInput('lehrerEmail', 'email', row.lehrerEmail || '', 'E-Mail'));
-        tr.appendChild(cellInput('lehrerCode', 'text', row.lehrerCode || '', 'Account / Kurzzeichen'));
-        tr.appendChild(cellInput('fach', 'text', row.fach || '', 'Fach'));
+        tr.appendChild(cellRead('lehrerName', 'text', row.lehrerName || '', 'Name'));
+        tr.appendChild(cellRead('lehrerEmail', 'email', row.lehrerEmail || '', 'E-Mail'));
+        tr.appendChild(cellRead('lehrerCode', 'text', row.lehrerCode || '', 'Account / Kurzzeichen'));
+        tr.appendChild(cellRead('fach', 'text', row.fach || '', 'Fach'));
 
         const tdAction = document.createElement('td');
         tdAction.className = 'action-cell';
@@ -222,12 +289,18 @@ export function mountKlassenlehrerPanel(opts) {
         btnDel.type = 'button';
         btnDel.className = 'btn btn-sm';
         btnDel.title = 'Zeile entfernen';
-        btnDel.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
+        btnDel.textContent = 'Entfernen';
         btnDel.addEventListener('click', function () {
             persistRows(removeBelegungRowAt(loadRows(), index));
             toast('Belegungszeile entfernt.', 'ok');
         });
         tdAction.appendChild(btnDel);
+        collapseActionCell(tdAction, {
+            onEdit: function () {
+                const nameCell = tr.querySelector('.ts-read-cell');
+                if (nameCell) nameCell.click();
+            }
+        });
         tr.appendChild(tdAction);
         return tr;
     }
@@ -317,9 +390,9 @@ export function mountKlassenlehrerPanel(opts) {
             html +=
                 '<input type="text" id="tenantKlassenlehrerAddFach" class="ts-klassen-hub__input" placeholder="Fach (optional)" style="max-width:120px;" aria-label="Fach">';
             html +=
-                '<button type="button" class="btn btn-success" id="tenantKlassenlehrerAddBtn"><i class="bi bi-plus-circle"></i>Hinzufügen</button>';
+                '<button type="button" class="btn fb-btn ts-act-primary" id="tenantKlassenlehrerAddBtn"><i class="bi bi-plus-circle"></i>Hinzufügen</button>';
             html +=
-                '<button type="button" class="btn" id="tenantKlassenlehrerAddEntra" title="In Microsoft 365 suchen"><i class="bi bi-microsoft" aria-hidden="true"></i> M365</button>';
+                '<button type="button" class="btn fb-btn fb-btn--ghost" id="tenantKlassenlehrerAddEntra" title="In Microsoft 365 suchen"><i class="bi bi-microsoft" aria-hidden="true"></i> M365</button>';
             html += '</div>';
         } else {
             html +=

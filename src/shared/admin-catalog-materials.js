@@ -24,7 +24,8 @@ const mat = {
     items: [],
     busy: false,
     cache: new Map(),
-    expanded: new Set([ROOT])
+    expanded: new Set([ROOT]),
+    hint: ''
 };
 
 function setMatBanner(text) {
@@ -33,9 +34,11 @@ function setMatBanner(text) {
     if (!text) {
         el.hidden = true;
         el.textContent = '';
+        el.classList.remove('is-error');
         return;
     }
     el.hidden = false;
+    el.classList.add('is-error');
     el.textContent = text;
 }
 
@@ -174,7 +177,11 @@ function renderFilePane() {
         const bits = [];
         if (folders.length) bits.push(folders.length + ' Ordner');
         if (files.length) bits.push(files.length + ' Datei' + (files.length === 1 ? '' : 'en'));
-        metaEl.textContent = bits.length ? bits.join(' · ') : 'leer';
+        metaEl.textContent = mat.hint
+            ? mat.hint
+            : bits.length
+              ? bits.join(' · ')
+              : 'leer';
     }
 
     if (!ul) return;
@@ -241,6 +248,7 @@ async function expandToPath(path) {
 async function loadMat(path, opts) {
     const target = path || ROOT;
     setMatBanner('');
+    mat.hint = '';
     const data = await fetchMaterials(target);
     mat.path = data.path || target;
     mat.items = Array.isArray(data.items) ? data.items : [];
@@ -261,7 +269,7 @@ async function loadMat(path, opts) {
         ancestorPaths(mat.path).forEach((p) => mat.expanded.add(p));
     }
     if (data.missing) {
-        setMatBanner(data.message || 'Ordner fehlt noch – mit „Neuer Ordner“ oder über eine Vorlage anlegen.');
+        mat.hint = data.message || 'Ordner fehlt noch. Mit „Neuer Ordner“ anlegen.';
     }
     renderMatUi();
     return data;
@@ -280,7 +288,7 @@ async function toggleFolder(path) {
         renderTree();
     } catch (err) {
         mat.expanded.delete(path);
-        setMatBanner((err && err.message) || String(err));
+        setMatBanner((err && err.message) || String(err), 'error');
         renderTree();
     }
 }
@@ -297,7 +305,7 @@ function setCatTab(tab) {
     });
     if (id === 'materials') {
         loadMat(mat.path || ROOT, { expandAncestors: true }).catch((err) => {
-            setMatBanner((err && err.message) || String(err));
+            setMatBanner((err && err.message) || String(err), 'error');
         });
     }
 }
@@ -319,7 +327,6 @@ export async function openMaterialsForTemplate(templateId, preferredPath) {
         mat.items = Array.isArray(data.items) ? data.items : [];
         rememberListing(mat.path, mat.items);
         await expandToPath(mat.path);
-        setMatBanner('Ordner für die Vorlage: ' + mat.path);
         setMatProgress({ state: 'ok', pct: 100, message: 'Ordner bereit.' });
         renderMatUi();
         return mat.path;

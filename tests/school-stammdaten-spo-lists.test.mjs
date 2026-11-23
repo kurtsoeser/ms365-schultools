@@ -205,14 +205,14 @@ describe('school-stammdaten-spo-lists', () => {
     it('teacherToLehrerListFields setzt Kürzel und E-Mail', () => {
         const f = teacherToLehrerListFields({
             code: 'HAG',
-            name: 'Andrea Hagauer-Riml',
-            email: 'andrea.hagauer-riml@hak-steyr.at'
+            name: 'Andrea Beispiel-Riml',
+            email: 'andrea.beispiel-riml@schule.example'
         });
         expect(f.LehrerCode).toBe('HAG');
-        expect(f.Title).toBe('Andrea Hagauer-Riml');
-        expect(f.EMail).toBe('andrea.hagauer-riml@hak-steyr.at');
+        expect(f.Title).toBe('Andrea Beispiel-Riml');
+        expect(f.EMail).toBe('andrea.beispiel-riml@schule.example');
         expect(f.Vorname).toBe('Andrea');
-        expect(f.Nachname).toBe('Hagauer-Riml');
+        expect(f.Nachname).toBe('Beispiel-Riml');
     });
 
     it('classToKlassenListFields setzt KV und Abschlussjahr', () => {
@@ -220,13 +220,13 @@ describe('school-stammdaten-spo-lists', () => {
             code: '1AK',
             name: '1AK',
             year: '2031',
-            headName: 'Andrea Hagauer-Riml',
-            headEmail: 'andrea.hagauer-riml@hak-steyr.at'
+            headName: 'Andrea Beispiel-Riml',
+            headEmail: 'andrea.beispiel-riml@schule.example'
         });
         expect(f.KlassenCode).toBe('1AK');
         expect(f.Abschlussjahr).toBe('2031');
-        expect(f.KVName).toBe('Andrea Hagauer-Riml');
-        expect(f.KVEmail).toBe('andrea.hagauer-riml@hak-steyr.at');
+        expect(f.KVName).toBe('Andrea Beispiel-Riml');
+        expect(f.KVEmail).toBe('andrea.beispiel-riml@schule.example');
     });
 
     it('loadLocalSchoolStammdatenFromWindow liest Tenant-Settings', () => {

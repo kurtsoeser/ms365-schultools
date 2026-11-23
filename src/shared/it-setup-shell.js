@@ -43,7 +43,7 @@ export function renderItSetupStatusChipsHtml(opts) {
     const rights =
         o.rightsText != null
             ? String(o.rightsText)
-            : 'Schreibrechte + Sites.FullControl.All für Rechte';
+            : 'Schreibrechte + AllSites.FullControl für Rechte';
     return (
         '<div class="tm-hero__actions it-setup-status" style="margin:0 0 14px;" aria-label="Status">' +
         '<span class="tm-perm"><i class="bi bi-signpost-2"></i><span' +

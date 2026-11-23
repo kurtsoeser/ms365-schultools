@@ -70,4 +70,22 @@ describe('privacy-copy (Single Source of Truth)', () => {
         expect(help).toContain(PRIVACY_COPY.core.summary.paragraphs[0]);
         expect(land).toContain(PRIVACY_COPY.core.summary.paragraphs[0]);
     });
+
+    it('Trust-Seite hat Datenfluss, Persona-Scopes und Build-Nachweis', () => {
+        const trust = read('landing/trust.html');
+        expect(trust).toContain('id="flow"');
+        expect(trust).toContain('Datenflusskarte');
+        expect(trust).toContain('id="scopes"');
+        expect(trust).toContain('User.Read');
+        expect(trust).toContain('name="ms365-landing-build"');
+        expect(trust).toContain('id="landing-last-updated"');
+        expect(trust).toContain('avv-vorlage.md');
+        expect(trust).toContain('sicherheitspruefung-bericht.md');
+        expect(trust).toContain('LICENSE');
+        expect(read('LICENSE')).toMatch(/NICHT FREI NUTZBAR|PROPRIETARY/i);
+        expect(read('README.md')).toMatch(/nicht frei nutzbar/i);
+        expect(read('landing/datenschutz.html')).toContain('trust.html');
+        expect(read('landing/index.html')).toContain('trust.html');
+    });
 });
+

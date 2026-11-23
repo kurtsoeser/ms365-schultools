@@ -7,12 +7,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin – MS365-Schul-Tools</title>
     <link rel="stylesheet" href="app.css?v=21">
+    <link rel="stylesheet" href="src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="src/shared/fluent-blocks.css?v=7">
+    <link rel="stylesheet" href="src/shared/admin-shell.css?v=15">
     <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
 
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
 </head>
-<body class="admin-app-page" data-ms365-skip-tenant-domain-prompt="true">
+<body class="admin-app-page app-shell-chrome" data-ms365-skip-tenant-domain-prompt="true">
     <div class="admin-app" id="adminApp">
         <aside class="admin-app__rail" aria-label="Admin-Navigation">
             <div class="admin-app__brand">
@@ -25,34 +29,39 @@
                 </div>
             </div>
 
+            <!--
+              Betreiber-Admin: Zugang nur per License-API (LICENSE_OPERATOR_UPNS / OIDS).
+              Schulen: Tenant-Lizenz nach MS365-Login. PIN-Tab entfernt (access-config enabled:false).
+              Nav: Überblick · Schulen · Pakete · Vorlagen · Neuigkeiten · Feedback · Setup
+            -->
             <nav class="admin-app__nav" role="tablist" aria-label="Admin-Bereiche" id="adminAppTabs">
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabLicenses" aria-selected="true" aria-controls="adminPanelLicenses" data-admin-tab="licenses">
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabOverview" aria-selected="true" tabindex="0" aria-controls="adminPanelOverview" data-admin-tab="overview">
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                    <span>Überblick</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabLicenses" aria-selected="false" tabindex="-1" aria-controls="adminPanelLicenses" data-admin-tab="licenses">
                     <i class="bi bi-building-check" aria-hidden="true"></i>
-                    <span>Lizenzen</span>
+                    <span>Schulen</span>
                 </button>
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabModules" aria-selected="false" aria-controls="adminPanelModules" data-admin-tab="modules">
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabModules" aria-selected="false" tabindex="-1" aria-controls="adminPanelModules" data-admin-tab="modules">
                     <i class="bi bi-boxes" aria-hidden="true"></i>
-                    <span>Module</span>
+                    <span>Pakete</span>
                 </button>
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabAccess" aria-selected="false" aria-controls="adminPanelAccess" data-admin-tab="access">
-                    <i class="bi bi-key" aria-hidden="true"></i>
-                    <span>Zugänge</span>
-                </button>
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabSetup" aria-selected="false" aria-controls="adminPanelSetup" data-admin-tab="setup">
-                    <i class="bi bi-gear" aria-hidden="true"></i>
-                    <span>Setup</span>
-                </button>
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabTemplates" aria-selected="false" aria-controls="adminPanelTemplates" data-admin-tab="templates">
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabTemplates" aria-selected="false" tabindex="-1" aria-controls="adminPanelTemplates" data-admin-tab="templates">
                     <i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i>
                     <span>Vorlagen</span>
                 </button>
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabNotes" aria-selected="false" aria-controls="adminPanelNotes" data-admin-tab="notes">
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabNotes" aria-selected="false" tabindex="-1" aria-controls="adminPanelNotes" data-admin-tab="notes">
                     <i class="bi bi-megaphone" aria-hidden="true"></i>
                     <span>Neuigkeiten</span>
                 </button>
-                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabFeedback" aria-selected="false" aria-controls="adminPanelFeedback" data-admin-tab="feedback">
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabFeedback" aria-selected="false" tabindex="-1" aria-controls="adminPanelFeedback" data-admin-tab="feedback">
                     <i class="bi bi-chat-heart" aria-hidden="true"></i>
                     <span>Feedback</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabSetup" aria-selected="false" tabindex="-1" aria-controls="adminPanelSetup" data-admin-tab="setup">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <span>Setup</span>
                 </button>
             </nav>
 
@@ -61,7 +70,7 @@
                     <i class="bi bi-arrow-left" aria-hidden="true"></i>
                     Zurück zur App
                 </a>
-                <button type="button" class="admin-app__rail-link admin-app__rail-link--danger" id="adminLogoutBtn">
+                <button type="button" class="admin-app__rail-link" id="adminLogoutBtn">
                     <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
                     Session beenden
                 </button>
@@ -72,20 +81,34 @@
             <header class="admin-app__top">
                 <div class="admin-app__top-text">
                     <p class="admin-app__eyebrow" id="adminAppEyebrow">Betreiber</p>
-                    <h1 class="admin-app__title" id="adminAppTitle">Schulen &amp; Lizenzen</h1>
-                    <p class="admin-app__subtitle" id="adminAppSubtitle">Schulen finden, öffnen und freischalten.</p>
+                    <h1 class="admin-app__title" id="adminAppTitle">Überblick</h1>
+                    <p class="admin-app__subtitle" id="adminAppSubtitle">Ablauf, Lücken und Kontakte der Schulen.</p>
                 </div>
                 <div class="admin-app__top-actions" id="adminAppTopActions" hidden></div>
             </header>
 
             <div class="admin-app__body">
-                <!-- Lizenzen -->
-                <section class="admin-app__panel active" id="adminPanelLicenses" role="tabpanel" aria-labelledby="adminTabLicenses" data-admin-panel="licenses">
+                <section class="admin-app__panel active" id="adminPanelOverview" role="tabpanel" aria-labelledby="adminTabOverview" data-admin-panel="overview">
+                    <p class="admin-app__status-line" id="adminOverviewStatus">Die Zahlen erscheinen nach der Anmeldung.</p>
+                    <div class="admin-lic-overview" id="adminLicOverview" aria-label="Lizenzlage"></div>
+                    <div class="admin-lic-action" id="adminLicActionStrip"></div>
+                    <section class="admin-lic-contacts" aria-labelledby="adminLicContactsTitle">
+                        <h2 class="admin-lic-contacts__title" id="adminLicContactsTitle">Kontakte</h2>
+                        <div class="admin-lic-contacts__filters" role="group" aria-label="Kontakte filtern">
+                            <button type="button" class="admin-lic-chip-btn is-active" data-contact-filter="all">Alle</button>
+                            <button type="button" class="admin-lic-chip-btn" data-contact-filter="trial">Trial</button>
+                            <button type="button" class="admin-lic-chip-btn" data-contact-filter="due30">Läuft in 30 Tagen ab</button>
+                        </div>
+                        <div id="adminLicContactsList"></div>
+                    </section>
+                </section>
+
+                <!-- Schulen -->
+                <section class="admin-app__panel" id="adminPanelLicenses" role="tabpanel" aria-labelledby="adminTabLicenses" data-admin-panel="licenses" hidden>
                     <div id="adminLicListView">
                         <div class="admin-app__toolbar">
                             <div class="admin-app__toolbar-meta">
-                                <span class="admin-app__pill" id="adminLicStatus">–</span>
-                                <span class="admin-app__hint">Betreiber-Zugang über License-API</span>
+                                <p class="admin-app__status-line" id="adminLicStatus">Bitte oben rechts mit dem Betreiber-Konto anmelden.</p>
                             </div>
                             <div class="admin-app__toolbar-actions">
                                 <button type="button" class="btn alt" id="adminLicColumnsBtn" title="Extra-Spalten in SharePoint">
@@ -93,6 +116,9 @@
                                 </button>
                                 <button type="button" class="btn alt" id="adminLicMigrateBtn" title="Schulen ohne Modul-JSON auf alle Pakete setzen">
                                     <i class="bi bi-database-up"></i>Legacy-Module
+                                </button>
+                                <button type="button" class="btn alt" id="adminLicMigrateRolesBtn" title="Rollen Name und E-Mail aus bestehenden Feldern und IT-Kontakten trennen">
+                                    <i class="bi bi-people"></i>Rollen Name/E-Mail
                                 </button>
                                 <button type="button" class="btn alt" id="adminLicReloadBtn">
                                     <i class="bi bi-arrow-clockwise"></i>Aktualisieren
@@ -103,40 +129,44 @@
                             </div>
                         </div>
 
-                        <div class="admin-lic-filter admin-app__surface" id="adminLicFilterBar">
-                            <label class="admin-lic-filter__search">
-                                <span class="visually-hidden">Schulen suchen</span>
-                                <i class="bi bi-search" aria-hidden="true"></i>
-                                <input type="search" id="adminLicSearch" class="admin-lic-input" placeholder="Suche Name, Domain, Ort, Schulnummer …" autocomplete="off">
-                            </label>
-                            <div class="admin-lic-filter__chips" id="adminLicQuickFilters" role="group" aria-label="Schnellfilter">
-                                <button type="button" class="admin-lic-chip-btn is-active" data-quick-filter="all">Alle</button>
-                                <button type="button" class="admin-lic-chip-btn" data-quick-filter="pending">Tenant offen <span data-qf-count="pending">0</span></button>
-                                <button type="button" class="admin-lic-chip-btn" data-quick-filter="trial">Trial <span data-qf-count="trial">0</span></button>
-                                <button type="button" class="admin-lic-chip-btn" data-quick-filter="active">Active <span data-qf-count="active">0</span></button>
+                        <div class="admin-lic-filter" id="adminLicFilterBar">
+                            <div class="admin-lic-filter__row admin-lic-filter__row--primary">
+                                <label class="admin-lic-filter__search">
+                                    <span class="visually-hidden">Schulen suchen</span>
+                                    <i class="bi bi-search" aria-hidden="true"></i>
+                                    <input type="search" id="adminLicSearch" class="admin-lic-input" placeholder="Suche Name, Domain, Ort, Schulnummer …" autocomplete="off">
+                                </label>
+                                <div class="admin-lic-filter__chips" id="adminLicQuickFilters" role="group" aria-label="Schnellfilter">
+                                    <button type="button" class="admin-lic-chip-btn is-active" data-quick-filter="all">Alle</button>
+                                    <button type="button" class="admin-lic-chip-btn" data-quick-filter="pending">Tenant offen <span data-qf-count="pending">0</span></button>
+                                    <button type="button" class="admin-lic-chip-btn" data-quick-filter="trial">Trial <span data-qf-count="trial">0</span></button>
+                                    <button type="button" class="admin-lic-chip-btn" data-quick-filter="active">Active <span data-qf-count="active">0</span></button>
+                                </div>
                             </div>
-                            <label class="admin-lic-filter__field">
-                                <span class="visually-hidden">Status</span>
-                                <select id="adminLicStatusFilter" class="admin-lic-input" aria-label="Status filtern">
-                                    <option value="">Status: alle</option>
-                                    <option value="trial">trial</option>
-                                    <option value="active">active</option>
-                                    <option value="expired">expired</option>
-                                    <option value="blocked">blocked</option>
-                                </select>
-                            </label>
-                            <label class="admin-lic-filter__field">
-                                <span class="visually-hidden">Tenant</span>
-                                <select id="adminLicTenantFilter" class="admin-lic-input" aria-label="Tenant filtern">
-                                    <option value="">Tenant: alle</option>
-                                    <option value="pending">nur offen</option>
-                                    <option value="set">nur gesetzt</option>
-                                </select>
-                            </label>
-                            <button type="button" class="btn btn-sm alt" id="adminLicFilterReset" title="Filter zurücksetzen">
-                                Zurücksetzen
-                            </button>
-                            <span class="admin-lic-filter__meta" id="adminLicFilterMeta"></span>
+                            <div class="admin-lic-filter__row admin-lic-filter__row--secondary">
+                                <label class="admin-lic-filter__field">
+                                    <span class="visually-hidden">Status</span>
+                                    <select id="adminLicStatusFilter" class="admin-lic-input" aria-label="Status filtern">
+                                        <option value="">Status: alle</option>
+                                        <option value="trial">trial</option>
+                                        <option value="active">active</option>
+                                        <option value="expired">expired</option>
+                                        <option value="blocked">blocked</option>
+                                    </select>
+                                </label>
+                                <label class="admin-lic-filter__field">
+                                    <span class="visually-hidden">Tenant</span>
+                                    <select id="adminLicTenantFilter" class="admin-lic-input" aria-label="Tenant filtern">
+                                        <option value="">Tenant: alle</option>
+                                        <option value="pending">nur offen</option>
+                                        <option value="set">nur gesetzt</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="btn btn-sm alt" id="adminLicFilterReset" title="Filter zurücksetzen">
+                                    Zurücksetzen
+                                </button>
+                                <span class="admin-lic-filter__meta" id="adminLicFilterMeta"></span>
+                            </div>
                         </div>
 
                         <div class="admin-lic-cols admin-app__surface" id="adminLicColumnsPanel" hidden>
@@ -181,7 +211,7 @@
                             <ul class="admin-lic-cols__list" id="adminLicColumnsList"></ul>
                         </div>
 
-                        <div class="admin-lic__table-wrap admin-app__surface">
+                        <div class="admin-lic__table-wrap">
                             <table class="admin-lic-table">
                                 <thead>
                                     <tr id="adminLicTableHead"></tr>
@@ -230,7 +260,7 @@
                             <section class="admin-app__surface admin-lic-detail__card admin-lic-detail__panel" data-lic-detail-panel="stammdaten" id="adminLicPanelStammdaten" role="tabpanel" aria-labelledby="adminLicTabStammdaten">
                                 <div class="admin-lic-detail__card-head">
                                     <h3 class="admin-lic-detail__title">Stammdaten</h3>
-                                    <p class="admin-lic-detail__lead">Adresse, Rollen, Telefon und Schulkennzahl.</p>
+                                    <p class="admin-lic-detail__lead">Adresse, Rollen (Name + E-Mail), Telefon und Schulkennzahl.</p>
                                 </div>
                                 <div class="admin-lic-detail__form" id="adminLicDetailFormStammdaten"></div>
                             </section>
@@ -287,32 +317,23 @@
                 <!-- Modul-Katalog -->
                 <section class="admin-app__panel" id="adminPanelModules" role="tabpanel" aria-labelledby="adminTabModules" data-admin-panel="modules" hidden>
                     <div class="admin-mod-catalog">
-                        <div class="admin-mod-catalog__intro admin-app__surface">
-                            <div class="admin-mod-catalog__intro-text">
-                                <h2 class="admin-lic-detail__title">Modul-Katalog</h2>
-                                <p class="admin-lic-detail__lead">
-                                    Links Paket wählen, rechts Werkzeuge zuordnen und Abhängigkeiten setzen.
-                                    Schulen schalten Pakete und einzelne Werkzeuge unter
-                                    <strong>Lizenzen</strong> frei.
-                                </p>
-                            </div>
+                        <div class="admin-mod-catalog__intro">
                             <div class="admin-mod-catalog__intro-actions">
                                 <span class="admin-app__pill" id="adminModDirtyBadge" hidden>Ungespeicherte Änderungen</span>
-                                <div id="adminModCatalogStats" class="admin-lic-detail__stats"></div>
+                                <div id="adminModCatalogStats" class="admin-lic-detail__stats admin-mod-stats"></div>
                             </div>
                         </div>
-                        <div id="adminModSalesBundles" class="admin-app__surface admin-mod-sales-host" aria-label="Verkaufsbündel Referenz"></div>
 
                         <div class="admin-mod-workspace">
-                            <aside class="admin-mod-rail admin-app__surface" aria-label="Pakete">
+                            <aside class="admin-mod-rail" aria-label="Pakete">
                                 <div class="admin-mod-rail__head">
                                     <strong>Pakete</strong>
-                                    <span>10 Module</span>
+                                    <span>Katalog</span>
                                 </div>
                                 <nav class="admin-mod-rail__list" id="adminModPackageList"></nav>
                             </aside>
 
-                            <div class="admin-mod-detail admin-app__surface">
+                            <div class="admin-mod-detail">
                                 <div id="adminModDetailEmpty" class="admin-mod-detail__empty">
                                     <i class="bi bi-box-seam" aria-hidden="true"></i>
                                     <p>Paket links auswählen, um Werkzeuge zuzuordnen.</p>
@@ -345,189 +366,107 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div id="adminModAdoption" class="admin-mod-adoption"></div>
+
+                        <details class="admin-mod-sales-fold">
+                            <summary>Verkaufsbündel</summary>
+                            <div id="adminModSalesBundles" class="admin-mod-sales-host" aria-label="Verkaufsbündel Referenz"></div>
+                        </details>
                     </div>
                 </section>
 
-                <!-- Zugänge / PINs -->
-                <section class="admin-app__panel" id="adminPanelAccess" role="tabpanel" aria-labelledby="adminTabAccess" data-admin-panel="access" hidden>
-                    <div class="admin-app__grid admin-app__grid--2">
-                        <article class="admin-app__card">
-                            <div class="admin-app__card-head">
-                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></div>
-                                <div>
-                                    <h2>PIN-Sperre (optional)</h2>
-                                    <p>Standard aus: Freischaltung läuft über die Tenant-Lizenz nach MS365-Login. Admin nur für <code>kurt@kurtsoeser.at</code>.</p>
-                                </div>
-                            </div>
-                            <label class="admin-app__switch" for="adminAccessEnabled">
-                                <input type="checkbox" id="adminAccessEnabled">
-                                <span class="admin-app__switch-ui" aria-hidden="true"></span>
-                                <span class="admin-app__switch-label">
-                                    <strong>PIN-Sperre aktiv</strong>
-                                    <small>Zusätzlicher Schul-PIN vor den Tools (lokal in diesem Browser)</small>
-                                </span>
-                            </label>
-                        </article>
-
-                        <article class="admin-app__card">
-                            <div class="admin-app__card-head">
-                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></div>
-                                <div>
-                                    <h2>Import &amp; Export</h2>
-                                    <p>Für neue Schulen: PINs und Release-Notes als JSON.</p>
-                                </div>
-                            </div>
-                            <div class="admin-app__btn-row">
-                                <button type="button" class="btn" id="adminExportAccessBtn" title="JSON-Export für neue Schulen">
-                                    <i class="bi bi-download"></i>Export
-                                </button>
-                                <label class="btn alt" for="adminImportAccessFile" style="cursor:pointer;">
-                                    <i class="bi bi-upload"></i>Datei wählen
-                                </label>
-                                <input type="file" id="adminImportAccessFile" accept="application/json,.json" hidden>
-                                <button type="button" class="btn btn-success" id="adminImportAccessBtn">
-                                    <i class="bi bi-box-arrow-in-right"></i>Import
-                                </button>
-                            </div>
-                        </article>
-                    </div>
-
-                    <article class="admin-app__card admin-app__card--wide">
-                        <div class="admin-app__card-head">
-                            <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-upc-scan"></i></div>
-                            <div>
-                                <h2>Gültige User-PINs</h2>
-                                <p>Eine PIN pro Zeile. Speichern gilt nur in diesem Browserprofil.</p>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="visually-hidden" for="adminUserPinsText">Gültige User-PINs</label>
-                            <textarea id="adminUserPinsText" class="admin-app__textarea" rows="10" placeholder="z.B. Schul-PIN"></textarea>
-                        </div>
-                        <div class="admin-app__btn-row">
-                            <button type="button" class="btn" id="adminSavePinsBtn">
-                                <i class="bi bi-floppy"></i>PINs speichern
-                            </button>
-                        </div>
-                        <p class="admin-app__footnote">
-                            Serverlos: PIN-Overrides liegen in <code>localStorage</code>. Global gilt <code>access-config.js</code>
-                            (<code>enabled: false</code> – die Repo-Einstellung schlägt ein altes lokales „PIN an“ außer Kraft.
-                        </p>
-                    </article>
-                </section>
-
-                <!-- Setup -->
+                <!-- Setup / Technik (Nav am Ende) -->
                 <section class="admin-app__panel" id="adminPanelSetup" role="tabpanel" aria-labelledby="adminTabSetup" data-admin-panel="setup" hidden>
-                    <div class="admin-setup-checklist" aria-label="Was brauchst du noch?">
-                        <article class="admin-setup-check admin-setup-check--off" id="licCheckLicenses">
-                            <i class="bi bi-dash-circle admin-setup-check__icon" aria-hidden="true"></i>
-                            <div>
-                                <p class="admin-setup-check__title">Schulen freischalten – nicht hier</p>
-                                <p class="admin-setup-check__detail">Erledigt im Tab „Lizenzen“.</p>
-                            </div>
-                            <button type="button" class="btn btn-sm alt" id="licBtnGoLicenses">Zu Lizenzen</button>
-                        </article>
-                        <article class="admin-setup-check admin-setup-check--pending" id="licCheckSchema">
-                            <i class="bi bi-hourglass-split admin-setup-check__icon" aria-hidden="true"></i>
-                            <div>
-                                <p class="admin-setup-check__title">SharePoint-Schema</p>
-                                <p class="admin-setup-check__detail">Wird geprüft …</p>
-                            </div>
-                        </article>
-                        <article class="admin-setup-check admin-setup-check--pending" id="licCheckApi">
-                            <i class="bi bi-hourglass-split admin-setup-check__icon" aria-hidden="true"></i>
-                            <div>
-                                <p class="admin-setup-check__title">License-API</p>
-                                <p class="admin-setup-check__detail">Konfiguration prüfen …</p>
-                            </div>
-                        </article>
-                    </div>
-
-                    <div class="admin-app__grid admin-app__grid--2">
-                        <article class="admin-app__card">
-                            <div class="admin-app__card-head">
-                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-table"></i></div>
+                    <div class="admin-setup">
+                        <div class="admin-setup-checklist" aria-label="Technik-Status">
+                            <article class="admin-setup-check admin-setup-check--off" id="licCheckLicenses">
+                                <i class="bi bi-dash-circle admin-setup-check__icon" aria-hidden="true"></i>
                                 <div>
-                                    <h2>SharePoint-Liste</h2>
-                                    <p>Einmalig: Liste anlegen und fehlende Spalten ergänzen (<code>LicenseEntitlements</code>, Domains, IT-Kontakte, …). Braucht Graph-Recht <strong>Sites.Manage.All</strong> (nicht nur ReadWrite).</p>
+                                    <p class="admin-setup-check__title">Freischalten unter Lizenzen</p>
+                                    <p class="admin-setup-check__detail">Hier nur Schema und API.</p>
                                 </div>
-                            </div>
-                            <div class="field">
-                                <label for="licSiteUrl">SharePoint-Website</label>
-                                <input type="url" id="licSiteUrl" class="admin-lic-input" autocomplete="off" spellcheck="false">
-                            </div>
-                            <div class="field">
-                                <label for="licListName">Listenname</label>
-                                <input type="text" id="licListName" class="admin-lic-input" maxlength="200" spellcheck="false">
-                            </div>
-                            <div class="admin-app__btn-row">
-                                <button type="button" class="btn alt" id="licBtnSchemaStatus">
-                                    <i class="bi bi-arrow-clockwise"></i>Status prüfen
-                                </button>
-                                <button type="button" class="btn alt" id="licBtnProbe">
-                                    <i class="bi bi-search"></i>Website prüfen
-                                </button>
-                                <button type="button" class="btn" id="licBtnRun">
-                                    <i class="bi bi-cloud-upload"></i>Liste / Spalten aktualisieren
-                                </button>
-                                <a class="btn alt" id="licOpenLink" href="#" target="_blank" rel="noopener" hidden>
-                                    <i class="bi bi-box-arrow-up-right"></i>Liste öffnen
-                                </a>
-                            </div>
-                            <details class="admin-setup-log" open>
-                                <summary>Protokoll</summary>
-                                <pre id="licSetupLog" class="admin-setup-log__pre" aria-live="polite"></pre>
-                            </details>
-                        </article>
-
-                        <article class="admin-app__card">
-                            <div class="admin-app__card-head">
-                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-cloud-check"></i></div>
+                                <button type="button" class="btn btn-sm alt" id="licBtnGoLicenses">Zu Lizenzen</button>
+                            </article>
+                            <article class="admin-setup-check admin-setup-check--off" id="licCheckSchema">
+                                <i class="bi bi-dash-circle admin-setup-check__icon" aria-hidden="true"></i>
                                 <div>
-                                    <h2>API-Diagnose</h2>
-                                    <p>Nur zum Prüfen, ob Azure Function und Token-Flow laufen. Für den Alltag nicht nötig.</p>
+                                    <p class="admin-setup-check__title">SharePoint-Schema</p>
+                                    <p class="admin-setup-check__detail">Noch nicht geprüft.</p>
                                 </div>
-                            </div>
-                            <div class="admin-setup-meta">
-                                <span class="admin-app__pill" id="licApiConfigChip">API …</span>
-                                <code id="licApiBaseUrl" class="admin-setup-meta__url">–</code>
-                            </div>
-                            <div class="admin-app__btn-row">
-                                <button type="button" class="btn alt" id="licBtnApiHealth">
-                                    <i class="bi bi-activity"></i>GET /health
-                                </button>
-                                <button type="button" class="btn" id="licBtnApiMe">
-                                    <i class="bi bi-shield-check"></i>GET /license/me
-                                </button>
-                            </div>
-                            <pre id="licApiResult" class="admin-setup-log__pre admin-setup-log__pre--tall" aria-live="polite">Noch kein Test.</pre>
-                        </article>
-                    </div>
+                            </article>
+                            <article class="admin-setup-check admin-setup-check--pending" id="licCheckApi">
+                                <i class="bi bi-hourglass-split admin-setup-check__icon" aria-hidden="true"></i>
+                                <div>
+                                    <p class="admin-setup-check__title">License-API</p>
+                                    <p class="admin-setup-check__detail">Konfiguration prüfen …</p>
+                                </div>
+                            </article>
+                        </div>
 
-                    <article class="admin-app__card admin-app__card--wide">
-                        <div class="admin-app__card-head">
-                            <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-info-circle"></i></div>
-                            <div>
-                                <h2>Kurz gesagt</h2>
-                                <p>
-                                    <strong>Brauchst du:</strong> vollständige SharePoint-Spalten (Button oben) und eine konfigurierte License-API.
-                                    <strong>Brauchst du nicht:</strong> manuelle Zeilen in SharePoint für neue Schulen – das macht der Tab Lizenzen.
-                                </p>
-                            </div>
+                        <div class="admin-setup__blocks">
+                            <section class="admin-setup__block" aria-labelledby="adminSetupSharePointTitle">
+                                <header class="admin-setup__block-head">
+                                    <h2 id="adminSetupSharePointTitle">SharePoint-Liste</h2>
+                                    <p>Spalten bevorzugt über die License-API: unter <strong>Schulen → Spalten → Schema aktualisieren</strong>. Alternativ manuell in der SharePoint-Liste (eine Textzeile): <code>DirektionEmail</code>, <code>SchuladministrationEmail</code>, <code>ItM365AdminEmail</code>.</p>
+                                </header>
+                                <div class="field">
+                                    <label for="licSiteUrl">SharePoint-Website</label>
+                                    <input type="url" id="licSiteUrl" class="admin-lic-input" autocomplete="off" spellcheck="false">
+                                </div>
+                                <div class="field">
+                                    <label for="licListName">Listenname</label>
+                                    <input type="text" id="licListName" class="admin-lic-input" maxlength="200" spellcheck="false">
+                                </div>
+                                <div class="admin-app__btn-row">
+                                    <button type="button" class="btn" id="licBtnRun">
+                                        <i class="bi bi-cloud-upload"></i>Liste / Spalten aktualisieren
+                                    </button>
+                                    <button type="button" class="btn alt" id="licBtnSchemaStatus">
+                                        <i class="bi bi-arrow-clockwise"></i>Status prüfen
+                                    </button>
+                                    <button type="button" class="btn alt" id="licBtnProbe">
+                                        <i class="bi bi-search"></i>Website prüfen
+                                    </button>
+                                    <a class="btn alt" id="licOpenLink" href="#" target="_blank" rel="noopener" hidden>
+                                        <i class="bi bi-box-arrow-up-right"></i><span id="licOpenLinkLabel">Site öffnen</span>
+                                    </a>
+                                </div>
+                                <details class="admin-setup-log">
+                                    <summary>Protokoll</summary>
+                                    <pre id="licSetupLog" class="admin-setup-log__pre" aria-live="polite"></pre>
+                                </details>
+                            </section>
+
+                            <section class="admin-setup__block admin-setup__block--secondary" aria-labelledby="adminSetupApiTitle">
+                                <header class="admin-setup__block-head">
+                                    <h2 id="adminSetupApiTitle">API-Diagnose</h2>
+                                    <p>Nur bei Bedarf – Azure Function und Token-Flow.</p>
+                                </header>
+                                <div class="admin-setup-meta">
+                                    <span class="admin-app__pill" id="licApiConfigChip">API …</span>
+                                    <code id="licApiBaseUrl" class="admin-setup-meta__url">–</code>
+                                </div>
+                                <div class="admin-app__btn-row">
+                                    <button type="button" class="btn alt" id="licBtnApiHealth">
+                                        <i class="bi bi-activity"></i>GET /health
+                                    </button>
+                                    <button type="button" class="btn alt" id="licBtnApiMe">
+                                        <i class="bi bi-shield-check"></i>GET /license/me
+                                    </button>
+                                </div>
+                                <pre id="licApiResult" class="admin-setup-log__pre admin-setup-log__pre--tall" aria-live="polite">Noch kein Test.</pre>
+                            </section>
                         </div>
-                        <div class="admin-app__btn-row">
-                            <a class="btn alt" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener">
-                                <i class="bi bi-box-arrow-up-right"></i>SharePoint-Site öffnen
-                            </a>
-                        </div>
-                    </article>
+                    </div>
                 </section>
 
-                <!-- Release Notes -->
+                <!-- Kursteam-Vorlagen -->
+
                 <section class="admin-app__panel" id="adminPanelTemplates" role="tabpanel" aria-labelledby="adminTabTemplates" data-admin-panel="templates" hidden>
                     <div class="admin-catalog-head">
                         <div class="admin-catalog-head__status">
-                            <span class="admin-app__pill" id="adminCatStatus">Zentrale wird geladen …</span>
+                            <p class="admin-app__status-line" id="adminCatStatus">Mit dem Betreiber-Konto anmelden, dann lädt die Zentrale.</p>
                             <a class="admin-catalog__lib" id="adminCatLink" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener">Bibliothek öffnen</a>
                         </div>
                         <div class="admin-catalog__subtabs" role="tablist" aria-label="Vorlagen-Bereiche">
@@ -550,9 +489,9 @@
                                 <button type="button" class="btn alt btn-sm" id="adminCatTakeLocal" title="Vorlagen aus dem Werkzeug in diesem Browser übernehmen"><i class="bi bi-laptop"></i>Aus Browser</button>
                                 <label class="btn alt btn-sm" for="adminCatImport"><i class="bi bi-upload"></i>JSON<input type="file" id="adminCatImport" accept="application/json,.json" hidden></label>
                             </div>
-                            <button type="button" class="btn btn-success btn-sm" id="adminCatPublish"><i class="bi bi-cloud-arrow-up"></i>In Zentrale schreiben</button>
+                            <button type="button" class="btn btn-success btn-sm" id="adminCatPublish" title="Entwurf in die zentrale Bibliothek schreiben"><i class="bi bi-cloud-arrow-up"></i>In Zentrale schreiben</button>
                         </div>
-                        <p class="admin-catalog__lead">Zentrale Kanal-Vorlagen für alle Schulen. Speichern mit <strong>In Zentrale schreiben</strong>.</p>
+                        <p class="admin-catalog__lead">Kanal-Vorlagen für alle Schulen. In die Zentrale schreiben macht sie dort sichtbar.</p>
                         <div class="admin-catalog">
                             <aside class="admin-catalog__side">
                                 <div class="admin-catalog__side-head">
@@ -617,7 +556,7 @@
                             </div>
                             <label class="btn btn-success btn-sm" for="adminMatUpload"><i class="bi bi-upload"></i>Datei hochladen<input type="file" id="adminMatUpload" hidden></label>
                         </div>
-                        <p class="admin-catalog__lead">Dateien in <code>MS365-Katalog/materialien</code> – Schulen können sie in Kursteams kopieren.</p>
+                        <p class="admin-catalog__lead">Dateien, die Schulen in ihre Kursteams kopieren.</p>
                         <div class="admin-mat">
                             <div class="admin-mat__bar">
                                 <code class="admin-mat__path" id="adminMatPath">materialien</code>
@@ -644,15 +583,12 @@
                 </section>
 
                 <section class="admin-app__panel" id="adminPanelNotes" role="tabpanel" aria-labelledby="adminTabNotes" data-admin-panel="notes" hidden>
-                    <div class="admin-app__grid admin-app__grid--notes">
-                        <article class="admin-app__card admin-rn-editor-card">
-                            <div class="admin-app__card-head">
-                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></div>
-                                <div>
-                                    <h2 id="adminRnEditorHeading">Neuer Eintrag</h2>
-                                    <p>Einfacher Editor mit Screenshots. Lokal speichern oder als <code>release-notes.json</code> exportieren (für alle Schulen nach Deploy).</p>
-                                </div>
-                            </div>
+                    <div class="admin-app__grid admin-app__grid--notes admin-rn">
+                        <div class="admin-rn__editor">
+                            <header class="admin-rn__editor-head">
+                                <h2 id="adminRnEditorHeading">Neuer Eintrag</h2>
+                                <p>In diesem Browser speichern. Für alle Schulen erst nach dem Export.</p>
+                            </header>
                             <div class="field">
                                 <label for="adminReleaseTitleInput">Titel</label>
                                 <input type="text" id="adminReleaseTitleInput" placeholder="z.B. Admin mit Lizenz-Tabelle">
@@ -693,60 +629,63 @@
                                 <div id="adminRnImagePreview" class="admin-rn-thumbs" aria-live="polite"></div>
                             </div>
                             <input type="hidden" id="adminRnEditingId" value="">
-                            <div class="admin-app__btn-row">
-                                <button type="button" class="btn" id="adminAddReleaseNoteBtn">
-                                    <i class="bi bi-floppy"></i><span id="adminRnSaveLabel">Speichern</span>
-                                </button>
-                                <button type="button" class="btn alt" id="adminRnCancelEditBtn" hidden>
-                                    Abbrechen
-                                </button>
-                                <button type="button" class="btn alt" id="adminExportReleaseNotesBtn">
-                                    <i class="bi bi-download"></i>JSON exportieren
-                                </button>
-                                <button type="button" class="btn btn-danger" id="adminClearReleaseNotesBtn">
-                                    <i class="bi bi-trash"></i>Lokale löschen
-                                </button>
-                            </div>
-                            <p class="admin-app__footnote">
-                                Veröffentlicht: <code>public/release-notes.json</code> (wird mit Pages ausgeliefert).
-                                GitHub ergänzt <code>feat:</code>/<code>fix:</code>-Commits automatisch per Workflow.
-                            </p>
-                        </article>
-
-                        <article class="admin-app__card admin-app__card--list">
-                            <div class="admin-app__card-head">
-                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></div>
-                                <div>
-                                    <h2>Aktuelle Release Notes</h2>
-                                    <p>Veröffentlicht + lokal. Schulen sehen neue Einträge nach dem PIN-Login.</p>
+                            <div class="admin-rn__actions">
+                                <div class="admin-rn__actions-primary">
+                                    <button type="button" class="btn" id="adminAddReleaseNoteBtn">
+                                        <i class="bi bi-floppy"></i><span id="adminRnSaveLabel">Lokal speichern</span>
+                                    </button>
+                                    <button type="button" class="btn alt" id="adminRnCancelEditBtn" hidden>
+                                        Abbrechen
+                                    </button>
+                                </div>
+                                <div class="admin-rn__actions-secondary">
+                                    <button type="button" class="btn alt" id="adminExportReleaseNotesBtn">
+                                        <i class="bi bi-download"></i>Für Deploy exportieren
+                                    </button>
+                                    <button type="button" class="btn alt admin-rn__danger" id="adminClearReleaseNotesBtn">
+                                        <i class="bi bi-trash"></i>Lokale löschen
+                                    </button>
                                 </div>
                             </div>
+                            <p class="admin-app__footnote">
+                                „Für Deploy exportieren“ schreibt die Datei für <code>public/release-notes.json</code>.
+                            </p>
+                        </div>
+
+                        <div class="admin-rn__timeline">
+                            <header class="admin-rn__timeline-head">
+                                <h2>Timeline</h2>
+                                <p>Veröffentlicht + lokal · sichtbar nach MS365-Login.</p>
+                            </header>
                             <div id="adminReleaseNotesList" class="admin-app__notes-list"></div>
-                        </article>
+                        </div>
                     </div>
                 </section>
 
                 <section class="admin-app__panel" id="adminPanelFeedback" role="tabpanel" aria-labelledby="adminTabFeedback" data-admin-panel="feedback" hidden>
                     <div class="admin-app__toolbar">
                         <div class="admin-app__toolbar-meta">
-                            <span class="admin-app__pill" id="adminFeedbackCount">–</span>
-                            <span class="admin-app__hint">Inbox aus SharePoint · Status nur für dich</span>
+                            <p class="admin-app__status-line" id="adminFeedbackCount" hidden></p>
                         </div>
                         <div class="admin-app__toolbar-actions">
-                            <button type="button" class="btn alt" id="adminFeedbackEnsureBtn" title="Liste und Spalten auf kurtrocks anlegen">
-                                <i class="bi bi-database-add"></i>Liste sicherstellen
-                            </button>
                             <button type="button" class="btn alt" id="adminFeedbackReloadBtn">
                                 <i class="bi bi-arrow-clockwise"></i>Aktualisieren
                             </button>
                         </div>
                     </div>
 
+                    <details class="admin-fb__maintenance">
+                        <summary>Wartung</summary>
+                        <button type="button" class="btn alt" id="adminFeedbackEnsureBtn" title="Liste und Spalten anlegen">
+                            <i class="bi bi-database-add"></i>Liste sicherstellen
+                        </button>
+                    </details>
+
                     <p class="admin-catalog__banner" id="adminFeedbackBanner" hidden></p>
 
                     <div class="admin-fb__stats" id="adminFeedbackStats" aria-label="Übersicht"></div>
 
-                    <div class="admin-lic-filter admin-app__surface" id="adminFeedbackFilterBar">
+                    <div class="admin-lic-filter" id="adminFeedbackFilterBar">
                         <label class="admin-lic-filter__search">
                             <span class="visually-hidden">Feedback suchen</span>
                             <i class="bi bi-search" aria-hidden="true"></i>
@@ -764,8 +703,12 @@
                         </label>
                     </div>
 
-                    <div class="admin-fb__layout">
-                        <div id="adminFeedbackList" class="admin-fb__list" aria-live="polite"></div>
+                    <div class="admin-fb__layout is-empty">
+                        <div id="adminFeedbackList" class="admin-fb__list" aria-live="polite">
+                            <div class="admin-fb__empty">
+                                <p>Mit dem Betreiber-Konto anmelden, dann erscheint die Inbox.</p>
+                            </div>
+                        </div>
                         <div id="adminFeedbackDetail" class="admin-fb__detail-pane" aria-live="polite"></div>
                     </div>
                 </section>

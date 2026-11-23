@@ -1,0 +1,246 @@
+/* Portal-Leiste auf Werkzeugseiten: Gruppe bleibt sichtbar, Rückweg zur Übersicht. */
+
+body.portal-workspace-shell > .container.page-card,
+body.portal-workspace-shell > .container {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-items: stretch;
+}
+
+body.portal-workspace-shell > .container.page-card > .header,
+body.portal-workspace-shell > .container > .header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__rail {
+    grid-column: 1;
+    grid-row: 2 / -1;
+    position: sticky;
+    top: 56px;
+    align-self: start;
+    height: calc(100vh - 56px);
+    overflow: auto;
+    padding: 12px 10px 88px;
+    background: var(--rail-bg, color-mix(in srgb, var(--soft) 55%, var(--card)));
+    border-right: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__context {
+    grid-column: 2;
+    grid-row: 2;
+    position: sticky;
+    top: 56px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 8px 22px;
+    background: var(--card, #fff);
+    border-bottom: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+body.portal-workspace-shell > .container.page-card > :not(.header):not(.portal-workspace-shell__rail):not(.portal-workspace-shell__context),
+body.portal-workspace-shell > .container > :not(.header):not(.portal-workspace-shell__rail):not(.portal-workspace-shell__context) {
+    grid-column: 2;
+    min-width: 0;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--heading);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 4px 8px 4px 2px;
+    border-radius: 8px;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__back:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.portal-workspace-shell .portal-workspace-shell__sep {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__current {
+    color: var(--heading);
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 0;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__brand {
+    margin: 0 4px 12px;
+    padding: 0 0 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+
+body.portal-workspace-shell .portal-workspace-shell__home {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--heading);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13.5px;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__home:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.portal-workspace-shell .portal-workspace-shell__block {
+    margin: 0 0 4px;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__item,
+body.portal-workspace-shell .portal-workspace-shell__subitem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    margin: 2px 4px;
+    padding: 8px 10px 8px 12px;
+    border-left: 3px solid transparent;
+    border-radius: 0 8px 8px 0;
+    color: var(--heading);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 450;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__item {
+    flex: 1;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__block.is-current > .portal-workspace-shell__row .portal-workspace-shell__item {
+    font-weight: 600;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__chevron-btn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    margin-right: 4px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--heading);
+    cursor: pointer;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__chevron-btn i {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    transition: transform 0.15s ease;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__chevron-btn[aria-expanded='false'] i {
+    transform: rotate(-90deg);
+}
+
+body.portal-workspace-shell .portal-workspace-shell__chevron-btn:hover,
+body.portal-workspace-shell .portal-workspace-shell__item:hover,
+body.portal-workspace-shell .portal-workspace-shell__subitem:hover {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.portal-workspace-shell .portal-workspace-shell__subitem[aria-current='page'] {
+    background: var(--rail-active, rgba(0, 0, 0, 0.06));
+    border-left-color: var(--brand1, #0d9488);
+    font-weight: 600;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__sub {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0 0 4px 8px;
+    padding: 0 0 4px;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__sub[hidden] {
+    display: none !important;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__subitem {
+    padding: 7px 10px 7px 14px;
+    font-size: 12.75px;
+    color: color-mix(in srgb, var(--heading) 88%, var(--muted));
+}
+
+body.portal-workspace-shell .portal-workspace-shell__icon {
+    flex: 0 0 18px;
+    width: 18px;
+    text-align: center;
+    opacity: 0.85;
+}
+
+body.portal-workspace-shell .portal-workspace-shell__label {
+    min-width: 0;
+    line-height: 1.25;
+}
+
+body.portal-workspace-shell a[data-portal-workspace-hidden-back='1'] {
+    display: none !important;
+}
+
+/* Werkzeug-eigene Leiste etwas schmaler, damit Portal-Menü und Inhalt zusammenpassen. */
+body.portal-workspace-shell .sa-shell,
+body.portal-workspace-shell .pw-shell,
+body.portal-workspace-shell .akt-shell,
+body.portal-workspace-shell .fr-shell,
+body.portal-workspace-shell .lfr-shell,
+body.portal-workspace-shell .ku-shell,
+body.portal-workspace-shell .eb-shell,
+body.portal-workspace-shell .km-shell,
+body.portal-workspace-shell .ein-shell,
+body.portal-workspace-shell .ag-shell,
+body.portal-workspace-shell .srdp-shell {
+    grid-template-columns: 220px minmax(0, 1fr) !important;
+}
+
+@media (max-width: 900px) {
+    body.portal-workspace-shell > .container.page-card,
+    body.portal-workspace-shell > .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+    }
+
+    body.portal-workspace-shell > .container.page-card > .header,
+    body.portal-workspace-shell > .container > .header,
+    body.portal-workspace-shell .portal-workspace-shell__rail,
+    body.portal-workspace-shell .portal-workspace-shell__context,
+    body.portal-workspace-shell > .container.page-card > :not(.header):not(.portal-workspace-shell__rail):not(.portal-workspace-shell__context),
+    body.portal-workspace-shell > .container > :not(.header):not(.portal-workspace-shell__rail):not(.portal-workspace-shell__context) {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    body.portal-workspace-shell .portal-workspace-shell__rail {
+        position: relative;
+        top: 0;
+        height: auto;
+        max-height: 42vh;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+}
