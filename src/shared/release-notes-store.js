@@ -228,9 +228,14 @@ export function deleteReleaseNote(id, storage = localStorage) {
     );
 }
 
-export function getLastSeenAt(storage = localStorage) {
+function seenStorageKey(viewer) {
+    if (viewer === 'it' || viewer === 'enduser') return RELEASE_NOTES_LAST_SEEN_AT_KEY + ':' + viewer;
+    return RELEASE_NOTES_LAST_SEEN_AT_KEY;
+}
+
+export function getLastSeenAt(storage = localStorage, viewer) {
     try {
-        const raw = storage.getItem(RELEASE_NOTES_LAST_SEEN_AT_KEY);
+        const raw = storage.getItem(seenStorageKey(viewer));
         if (!raw) return '';
         return normalizeIsoDate(raw) || '';
     } catch {
@@ -238,11 +243,12 @@ export function getLastSeenAt(storage = localStorage) {
     }
 }
 
-export function setLastSeenAt(atIso, storage = localStorage) {
+export function setLastSeenAt(atIso, storage = localStorage, viewer) {
     const value = normalizeIsoDate(atIso);
     try {
-        if (value) storage.setItem(RELEASE_NOTES_LAST_SEEN_AT_KEY, value);
-        else storage.removeItem(RELEASE_NOTES_LAST_SEEN_AT_KEY);
+        const key = seenStorageKey(viewer);
+        if (value) storage.setItem(key, value);
+        else storage.removeItem(key);
     } catch {
         // ignore
     }
@@ -250,9 +256,9 @@ export function setLastSeenAt(atIso, storage = localStorage) {
 }
 
 /**
- * all = jede Zielgruppe und die öffentliche Neuigkeiten-Seite.
- * it = nur Schul-IT in der App. enduser = Lehrkräfte und Schüler/innen.
- * viewer „public“ sieht nur Einträge für alle.
+ * all = IT-Dashboard, Endnutzer-Portal und Homepage.
+ * it = nur das IT-Dashboard. enduser = nur Lehrer- und Schüler-Portal.
+ * viewer „public“ ist die Homepage und sieht nur Einträge für alle.
  * @param {Array<object>} notes
  * @param {'it'|'enduser'|'public'} viewer
  */

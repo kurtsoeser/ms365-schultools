@@ -3,11 +3,10 @@ import {
     filterNotesForViewer,
     setLastSeenAt
 } from './release-notes-store.js';
-import { getDashboardPersonas } from './dashboard-persona-session.js';
 
-function viewerFromPersonas(personas) {
-    if (personas && (personas.isIt || personas.designatedSchoolIt || personas.globalAdmin)) return 'it';
-    return 'enduser';
+function viewerForPage() {
+    const bereich = new URLSearchParams(location.search).get('bereich');
+    return bereich === 'it' ? 'it' : 'enduser';
 }
 
 function whenAuthReady() {
@@ -41,33 +40,20 @@ async function boot() {
     const list = document.getElementById('newsPageList');
     const lead = document.getElementById('newsPageLead');
     if (!list) return;
+    await whenAuthReady();
+    const viewer = viewerForPage();
     let notes = [];
     try {
         notes = await loadMergedReleaseNotes(localStorage);
     } catch {
         notes = [];
     }
-    await whenAuthReady();
-    let personas = null;
-    try {
-        personas = await Promise.race([
-            getDashboardPersonas(),
-            new Promise(function (resolve) {
-                setTimeout(function () {
-                    resolve(null);
-                }, 6000);
-            })
-        ]);
-    } catch {
-        personas = null;
-    }
-    const viewer = viewerFromPersonas(personas);
     const visible = filterNotesForViewer(notes, viewer);
     if (lead) {
         lead.textContent =
             viewer === 'it'
-                ? 'Einträge für alle und für die Schul-IT.'
-                : 'Einträge für alle und für Endnutzer. Beiträge nur für die Schul-IT bleiben dort.';
+                ? 'Einträge für alle und für die Schul-IT. Das ist das IT-Dashboard.'
+                : 'Einträge für alle und für Endnutzer. Beiträge nur für die Schul-IT stehen im IT-Dashboard.';
     }
     list.replaceChildren();
     if (!visible.length) {
@@ -90,7 +76,7 @@ async function boot() {
         list.appendChild(article);
     });
     const seen = latestAt(visible);
-    if (seen) setLastSeenAt(seen, localStorage);
+    if (seen) setLastSeenAt(seen, localStorage, viewer);
 }
 
 boot();
