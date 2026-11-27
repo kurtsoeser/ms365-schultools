@@ -20,7 +20,7 @@
 
 .kc-hero .fb-sub {
     margin: 0;
-    max-width: 64ch;
+    max-width: none;
 }
 
 /* —— Stepper —— */

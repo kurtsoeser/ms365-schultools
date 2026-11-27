@@ -2567,6 +2567,8 @@ body.ts-admin-page.it-workspace-shell .it-workspace-shell__main > .container.pag
     box-shadow: none !important;
     background: var(--card);
     min-height: calc(100vh - 56px);
+    /* Dock ist sticky im Inhalt – kein zweites Shell-Bodenpolster (verhindert Extra-Scroll) */
+    padding-bottom: 0 !important;
 }
 body.ts-admin-page.it-workspace-shell .ts-register-shell.ts-admin-shell {
     grid-template-columns: 220px minmax(0, 1fr);
@@ -2785,15 +2787,15 @@ body.ts-admin-page .ts-admin-dock.ts-register-dock {
     background: color-mix(in srgb, var(--card) 92%, transparent);
     backdrop-filter: blur(10px);
     box-shadow: 0 -8px 24px rgba(12, 18, 34, 0.06);
-    /* Platz für fixes Benutzermenü (links) und Hilfe-FAB (rechts) */
-    padding: 12px 64px 12px 12px;
+    /* Gleiche Seitenabstände: Speichern/Backup mittig, Hilfe-FAB rechts frei */
+    padding: 10px 72px;
     margin-left: 0;
     max-width: 100%;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 body.app-shell-chrome.ts-admin-page .ts-admin-dock.ts-register-dock {
     /* Dock bleibt in der Hauptspalte; Auth sitzt fixed über der Rail */
-    padding-left: 16px;
+    padding-left: 72px;
 }
 body.ts-admin-page .ts-admin-dock .ts-register-actions-card__status:not(:empty),
 body.ts-admin-page #browserBackupStatus:not(:empty):not([hidden]) {
@@ -3507,8 +3509,13 @@ body.ts-admin-page .ts-save-status {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-width: 12rem;
-    margin-right: auto;
+    min-width: 0;
+    max-width: min(14rem, 30vw);
+    margin-right: 0;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
 }
 body.ts-admin-page .ts-save-status__label {
     font-weight: 650;
@@ -3522,7 +3529,32 @@ body.ts-admin-page .ts-save-status__meta {
     font-size: 0.8rem;
 }
 body.ts-admin-page .ts-register-save-bar__row {
+    position: relative;
     align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    gap: 10px 12px;
+}
+body.ts-admin-page .ts-register-save-bar__main,
+body.ts-admin-page .ts-register-save-bar__tools {
+    margin: 0;
+}
+@media (max-width: 720px) {
+    body.ts-admin-page .ts-admin-dock.ts-register-dock,
+    body.app-shell-chrome.ts-admin-page .ts-admin-dock.ts-register-dock {
+        padding: 10px 56px 10px 12px;
+    }
+    body.ts-admin-page .ts-save-status {
+        position: static;
+        transform: none;
+        max-width: none;
+        width: 100%;
+        order: -1;
+    }
+    body.ts-admin-page .ts-register-save-bar__row {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
 }
 body.ts-admin-page .ts-register-actions-card__status:empty {
     display: none;

@@ -329,44 +329,51 @@ export function installTenantBindEventsFiles(ctx) {
 
     if (ctx.btnClear) {
         ctx.btnClear.addEventListener('click', () => {
-            try {
-                localStorage.removeItem('ms365-tenant-settings-v1');
-            } catch {
-                // ignore
-            }
-            // UI/Domain wieder auf Standard zurücksetzen
-            try {
-                if (ctx.schoolNameInput) ctx.schoolNameInput.value = '';
-                ctx.domainInput = document.getElementById('schoolEmailDomain');
-                if (ctx.domainInput) ctx.domainInput.value = 'ms365.schule';
-                if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
-                    window.ms365SetSchoolDomainNoAt('ms365.schule');
+            void (async () => {
+                const ok = await ctx.dlgConfirm(
+                    'Alle Stammdaten in diesem Browser wirklich löschen?\n\nSharePoint und andere Browser bleiben unberührt. Danach sind die Listen hier leer.',
+                    { title: 'Alle Stammdaten löschen', okText: 'Löschen', danger: true }
+                );
+                if (!ok) return;
+                try {
+                    localStorage.removeItem('ms365-tenant-settings-v1');
+                } catch {
+                    // ignore
                 }
-            } catch {
-                // ignore
-            }
-            if (ctx.taSubjects) ctx.taSubjects.value = '';
-            if (ctx.taArges) ctx.taArges.value = '';
-            if (ctx.taTeachers) ctx.taTeachers.value = '';
-            if (ctx.taAdminBundle) ctx.taAdminBundle.value = '';
-            ctx.administrationGroupsSnapshot = [];
-            if (ctx.taAdmin) ctx.taAdmin.value = '';
-            if (ctx.taAdminRoles) ctx.taAdminRoles.value = '';
-            if (ctx.selSgaMode) ctx.selSgaMode.value = 'group';
-            if (ctx.taSga) ctx.taSga.value = '';
-            if (ctx.taStudents) ctx.taStudents.value = '';
-            if (ctx.taStudentCouncil) ctx.taStudentCouncil.value = '';
-            if (ctx.taClasses) ctx.taClasses.value = '';
-            ctx.renderSubjectsTableFromTextarea();
-            ctx.renderArgesTableFromTextarea();
-            ctx.renderTeachersTableFromTextarea();
-            ctx.renderAdminRolesTableFromTextarea();
-            ctx.renderAdminTableFromTextarea();
-            ctx.renderSgaTableFromTextarea();
-            ctx.renderStudentsTableFromTextarea();
-            ctx.renderStudentCouncilTableFromTextarea();
-            ctx.renderClassesTableFromTextarea();
-            ctx.setSummary('Stammdaten gelöscht (nur lokaler Browser-Speicher).', 'warn');
+                // UI/Domain wieder auf Standard zurücksetzen
+                try {
+                    if (ctx.schoolNameInput) ctx.schoolNameInput.value = '';
+                    ctx.domainInput = document.getElementById('schoolEmailDomain');
+                    if (ctx.domainInput) ctx.domainInput.value = 'ms365.schule';
+                    if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
+                        window.ms365SetSchoolDomainNoAt('ms365.schule');
+                    }
+                } catch {
+                    // ignore
+                }
+                if (ctx.taSubjects) ctx.taSubjects.value = '';
+                if (ctx.taArges) ctx.taArges.value = '';
+                if (ctx.taTeachers) ctx.taTeachers.value = '';
+                if (ctx.taAdminBundle) ctx.taAdminBundle.value = '';
+                ctx.administrationGroupsSnapshot = [];
+                if (ctx.taAdmin) ctx.taAdmin.value = '';
+                if (ctx.taAdminRoles) ctx.taAdminRoles.value = '';
+                if (ctx.selSgaMode) ctx.selSgaMode.value = 'group';
+                if (ctx.taSga) ctx.taSga.value = '';
+                if (ctx.taStudents) ctx.taStudents.value = '';
+                if (ctx.taStudentCouncil) ctx.taStudentCouncil.value = '';
+                if (ctx.taClasses) ctx.taClasses.value = '';
+                ctx.renderSubjectsTableFromTextarea();
+                ctx.renderArgesTableFromTextarea();
+                ctx.renderTeachersTableFromTextarea();
+                ctx.renderAdminRolesTableFromTextarea();
+                ctx.renderAdminTableFromTextarea();
+                ctx.renderSgaTableFromTextarea();
+                ctx.renderStudentsTableFromTextarea();
+                ctx.renderStudentCouncilTableFromTextarea();
+                ctx.renderClassesTableFromTextarea();
+                ctx.setSummary('Stammdaten gelöscht (nur lokaler Browser-Speicher).', 'warn');
+            })();
         });
     }
 

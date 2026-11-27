@@ -4,7 +4,7 @@
  * Neu erzeugen: node scripts/sync-landing-offer-catalog.mjs
  */
 window.MS365_OFFER_CATALOG = {
-  "generatedAt": "2026-11-27T08:25:02.489Z",
+  "generatedAt": "2026-11-27T09:32:33.257Z",
   "contactMail": "kontakt@ms365.schule",
   "bundles": [
     {

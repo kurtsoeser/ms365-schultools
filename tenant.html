@@ -9,12 +9,12 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Stammdaten</title>
-    <link rel="stylesheet" href="app.css?v=27">
-    <link rel="stylesheet" href="src/shared/shell-fluent.css?v=9">
-    <link rel="stylesheet" href="src/shared/fluent-blocks.css?v=6">
+    <link rel="stylesheet" href="app.css?v=29">
+    <link rel="stylesheet" href="src/shared/shell-fluent.css?v=11">
+    <link rel="stylesheet" href="src/shared/fluent-blocks.css?v=10">
     <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=5">
-    <link rel="stylesheet" href="src/shared/tenant-register-ui.css?v=20261126-embed-rail">
+    <link rel="stylesheet" href="src/shared/tenant-register-ui.css?v=20261127-dock-center">
     <link rel="stylesheet" href="src/tools/datenlandkarte/datenlandkarte.css">
     <link rel="stylesheet" href="src/tools/schul-organigramm/schul-organigramm.css?v=20261122-ux5">
     <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
@@ -2449,21 +2449,16 @@
                                         <label class="ts-register-save-link" for="browserBackupImportFile" role="menuitem" title="JSON-Backup aus einem anderen Browser laden"><i class="bi bi-upload" aria-hidden="true"></i>Importieren</label>
                                         <input type="file" id="browserBackupImportFile" class="ts-register-save-bar__file" accept="application/json,.json">
                                         <button type="button" class="ts-register-save-link" id="tenantSettingsReload" data-tenant-action="reload" role="menuitem"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Neu laden</button>
+                                        <div data-local-first-hide="spo" hidden>
+                                            <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>SharePoint sichern</button>
+                                            <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Backup-Datei wählen – Abgleich mit optionalem selektivem Import"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>SharePoint laden</button>
+                                            <a class="ts-register-save-link" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" role="menuitem"><i class="bi bi-shield-lock" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>
+                                        </div>
+                                        <button type="button" class="ts-register-save-link ts-register-save-link--danger" id="tenantSettingsClear" role="menuitem"><i class="bi bi-trash" aria-hidden="true"></i>Alle Stammdaten löschen</button>
+                                        <p class="ts-register-save-hint">Backup/SharePoint: gesamte App (<code>ms365-</code>). Sammelgruppen: <strong>Dashboard</strong>.</p>
                                     </div>
                                 </details>
                             </div>
-                            <details class="ts-register-save-bar__more">
-                                <summary class="btn ts-register-save-drop__trigger ts-register-save-drop__trigger--muted" aria-label="Weitere Aktionen"><i class="bi bi-three-dots" aria-hidden="true"></i><span class="ts-register-save-drop__more-label">Mehr</span></summary>
-                                <div class="ts-register-save-drop__panel ts-register-save-drop__panel--more" role="menu">
-                                    <div data-local-first-hide="spo" hidden>
-                                        <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>SharePoint sichern</button>
-                                        <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Backup-Datei wählen – Abgleich mit optionalem selektivem Import"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>SharePoint laden</button>
-                                        <a class="ts-register-save-link" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" role="menuitem"><i class="bi bi-shield-lock" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>
-                                    </div>
-                                    <button type="button" class="ts-register-save-link ts-register-save-link--danger" id="tenantSettingsClear" role="menuitem"><i class="bi bi-trash" aria-hidden="true"></i>Alle Stammdaten löschen</button>
-                                    <p class="ts-register-save-hint">Backup/SharePoint: gesamte App (<code>ms365-</code>). Sammelgruppen: <strong>Dashboard</strong>.</p>
-                                </div>
-                            </details>
                         </div>
                     </div>
                     <div id="stammdatenSpoSyncStatus" class="summary ts-register-actions-card__status" role="status" aria-live="polite"></div>

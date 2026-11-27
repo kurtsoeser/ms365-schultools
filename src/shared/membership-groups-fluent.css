@@ -21,7 +21,7 @@
 
 .mg-hero .fb-sub {
     margin: 0;
-    max-width: 68ch;
+    max-width: none;
 }
 
 :is(.mg-page, .vw-page) .panel {

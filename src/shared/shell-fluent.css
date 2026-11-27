@@ -1231,6 +1231,11 @@ body.app-shell-chrome .ms365-auth-menu__meta {
 body.app-shell-chrome .container.page-card {
     padding-bottom: 76px;
 }
+/* Seiten mit eigener Sticky-Leiste: kein doppeltes Bodenpolster */
+body.app-shell-chrome .container.page-card:has(.bottom-toolbar),
+body.app-shell-chrome .container.page-card:has(.ts-admin-dock) {
+    padding-bottom: 20px;
+}
 
 @media (max-width: 640px) {
     body.app-shell-chrome .ms365-auth-menu:not([hidden]) {

@@ -1317,7 +1317,14 @@
             if (getActiveMatchedId()) live().loadGroup({ silent: true });
         });
         onClick('slgBtnClearStorage', function () {
-            clearStorage();
+            void (async function () {
+                const ok = await dlgConfirm(
+                    'Verknüpfung und Entwurf dieses Werkzeugs zurücksetzen?\n\nStammdaten und SharePoint bleiben unberührt.',
+                    { title: 'Zwischenstand zurücksetzen', okText: 'Zurücksetzen', danger: true }
+                );
+                if (!ok) return;
+                clearStorage();
+            })();
         });
         onClick('slgDeviationClose', function () {
             hideDeviationPanel();

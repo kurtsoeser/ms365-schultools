@@ -118,23 +118,23 @@
 
 /**
  * Zwischenstand-Leiste über Werkzeuge hinweg.
- * Referenz: Schulprofil/Stammdaten – ruhige Ghost-Actions, kein filled Teal.
+ * Referenz: Stammdaten-Dock – Speichern + Dropdown, mittig, Platz für Hilfe-FAB.
  */
 .tool-state-bar {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 22px;
-    padding: 10px 12px;
+    padding: 10px 64px;
 }
 .tool-state-bar__actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
 }
 .tool-state-bar .fb-btn,
 .tool-state-bar .fb-btn--ghost {
@@ -147,6 +147,88 @@
 .tool-state-bar .fb-btn .bi,
 .tool-state-bar .fb-btn--ghost .bi {
     margin-right: 6px;
+}
+.tool-state-bar__drop {
+    position: relative;
+}
+.tool-state-bar__drop > summary {
+    list-style: none;
+}
+.tool-state-bar__drop > summary::-webkit-details-marker {
+    display: none;
+}
+.tool-state-bar__drop-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.tool-state-bar__chev {
+    display: inline-block;
+    font-size: 0.75em;
+    opacity: 0.75;
+    margin-left: 2px;
+    margin-right: 0 !important;
+    transition: transform 0.15s ease;
+}
+.tool-state-bar__drop[open] .tool-state-bar__chev {
+    transform: rotate(180deg);
+}
+.tool-state-bar__panel {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    z-index: 30;
+    min-width: min(16.5rem, calc(100vw - 32px));
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card, #fff);
+    box-shadow: 0 12px 32px rgba(30, 36, 64, 0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    font-size: 0.92em;
+}
+.tool-state-bar__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    padding: 4px 6px;
+    margin: 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-weight: 700;
+    color: var(--brand1, #0d6efd);
+    text-decoration: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    white-space: normal;
+}
+.tool-state-bar__link:hover,
+.tool-state-bar__link:focus-visible {
+    background: color-mix(in srgb, var(--brand1, #0d6efd) 10%, transparent);
+    text-decoration: underline;
+}
+.tool-state-bar__link--danger {
+    color: #a93226;
+}
+.tool-state-bar__link--danger:hover,
+.tool-state-bar__link--danger:focus-visible {
+    background: color-mix(in srgb, #c0392b 10%, transparent);
+}
+.tool-state-bar__hint {
+    margin: 8px 0 0;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    font-size: 0.78em;
+    color: var(--muted);
+    line-height: 1.45;
+    font-weight: 500;
 }
 /* Legacy-.btn in der Leiste → ebenfalls Ghost (Migration / Fallback) */
 .tool-state-bar .btn:not(.btn-danger):not(.fb-btn) {
@@ -754,7 +836,7 @@ body.page-dashboard #dash-catalog .choice.tool-card .card-btn {
     color: var(--muted);
     font-size: 14px;
     line-height: 1.5;
-    max-width: 62ch;
+    max-width: none;
 }
 
 .fb-sec-label {

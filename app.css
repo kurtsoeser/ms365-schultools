@@ -1157,13 +1157,13 @@ html[data-theme="dark"] .ms365-auth-menu__item--danger:focus-visible {
     font-size: 1.1em;
 }
 
-/* Kurzbeschreibung unter Toolname (nicht der fixierte Hilfe-Link): max. 2 Zeilen */
+/* Kurzbeschreibung unter Toolname (nicht der fixierte Hilfe-Link): kompakt, volle Breite */
 .header > p:not(.header-help-row) {
-    max-width: min(720px, 92vw);
-    margin-left: auto;
-    margin-right: auto;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
     margin-top: 6px;
-    line-height: 1.45;
+    line-height: 1.4;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -1202,7 +1202,7 @@ html[data-theme="dark"] .ms365-auth-menu__item--danger:focus-visible {
     pointer-events: auto;
 }
 
-/* Stammdaten-Dock: Hilfe-FAB nicht über Backup/Mehr legen */
+/* Stammdaten-Dock: Hilfe-FAB nicht über Backup legen */
 body.ts-admin-page .app-footer-help {
     right: 14px;
     bottom: 14px;
@@ -1507,7 +1507,7 @@ html[data-theme="dark"] .app-footer-help__btn .bi {
     display: none;
 }
 
-/* Toolbar unten (Zwischenstand) */
+/* Toolbar unten (Zwischenstand) – mittig, Platz für Hilfe-FAB */
 .bottom-toolbar {
     position: sticky;
     bottom: 0;
@@ -1515,6 +1515,8 @@ html[data-theme="dark"] .app-footer-help__btn .bi {
     background: var(--soft);
     border-top: 1px solid var(--border);
     justify-content: center;
+    padding-left: 64px;
+    padding-right: 64px;
 }
 
 .content { padding: 30px; color: var(--text); }

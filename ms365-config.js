@@ -346,15 +346,16 @@ window.MS365_ELECTION_API = {
         return el;
     }
 
+    var SAVE_DROP_OPEN =
+        'details.ts-register-save-drop[open], details.tool-state-bar__drop[open]';
+    var SAVE_DROP_ITEM =
+        'details.ts-register-save-drop .ts-register-save-link, details.tool-state-bar__drop .tool-state-bar__link';
+
     function closeSaveDropMenus(except) {
-        document
-            .querySelectorAll(
-                'details.ts-register-save-drop[open], details.ts-register-save-bar__more[open]'
-            )
-            .forEach(function (el) {
-                if (except && el === except) return;
-                el.open = false;
-            });
+        document.querySelectorAll(SAVE_DROP_OPEN).forEach(function (el) {
+            if (except && el === except) return;
+            el.open = false;
+        });
     }
 
     function bindSaveDropClickAway() {
@@ -362,14 +363,10 @@ window.MS365_ELECTION_API = {
         document.documentElement.dataset.saveDropAwayBound = '1';
         document.addEventListener('click', function (ev) {
             const target = ev.target;
-            document
-                .querySelectorAll(
-                    'details.ts-register-save-drop[open], details.ts-register-save-bar__more[open]'
-                )
-                .forEach(function (el) {
-                    if (target instanceof Node && el.contains(target)) return;
-                    el.open = false;
-                });
+            document.querySelectorAll(SAVE_DROP_OPEN).forEach(function (el) {
+                if (target instanceof Node && el.contains(target)) return;
+                el.open = false;
+            });
         });
         document.addEventListener('keydown', function (ev) {
             if (ev.key !== 'Escape') return;
@@ -380,10 +377,7 @@ window.MS365_ELECTION_API = {
             function (ev) {
                 const el = ev.target;
                 if (!(el instanceof HTMLDetailsElement) || !el.open) return;
-                if (
-                    !el.classList.contains('ts-register-save-drop') &&
-                    !el.classList.contains('ts-register-save-bar__more')
-                ) {
+                if (!el.classList.contains('ts-register-save-drop') && !el.classList.contains('tool-state-bar__drop')) {
                     return;
                 }
                 closeSaveDropMenus(el);
@@ -396,9 +390,7 @@ window.MS365_ELECTION_API = {
         document.addEventListener('click', function (ev) {
             const t = ev.target;
             if (!(t instanceof Element)) return;
-            const item = t.closest(
-                'details.ts-register-save-drop .ts-register-save-link, details.ts-register-save-bar__more .ts-register-save-link'
-            );
+            const item = t.closest(SAVE_DROP_ITEM);
             if (!item) return;
             const fold = item.closest('details');
             if (fold) {
