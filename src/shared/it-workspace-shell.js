@@ -416,6 +416,50 @@ function syncRailToWorkspaceHref(nextUrl) {
 }
 
 /**
+ * Ob der iframe die Ziel-URL noch laden muss.
+ * Wichtig: leeres src darf nach pushState nicht gegen location.href aufgelöst
+ * werden – sonst gilt das Ziel fälschlich als schon geladen und der Klick
+ * wechselt nur die Leiste, nicht den Inhalt.
+ * @param {HTMLIFrameElement|null|undefined} frame
+ * @param {URL} abs
+ * @returns {boolean}
+ */
+export function itWorkspaceFrameNeedsSrc(frame, abs) {
+    if (!frame || !abs) return true;
+    const srcAttr = String(frame.getAttribute('src') || '').trim();
+    if (!srcAttr) return true;
+
+    try {
+        const loc = frame.contentWindow && frame.contentWindow.location;
+        const href = loc && typeof loc.href === 'string' ? String(loc.href) : '';
+        if (!href || /^about:/i.test(href)) return true;
+        if (
+            loc.pathname === abs.pathname &&
+            loc.search === abs.search &&
+            loc.hash === abs.hash
+        ) {
+            return false;
+        }
+    } catch {
+        /* cross-origin oder noch nicht bereit → src-Attribut prüfen */
+    }
+
+    try {
+        const cur = new URL(srcAttr, location.href);
+        if (
+            cur.pathname === abs.pathname &&
+            cur.search === abs.search &&
+            cur.hash === abs.hash
+        ) {
+            return false;
+        }
+    } catch {
+        return true;
+    }
+    return true;
+}
+
+/**
  * Inhalt wechseln, Leiste stehen lassen. Startseite und Werkzeuge laufen im iframe.
  * @param {string} targetHref
  * @returns {boolean}
@@ -469,40 +513,16 @@ export function trySoftItWorkspaceFrameNavigate(targetHref) {
             return true;
         }
 
-        let sameLoc = false;
-        try {
-            const loc = frame.contentWindow && frame.contentWindow.location;
-            if (loc) {
-                sameLoc =
-                    loc.pathname === abs.pathname &&
-                    loc.search === abs.search &&
-                    loc.hash === abs.hash;
-            }
-        } catch {
-            sameLoc = false;
-        }
-        if (!sameLoc) {
-            try {
-                const cur = new URL(frame.getAttribute('src') || '', location.href);
-                sameLoc =
-                    cur.pathname === abs.pathname &&
-                    cur.search === abs.search &&
-                    cur.hash === abs.hash;
-            } catch {
-                sameLoc = false;
-            }
-        }
-
-        if (sameLoc) {
+        if (itWorkspaceFrameNeedsSrc(frame, abs)) {
+            showItMainSkeleton();
+            frame.src = abs.href;
+        } else {
             hideItMainSkeleton();
             try {
                 quietEmbedDocument(frame.contentDocument);
             } catch {
                 /* ignore */
             }
-        } else {
-            showItMainSkeleton();
-            frame.src = abs.href;
         }
         return true;
     } catch {

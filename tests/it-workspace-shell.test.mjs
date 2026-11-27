@@ -22,7 +22,9 @@ import {
     trySoftItWorkspaceNavigate,
     unmountItWorkspaceShell,
     isItDashboardHomePath,
-    isItContentSwapHref
+    isItContentSwapHref,
+    itWorkspaceFrameNeedsSrc,
+    trySoftItWorkspaceFrameNavigate
 } from '../src/shared/it-workspace-shell.js';
 
 function makeStorage() {
@@ -510,5 +512,131 @@ describe('it-workspace-shell & nav gating', () => {
         expect(isItContentSwapHref('https://app.ms365.schule/welcome.html')).toBe(false);
         expect(isItContentSwapHref('https://app.ms365.schule/admin.html')).toBe(false);
         expect(isItContentSwapHref('https://ms365.schule/landing/index.html')).toBe(false);
+    });
+
+    it('lädt den iframe nach Soft-Nav auch wenn src noch leer ist (pushState-Falle)', () => {
+        vi.stubGlobal('location', {
+            href: 'https://app.ms365.schule/tools/jahrgangsgruppen.html',
+            pathname: '/tools/jahrgangsgruppen.html',
+            search: '',
+            hash: '',
+            origin: 'https://app.ms365.schule'
+        });
+        window.location = globalThis.location;
+
+        const abs = new URL('https://app.ms365.schule/tools/jahrgangsgruppen.html');
+        const emptyFrame = {
+            getAttribute: () => null,
+            contentWindow: { location: { href: 'about:blank', pathname: 'blank', search: '', hash: '' } }
+        };
+        expect(itWorkspaceFrameNeedsSrc(emptyFrame, abs)).toBe(true);
+
+        const loadedFrame = {
+            getAttribute: () => 'https://app.ms365.schule/tools/jahrgangsgruppen.html',
+            contentWindow: {
+                location: {
+                    href: 'https://app.ms365.schule/tools/jahrgangsgruppen.html',
+                    pathname: '/tools/jahrgangsgruppen.html',
+                    search: '',
+                    hash: ''
+                }
+            }
+        };
+        expect(itWorkspaceFrameNeedsSrc(loadedFrame, abs)).toBe(false);
+
+        const otherAbs = new URL('https://app.ms365.schule/tools/kursteams.html');
+        expect(itWorkspaceFrameNeedsSrc(loadedFrame, otherAbs)).toBe(true);
+    });
+
+    it('setzt iframe.src beim Soft-Nav von der Leiste, statt nur die URL zu tauschen', () => {
+        const loc = {
+            href: 'https://app.ms365.schule/tools/personen-verwaltung.html',
+            pathname: '/tools/personen-verwaltung.html',
+            search: '',
+            hash: '',
+            origin: 'https://app.ms365.schule'
+        };
+        vi.stubGlobal('location', loc);
+        window.location = loc;
+
+        const frameState = { src: '', attr: null };
+        const frame = {
+            id: 'itWorkspaceFrame',
+            className: '',
+            title: '',
+            contentWindow: { location: { href: 'about:blank', pathname: 'blank', search: '', hash: '' } },
+            contentDocument: null,
+            getAttribute: (name) => (name === 'src' ? frameState.attr : null),
+            setAttribute: () => {},
+            addEventListener: () => {},
+            set src(v) {
+                frameState.src = String(v || '');
+                frameState.attr = frameState.src;
+            },
+            get src() {
+                return frameState.src;
+            }
+        };
+        const mainChildren = [];
+        const main = {
+            id: 'itWorkspaceMain',
+            get firstChild() {
+                return mainChildren[0] || null;
+            },
+            removeChild: (n) => {
+                const i = mainChildren.indexOf(n);
+                if (i >= 0) mainChildren.splice(i, 1);
+                return n;
+            },
+            appendChild: (n) => {
+                mainChildren.push(n);
+                return n;
+            }
+        };
+        const nodes = {
+            itWorkspaceMain: main,
+            itWorkspaceShell: { id: 'itWorkspaceShell' },
+            itWorkspaceNav: {
+                id: 'itWorkspaceNav',
+                querySelectorAll: () => [],
+                querySelector: () => null
+            },
+            itWorkspaceFrame: null
+        };
+        document.getElementById = (id) => nodes[id] || null;
+        document.createElement = (tag) => {
+            if (tag === 'iframe') {
+                nodes.itWorkspaceFrame = frame;
+                return frame;
+            }
+            return {
+                id: '',
+                className: '',
+                hidden: false,
+                setAttribute: () => {},
+                appendChild: () => {}
+            };
+        };
+        vi.stubGlobal('history', {
+            pushState: (_s, _t, url) => {
+                const next = String(url || '');
+                loc.href = 'https://app.ms365.schule' + next;
+                loc.pathname = next.split('?')[0].split('#')[0] || loc.pathname;
+                loc.search = next.includes('?') ? '?' + next.split('?')[1].split('#')[0] : '';
+                loc.hash = next.includes('#') ? '#' + next.split('#').pop() : '';
+            }
+        });
+
+        expect(trySoftItWorkspaceFrameNavigate('/tools/jahrgangsgruppen.html')).toBe(true);
+        expect(frameState.src).toContain('/tools/jahrgangsgruppen.html');
+
+        frame.contentWindow.location = {
+            href: 'https://app.ms365.schule/tools/jahrgangsgruppen.html',
+            pathname: '/tools/jahrgangsgruppen.html',
+            search: '',
+            hash: ''
+        };
+        expect(trySoftItWorkspaceFrameNavigate('/tools/kursteams.html')).toBe(true);
+        expect(frameState.src).toContain('/tools/kursteams.html');
     });
 });
