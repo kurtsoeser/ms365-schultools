@@ -56,7 +56,7 @@ export function playbookStepDefs() {
             id: 'students',
             title: 'Schülerliste und Sammelgruppe',
             blurb:
-                'Schülerinnen und Schüler für das neue Jahr in den Stammdaten pflegen, danach die Sammelgruppe „alle Schülerinnen“ abgleichen. Ist die Sammelgruppe verknüpft, wird dieser Schritt automatisch abgehakt.',
+                'Schülerinnen und Schüler für das neue Jahr in den Stammdaten pflegen, danach die Sammelgruppe „alle Schülerinnen“ mit Microsoft 365 verknüpfen und Mitglieder abgleichen. Ist die Sammelgruppe verknüpft, wird dieser Schritt automatisch abgehakt.',
             href: 'schueler-lehrer-gruppen.html',
             hrefLabel: 'Schüler und Lehrkräfte'
         },
@@ -64,7 +64,7 @@ export function playbookStepDefs() {
             id: 'kursteams',
             title: 'Unterrichtsteams neu anlegen',
             blurb:
-                'Unterrichtsteams hängen am Stundenplan und sind jahresgebunden – typisch neu importieren und per CSV/CMD anlegen. Alte Teams nicht löschen, sondern später im Team-Archiv als Sammel-Aktion archivieren (Suchbegriff, z. B. Schuljahr-Präfix). Nach der Anlage hier manuell abhaken.',
+                'Unterrichtsteams hängen am Stundenplan und sind jahresgebunden – typisch neu importieren und per CSV/CMD anlegen. Alte Teams nicht löschen, sondern später im Team-Archiv per Suchbegriff (z. B. Schuljahr-Präfix) archivieren. Nach der Anlage hier manuell abhaken.',
             href: 'kursteams.html',
             hrefLabel: 'Unterrichtsteams'
         },
@@ -196,7 +196,7 @@ export function inferPlaybookFromContainer(container) {
     } else if (studentCount) {
         hints.students =
             studentCount +
-            ' Schüler:innen in den Stammdaten – Sammelgruppe noch nicht verknüpft. Werkzeug öffnen und abgleichen.';
+            ' Schüler:innen in den Stammdaten – Sammelgruppe noch nicht verknüpft. Werkzeug öffnen, verknüpfen und Mitglieder abgleichen.';
     }
 
     const subjectRows = Array.isArray(core.subjects) ? core.subjects : [];

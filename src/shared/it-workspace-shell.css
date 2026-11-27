@@ -211,3 +211,173 @@ body.it-workspace-shell a[data-it-workspace-hidden-back='1'] {
         border-bottom: 1px solid var(--border);
     }
 }
+
+/* Soft-Nav: Werkzeug im Frame, Rail bleibt stehen (Frame füllt Main – nicht ~150px Default).
+   Ohne Frame (Startseite) darf der Inhalt in der Höhe wachsen. */
+body.it-workspace-shell #itWorkspaceMain {
+    position: relative;
+    min-height: 100vh;
+}
+
+body.it-workspace-shell #itWorkspaceMain:has(#itWorkspaceFrame) {
+    height: 100vh;
+    overflow: hidden;
+}
+
+body.it-workspace-shell .it-workspace-shell__frame {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: var(--paper);
+}
+
+body.it-workspace-shell .it-main-skel {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    padding: 28px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--paper);
+    pointer-events: none;
+}
+
+body.it-workspace-shell .it-main-skel[hidden] {
+    display: none !important;
+}
+
+/* Skeleton-Vorschau während IT-Seitenwechsel (theme-boot injiziert Markup) */
+.it-shell-skel {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    pointer-events: none;
+}
+
+.it-shell-skel__top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 56px;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    flex: 0 0 auto;
+}
+
+.it-shell-skel__body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 256px minmax(0, 1fr);
+}
+
+.it-shell-skel__rail {
+    padding: 16px 12px;
+    border-right: 1px solid var(--border);
+    background: var(--rail-bg, color-mix(in srgb, var(--soft) 55%, var(--card)));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.it-shell-skel__main {
+    padding: 28px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.it-shell-skel__bar {
+    display: block;
+    border-radius: 8px;
+    height: 12px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--heading) 8%, transparent) 20%,
+        color-mix(in srgb, var(--heading) 3%, transparent) 40%,
+        color-mix(in srgb, var(--heading) 8%, transparent) 60%
+    );
+    background-size: 200% 100%;
+    animation: it-shell-skel-shimmer 1.25s linear infinite;
+}
+
+.it-shell-skel__bar--brand {
+    width: 132px;
+    height: 16px;
+}
+.it-shell-skel__bar--search {
+    flex: 1;
+    max-width: 280px;
+    height: 32px;
+    border-radius: 10px;
+}
+.it-shell-skel__bar--chip {
+    width: 72px;
+    height: 28px;
+    margin-left: auto;
+    border-radius: 10px;
+}
+.it-shell-skel__bar--nav {
+    width: 78%;
+    height: 28px;
+}
+.it-shell-skel__bar--nav.is-wide {
+    width: 88%;
+}
+.it-shell-skel__bar--nav.is-active {
+    width: 84%;
+    background: color-mix(in srgb, var(--brand1, #0d9f8a) 18%, transparent);
+    animation: none;
+}
+.it-shell-skel__bar--sub {
+    width: 62%;
+    height: 22px;
+    margin-left: 14px;
+    border-radius: 6px;
+}
+.it-shell-skel__bar--title {
+    width: min(280px, 55%);
+    height: 28px;
+    margin-top: 8px;
+}
+.it-shell-skel__bar--lead {
+    width: min(420px, 70%);
+    height: 14px;
+}
+.it-shell-skel__bar--row {
+    width: 100%;
+    max-width: 720px;
+    height: 52px;
+    border-radius: 10px;
+}
+.it-shell-skel__bar--row.is-short {
+    width: 72%;
+    max-width: 520px;
+}
+
+@keyframes it-shell-skel-shimmer {
+    to {
+        background-position: -200% 0;
+    }
+}
+
+body.it-workspace-shell #ms365ItShellSkeleton {
+    display: none !important;
+}
+
+@media (max-width: 900px) {
+    .it-shell-skel__body {
+        grid-template-columns: 1fr;
+    }
+    .it-shell-skel__rail {
+        display: none;
+    }
+}

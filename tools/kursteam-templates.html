@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -10,9 +10,43 @@
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Kursteam-Vorlagen</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
+/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+
+        .ktpl-hero {
+            margin: 0 0 10px;
+        }
+        .ktpl-hero .fb-greet {
+            margin: 0 0 6px;
+        }
+        .ktpl-hero .fb-sub {
+            margin: 0;
+            max-width: 64ch;
+        }
+
         /* ── Menüleiste ── */
         .ktpl-menubar {
             display: flex;
@@ -58,7 +92,8 @@
             margin-left: auto;
         }
         .ktpl-menubar__io .btn,
-        .ktpl-menubar__io label.btn {
+        .ktpl-menubar__io label.btn,
+        .ktpl-menubar__io .fb-btn {
             margin: 0;
             padding: 8px 12px;
             font-size: 0.84rem;
@@ -67,6 +102,7 @@
             white-space: nowrap;
         }
         .ktpl-menubar__io .btn[hidden],
+        .ktpl-menubar__io .fb-btn[hidden],
         #ktplCatalogLink[hidden],
         #ktplOriginNote[hidden] {
             display: none !important;
@@ -321,7 +357,8 @@
             gap: 6px;
             margin-bottom: 12px;
         }
-        .ktpl-iconbar .btn {
+        .ktpl-iconbar .btn,
+        .ktpl-iconbar .fb-btn {
             flex: 1 1 auto;
             min-width: 0;
             justify-content: center;
@@ -528,7 +565,8 @@
         @media (max-width: 640px) {
             .ktpl-add-row { grid-template-columns: 1fr; }
         }
-        .ktpl-add-row .btn { border-radius: 10px; white-space: nowrap; }
+        .ktpl-add-row .btn,
+        .ktpl-add-row .fb-btn { border-radius: 10px; white-space: nowrap; }
 
         .ktpl-channels {
             list-style: none;
@@ -572,7 +610,8 @@
             gap: 2px;
             padding-right: 2px;
         }
-        .ktpl-ch-actions .btn {
+        .ktpl-ch-actions .btn,
+        .ktpl-ch-actions .fb-btn {
             width: 34px;
             height: 34px;
             padding: 0;
@@ -847,8 +886,8 @@
         .btn-sm { padding: 4px 8px; font-size: 0.85em; }
     </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page ktpl-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator">
@@ -858,25 +897,30 @@
             <p>Kanal-Vorlagen für Unterrichtsteams pflegen und auf ein bestehendes Team anwenden (Phase&nbsp;1). Zentrale Vorlagen gelten für jede Schule; hier anwenden und lokal anpassen. Anlegen und Veröffentlichen für alle Schulen macht der Betreiber im Admin. „Allgemein“ bleibt unberührt.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-kursteam-templates" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
-                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="kursteams.html"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
-                <a class="btn" href="onenote-verteilung.html"><i class="bi bi-journal-richtext"></i>OneNote verteilen</a>
+                <a class="fb-btn fb-btn--ghost" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="fb-btn fb-btn--ghost" href="kursteams.html"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
+                <a class="fb-btn fb-btn--ghost" href="onenote-verteilung.html"><i class="bi bi-journal-richtext"></i>OneNote verteilen</a>
             </div>
         </div>
         <div class="content">
+            <section class="ktpl-hero" aria-label="Stand">
+                <h1 class="fb-greet">Kursteam-Vorlagen</h1>
+                <p class="fb-sub">Vorlagen pflegen und auf bestehende Unterrichtsteams anwenden – „Allgemein“ bleibt unberührt.</p>
+            </section>
+
             <div class="ktpl-menubar">
                 <div class="ktpl-tabs" role="tablist" aria-label="Kursteam-Vorlagen">
                     <button type="button" class="is-active" role="tab" aria-selected="true" data-ktpl-tab="manage"><i class="bi bi-journal-text"></i>Vorlagen</button>
                     <button type="button" role="tab" aria-selected="false" data-ktpl-tab="apply"><i class="bi bi-magic"></i>Anwenden</button>
                 </div>
                 <div class="ktpl-menubar__io" aria-label="Vorlagen Import und Export">
-                    <a class="btn btn-ghost" href="../assets/kursteam-templates/vorlagen-import.example.json" download title="Leere/Beispiel-JSON zum Befüllen mit KI"><i class="bi bi-file-earmark-code"></i>JSON-Vorlage</a>
-                    <a class="btn btn-ghost" href="../assets/kursteam-templates/PROMPT-lehrplan-zu-kursteam-vorlagen.md" download title="Prompt für externe KI (Lehrplan → JSON)"><i class="bi bi-robot"></i>KI-Prompt</a>
-                    <button type="button" class="btn btn-ghost" id="ktplBtnExport" title="Alle Vorlagen als JSON speichern"><i class="bi bi-download"></i>Alle exportieren</button>
-                    <button type="button" class="btn btn-ghost" id="ktplBtnExportOne" title="Nur die ausgewählte Vorlage exportieren"><i class="bi bi-file-earmark-arrow-down"></i>Aktuelle</button>
-                    <button type="button" class="btn btn-ghost" id="ktplBtnCatalogRefresh" title="Zentrale Bibliothek neu laden"><i class="bi bi-cloud-arrow-down"></i>Zentrale</button>
-                    <label class="btn" for="ktplImportFile" title="Vorlagen aus JSON-Datei laden"><i class="bi bi-upload"></i>Import<input type="file" id="ktplImportFile" accept="application/json,.json" hidden></label>
-                    <button type="button" class="btn btn-ghost" id="ktplBtnReset" title="Alle Vorlagen löschen und Standard neu laden"><i class="bi bi-arrow-counterclockwise"></i>Zurücksetzen</button>
+                    <a class="fb-btn fb-btn--ghost" href="../assets/kursteam-templates/vorlagen-import.example.json" download title="Leere/Beispiel-JSON zum Befüllen mit KI"><i class="bi bi-file-earmark-code"></i>JSON-Vorlage</a>
+                    <a class="fb-btn fb-btn--ghost" href="../assets/kursteam-templates/PROMPT-lehrplan-zu-kursteam-vorlagen.md" download title="Prompt für externe KI (Lehrplan → JSON)"><i class="bi bi-robot"></i>KI-Prompt</a>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnExport" title="Alle Vorlagen als JSON speichern"><i class="bi bi-download"></i>Alle exportieren</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnExportOne" title="Nur die ausgewählte Vorlage exportieren"><i class="bi bi-file-earmark-arrow-down"></i>Aktuelle</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnCatalogRefresh" title="Zentrale Bibliothek neu laden"><i class="bi bi-cloud-arrow-down"></i>Zentrale</button>
+                    <label class="btn fb-btn fb-btn--ghost" for="ktplImportFile" title="Vorlagen aus JSON-Datei laden"><i class="bi bi-upload"></i>Import<input type="file" id="ktplImportFile" accept="application/json,.json" hidden></label>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnReset" title="Alle Vorlagen löschen und Standard neu laden"><i class="bi bi-arrow-counterclockwise"></i>Zurücksetzen</button>
                 </div>
             </div>
 
@@ -925,9 +969,9 @@
                                 </div>
                             </div>
                             <div class="ktpl-iconbar">
-                                <button type="button" class="btn btn-success" id="ktplBtnNew" title="Neue Vorlage"><i class="bi bi-plus-lg"></i>Neu</button>
-                                <button type="button" class="btn" id="ktplBtnClone" title="Ausgewählte Vorlage kopieren"><i class="bi bi-copy"></i>Kopie</button>
-                                <button type="button" class="btn btn-ghost btn-icon-only" id="ktplBtnDelete" title="Vorlage löschen" aria-label="Vorlage löschen"><i class="bi bi-trash"></i></button>
+                                <button type="button" class="fb-btn" id="ktplBtnNew" title="Neue Vorlage"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnClone" title="Ausgewählte Vorlage kopieren"><i class="bi bi-copy"></i>Kopie</button>
+                                <button type="button" class="fb-btn fb-btn--ghost btn-icon-only" id="ktplBtnDelete" title="Vorlage löschen" aria-label="Vorlage löschen"><i class="bi bi-trash"></i></button>
                             </div>
                             <ul class="ktpl-list" id="ktplTemplateList"></ul>
                         </div>
@@ -992,11 +1036,11 @@
                                     <p class="ktpl-section__hint">Namen bearbeiten und sortieren. „Allgemein“ gehört nicht in die Liste.</p>
                                     <div class="ktpl-add-row">
                                         <input type="text" id="ktplNewChannelName" placeholder="Neuer Kanalname …" autocomplete="off">
-                                        <button type="button" class="btn" id="ktplBtnAddChannel"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
+                                        <button type="button" class="fb-btn" id="ktplBtnAddChannel"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
                                     </div>
                                     <ul class="ktpl-channels" id="ktplChannelBody"></ul>
                                     <div class="ktpl-footer-actions">
-                                        <button type="button" class="btn btn-success" id="ktplBtnSave"><i class="bi bi-check-lg"></i>Änderungen speichern</button>
+                                        <button type="button" class="fb-btn" id="ktplBtnSave"><i class="bi bi-check-lg"></i>Änderungen speichern</button>
                                     </div>
                                 </div>
                             </div>
@@ -1006,7 +1050,10 @@
             </section>
 
             <section class="tm-panel" data-ktpl-panel="apply" hidden>
-                <p class="ktpl-hint">Team wählen → Vorlage wählen → vergleichen → anwenden. Vorhandene Kanäle bleiben erhalten.</p>
+                <div class="pw-msg" role="note">
+                    <p class="pw-msg__title">Ablauf</p>
+                    <p>Team wählen → Vorlage wählen → vergleichen → anwenden. Vorhandene Kanäle bleiben erhalten.</p>
+                </div>
                 <div class="ktpl-apply-steps">
                     <div class="ktpl-apply-card">
                         <h4><span class="ktpl-apply-card__n">1</span>Vorlage</h4>
@@ -1039,7 +1086,7 @@
                             <label for="ktplTeamQuery">Suche</label>
                             <div style="display:flex;gap:8px;">
                                 <input type="search" id="ktplTeamQuery" placeholder="Name oder GUID …" autocomplete="off" style="flex:1;">
-                                <button type="button" class="btn" id="ktplBtnSearchTeam"><i class="bi bi-search"></i></button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnSearchTeam"><i class="bi bi-search"></i></button>
                             </div>
                             <ul class="ktpl-hits" id="ktplTeamHits" hidden></ul>
                             <p class="ktpl-picked muted" id="ktplTeamPicked">Noch kein Team gewählt.</p>
@@ -1056,8 +1103,8 @@
                     </div>
                 </div>
                 <div class="ktpl-apply-actions">
-                    <button type="button" class="btn" id="ktplBtnDiff"><i class="bi bi-arrow-left-right"></i>Vergleichen</button>
-                    <button type="button" class="btn btn-success" id="ktplBtnApply"><i class="bi bi-check2-all"></i>Anwenden</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnDiff"><i class="bi bi-arrow-left-right"></i>Vergleichen</button>
+                    <button type="button" class="fb-btn" id="ktplBtnApply"><i class="bi bi-check2-all"></i>Anwenden</button>
                 </div>
                 <div class="ktpl-apply-progress" id="ktplApplyProgress" hidden>
                     <div class="ktpl-apply-progress__track" aria-hidden="true">
@@ -1077,10 +1124,13 @@
 
                 <div class="ktpl-materials" id="ktplMaterialsBox">
                     <h4><i class="bi bi-folder2-open"></i> Material-Test</h4>
-                    <p class="ktpl-hint">Eine Datei aus der zentralen Bibliothek <code>MS365-Katalog/materialien</code> in einen Kanal des gewählten Teams kopieren. Zuerst Team wählen.</p>
+                    <div class="pw-msg" role="note">
+                        <p class="pw-msg__title">Material-Test</p>
+                        <p>Eine Datei aus der zentralen Bibliothek <code>MS365-Katalog/materialien</code> in einen Kanal des gewählten Teams kopieren. Zuerst Team wählen.</p>
+                    </div>
                     <div class="ktpl-materials__row">
-                        <button type="button" class="btn" id="ktplBtnMatLoad"><i class="bi bi-cloud-arrow-down"></i>Materialien laden</button>
-                        <button type="button" class="btn btn-ghost" id="ktplBtnMatUp" hidden><i class="bi bi-arrow-up"></i>Hoch</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnMatLoad"><i class="bi bi-cloud-arrow-down"></i>Materialien laden</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="ktplBtnMatUp" hidden><i class="bi bi-arrow-up"></i>Hoch</button>
                     </div>
                     <p class="ktpl-materials__path muted" id="ktplMatPath">–</p>
                     <ul class="ktpl-materials__list" id="ktplMatList"></ul>
@@ -1090,7 +1140,7 @@
                             <select id="ktplMatChannel"><option value="">— Kanal wählen —</option></select>
                         </div>
                         <p class="ktpl-materials__picked" id="ktplMatPicked">Keine Datei gewählt.</p>
-                        <button type="button" class="btn btn-success" id="ktplBtnMatCopy" disabled><i class="bi bi-box-arrow-in-right"></i>In Kanal kopieren</button>
+                        <button type="button" class="fb-btn" id="ktplBtnMatCopy" disabled><i class="bi bi-box-arrow-in-right"></i>In Kanal kopieren</button>
                         <div class="ktpl-apply-progress" id="ktplMatProgress" hidden>
                             <div class="ktpl-apply-progress__track" aria-hidden="true">
                                 <div class="ktpl-apply-progress__fill" id="ktplMatProgressFill"></div>
@@ -1109,7 +1159,7 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/tools/kursteam-templates/kursteam-templates.js"></script>
 </body>

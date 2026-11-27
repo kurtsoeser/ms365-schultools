@@ -423,6 +423,20 @@ body.dash-tasks-split-active .dashboard-tasks-head-row {
     display: none !important;
 }
 
+.dash-tasks-split--shared-rail {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-tasks-split--shared-rail > .dash-tasks-split__nav,
+.dash-tasks-split--shared-rail > .dash-tasks-split__resize {
+    display: none !important;
+}
+
+.dash-tasks-split--shared-rail > .dash-tasks-split__detail {
+    grid-column: 1;
+    grid-row: 1 / -1;
+}
+
 .dash-tasks-split__detail {
     grid-column: 3;
     grid-row: 2;

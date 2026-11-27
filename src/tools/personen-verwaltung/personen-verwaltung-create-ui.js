@@ -10,43 +10,179 @@ import { readInputTrim } from './personen-verwaltung-logic.js';
 /** @type {any} */
 let host = null;
 
+/** Nutzer hat Anzeigename / Nickname manuell geändert → kein Auto-Overwrite. */
+let displayNameTouched = false;
+let mailNickTouched = false;
+let createWired = false;
+
 export function init(a) {
     host = a;
 }
 
-export function openCreateModal() {
-    const bd = document.getElementById('pvModalCreateBackdrop');
-    if (!bd) return;
-    const ids = ['pvCreateUpn', 'pvCreateDisplayName', 'pvCreateMailNick', 'pvCreatePassword', 'pvCreateGiven', 'pvCreateSurname', 'pvCreateMail'];
-    for (let i = 0; i < ids.length; i++) {
-        const el = document.getElementById(ids[i]);
-        if (el) el.value = '';
+function el(id) {
+    return document.getElementById(id);
+}
+
+function suggestDisplayName() {
+    const given = readInputTrim(el('pvCreateGiven'));
+    const surname = readInputTrim(el('pvCreateSurname'));
+    return [given, surname].filter(Boolean).join(' ').trim();
+}
+
+function suggestMailNickFromUpn(upn) {
+    return sanitizeMailNickname('', upn);
+}
+
+/** Kennwort das übliche Richtlinien (Länge, Groß/Klein, Ziffer, Sonderzeichen) erfüllt. */
+export function suggestCreatePassword() {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const special = '!@#$%&*-_+';
+    const all = upper + lower + digits + special;
+    const pick = function (set) {
+        return set.charAt(Math.floor(Math.random() * set.length));
+    };
+    let out = pick(upper) + pick(lower) + pick(digits) + pick(special);
+    for (let i = 0; i < 10; i++) out += pick(all);
+    return out
+        .split('')
+        .sort(function () {
+            return Math.random() - 0.5;
+        })
+        .join('');
+}
+
+function syncDerivedFields() {
+    if (!displayNameTouched) {
+        const dn = el('pvCreateDisplayName');
+        const suggested = suggestDisplayName();
+        if (dn && suggested) dn.value = suggested;
     }
-    const f = document.getElementById('pvCreateForcePw');
+    if (!mailNickTouched) {
+        const nick = el('pvCreateMailNick');
+        const upn = readInputTrim(el('pvCreateUpn'));
+        const suggested = suggestMailNickFromUpn(upn);
+        if (nick && suggested) nick.value = suggested;
+    }
+}
+
+function wireCreateAutofill() {
+    if (createWired) return;
+    createWired = true;
+
+    const given = el('pvCreateGiven');
+    const surname = el('pvCreateSurname');
+    const display = el('pvCreateDisplayName');
+    const upn = el('pvCreateUpn');
+    const nick = el('pvCreateMailNick');
+    const pwGen = el('pvCreatePwGen');
+    const form = el('pvCreateForm');
+
+    function onNameInput() {
+        syncDerivedFields();
+    }
+    if (given) given.addEventListener('input', onNameInput);
+    if (surname) surname.addEventListener('input', onNameInput);
+    if (display) {
+        display.addEventListener('input', function () {
+            displayNameTouched = true;
+        });
+    }
+    if (upn) {
+        upn.addEventListener('input', function () {
+            syncDerivedFields();
+        });
+    }
+    if (nick) {
+        nick.addEventListener('input', function () {
+            mailNickTouched = true;
+        });
+    }
+    if (pwGen) {
+        pwGen.addEventListener('click', function () {
+            const pw = el('pvCreatePassword');
+            if (!pw) return;
+            pw.value = suggestCreatePassword();
+            pw.focus();
+            pw.select();
+        });
+    }
+    const usage = el('pvCreateUsageLocation');
+    if (usage) {
+        usage.addEventListener('input', function () {
+            const start = usage.selectionStart;
+            const end = usage.selectionEnd;
+            usage.value = String(usage.value || '')
+                .toUpperCase()
+                .replace(/[^A-Z]/g, '')
+                .slice(0, 2);
+            if (typeof start === 'number') usage.setSelectionRange(start, end);
+        });
+    }
+    if (form) {
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            void submitCreateUser();
+        });
+    }
+}
+
+export function openCreateModal() {
+    const bd = el('pvModalCreateBackdrop');
+    if (!bd) return;
+    wireCreateAutofill();
+    displayNameTouched = false;
+    mailNickTouched = false;
+
+    const ids = [
+        'pvCreateUpn',
+        'pvCreateDisplayName',
+        'pvCreateMailNick',
+        'pvCreatePassword',
+        'pvCreateGiven',
+        'pvCreateSurname',
+        'pvCreateMail'
+    ];
+    for (let i = 0; i < ids.length; i++) {
+        const node = el(ids[i]);
+        if (node) node.value = '';
+    }
+    const usage = el('pvCreateUsageLocation');
+    if (usage) usage.value = 'AT';
+    const f = el('pvCreateForcePw');
     if (f) f.checked = true;
-    const e = document.getElementById('pvCreateEnabled');
+    const e = el('pvCreateEnabled');
     if (e) e.checked = true;
+
     bd.classList.add('active');
     bd.setAttribute('aria-hidden', 'false');
+    const focusEl = el('pvCreateGiven') || el('pvCreateUpn');
+    if (focusEl) {
+        setTimeout(function () {
+            focusEl.focus();
+        }, 30);
+    }
 }
 
 export function closeCreateModal() {
-    const bd = document.getElementById('pvModalCreateBackdrop');
+    const bd = el('pvModalCreateBackdrop');
     if (!bd) return;
     bd.classList.remove('active');
     bd.setAttribute('aria-hidden', 'true');
 }
 
 export async function submitCreateUser() {
-    const upn = readInputTrim(document.getElementById('pvCreateUpn'));
-    const displayName = readInputTrim(document.getElementById('pvCreateDisplayName'));
-    let mailNick = readInputTrim(document.getElementById('pvCreateMailNick'));
-    const password = String(document.getElementById('pvCreatePassword')?.value || '');
-    const givenName = readInputTrim(document.getElementById('pvCreateGiven'));
-    const surname = readInputTrim(document.getElementById('pvCreateSurname'));
-    const mail = readInputTrim(document.getElementById('pvCreateMail'));
-    const forcePw = document.getElementById('pvCreateForcePw') ? document.getElementById('pvCreateForcePw').checked : true;
-    const enabled = document.getElementById('pvCreateEnabled') ? document.getElementById('pvCreateEnabled').checked : true;
+    const upn = readInputTrim(el('pvCreateUpn'));
+    const displayName = readInputTrim(el('pvCreateDisplayName'));
+    let mailNick = readInputTrim(el('pvCreateMailNick'));
+    const password = String(el('pvCreatePassword')?.value || '');
+    const givenName = readInputTrim(el('pvCreateGiven'));
+    const surname = readInputTrim(el('pvCreateSurname'));
+    const mail = readInputTrim(el('pvCreateMail'));
+    let usageLocation = readInputTrim(el('pvCreateUsageLocation')).toUpperCase();
+    const forcePw = el('pvCreateForcePw') ? el('pvCreateForcePw').checked : true;
+    const enabled = el('pvCreateEnabled') ? el('pvCreateEnabled').checked : true;
 
     if (!upn || !displayName || !password) {
         host.toast('UPN, Anzeigename und Kennwort sind Pflichtfelder.');
@@ -55,6 +191,10 @@ export async function submitCreateUser() {
     mailNick = sanitizeMailNickname(mailNick, upn);
     if (!mailNick) {
         host.toast('Mail-Nickname ungültig oder leer.');
+        return;
+    }
+    if (usageLocation && !/^[A-Z]{2}$/.test(usageLocation)) {
+        host.toast('Nutzungsort: zwei Buchstaben, z. B. AT.');
         return;
     }
 
@@ -71,15 +211,25 @@ export async function submitCreateUser() {
     if (givenName) body.givenName = givenName;
     if (surname) body.surname = surname;
     if (mail) body.mail = mail;
+    if (usageLocation) body.usageLocation = usageLocation;
 
-    const sub = document.getElementById('pvModalCreateSubmit');
+    const sub = el('pvModalCreateSubmit');
     if (sub) sub.disabled = true;
     try {
         const token = await getGraphToken();
         const created = await graphJson('POST', '/users', token, body);
         const id = created && created.id ? created.id : null;
-        host.appendLog('Benutzer angelegt: ' + (created.userPrincipalName || upn), 'ok');
-        host.toast('Benutzer angelegt. Als Nächstes: Nutzungsort und Lizenz zuweisen.');
+        host.appendLog(
+            'Benutzer angelegt: ' +
+                (created.userPrincipalName || upn) +
+                (usageLocation ? ' · Nutzungsort ' + usageLocation : ''),
+            'ok'
+        );
+        host.toast(
+            usageLocation
+                ? 'Konto angelegt. Nutzungsort ' + usageLocation + ' – bitte Lizenz zuweisen.'
+                : 'Konto angelegt. Als Nächstes: Nutzungsort und Lizenz zuweisen.'
+        );
         closeCreateModal();
         if (id) {
             pv.pendingTabAfterSelect = 'lizenzen';
@@ -105,10 +255,10 @@ export async function submitCreateUser() {
 }
 
 export function updateDeleteModalUi() {
-    const hard = document.getElementById('pvDeleteHard') && document.getElementById('pvDeleteHard').checked;
-    const warn = document.getElementById('pvDeleteHardWarn');
-    const intro = document.getElementById('pvDeleteSoftIntro');
-    const sub = document.getElementById('pvModalDeleteSubmit');
+    const hard = el('pvDeleteHard') && el('pvDeleteHard').checked;
+    const warn = el('pvDeleteHardWarn');
+    const intro = el('pvDeleteSoftIntro');
+    const sub = el('pvModalDeleteSubmit');
     if (warn) warn.style.display = hard ? 'block' : 'none';
     if (intro) intro.style.opacity = hard ? '0.55' : '1';
     if (sub) {
@@ -121,7 +271,7 @@ export function openDeleteModal() {
     const u = host.getSelectedUser();
     if (!u) return;
     if (u.onPremisesSyncEnabled === true) {
-        const hardChk = document.getElementById('pvDeleteHard');
+        const hardChk = el('pvDeleteHard');
         // Hard-Delete aus der Cloud geht bei AD-Sync nicht – Modal nur für Deaktivieren erlauben
         if (hardChk) {
             hardChk.checked = false;
@@ -132,14 +282,14 @@ export function openDeleteModal() {
                 (u.onPremisesSamAccountName || '–')
         );
     } else {
-        const hardChk = document.getElementById('pvDeleteHard');
+        const hardChk = el('pvDeleteHard');
         if (hardChk) hardChk.disabled = false;
     }
-    const bd = document.getElementById('pvModalDeleteBackdrop');
-    const echo = document.getElementById('pvDeleteUpnEcho');
-    const inp = document.getElementById('pvDeleteConfirmInput');
-    const sub = document.getElementById('pvModalDeleteSubmit');
-    const hardChk2 = document.getElementById('pvDeleteHard');
+    const bd = el('pvModalDeleteBackdrop');
+    const echo = el('pvDeleteUpnEcho');
+    const inp = el('pvDeleteConfirmInput');
+    const sub = el('pvModalDeleteSubmit');
+    const hardChk2 = el('pvDeleteHard');
     if (hardChk2 && !u.onPremisesSyncEnabled) hardChk2.checked = false;
     updateDeleteModalUi();
     if (echo) echo.textContent = u.userPrincipalName || u.mail || u.id;
@@ -152,7 +302,7 @@ export function openDeleteModal() {
 }
 
 export function closeDeleteModal() {
-    const bd = document.getElementById('pvModalDeleteBackdrop');
+    const bd = el('pvModalDeleteBackdrop');
     if (!bd) return;
     bd.classList.remove('active');
     bd.setAttribute('aria-hidden', 'true');
@@ -160,8 +310,8 @@ export function closeDeleteModal() {
 
 export function syncDeleteConfirmButton() {
     const u = host.getSelectedUser();
-    const inp = document.getElementById('pvDeleteConfirmInput');
-    const sub = document.getElementById('pvModalDeleteSubmit');
+    const inp = el('pvDeleteConfirmInput');
+    const sub = el('pvModalDeleteSubmit');
     if (!sub || !inp || !u) return;
     const ok = readInputTrim(inp) === String(u.userPrincipalName || '').trim();
     sub.disabled = !ok;
@@ -170,17 +320,17 @@ export function syncDeleteConfirmButton() {
 export async function submitDeleteUser() {
     const u = host.getSelectedUser();
     if (!u) return;
-    const inp = document.getElementById('pvDeleteConfirmInput');
+    const inp = el('pvDeleteConfirmInput');
     if (!inp || readInputTrim(inp) !== String(u.userPrincipalName || '').trim()) {
         host.toast('UPN stimmt nicht überein.');
         return;
     }
-    const hard = document.getElementById('pvDeleteHard') && document.getElementById('pvDeleteHard').checked;
+    const hard = el('pvDeleteHard') && el('pvDeleteHard').checked;
     if (hard && u.onPremisesSyncEnabled === true) {
         host.toast('AD‑Sync‑Konten können nicht aus der Cloud gelöscht werden – bitte lokal im AD löschen.');
         return;
     }
-    const sub = document.getElementById('pvModalDeleteSubmit');
+    const sub = el('pvModalDeleteSubmit');
     if (sub) sub.disabled = true;
     try {
         const token = await getGraphToken();
@@ -213,8 +363,8 @@ export async function submitDeleteUser() {
         pv.selectedUserId = null;
         pv.cachedGroupsForSelection = null;
         pv.profileEditMode = false;
-        const hint = document.getElementById('pvHint');
-        const detail = document.getElementById('pvDetail');
+        const hint = el('pvHint');
+        const detail = el('pvDetail');
         if (hint) hint.style.display = '';
         if (detail) detail.style.display = 'none';
         host.updateDetailActionButtons();
@@ -230,4 +380,3 @@ export async function submitDeleteUser() {
         syncDeleteConfirmButton();
     }
 }
-

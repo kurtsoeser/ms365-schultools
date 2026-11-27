@@ -4,7 +4,8 @@ import {
     buildLocalDemoState,
     DEMO_SITE_DEFAULT,
     DEMO_SEED_TAG,
-    buildDemoAngebotFields
+    buildDemoAngebotFields,
+    buildDemoAttendees
 } from '../src/tools/projektwochen/projektwochen-demo-data.js';
 import { parseDemoImportJson } from '../src/tools/projektwochen/projektwochen-demo-seed.js';
 import {
@@ -43,6 +44,10 @@ describe('projektwochen demo kurtrocks', () => {
         expect(local.aktionen).toHaveLength(1);
         expect(local.angebote.length).toBe(pack.angebote.length);
         expect(local.angebote[0].angebotId).toBeTruthy();
+        const mine = buildDemoAttendees(local.angebote, 'ich@schule.at');
+        const own = mine.rows.filter((r) => r.email === 'ich@schule.at');
+        expect(own).toHaveLength(2);
+        expect(mine.rows.length).toBeGreaterThan(2);
         const parsed = parseDemoImportJson(JSON.stringify(pack));
         expect(parsed.counts.angebote).toBe(pack.angebote.length);
     });

@@ -87,5 +87,25 @@ describe('privacy-copy (Single Source of Truth)', () => {
         expect(read('landing/datenschutz.html')).toContain('trust.html');
         expect(read('landing/index.html')).toContain('trust.html');
     });
+
+    it('zeigt Impressum, Datenschutz und Nutzungsbedingungen im Footer', () => {
+        for (const rel of [
+            'landing/index.html',
+            'landing/impressum.html',
+            'landing/datenschutz.html',
+            'landing/nutzungsbedingungen.html',
+            'landing/neuigkeiten.html',
+            'landing/trust.html'
+        ]) {
+            const html = read(rel);
+            expect(html, rel).toContain('>Impressum<');
+            expect(html, rel).toContain('>Datenschutz<');
+            expect(html, rel).toContain('>Nutzungsbedingungen<');
+        }
+        expect(read('landing/impressum.html')).toContain('29320646');
+        expect(read('landing/impressum.html')).toContain('9110004879074');
+        expect(read('landing/impressum.html')).not.toMatch(/Stripe|Replay Pass|Magic Link/i);
+        expect(read('landing/nutzungsbedingungen.html')).toContain('kein entgeltlicher Vertrag');
+    });
 });
 

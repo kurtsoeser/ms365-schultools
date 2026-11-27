@@ -212,6 +212,7 @@ const LICENSE_PACKAGES = [
             'einsammler',
             'sharepoint-liste-einsammler',
             'elternbrief',
+            'elternsprechtag',
             'sharepoint-liste-elternbrief',
             'krankmeldung',
             'sharepoint-liste-krankmeldung',

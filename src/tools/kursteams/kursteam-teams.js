@@ -67,9 +67,16 @@ window.addSingleTeamRow = ns.addSingleTeamRow;
 
 if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 if (typeof ns.renderTeamNameBuilder === 'function') ns.renderTeamNameBuilder();
-if (typeof ns.mountNameConfigForMode === 'function') ns.mountNameConfigForMode('bulk');
 
-// Nach Storage/Step-Init: Deep-Link vom Dashboard (?mode=single)
+// Nach Storage/Step-Init: Deep-Link vom Dashboard (?mode=single), sonst Bulk-Name-Config
 if (typeof ns.bootSingleTeamModeFromQuery === 'function') {
-    queueMicrotask(() => ns.bootSingleTeamModeFromQuery());
+    queueMicrotask(() => {
+        const started =
+            typeof ns.bootSingleTeamModeFromQuery === 'function' && ns.bootSingleTeamModeFromQuery();
+        if (!started && typeof ns.mountNameConfigForMode === 'function') {
+            ns.mountNameConfigForMode('bulk');
+        }
+    });
+} else if (typeof ns.mountNameConfigForMode === 'function') {
+    ns.mountNameConfigForMode('bulk');
 }

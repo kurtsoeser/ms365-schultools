@@ -1,7 +1,7 @@
 /**
  * Light/Dark für die gesamte App. Marke ist fest Teal (eine Signatur).
  * Speichert: ms365-theme-v1, ms365-brand-v1 (= teal).
- * Hell/Dunkel-Schalter: Fußzeile.
+ * Hell/Dunkel-Schalter: nur noch im Kontomenü, nicht in der Fußzeile.
  * Erlaubte Marken: dieselbe Liste wie in theme-boot.js und msal-auth-ui.js.
  */
 (function () {
@@ -194,33 +194,64 @@
         });
     }
 
+    function removeFooterToggles() {
+        document.querySelectorAll('[data-ms365-theme-toggle]').forEach(function (el) {
+            if (el.closest('#ms365AuthDropdown, .ms365-auth-menu')) return;
+            el.remove();
+        });
+    }
+
+    function bindFooterHelpMenu() {
+        const root = document.getElementById('siteCreditKurtrocks');
+        const btn = document.getElementById('appFooterHelpBtn');
+        const menu = document.getElementById('appFooterHelpMenu');
+        if (!root || !btn || !menu || btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        function setOpen(open) {
+            menu.hidden = !open;
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            root.classList.toggle('is-open', open);
+        }
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(menu.hidden);
+        });
+        document.addEventListener('click', function (e) {
+            if (!root.contains(e.target)) setOpen(false);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') setOpen(false);
+        });
+        menu.addEventListener('click', function () {
+            setOpen(false);
+        });
+        window.ms365FooterHelp = {
+            open: function () {
+                setOpen(true);
+            },
+            close: function () {
+                setOpen(false);
+            },
+            toggle: function () {
+                setOpen(menu.hidden);
+            }
+        };
+    }
+
     function mountToggle() {
         removeHeaderToggles();
-        const row = ensureCreditRow();
-        if (!row) return null;
-
-        let btn = row.querySelector('[data-ms365-theme-toggle]');
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'ms365-theme-toggle';
-            btn.setAttribute('data-ms365-theme-toggle', '1');
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                toggleTheme();
-            });
-            const link = row.querySelector('.site-credit-link');
-            if (link) row.insertBefore(btn, link);
-            else row.appendChild(btn);
-        }
+        removeFooterToggles();
+        bindFooterHelpMenu();
         syncButtons();
         syncBrandButtons();
-        return btn;
+        return document.getElementById('appFooterHelpBtn') || ensureCreditRow() || true;
     }
 
     function mountWhenReady(attemptsLeft) {
-        if (mountToggle()) return;
-        if (attemptsLeft <= 0) return;
+        mountToggle();
+        const btn = document.getElementById('appFooterHelpBtn');
+        if ((btn && btn.dataset.bound === '1') || attemptsLeft <= 0) return;
         setTimeout(function () {
             mountWhenReady(attemptsLeft - 1);
         }, 80);

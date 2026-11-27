@@ -106,6 +106,11 @@ describe('Schuljahr-Playbook Logik', () => {
         expect(defs.find((d) => d.id === 'expert')).toBeUndefined();
         expect(defs.find((d) => d.id === 'kursteams').blurb).toMatch(/CSV\/CMD/);
         expect(defs.find((d) => d.id === 'students').blurb).toMatch(/automatisch abgehakt/);
+        expect(defs.find((d) => d.id === 'students').blurb).toMatch(/verknüpfen/);
+        defs.forEach(function (d) {
+            expect(d.blurb, d.id).not.toMatch(/\bMatch\b/i);
+            expect(d.blurb, d.id).not.toMatch(/Sammel-Aktion/);
+        });
     });
 
     it('openItemsFromContainer listet unmatched Klassen und Archiv-Hinweis', () => {

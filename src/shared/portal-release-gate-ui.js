@@ -33,7 +33,7 @@ function render(body) {
         ? '<p class="dash-pg-section__note"><strong>Portal freigegeben</strong>' +
           (at ? ' · ' + new Date(at).toLocaleString('de-AT') : '') +
           '</p>'
-        : '<p class="dash-pg-section__note"><strong>Portal nicht freigegeben</strong> – Lehrkräfte sehen sonst den Hinweis „Portal noch nicht freigegeben“.</p>';
+        : '<p class="dash-pg-section__note"><strong>Portal für Lehrkräfte nutzbar</strong> – der Hinweis „Portal noch nicht freigegeben“ erscheint nicht, sobald Tool-Site und Listen da sind.</p>';
 
     const miss =
         gate.missingLabels && gate.missingLabels.length

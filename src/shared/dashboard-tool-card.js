@@ -15,7 +15,6 @@ export const SCHULAPPS_ALWAYS_USABLE = new Set([
     'krankmeldung',
     'kollegium-umfragen',
     'ausgaben',
-    'schulsprecherwahl',
     'schueler-stammdaten-portal'
 ]);
 

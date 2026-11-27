@@ -217,17 +217,28 @@ export function updateStatsPanel() {
 
 export function updateProgressLine() {
     const progress = document.getElementById('pvProgress');
-    if (!progress) return;
+    const summary = document.getElementById('pvListSummary');
     if (!pv.loadedUsers.length) {
-        progress.textContent = '';
+        if (progress) progress.textContent = '';
+        if (summary) summary.textContent = 'Noch nicht eingelesen';
         return;
     }
-    const visible = host.getVisibleRows();
+    const visible =
+        host && typeof host.getVisibleRows === 'function' ? host.getVisibleRows() : getVisibleRows();
     const base = 'Geladen: ' + pv.loadedUsers.length + ' Person(en).';
-    if (visible.length !== pv.loadedUsers.length) {
-        progress.textContent = base + ' Angezeigt: ' + visible.length + ' Treffer.';
-    } else {
-        progress.textContent = base;
+    if (progress) {
+        if (visible.length !== pv.loadedUsers.length) {
+            progress.textContent = base + ' Angezeigt: ' + visible.length + ' Treffer.';
+        } else {
+            progress.textContent = base;
+        }
+    }
+    if (summary) {
+        if (visible.length !== pv.loadedUsers.length) {
+            summary.textContent = visible.length + ' von ' + pv.loadedUsers.length + ' angezeigt';
+        } else {
+            summary.textContent = pv.loadedUsers.length + ' Person(en)';
+        }
     }
 }
 
@@ -235,7 +246,8 @@ export function renderUserTree() {
     const tree = document.getElementById('pvTree');
     if (!tree) return;
     tree.replaceChildren();
-    const rows = host.getVisibleRows();
+    const rows =
+        host && typeof host.getVisibleRows === 'function' ? host.getVisibleRows() : getVisibleRows();
 
     if (!rows.length) {
         const li = document.createElement('li');
@@ -243,10 +255,10 @@ export function renderUserTree() {
         p.className = 'muted';
         p.style.margin = '0';
         p.style.padding = '14px 12px';
-        p.textContent = pv.loadedUsers.length ? 'Keine Treffer für die Filter.' : 'Noch keine Daten – „Personen einlesen“ wählen.';
+        p.textContent = pv.loadedUsers.length ? 'Keine Treffer für die Filter.' : 'Noch keine Daten – „Einlesen“ wählen.';
         li.appendChild(p);
         tree.appendChild(li);
-        host.updateProgressLine();
+        updateProgressLine();
         return;
     }
 
@@ -319,6 +331,6 @@ export function renderUserTree() {
         li.appendChild(btn);
         tree.appendChild(li);
     }
-    host.updateProgressLine();
+    updateProgressLine();
 }
 

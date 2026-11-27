@@ -18,7 +18,19 @@
         return document.getElementById(id);
     }
 
+    function isItTransitionQuiet() {
+        try {
+            if (window.self !== window.top) return true;
+            if (document.documentElement.hasAttribute('data-ms365-it-embed')) return true;
+            if (document.documentElement.hasAttribute('data-ms365-it-fouc')) return true;
+        } catch (e) {
+            return true;
+        }
+        return false;
+    }
+
     function ensureOverlay() {
+        if (isItTransitionQuiet()) return null;
         var el = $(OVERLAY_ID);
         if (el) return el;
         el = document.createElement('div');
@@ -71,7 +83,9 @@
     }
 
     function showOverlay(opts) {
+        if (isItTransitionQuiet()) return;
         var el = ensureOverlay();
+        if (!el) return;
         var title = $('ms365LicenseGateTitle');
         var text = $('ms365LicenseGateText');
         var meta = $('ms365LicenseGateMeta');
@@ -168,7 +182,53 @@
         return escapeHtml(s).replace(/'/g, '&#39;');
     }
 
+    function schoolItRequestHref() {
+        var email = '';
+        var name = '';
+        try {
+            var setup =
+                window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
+                    ? window.ms365AppDataV2.getSetup()
+                    : null;
+            var profile = setup && setup.schoolProfile ? setup.schoolProfile : {};
+            email = String(profile.itM365AdminEmail || '').trim();
+            name = String(profile.itM365Admin || '').trim();
+        } catch (e) {
+            email = '';
+        }
+        if (!email && core && typeof core.readCache === 'function') {
+            try {
+                var cache = core.readCache();
+                var result = cache && (cache.result || cache);
+                var st = result && (result.schoolStammdaten || result);
+                if (st) {
+                    email = email || String(st.ItM365AdminEmail || st.itM365AdminEmail || '').trim();
+                    name = name || String(st.ItM365Admin || st.itM365Admin || '').trim();
+                }
+            } catch (e2) {
+                /* ignore */
+            }
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return '';
+        var subject = encodeURIComponent('Anfrage MS365-Schul-Tools');
+        var body = encodeURIComponent(
+            'Guten Tag' + (name ? ' ' + name : '') + ',\n\nich möchte eine Anfrage zu den MS365-Schul-Tools stellen.\n'
+        );
+        return 'mailto:' + email + '?subject=' + subject + '&body=' + body;
+    }
+
     function showNeedLogin() {
+        if (isItTransitionQuiet()) return;
+        try {
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (!k || k.indexOf('ms365-dashboard-it-preview-v1') !== 0) continue;
+                var shell = String(localStorage.getItem(k) || '').toLowerCase();
+                if (shell === 'full' || shell === 'it') return;
+            }
+        } catch (eLogin) {
+            return;
+        }
         showOverlay({
             mode: 'login',
             title: 'Anmeldung erforderlich',
@@ -191,32 +251,34 @@
         var reason = result && result.reason ? String(result.reason) : '';
         var deniedText =
             (result && result.message) ||
-            'Ihre Schule ist für MS365-Schul-Tools noch nicht freigeschaltet. Bitte informieren Sie Ihren IT-Admin oder stellen Sie hier eine Anfrage.';
+            'Ihre Schule ist für MS365-Schul-Tools noch nicht freigeschaltet. Bitte stellen Sie die Anfrage an die Schul-IT.';
         if (reason === 'not_registered') {
             deniedText =
-                'Ihre Schule ist noch nicht freigeschaltet. Bitte informieren Sie Ihren IT-Admin – oder stellen Sie eine Anfrage über die Homepage. Die Tenant-ID unten hilft bei der Zuordnung.';
+                'Ihre Schule ist noch nicht freigeschaltet. Bitte stellen Sie die Anfrage an die Schul-IT. Die Tenant-ID unten hilft bei der Zuordnung.';
         }
         showOverlay({
             mode: 'denied',
             title: 'Schule noch nicht freigeschaltet',
             text: deniedText,
             metaHtml: metaFromResult(result),
-            actions: [
-                {
-                    primary: true,
-                    html: '<i class="bi bi-envelope"></i> Anfrage stellen',
-                    href: 'https://ms365.schule/#kontakt',
-                    target: '_blank',
-                    rel: 'noopener noreferrer'
-                },
-                {
+            actions: (function () {
+                var requestHref = schoolItRequestHref();
+                var actions = [];
+                if (requestHref) {
+                    actions.push({
+                        primary: true,
+                        html: '<i class="bi bi-envelope"></i> Anfrage stellen',
+                        href: requestHref
+                    });
+                }
+                actions.push({
                     html: '<i class="bi bi-arrow-clockwise"></i> Erneut prüfen',
                     onClick: function () {
                         core.clearCache();
                         runCheck({ force: true });
                     }
-                },
-                {
+                });
+                actions.push({
                     html: '<i class="bi bi-people"></i> Anderes Konto',
                     onClick: function () {
                         core.clearCache();
@@ -226,12 +288,27 @@
                             window.ms365AuthLogin().catch(function () {});
                         }
                     }
-                }
-            ]
+                });
+                return actions;
+            })()
         });
     }
 
     function showChecking() {
+        if (isItTransitionQuiet()) return;
+        try {
+            var cached = core.readCache();
+            if (cached && cached.allowed === true) return;
+            var shell = '';
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (!k || k.indexOf('ms365-dashboard-it-preview-v1') !== 0) continue;
+                shell = String(localStorage.getItem(k) || '').toLowerCase();
+                if (shell === 'full' || shell === 'it') return;
+            }
+        } catch (eQuiet) {
+            return;
+        }
         showOverlay({
             mode: 'checking',
             title: 'Lizenz wird geprüft …',

@@ -18,7 +18,10 @@ function mountStamp(label) {
     }
     const el = createPublishedStampElement(label, document);
     if (!el) return;
-    const target = document.getElementById('ms365FixedFooterRight') || document.body;
+    const target =
+        document.getElementById('appFooterHelpMenu') ||
+        document.getElementById('ms365FixedFooterRight') ||
+        document.body;
     target.appendChild(el);
 }
 

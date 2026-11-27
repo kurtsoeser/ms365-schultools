@@ -31,23 +31,38 @@
 
     var IH_KEY = 'ms365-intranet-starter-v1';
     var ihIds = ['lehrer', 'stammdaten-listen', 'termine', 'formulare', 'medien', 'news', 'stammdaten'];
+    var ihListenIds = ['lehrer', 'stammdaten-listen', 'termine'];
     function ihLoad() {
         try { return JSON.parse(localStorage.getItem(IH_KEY) || '{}') || {}; } catch (e) { return {}; }
     }
     function ihSave(state) {
         try { localStorage.setItem(IH_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
     }
+    function ihSetFill(id, ratio) {
+        var fill = document.getElementById(id);
+        if (fill) fill.style.width = Math.round(Math.max(0, Math.min(1, ratio)) * 100) + '%';
+    }
     function ihRefresh() {
         var state = ihLoad();
         var done = 0;
+        var listenDone = 0;
         ihIds.forEach(function (id) {
             var el = document.querySelector('[data-ih-check="' + id + '"]');
             if (!el) return;
             el.checked = !!state[id];
             if (el.checked) done++;
+            var row = el.closest('.ih-check');
+            if (row) row.classList.toggle('is-done', !!el.checked);
+        });
+        ihListenIds.forEach(function (id) {
+            if (state[id]) listenDone++;
         });
         var p = document.getElementById('ihStarterProgress');
         if (p) p.textContent = done + ' / ' + ihIds.length + ' erledigt';
+        ihSetFill('ihStarterProgressFill', done / ihIds.length);
+        var lp = document.getElementById('ihListenProgress');
+        if (lp) lp.textContent = listenDone + ' / ' + ihListenIds.length;
+        ihSetFill('ihListenProgressFill', listenDone / ihListenIds.length);
     }
     document.querySelectorAll('[data-ih-check]').forEach(function (el) {
         el.addEventListener('change', function () {

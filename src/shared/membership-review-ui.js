@@ -65,7 +65,7 @@ export function createMembershipReview(cfg) {
         const diff = state.diff;
         const labels = c.labels || {};
         summaryEl.textContent =
-            'Markieren Sie Personen und wählen Sie unten in der passenden Spalte die Aktion.';
+            'Wer steht in der Schul-Liste, wer in der M365-Gruppe? Markieren und darunter die Sync-Richtung wählen.';
         if (actions) collectMembershipReviewActionButtons(actions);
 
         body.replaceChildren();

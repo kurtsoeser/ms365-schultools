@@ -18,8 +18,11 @@ import {
     upsertAnmeldung
 } from './wahlfach-zuteilung-store.js';
 import { softPullWz, softPushWzAnmeldung } from './wahlfach-zuteilung-sync.js';
+import { announceAppRole } from '../../shared/app-role-chrome.js';
 import {
+    canonicalKlasse,
     classCodesFromStammdaten,
+    findOwnAnmeldung,
     loadWzStammdaten,
     readWzAccount,
     resolveWzSiteUrl,
@@ -71,8 +74,17 @@ export function mountWahlfachAnmeldung(root) {
     let softError = '';
     let localDemoOnly = false;
     let stammdaten = loadWzStammdaten();
-    let prefill = { schuelerName: '', klasse: '', schuelerEmail: '' };
+    let prefill = {
+        schuelerName: '',
+        klasse: '',
+        schuelerEmail: '',
+        matchedStudent: false,
+        wunsch1Id: '',
+        wunsch2Id: '',
+        wunsch3Id: ''
+    };
     let submitting = false;
+    let editing = false;
 
     function accountCtx() {
         const a = readWzAccount();
@@ -80,15 +92,32 @@ export function mountWahlfachAnmeldung(root) {
     }
 
     function applyOwnershipPrefill() {
+        const account = readWzAccount();
+        const saved = findOwnAnmeldung(loadState(), account.email);
         const own = resolveWzOwnership(
-            { schuelerName: prefill.schuelerName, klasse: prefill.klasse },
+            {
+                schuelerName: (saved && saved.schuelerName) || prefill.schuelerName,
+                klasse: (saved && saved.klasse) || prefill.klasse,
+                schuelerEmail: account.email
+            },
             accountCtx()
         );
+        const codes = classCodesFromStammdaten(stammdaten);
         prefill = {
             schuelerName: own.schuelerName || prefill.schuelerName,
-            klasse: own.klasse || prefill.klasse,
-            schuelerEmail: own.schuelerEmail || prefill.schuelerEmail
+            klasse: canonicalKlasse(own.klasse || prefill.klasse, codes),
+            schuelerEmail: own.schuelerEmail || prefill.schuelerEmail,
+            matchedStudent: !!own.matchedStudent,
+            wunsch1Id: (saved && saved.wunsch1Id) || prefill.wunsch1Id || '',
+            wunsch2Id: (saved && saved.wunsch2Id) || prefill.wunsch2Id || '',
+            wunsch3Id: (saved && saved.wunsch3Id) || prefill.wunsch3Id || ''
         };
+    }
+
+    function offerName(state, id) {
+        if (!id) return '';
+        const hit = (state.angebote || []).find((a) => a && a.id === id);
+        return hit ? hit.bezeichnung : '';
     }
 
     async function hydrateStammdaten(siteId) {
@@ -181,8 +210,17 @@ export function mountWahlfachAnmeldung(root) {
         const angebote = (s.angebote || []).filter((a) => a.aktiv);
         const phase = resolveWzPhase(r);
 
+        const account = readWzAccount();
+        announceAppRole({
+            appId: 'wahlfach-anmeldung',
+            role: 'schueler',
+            source: localDemoOnly ? 'demo' : '',
+            email: account.email,
+            demoMode: localDemoOnly
+        });
+
         root.innerHTML =
-            '<section class="wz-student">' +
+            '<div class="wz-shell wz-shell--form"><div class="wz-main"><section class="wz-student">' +
             '<header class="wz-student__hero">' +
             '<p class="wz-student__kicker">Wahlfach-Anmeldung</p>' +
             '<h1 class="wz-student__title">' +
@@ -195,9 +233,6 @@ export function mountWahlfachAnmeldung(root) {
                   esc(RUNDE_STATUS_LABEL[r.status] || r.status) +
                   '</p><p class="wz-student__meta">' +
                   phaseBadge(r) +
-                  (localDemoOnly
-                      ? ' <span class="wz-badge wz-badge--warn">Demo lokal</span>'
-                      : '') +
                   '</p>'
                 : '<p class="wz-student__meta">Noch keine Runde eingerichtet.</p>') +
             '</header>' +
@@ -211,51 +246,8 @@ export function mountWahlfachAnmeldung(root) {
                   esc(message.text) +
                   '</p>'
                 : '') +
-            (!r
-                ? '<p class="wz-quiet-empty" role="status"><i class="bi bi-hourglass" aria-hidden="true"></i><span>Sobald die Schule eine Runde freigibt, erscheint hier das Formular.</span></p>'
-                : !offen
-                  ? '<div class="wz-student__closed"><i class="bi bi-lock" aria-hidden="true"></i><div><p><strong>' +
-                    esc(phase.label) +
-                    '</strong></p><p>Das Anmeldefenster ist gerade nicht offen. Die Zuteilung macht die Schulleitung.</p></div></div>'
-                  : !angebote.length
-                    ? '<p class="wz-quiet-empty">Noch keine aktiven Angebote.</p>'
-                    : '<form class="wz-student__form" id="wzSchuelerForm">' +
-                      '<fieldset class="wz-student__block">' +
-                      '<legend>Ihre Angaben</legend>' +
-                      '<div class="wz-student__grid">' +
-                      '<label class="wz-field">Name *' +
-                      '<input name="schuelerName" id="wzSchName" required placeholder="Vor- und Nachname" autocomplete="name" value="' +
-                      esc(prefill.schuelerName) +
-                      '">' +
-                      '</label>' +
-                      klasseField() +
-                      '</div></fieldset>' +
-                      '<fieldset class="wz-student__block">' +
-                      '<legend>Wunschreihenfolge</legend>' +
-                      '<p class="wz-student__hint">1. Wunsch ist Pflicht; 2. und 3. Wunsch helfen bei Überbuchung. Die Zuteilung ist manuell durch die Schulleitung.</p>' +
-                      '<div class="wz-student__wishes">' +
-                      '<label class="wz-field wz-field--wish"><span class="wz-wish-n">1</span> 1. Wunsch *' +
-                      '<select name="wunsch1Id" id="wzSchW1" required>' +
-                      angebotOptions(angebote, '', '– bitte wählen –') +
-                      '</select></label>' +
-                      '<label class="wz-field wz-field--wish"><span class="wz-wish-n">2</span> 2. Wunsch' +
-                      '<select name="wunsch2Id" id="wzSchW2">' +
-                      angebotOptions(angebote, '', '– optional –') +
-                      '</select></label>' +
-                      '<label class="wz-field wz-field--wish"><span class="wz-wish-n">3</span> 3. Wunsch' +
-                      '<select name="wunsch3Id" id="wzSchW3">' +
-                      angebotOptions(angebote, '', '– optional –') +
-                      '</select></label>' +
-                      '</div></fieldset>' +
-                      '<div class="wz-actions">' +
-                      '<button type="submit" class="btn btn-success" id="wzSchSubmit"' +
-                      (submitting ? ' disabled' : '') +
-                      '><i class="bi bi-send"></i>' +
-                      (submitting ? 'Sende …' : 'Anmeldung absenden') +
-                      '</button>' +
-                      '</div>' +
-                      '<p class="wz-student__foot">Kein automatisches Matching – die endgültige Zuteilung trifft die Schulleitung.</p>' +
-                      '</form>');
+            studentBody(s, r, offen, angebote, phase) +
+            '</section></div></div>';
 
         const form = root.querySelector('#wzSchuelerForm');
         if (form) {
@@ -263,7 +255,141 @@ export function mountWahlfachAnmeldung(root) {
                 ev.preventDefault();
                 void submitForm(form);
             });
+            const w1 = form.querySelector('#wzSchW1');
+            const w2 = form.querySelector('#wzSchW2');
+            const w3 = form.querySelector('#wzSchW3');
+            const clearDup = (sel, others) => {
+                if (!sel) return;
+                sel.addEventListener('change', () => {
+                    if (sel.value && others.some((o) => o && o.value === sel.value)) sel.value = '';
+                });
+            };
+            clearDup(w2, [w1]);
+            clearDup(w3, [w1, w2]);
+            clearDup(w1, [w2, w3]);
         }
+        const edit = root.querySelector('#wzEditWishes');
+        if (edit) {
+            edit.addEventListener('click', () => {
+                editing = true;
+                message = null;
+                render();
+            });
+        }
+        const cancel = root.querySelector('#wzCancelEdit');
+        if (cancel) {
+            cancel.addEventListener('click', () => {
+                editing = false;
+                message = null;
+                render();
+            });
+        }
+    }
+
+    function identityFields() {
+        if (prefill.matchedStudent && prefill.schuelerName && prefill.klasse) {
+            return (
+                '<div class="wz-student__grid">' +
+                '<p class="wz-field">Name<strong>' +
+                esc(prefill.schuelerName) +
+                '</strong></p>' +
+                '<p class="wz-field">Klasse<strong>' +
+                esc(prefill.klasse) +
+                '</strong></p>' +
+                '<input type="hidden" name="schuelerName" value="' +
+                esc(prefill.schuelerName) +
+                '">' +
+                '<input type="hidden" name="klasse" value="' +
+                esc(prefill.klasse) +
+                '">' +
+                '</div>'
+            );
+        }
+        return (
+            '<div class="wz-student__grid">' +
+            '<label class="wz-field">Name *' +
+            '<input name="schuelerName" id="wzSchName" required placeholder="Vor- und Nachname" autocomplete="name" value="' +
+            esc(prefill.schuelerName) +
+            '">' +
+            '</label>' +
+            klasseField() +
+            '</div>'
+        );
+    }
+
+    function statusHtml(s, own, offen) {
+        const z = (s.zuteilungen || []).find((x) => x && x.anmeldungId === own.id);
+        const zugeteilt = z && z.angebotId ? offerName(s, z.angebotId) : '';
+        const line = (n, id) =>
+            '<li><span>' + n + '. Wunsch</span> ' + esc(offerName(s, id) || '–') + '</li>';
+        return (
+            '<div class="wz-student__status">' +
+            '<p class="wz-student__kicker">Deine Anmeldung</p>' +
+            '<ol class="wz-student__wishes-done">' +
+            line('1', own.wunsch1Id) +
+            line('2', own.wunsch2Id) +
+            line('3', own.wunsch3Id) +
+            '</ol>' +
+            '<p class="wz-student__result"><strong>' +
+            (zugeteilt ? 'Zugeteilt: ' + esc(zugeteilt) : 'Noch nicht zugeteilt') +
+            '</strong></p>' +
+            (offen
+                ? '<div class="wz-actions"><button type="button" class="fb-btn fb-btn--ghost" id="wzEditWishes">Wünsche ändern</button></div>'
+                : '<p class="wz-student__foot">Das Anmeldefenster ist zu. Die Schulleitung teilt zu.</p>') +
+            '</div>'
+        );
+    }
+
+    function studentBody(s, r, offen, angebote, phase) {
+        const own = findOwnAnmeldung(s, prefill.schuelerEmail || readWzAccount().email);
+        if (!r) {
+            return '<p class="wz-quiet-empty" role="status"><i class="bi bi-hourglass" aria-hidden="true"></i><span>Sobald die Schule eine Runde freigibt, erscheint hier das Formular.</span></p>';
+        }
+        if (own && !editing) return statusHtml(s, own, offen);
+        if (!offen) {
+            return (
+                '<div class="wz-student__closed"><i class="bi bi-lock" aria-hidden="true"></i><div><p><strong>' +
+                esc(phase.label) +
+                '</strong></p><p>Das Anmeldefenster ist zu.</p></div></div>'
+            );
+        }
+        if (!angebote.length) return '<p class="wz-quiet-empty">Noch keine aktiven Angebote.</p>';
+        return (
+            '<form class="wz-student__form" id="wzSchuelerForm">' +
+            '<fieldset class="wz-student__block">' +
+            '<legend>Ihre Angaben</legend>' +
+            identityFields() +
+            '</fieldset>' +
+            '<fieldset class="wz-student__block">' +
+            '<legend>Wunschreihenfolge</legend>' +
+            '<p class="wz-student__hint">Der 1. Wunsch ist Pflicht. 2. und 3. Wunsch helfen, wenn ein Fach voll ist.</p>' +
+            '<div class="wz-student__wishes">' +
+            '<label class="wz-field wz-field--wish"><span class="wz-wish-n">1</span> 1. Wunsch *' +
+            '<select name="wunsch1Id" id="wzSchW1" required>' +
+            angebotOptions(angebote, prefill.wunsch1Id, '– bitte wählen –') +
+            '</select></label>' +
+            '<label class="wz-field wz-field--wish"><span class="wz-wish-n">2</span> 2. Wunsch' +
+            '<select name="wunsch2Id" id="wzSchW2">' +
+            angebotOptions(angebote, prefill.wunsch2Id, '– optional –') +
+            '</select></label>' +
+            '<label class="wz-field wz-field--wish"><span class="wz-wish-n">3</span> 3. Wunsch' +
+            '<select name="wunsch3Id" id="wzSchW3">' +
+            angebotOptions(angebote, prefill.wunsch3Id, '– optional –') +
+            '</select></label>' +
+            '</div></fieldset>' +
+            '<div class="wz-actions">' +
+            '<button type="submit" class="fb-btn" id="wzSchSubmit"' +
+            (submitting ? ' disabled' : '') +
+            '><i class="bi bi-send"></i>' +
+            (submitting ? 'Sende …' : own ? 'Wünsche speichern' : 'Anmeldung absenden') +
+            '</button>' +
+            (own
+                ? '<button type="button" class="fb-btn fb-btn--ghost" id="wzCancelEdit">Zurück</button>'
+                : '') +
+            '</div>' +
+            '<p class="wz-student__foot">Die Schulleitung teilt danach zu.</p>' +
+            '</form>'
+        );
     }
 
     async function submitForm(form) {
@@ -301,7 +427,10 @@ export function mountWahlfachAnmeldung(root) {
 
         const draft = {
             schuelerName: ownership.schuelerName || fd.get('schuelerName'),
-            klasse: ownership.klasse || fd.get('klasse'),
+            klasse: canonicalKlasse(
+                ownership.klasse || fd.get('klasse'),
+                classCodesFromStammdaten(stammdaten)
+            ),
             schuelerEmail: ownership.schuelerEmail,
             wunsch1Id: w1,
             wunsch2Id: w2 || null,
@@ -331,9 +460,11 @@ export function mountWahlfachAnmeldung(root) {
         }
 
         submitting = false;
+        editing = false;
+        applyOwnershipPrefill();
         message = {
             type: 'ok',
-            text: 'Anmeldung gespeichert. Die Zuteilung erfolgt durch die Schulleitung.'
+            text: 'Anmeldung gespeichert. Die Schulleitung teilt danach zu.'
         };
         prefill = {
             schuelerName: ownership.schuelerName,
@@ -343,7 +474,8 @@ export function mountWahlfachAnmeldung(root) {
         render();
     }
 
-    root.innerHTML = '<p class="wz-nav__hint">Lade Anmeldung …</p>';
+    root.innerHTML =
+        '<div class="wz-shell wz-shell--form"><div class="wz-main"><p class="wz-nav__hint">Lade Anmeldung …</p></div></div>';
     void bootData()
         .then(() => {
             applyOwnershipPrefill();

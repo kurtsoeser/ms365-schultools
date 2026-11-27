@@ -1125,15 +1125,21 @@
         return Promise.resolve();
     }
 
-    function setStatus(text, kind) {
+    let statusClearTimer = null;
+
+    function setStatus(text, kind, opts) {
         const els = [
             document.getElementById('browserBackupStatus'),
             document.getElementById('ms365BackupPanelStatus')
         ].filter(Boolean);
+        const msg = text || '';
         els.forEach(function (el) {
-            el.textContent = text || '';
+            el.textContent = msg;
+            if (msg) el.setAttribute('title', msg);
+            else el.removeAttribute('title');
             if (el.id === 'browserBackupStatus') {
-                el.style.display = text ? 'block' : 'none';
+                el.style.display = msg ? '' : 'none';
+                el.hidden = !msg;
             }
             el.classList.toggle('ok', kind === 'ok');
             el.classList.toggle('warn', kind === 'warn');
@@ -1144,12 +1150,31 @@
             if (kind) el.setAttribute('data-kind', kind);
             else el.removeAttribute('data-kind');
         });
+        if (statusClearTimer) {
+            clearTimeout(statusClearTimer);
+            statusClearTimer = null;
+        }
+        const persist = !!(opts && opts.persist);
+        if (msg && !persist) {
+            const ms = kind === 'warn' ? 16000 : 7000;
+            statusClearTimer = setTimeout(function () {
+                statusClearTimer = null;
+                setStatus('', '', { persist: true });
+            }, ms);
+        }
         try {
             window.dispatchEvent(
                 new CustomEvent('ms365-browser-backup-status', {
-                    detail: { text: text || '', kind: kind || '' }
+                    detail: { text: msg, kind: kind || '' }
                 })
             );
+        } catch {
+            /* ignore */
+        }
+        try {
+            if (typeof window.ms365AuthRefreshWidget === 'function') {
+                window.ms365AuthRefreshWidget({ silent: true });
+            }
         } catch {
             /* ignore */
         }
@@ -1381,18 +1406,16 @@
                     /* ignore */
                 }
                 let status = 'Vollständiges Browser-Backup gespeichert: ' + parts.join(', ') + '.';
-                if (payload.inventorySummary) status += ' ' + payload.inventorySummary + '.';
                 if (payload.criticalCoverage && !payload.criticalCoverage.readyForDemoTransfer) {
                     status +=
-                        ' Achtung: Stammdaten (ms365-schooltool-data-v2) fehlen – Demo-Übergabe wäre unvollständig.';
+                        ' Achtung: Stammdaten fehlen – Demo-Übergabe wäre unvollständig.';
                     setStatus(status, 'warn');
                 } else if (!meaningful) {
                     status +=
-                        ' Hinweis: Kaum Stammdaten enthalten – für die Übergabe an einen anderen Browser zuerst Einrichtung oder Import.';
+                        ' Kaum Stammdaten enthalten – zuerst Einrichtung oder Import.';
                     setStatus(status, 'warn');
                 } else {
-                    status +=
-                        ' Datei sicher ablegen. Morgen: dieselbe Datei importieren, dann neu bei Microsoft anmelden.';
+                    status += ' Datei sicher ablegen; zum Wiederherstellen importieren.';
                     setStatus(status, 'ok');
                 }
                 try {

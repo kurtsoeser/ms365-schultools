@@ -18,7 +18,8 @@
         'ms365-access-granted-v1': true,
         'ms365-admin-access-granted-v1': true,
         'ms365-post-login-url': true,
-        'ms365-spo-compare-session-v1': true
+        'ms365-spo-compare-session-v1': true,
+        'ms365-it-skip-silent': true
     };
 
     const INDEXED_DB_CATALOG = [
@@ -85,7 +86,9 @@
                 'ms365-it-workspace-v1',
                 'ms365-it-workspace-nav-v1',
                 'ms365-it-workspace-task-v1',
+                'ms365-it-embed-v1',
                 'ms365-portal-prep-pane-v1',
+                'ms365-portal-canvas-layout-v2',
                 'ms365-dashboard-setup-dismissed-v1',
                 'ms365-portal-quick-links-v1',
                 'ms365-dash-main-section-v1',
@@ -105,7 +108,8 @@
                 'ms365-dashboard-persona-cache-v2',
                 'ms365-gaeste-verwalten-active-tab-v1',
                 'ms365-live-school-stammdaten-v1',
-                'ms365-live-stammdaten-ensure-v1'
+                'ms365-live-stammdaten-ensure-v1',
+                'ms365-it-skip-silent'
             ]
         },
         {
@@ -259,6 +263,7 @@
                 'ms365-ausgaben-sp-settings-v1',
                 'ms365-wahlfach-zuteilung-v1',
                 'ms365-wahlfach-zuteilung-settings-v1',
+                'ms365-wahlfach-menu-role-v1',
                 'ms365-schulsprecherwahl-v1',
                 'ms365-teams-antrag-v1',
                 'ms365-teams-antrag-settings-v1',

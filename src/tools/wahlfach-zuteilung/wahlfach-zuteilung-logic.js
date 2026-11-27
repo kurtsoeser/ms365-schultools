@@ -398,7 +398,7 @@ export function resolveWzOwnership(draft, ctx) {
         d.klasse || (byEmail && (byEmail.klasse || byEmail.klasseCode || byEmail.classCode)) || ''
     ).trim();
 
-    return { schuelerEmail, schuelerName, klasse };
+    return { schuelerEmail, schuelerName, klasse, matchedStudent: !!byEmail };
 }
 
 /**

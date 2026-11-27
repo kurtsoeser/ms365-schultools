@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,264 +9,308 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Spielwiesen-Teams</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/spielwiesen/spielwiesen.css?v=2">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .sp-steps {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 0 0 16px;
-        }
-        .sp-steps button {
-            border: 1px solid var(--input-border);
-            background: var(--card);
-            color: inherit;
-            border-radius: 999px;
-            padding: 6px 12px;
-            font: inherit;
-            cursor: pointer;
-        }
-        .sp-steps button.is-active {
-            border-color: var(--accent, #2563eb);
-            background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
-            font-weight: 600;
-        }
-        .sp-step { display: none; }
-        .sp-step.is-active { display: block; }
-        .sp-mode-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        @media (max-width: 720px) {
-            .sp-mode-grid { grid-template-columns: 1fr; }
-        }
-        .sp-mode-card {
-            border: 1px solid var(--input-border);
-            border-radius: 10px;
-            padding: 14px;
-            cursor: pointer;
-            background: var(--card);
-        }
-        .sp-mode-card.is-selected {
-            border-color: var(--accent, #2563eb);
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 25%, transparent);
-        }
-        .sp-mode-card h4 { margin: 0 0 6px; }
-        .sp-mode-card p { margin: 0; font-size: 0.92em; color: var(--muted); line-height: 1.45; }
-        .sp-table-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--input-border); border-radius: 8px; }
-        .sp-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
     </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page sp-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
-            <div class="header-tool-indicator">
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-joystick"></i>Spielwiesen-Teams</span>
             </div>
-            <p>Echte Kursteams (Vorlage EDU_Class / educationClass) mit gemeinsamen Demo-Schülern – ein Team pro Lehrkraft oder Schilf-Einzelteam.</p>
+            <p>Übungs-Kursteams für Lehrkräfte automatisch anlegen – mit gemeinsamen Demo-Schülern.</p>
+            <p class="muted" style="margin:4px 0 0;font-size:0.9rem;">Als EDU_Class-Team · ein Team pro Lehrkraft oder Einzel-Team.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-spielwiesen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="kursteams.html"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
-                <a class="btn" href="personen-verwaltung.html"><i class="bi bi-people"></i>Personen</a>
             </div>
         </div>
         <div class="content">
+            <section class="sp-hero" aria-label="Stand">
+                <h1 class="fb-greet" id="spHeroTitle">Spielwiesen anlegen</h1>
+                <p class="fb-sub" id="spHeroSub">Zweck und Namen wählen – danach Demo-Schüler, Empfänger und Anlegen.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="kursteams.html">Unterrichtsteams ↗</a>
+                <a href="personen-verwaltung.html">Personen ↗</a>
+            </nav>
+
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten. Spielwiesen-Gruppen brauchen den Schulkontext – Einrichtung oder Demo."></div>
 
-            <nav class="sp-steps" aria-label="Wizard-Schritte">
-                <button type="button" class="is-active" data-sp-goto="1">1 · Zweck</button>
+            <nav class="pw-steps sp-steps" aria-label="Wizard-Schritte">
+                <button type="button" class="is-active" data-sp-goto="1" aria-current="step">1 · Zweck</button>
                 <button type="button" data-sp-goto="2">2 · Demo-Schüler</button>
                 <button type="button" data-sp-goto="3">3 · Empfänger</button>
                 <button type="button" data-sp-goto="4">4 · Anlegen</button>
             </nav>
 
-            <section class="tm-panel sp-step is-active" data-sp-step="1">
-                <div class="tm-panel__head">
-                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+            <section class="sp-step is-active pw-form" data-sp-step="1">
+                <div class="sp-step__head">
+                    <div class="sp-step__badge" aria-hidden="true"><i class="bi bi-signpost-2"></i></div>
                     <div>
-                        <h3>Zweck wählen</h3>
+                        <h3 tabindex="-1" id="spStep1Heading">Zweck wählen</h3>
                         <p>Lehrer-Spielwiesen (1 Team / Lehrkraft) oder ein einzelnes Schilf-/Fach-Team.</p>
                     </div>
                 </div>
-                <div class="sp-mode-grid">
-                    <div class="sp-mode-card is-selected" data-sp-mode="teacher" tabindex="0" role="button">
-                        <h4><i class="bi bi-person-workspace"></i> Lehrer-Spielwiesen</h4>
-                        <p>Für jede ausgewählte Lehrkraft genau ein DEMO-Kursteam (Aufgaben &amp; Klassennotizbuch). Alle bekommen dieselben Demo-Schüler (Klasse DEMO).</p>
-                    </div>
-                    <div class="sp-mode-card" data-sp-mode="single" tabindex="0" role="button">
-                        <h4><i class="bi bi-plus-circle"></i> Einzel-Team</h4>
-                        <p>Ein Schilf- oder Fach-Team (wie bisher). Optional danach mit dem Demo-Schüler-Pool befüllen.</p>
-                    </div>
+                <p class="pw-sec">Art der Spielwiese</p>
+                <div class="pw-choice-grid" role="radiogroup" aria-label="Zweck">
+                    <button type="button" class="pw-choice is-selected" role="radio" aria-checked="true" data-sp-mode="teacher">
+                        <span class="pw-choice__radio" aria-hidden="true"></span>
+                        <span>
+                            <span class="pw-choice__title">Lehrer-Spielwiesen</span>
+                            <span class="pw-choice__text">Für jede ausgewählte Lehrkraft genau ein DEMO-Kursteam. Alle bekommen dieselben Demo-Schüler.</span>
+                        </span>
+                    </button>
+                    <button type="button" class="pw-choice" role="radio" aria-checked="false" data-sp-mode="single">
+                        <span class="pw-choice__radio" aria-hidden="true"></span>
+                        <span>
+                            <span class="pw-choice__title">Einzel-Team</span>
+                            <span class="pw-choice__text">Ein Schilf- oder Fach-Team. Optional danach mit dem Demo-Schüler-Pool befüllen.</span>
+                        </span>
+                    </button>
                 </div>
-                <div class="tm-field" style="margin-top:14px;">
+                <div class="sp-field">
                     <label for="spYear">Schuljahr / Jahr</label>
                     <input type="text" id="spYear" inputmode="numeric" placeholder="2026">
                 </div>
-                <div class="tm-field">
+                <div class="sp-field">
                     <label for="spLabel">Thema / Bezeichnung (Baustein „Thema“)</label>
                     <input type="text" id="spLabel" placeholder="z. B. Workshop, Teams Basics, Schilf" value="Workshop">
                 </div>
-                <label class="checkbox-label" style="display:flex;gap:8px;margin:8px 0;">
+                <label class="sp-checkbox">
                     <input type="checkbox" id="spAsDemo" checked>
                     <span>Baustein „DEMO / Spielwiese“ als <strong>DEMO</strong> (sonst „Spielwiese“)</span>
                 </label>
 
-                <div class="filter-group" style="margin-top:16px;">
-                    <label>Team-Name zusammenbauen (Drag &amp; Drop) – wie bei Kursteams</label>
+                <p class="sp-sec-label">Team-Name</p>
+                <div class="filter-group">
+                    <label>Bausteine (Drag &amp; Drop)</label>
                     <div class="name-builder">
                         <div id="spNameBuilder" class="name-builder-dropzone" aria-label="Demo-Team-Name Bausteine"></div>
                         <div class="name-builder-actions">
-                            <button type="button" class="btn btn-small" id="spNameResetDefault">Standard</button>
-                            <button type="button" class="btn btn-small" id="spNameSave"><i class="bi bi-save"></i>Speichern</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="spNameResetDefault">Standard</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="spNameSave"><i class="bi bi-save"></i>Speichern</button>
                         </div>
                     </div>
                     <div class="name-builder-palette" aria-label="Bausteine">
-                        <button type="button" class="btn btn-small" data-sp-token="kind">+ DEMO / Spielwiese</button>
-                        <button type="button" class="btn btn-small" data-sp-token="label">+ Thema</button>
-                        <button type="button" class="btn btn-small" data-sp-token="lehrer">+ Lehrer-Kürzel</button>
-                        <button type="button" class="btn btn-small" data-sp-token="lehrerName">+ Lehrer-Name</button>
-                        <button type="button" class="btn btn-small" data-sp-token="year">+ Jahr</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-sp-token="kind">+ DEMO / Spielwiese</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-sp-token="label">+ Thema</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-sp-token="lehrer">+ Lehrer-Kürzel</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-sp-token="lehrerName">+ Lehrer-Name</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-sp-token="year">+ Jahr</button>
                     </div>
                     <div class="name-builder-inputs" aria-label="Eigene Texte">
                         <div class="filter-group">
                             <label for="spNameSepValue">Trenner</label>
                             <input type="text" id="spNameSepValue" value=" | " placeholder="z. B.  |  oder -">
                         </div>
-                        <button type="button" class="btn btn-small" id="spNameAddSep">Trenner hinzufügen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spNameAddSep">Trenner hinzufügen</button>
                         <div class="filter-group">
                             <label for="spNameTextValue">Eigener Text</label>
                             <input type="text" id="spNameTextValue" value="" placeholder="z. B. Schilf, SJ26">
                         </div>
-                        <button type="button" class="btn btn-small" id="spNameAddText">Text hinzufügen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spNameAddText">Text hinzufügen</button>
                     </div>
                     <div id="spNamePreview" class="name-preview"></div>
                 </div>
 
                 <div class="sp-nav">
-                    <button type="button" class="btn btn-success" data-sp-next="2"><i class="bi bi-arrow-right"></i>Weiter: Demo-Schüler</button>
+                    <button type="button" class="fb-btn" data-sp-next="2"><i class="bi bi-arrow-right"></i>Weiter: Demo-Schüler</button>
                 </div>
             </section>
 
-            <section class="tm-panel sp-step" data-sp-step="2">
-                <div class="tm-panel__head">
-                    <i class="bi bi-mortarboard" aria-hidden="true"></i>
+            <section class="sp-step pw-form" data-sp-step="2">
+                <div class="sp-step__head">
+                    <div class="sp-step__badge" aria-hidden="true"><i class="bi bi-mortarboard"></i></div>
                     <div>
-                        <h3>Demo-Klasse &amp; Demo-Schüler</h3>
+                        <h3 tabindex="-1" id="spStep2Heading">Demo-Klasse &amp; Demo-Schüler</h3>
                         <p>Gemeinsamer Pool (max. 10). Namenskonvention <code>DEMO Schüler 01</code> / <code>demo.schueler01@…</code>.</p>
                     </div>
                 </div>
-                <div class="tm-field">
+                <div class="sp-field">
                     <label for="spDomain">Schul-Domain (ohne @)</label>
                     <input type="text" id="spDomain" spellcheck="false" placeholder="schule.at">
                 </div>
-                <div class="tm-field">
+                <div class="sp-field">
                     <label for="spDemoPassword">Startkennwort für neu angelegte Demo-Konten</label>
                     <input type="text" id="spDemoPassword" spellcheck="false" autocomplete="off">
-                    <p class="muted" style="margin:4px 0 0;font-size:0.85em;">Beim Anlegen: Kennwortänderung bei nächster Anmeldung erzwingen. usageLocation: AT.</p>
+                    <p class="sp-muted">Beim Anlegen: Kennwortänderung bei nächster Anmeldung erzwingen. usageLocation: AT.</p>
                 </div>
-                <div class="tm-field">
+                <div class="sp-field">
                     <label for="spDemoCount">Anzahl Demo-Schüler (1–10)</label>
                     <input type="number" id="spDemoCount" min="1" max="10" value="5">
                 </div>
-                <label class="checkbox-label" style="display:flex;gap:8px;margin:8px 0;">
+                <label class="sp-checkbox">
                     <input type="checkbox" id="spAssignA1" checked>
                     <span>Fehlende A1-Schülerlizenz zuweisen (wenn im Tenant verfügbar)</span>
                 </label>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="spBtnFindDemo"><i class="bi bi-search"></i>Bestehende Demo-Schüler suchen</button>
-                    <button type="button" class="btn btn-success" id="spBtnEnsureDemo"><i class="bi bi-person-plus"></i>Fehlende anlegen</button>
+                <div class="sp-actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="spBtnFindDemo"><i class="bi bi-search"></i>Bestehende Demo-Schüler suchen</button>
+                    <button type="button" class="fb-btn" id="spBtnEnsureDemo"><i class="bi bi-person-plus"></i>Fehlende anlegen</button>
                 </div>
-                <p id="spDemoStatus" class="muted" style="margin:10px 0;"></p>
+                <p id="spDemoStatus" class="sp-muted"></p>
                 <div class="sp-table-wrap">
-                    <table class="dash-hygiene-table" style="width:100%;font-size:0.9em;">
+                    <table class="sp-table">
                         <thead><tr><th></th><th>Name</th><th>UPN</th><th>Lizenz</th></tr></thead>
-                        <tbody id="spDemoBody"><tr><td colspan="4" class="muted">Noch nicht geladen.</td></tr></tbody>
+                        <tbody id="spDemoBody"><tr><td colspan="4" class="sp-empty-cell">Noch nicht geladen.</td></tr></tbody>
                     </table>
                 </div>
                 <div class="sp-nav">
-                    <button type="button" class="btn btn-ghost" data-sp-goto="1"><i class="bi bi-arrow-left"></i>Zurück</button>
-                    <button type="button" class="btn btn-success" data-sp-next="3"><i class="bi bi-arrow-right"></i>Weiter: Empfänger</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" data-sp-goto="1"><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="fb-btn" data-sp-next="3"><i class="bi bi-arrow-right"></i>Weiter: Empfänger</button>
                 </div>
             </section>
 
-            <section class="tm-panel sp-step" data-sp-step="3">
-                <div class="tm-panel__head">
-                    <i class="bi bi-people" aria-hidden="true"></i>
+            <section class="sp-step pw-wide" data-sp-step="3">
+                <div class="sp-step__head">
+                    <div class="sp-step__badge" aria-hidden="true"><i class="bi bi-people"></i></div>
                     <div>
-                        <h3>Empfänger</h3>
+                        <h3 tabindex="-1" id="spStep3Heading">Empfänger</h3>
                         <p id="spRecvHint">Lehrkräfte aus den Stammdaten wählen – oder Einzel-Team benennen.</p>
                     </div>
                 </div>
 
                 <div id="spRecvTeacher">
-                    <div class="tm-actions" style="margin-bottom:8px;">
-                        <button type="button" class="btn" id="spBtnLoadTeachers"><i class="bi bi-arrow-repeat"></i>Lehrkräfte laden</button>
-                        <button type="button" class="btn btn-ghost" id="spBtnSelAll">Alle</button>
-                        <button type="button" class="btn btn-ghost" id="spBtnSelNone">Keine</button>
+                    <div class="sp-actions">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spBtnLoadTeachers"><i class="bi bi-arrow-repeat"></i>Lehrkräfte laden</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spBtnSelAll">Alle</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spBtnSelNone">Keine</button>
                     </div>
                     <div class="sp-table-wrap">
-                        <table class="dash-hygiene-table" style="width:100%;font-size:0.9em;">
+                        <table class="sp-table">
                             <thead><tr><th></th><th>Kürzel</th><th>Name</th><th>E-Mail</th><th>Vorschau</th></tr></thead>
-                            <tbody id="spTeacherBody"><tr><td colspan="5" class="muted">Noch nicht geladen.</td></tr></tbody>
+                            <tbody id="spTeacherBody"><tr><td colspan="5" class="sp-empty-cell">Noch nicht geladen.</td></tr></tbody>
                         </table>
                     </div>
                 </div>
 
                 <div id="spRecvSingle" hidden>
-                    <p class="muted" style="margin:0 0 8px;">Name kommt aus den Bausteinen in Schritt 1 (Thema dort anpassen). Lehrer-Kürzel bleibt beim Einzel-Team leer.</p>
-                    <div id="spPreview" class="tm-log" style="min-height:50px;margin:10px 0;"></div>
+                    <p class="sp-muted" style="margin:0 0 8px;">Name kommt aus den Bausteinen in Schritt 1 (Thema dort anpassen). Lehrer-Kürzel bleibt beim Einzel-Team leer.</p>
+                    <div id="spPreview" class="sp-log" style="min-height:50px;"></div>
                 </div>
 
                 <div class="sp-nav">
-                    <button type="button" class="btn btn-ghost" data-sp-goto="2"><i class="bi bi-arrow-left"></i>Zurück</button>
-                    <button type="button" class="btn btn-success" data-sp-next="4"><i class="bi bi-arrow-right"></i>Weiter: Anlegen</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" data-sp-goto="2"><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="fb-btn" data-sp-next="4"><i class="bi bi-arrow-right"></i>Weiter: Anlegen</button>
                 </div>
             </section>
 
-            <section class="tm-panel sp-step" data-sp-step="4">
-                <div class="tm-panel__head">
-                    <i class="bi bi-rocket-takeoff" aria-hidden="true"></i>
+            <section class="sp-step pw-form" data-sp-step="4">
+                <div class="sp-step__head">
+                    <div class="sp-step__badge" aria-hidden="true"><i class="bi bi-rocket-takeoff"></i></div>
                     <div>
-                        <h3>Anlegen</h3>
-                        <p>Teams als <strong>Kursteam</strong> (Template <code>educationClass</code> / EDU_Class) erzeugen – nicht als Standard-Team. Bestehende Alias werden übersprungen.</p>
+                        <h3 tabindex="-1" id="spStep4Heading">In Teams anlegen</h3>
+                        <p>Kontrolliert ausführen und live sehen, was passiert. Bestehende Alias werden übersprungen.</p>
                     </div>
                 </div>
-                <div id="spRunSummary" class="tm-log" style="min-height:60px;margin-bottom:10px;"></div>
-                <label class="checkbox-label" style="display:flex;gap:8px;margin:8px 0;">
-                    <input type="checkbox" id="spAddDemoMembers" checked>
-                    <span>Demo-Schüler in die neuen Teams als Mitglieder aufnehmen</span>
-                </label>
-                <div class="tm-actions">
-                    <button type="button" class="btn btn-success" id="spBtnRun"><i class="bi bi-play-fill"></i>Jetzt anlegen</button>
+
+                <div id="spConfirmPanel">
+                    <div class="pw-confirm" aria-label="Bestätigung">
+                        <p class="pw-msg__title" id="spConfirmHeadline">Spielwiesen werden erstellt</p>
+                        <dl>
+                            <div>
+                                <dt>Ziel</dt>
+                                <dd>Microsoft Teams · Kursteam (EDU_Class)</dd>
+                            </div>
+                            <div>
+                                <dt>Teams</dt>
+                                <dd id="spConfirmTeams">–</dd>
+                            </div>
+                            <div>
+                                <dt>Demo-Schüler</dt>
+                                <dd id="spConfirmDemos">–</dd>
+                            </div>
+                            <div>
+                                <dt>Namensschema</dt>
+                                <dd id="spConfirmNaming">–</dd>
+                            </div>
+                        </dl>
+                        <p class="muted" style="margin:12px 0 0;line-height:1.45;">Bestehende Teams mit demselben Alias werden nicht dupliziert.</p>
+                    </div>
+                    <label class="sp-checkbox">
+                        <input type="checkbox" id="spAddDemoMembers" checked>
+                        <span>Demo-Schüler in die neuen Teams als Mitglieder aufnehmen</span>
+                    </label>
+                    <div class="sp-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" data-sp-goto="3" id="spBtnBackFromConfirm"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn" id="spBtnRun"><i class="bi bi-play-fill"></i>Jetzt anlegen</button>
+                    </div>
                 </div>
-                <pre id="spLog" class="tm-log" style="margin-top:10px;white-space:pre-wrap;max-height:280px;overflow:auto;"></pre>
-                <div class="sp-nav">
-                    <button type="button" class="btn btn-ghost" data-sp-goto="3"><i class="bi bi-arrow-left"></i>Zurück</button>
+
+                <div id="spExecPanel" hidden>
+                    <div class="pw-exec" aria-live="polite">
+                        <div class="pw-exec__head">
+                            <p class="pw-exec__title">Spielwiesen werden angelegt</p>
+                            <p class="pw-exec__meta" id="spExecMeta">0 von 0 abgeschlossen</p>
+                        </div>
+                        <ul class="pw-exec-list" id="spExecList"></ul>
+                    </div>
+                    <details class="sp-tech-details">
+                        <summary>Technische Details</summary>
+                        <pre id="spLog" class="sp-log" aria-live="polite"></pre>
+                    </details>
+                </div>
+
+                <div id="spResultPanel" hidden>
+                    <div class="pw-result" role="status">
+                        <p class="pw-result__title" id="spResultTitle">Fertig</p>
+                        <p class="muted" id="spResultSub"></p>
+                        <ul class="pw-result__list" id="spResultList"></ul>
+                    </div>
+                    <div class="sp-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spBtnRetryFailed" hidden><i class="bi bi-arrow-repeat"></i>Fehlgeschlagene erneut versuchen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="spBtnRestart"><i class="bi bi-plus-lg"></i>Weitere Spielwiesen anlegen</button>
+                    </div>
                 </div>
             </section>
 
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+            <section class="sp-aside" aria-label="Nachbereitung">
+                <div class="sp-step__head">
+                    <div class="sp-step__badge" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></div>
                     <div>
-                        <h3>Klassennotizbuch &amp; Aufgaben – Checkliste</h3>
+                        <h3>Klassennotizbuch &amp; Aufgaben</h3>
                         <p>Haken bleiben in diesem Browser (Schilf-Nachbereitung).</p>
                     </div>
                 </div>
-                <ol id="spNotebookList" style="margin:0;padding-left:0;list-style:none;display:grid;gap:10px;"></ol>
+                <ol id="spNotebookList" class="sp-checklist"></ol>
             </section>
         </div>
     </div>
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>

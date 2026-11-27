@@ -2,101 +2,41 @@
  * IT-Arbeitsfläche: Nav-Baum (Bereiche + Untertools) für Dashboard-Leiste und Tool-Seiten.
  */
 import { readItShellChoice } from './dashboard-layout-mode.js';
+import { itNavCatalog } from './it-nav-catalog.js';
 import { mergeStammdatenWorkspaceTools } from './stammdaten-nav-catalog.js';
 
 export const IT_WORKSPACE_FLAG_KEY = 'ms365-it-workspace-v1';
 export const IT_WORKSPACE_NAV_KEY = 'ms365-it-workspace-nav-v1';
 export const IT_WORKSPACE_TASK_KEY = 'ms365-it-workspace-task-v1';
+/** Legacy-Key (früher sessionStorage); Embed gilt nur noch bei echtem iframe. */
+export const IT_WORKSPACE_EMBED_KEY = 'ms365-it-embed-v1';
 /** Stammdaten ist eigener Top-Level-Bereich – tenant.html gehört nur hierher. */
 export const IT_WORKSPACE_STAMMDATEN_TASK_ID = 'dashTaskImportVerknuepfen';
 
+/** True nur im iframe der IT-Shell – nicht top-level (Refresh behält normale Shell). */
+export function isItWorkspaceEmbedMode() {
+    try {
+        return typeof window !== 'undefined' && window.self !== window.top;
+    } catch {
+        return true;
+    }
+}
+
+/** @param {boolean} [_on] Legacy no-op – Erkennung läuft über window.self !== top. */
+export function setItWorkspaceEmbedMode(_on) {
+    try {
+        sessionStorage.removeItem(IT_WORKSPACE_EMBED_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
 /**
- * Fallback-Baum, wenn die Session noch keinen Nav-Stand vom Dashboard hat
- * (z. B. direkter Sprung zu Stammdaten / Portal vorbereiten).
+ * Kanonischer IT-Menübaum. Kommt aus it-nav-catalog.js, nie aus dem HTML.
  * @returns {{ id: string, label: string, icon: string, overviewHash: string, tools: { href: string, label: string, icon: string, expert?: boolean }[] }[]}
  */
 export function defaultItWorkspaceTree() {
-    return [
-        {
-            id: 'dashTaskImportVerknuepfen',
-            label: 'Stammdaten',
-            icon: 'bi bi-database',
-            overviewHash: 'import',
-            tools: mergeStammdatenWorkspaceTools()
-        },
-        {
-            id: 'dashTaskGruppen',
-            label: 'Mitgliedschaften',
-            icon: 'bi bi-people',
-            overviewHash: 'mitgliedschaften',
-            tools: [
-                { href: 'tools/lehrer-sammelgruppe.html', label: 'Lehrkräfte-Sammelgruppe', icon: 'bi bi-people' },
-                { href: 'tools/schueler-sammelgruppe.html', label: 'Schüler-Sammelgruppe', icon: 'bi bi-mortarboard' }
-            ]
-        },
-        {
-            id: 'dashTaskUnterricht',
-            label: 'Klassen & Unterricht',
-            icon: 'bi bi-mortarboard',
-            overviewHash: 'klassen',
-            tools: [
-                { href: 'tools/jahrgangsgruppen.html', label: 'Klassengruppen', icon: 'bi bi-collection' },
-                { href: 'tools/kursteams.html', label: 'Unterrichtsteams', icon: 'bi bi-easel' }
-            ]
-        },
-        {
-            id: 'dashTaskPersonen',
-            label: 'Personen & Gäste',
-            icon: 'bi bi-person-badge',
-            overviewHash: 'personen',
-            tools: [{ href: 'tools/gaeste-verwalten.html', label: 'Gäste verwalten', icon: 'bi bi-person-plus' }]
-        },
-        {
-            id: 'dashTaskSchuljahr',
-            label: 'Schuljahresstart',
-            icon: 'bi bi-calendar2-range',
-            overviewHash: 'schuljahresstart',
-            tools: [
-                // Primärer Jahres-Einstieg = Schuljahresstart-Playbook (Org-Assistent nur unterstützend).
-                {
-                    href: 'tools/playbook-schuljahresstart.html',
-                    label: 'Schuljahresstart',
-                    icon: 'bi bi-rocket-takeoff'
-                }
-            ]
-        },
-        {
-            id: 'dashTaskIntranet',
-            label: 'Intranet',
-            icon: 'bi bi-house-door',
-            overviewHash: 'intranet',
-            tools: [
-                { href: 'tools/sharepoint-intranet-hub.html', label: 'Schul-Intranet', icon: 'bi bi-house-door' }
-            ]
-        },
-        {
-            id: 'dashTaskSchulApps',
-            label: 'Schul-Apps',
-            icon: 'bi bi-window-stack',
-            overviewHash: 'schulapps',
-            tools: [
-                {
-                    href: 'dashboard-werkzeug-zugriff.html',
-                    label: 'Portal vorbereiten',
-                    icon: 'bi bi-sliders2-vertical'
-                },
-                { href: 'tools/schularbeiten-planer.html', label: 'Schularbeiten-Planer', icon: 'bi bi-journal-check' },
-                { href: 'tools/freistellung-planer.html', label: 'Freistellungen', icon: 'bi bi-calendar2-check' }
-            ]
-        },
-        {
-            id: 'dashTaskOrdnung',
-            label: 'Aufräumen',
-            icon: 'bi bi-ui-checks-grid',
-            overviewHash: 'aufraeumen',
-            tools: [{ href: 'tools/datenhygiene.html', label: 'Datenhygiene', icon: 'bi bi-shield-check' }]
-        }
-    ];
+    return itNavCatalog();
 }
 
 /**
@@ -115,23 +55,20 @@ export function isDashboardItShellActive() {
 }
 
 /**
- * Stellt sicher, dass Nav-Baum + Flag für IT-Seiten vorhanden sind.
+ * Schreibt den Katalog in die Session. Eine ältere HTML-Kopie wird ersetzt,
+ * damit Unterrichtsteams von überall dieselben Einträge hat.
  * @returns {{ version: number, tree: any[] }|null}
  */
 export function ensureItWorkspaceNavReady() {
-    let stored = loadItWorkspaceNav();
-    if (!stored || !stored.tree || !stored.tree.length) {
-        const tree = defaultItWorkspaceTree();
-        persistItWorkspaceNav(tree, '');
-        stored = { version: 1, tree: tree };
-    } else {
-        try {
-            sessionStorage.setItem(IT_WORKSPACE_FLAG_KEY, '1');
-        } catch {
-            /* ignore */
-        }
+    let active = '';
+    try {
+        active = sessionStorage.getItem(IT_WORKSPACE_TASK_KEY) || '';
+    } catch {
+        active = '';
     }
-    return stored;
+    const tree = defaultItWorkspaceTree();
+    persistItWorkspaceNav(tree, active);
+    return { version: 1, tree: tree };
 }
 
 /**
@@ -171,11 +108,34 @@ export function normalizeWorkspaceHref(href) {
  * @param {string} b
  * @param {{ looseFile?: boolean }} [opts]
  */
+/**
+ * Legacy-Redirect-Stubs auf die kanonische SLG-URL legen (Hash/Query sonst unverändert).
+ * @param {string} href
+ * @returns {string}
+ */
+export function canonicalizeWorkspaceHref(href) {
+    const n = normalizeWorkspaceHref(href);
+    if (!n) return '';
+    const stripHash = n.replace(/#.*$/, '');
+    const lower = stripHash.toLowerCase();
+    if (lower === 'tools/schueler-sammelgruppe.html') {
+        return 'tools/schueler-lehrer-gruppen.html?kind=schueler';
+    }
+    if (lower === 'tools/lehrer-sammelgruppe.html') {
+        return 'tools/schueler-lehrer-gruppen.html?kind=lehrer';
+    }
+    return n;
+}
+
 export function workspaceHrefsMatch(a, b, opts) {
     const left = normalizeWorkspaceHref(a);
     const right = normalizeWorkspaceHref(b);
     if (!left || !right) return false;
     if (left === right) return true;
+    const leftCanon = canonicalizeWorkspaceHref(left);
+    const rightCanon = canonicalizeWorkspaceHref(right);
+    // Nur wenn ein Alias greift (Stub ↔ kanonisch) – Hashes an tenant.html nicht kollabieren.
+    if ((leftCanon !== left || rightCanon !== right) && leftCanon === rightCanon) return true;
     const stripHash = function (s) {
         return s.replace(/#.*$/, '');
     };
@@ -197,7 +157,8 @@ export function workspaceHrefsMatch(a, b, opts) {
     }
     if (opts && opts.looseFile) {
         const fileOf = function (s) {
-            return stripHash(s).split('?')[0].toLowerCase();
+            const canon = canonicalizeWorkspaceHref(s);
+            return stripHash(canon).split('?')[0].toLowerCase();
         };
         return fileOf(left) === fileOf(right);
     }
@@ -312,13 +273,16 @@ export function sanitizeItWorkspaceTree(tree) {
 }
 
 /**
- * @param {{ id: string, label: string, icon?: string, overviewHash?: string, tools: { href: string, label: string, icon: string }[] }[]} tree
+ * Merkt die IT-Arbeitsfläche und den aktiven Bereich.
+ * Den Menübaum speichert das nicht mehr: gezeichnet wird immer der Katalog.
+ * Eine ältere Session-Kopie wird dabei entfernt.
+ * @param {unknown} [_tree]
+ * @param {string} [activeTaskId]
  */
-export function persistItWorkspaceNav(tree, activeTaskId) {
+export function persistItWorkspaceNav(_tree, activeTaskId) {
     try {
-        const clean = sanitizeItWorkspaceTree(tree || []);
         sessionStorage.setItem(IT_WORKSPACE_FLAG_KEY, '1');
-        sessionStorage.setItem(IT_WORKSPACE_NAV_KEY, JSON.stringify({ version: 1, tree: clean }));
+        sessionStorage.removeItem(IT_WORKSPACE_NAV_KEY);
         if (activeTaskId) sessionStorage.setItem(IT_WORKSPACE_TASK_KEY, String(activeTaskId));
     } catch {
         /* ignore */
@@ -358,19 +322,17 @@ export function isItWorkspaceActive() {
 }
 
 /**
- * @returns {{ version: number, tree: any[] }|null}
+ * Immer der Katalog. sessionStorage wird nicht mehr gelesen;
+ * eine liegen gebliebene Kopie wird verworfen.
+ * @returns {{ version: number, tree: any[] }}
  */
 export function loadItWorkspaceNav() {
     try {
-        const raw = sessionStorage.getItem(IT_WORKSPACE_NAV_KEY);
-        if (!raw) return null;
-        const data = JSON.parse(raw);
-        if (!data || !Array.isArray(data.tree)) return null;
-        data.tree = sanitizeItWorkspaceTree(data.tree);
-        return data;
+        sessionStorage.removeItem(IT_WORKSPACE_NAV_KEY);
     } catch {
-        return null;
+        /* ignore */
     }
+    return { version: 1, tree: sanitizeItWorkspaceTree(defaultItWorkspaceTree()) };
 }
 
 /** @returns {string} */
@@ -382,26 +344,9 @@ export function loadItWorkspaceTaskId() {
     }
 }
 
-/**
- * @param {{ btn: HTMLElement, task: HTMLElement }[]} navButtons
- * @param {(task: HTMLElement) => string} labelFn
- * @param {(task: HTMLElement) => string} iconFn
- */
-export function buildNavTreeFromDashboard(navButtons, labelFn, iconFn) {
-    return sanitizeItWorkspaceTree(
-        (navButtons || []).map(function (item) {
-            const task = item.task;
-            const extracted = extractToolsFromTask(task);
-            const isStammdaten = String(task.id || '') === IT_WORKSPACE_STAMMDATEN_TASK_ID;
-            return {
-                id: task.id,
-                label: labelFn(task),
-                icon: iconFn(task),
-                overviewHash: '',
-                tools: isStammdaten ? mergeStammdatenWorkspaceTools(extracted) : extracted
-            };
-        })
-    );
+/** Menü kommt aus dem Katalog, nicht aus den Werkzeugzeilen der Startseite. */
+export function buildNavTreeFromDashboard() {
+    return defaultItWorkspaceTree();
 }
 
 /**

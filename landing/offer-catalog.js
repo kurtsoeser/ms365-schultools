@@ -4,7 +4,7 @@
  * Neu erzeugen: node scripts/sync-landing-offer-catalog.mjs
  */
 window.MS365_OFFER_CATALOG = {
-  "generatedAt": "2026-11-23T15:41:14.600Z",
+  "generatedAt": "2026-11-27T08:25:02.489Z",
   "contactMail": "kontakt@ms365.schule",
   "bundles": [
     {
@@ -129,7 +129,7 @@ window.MS365_OFFER_CATALOG = {
         {
           "id": "klassenchats",
           "label": "KlassenChats",
-          "blurb": "KlassenChats für den Alltag anlegen und pflegen.",
+          "blurb": "Schul-IT legt Klassen-Chats an (Gruppenchat oder privater Kanal). Lehrkräfte nutzen sie in Teams.",
           "setup": false
         },
         {
@@ -503,7 +503,7 @@ window.MS365_OFFER_CATALOG = {
         {
           "id": "elternsprechtag-bookings",
           "label": "Elternsprechtag Bookings",
-          "blurb": "Elternsprechtag mit Bookings organisieren.",
+          "blurb": "Bookings-Seite anlegen: ein Sprechtag, ein Dienst, Lehrkräfte als Mitarbeiter. Nur Schul-IT.",
           "setup": false
         },
         {
@@ -680,7 +680,7 @@ window.MS365_OFFER_CATALOG = {
         {
           "id": "schulsprecherwahl",
           "label": "Schulwahlen",
-          "blurb": "Schulwahlen digital durchführen und auswerten.",
+          "blurb": "Wahl anlegen, QR-Abstimmung und Auswertung – nur für die Schul-IT.",
           "setup": false
         },
         {
@@ -850,8 +850,8 @@ window.MS365_OFFER_CATALOG = {
         "Elternbrief",
         "Einsammler",
         "Krankmeldung",
-        "Kollegiumsumfragen",
-        "Teams-Antrag"
+        "Elternsprechtag",
+        "Kollegiumsumfragen"
       ],
       "tools": [
         {
@@ -870,6 +870,12 @@ window.MS365_OFFER_CATALOG = {
           "id": "elternbrief",
           "label": "Elternbrief",
           "blurb": "Briefe an Eltern mit Lesebestätigung.",
+          "setup": false
+        },
+        {
+          "id": "elternsprechtag",
+          "label": "Elternsprechtag",
+          "blurb": "Ihre Buchungen am Sprechtag – Zeiten, Eltern und Links aus dem eigenen Kalender.",
           "setup": false
         },
         {
@@ -915,7 +921,7 @@ window.MS365_OFFER_CATALOG = {
           "setup": true
         }
       ],
-      "searchText": "eltern & ablauf einsammler, elternbrief, einwilligungen, lesebestätigungen, krankmeldung, kollegiumsumfragen. einsammler einsammler-listen elternbrief elternbrief-listen krankmeldung krankmeldungen-liste kollegiumsumfragen kollegiumsumfragen-listen teams-antrag teams-antrag-liste einsammler sharepoint liste einsammler elternbrief sharepoint liste elternbrief krankmeldung sharepoint liste krankmeldung kollegium umfragen sharepoint liste kollegium umfragen teams antrag sharepoint liste teams antrag eltern"
+      "searchText": "eltern & ablauf einsammler, elternbrief, einwilligungen, lesebestätigungen, krankmeldung, kollegiumsumfragen. einsammler einsammler-listen elternbrief elternsprechtag elternbrief-listen krankmeldung krankmeldungen-liste kollegiumsumfragen kollegiumsumfragen-listen teams-antrag teams-antrag-liste einsammler sharepoint liste einsammler elternbrief elternsprechtag sharepoint liste elternbrief krankmeldung sharepoint liste krankmeldung kollegium umfragen sharepoint liste kollegium umfragen teams antrag sharepoint liste teams antrag eltern"
     },
     {
       "id": "ausgaben",

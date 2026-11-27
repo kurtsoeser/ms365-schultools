@@ -202,7 +202,7 @@ export function buildHygieneTargets(container, settings) {
         label: 'Schüler:innen (Sammelgruppe)',
         groupId: schuelerGid || null,
         listCount: collectStudentEmails(s.students).length,
-        toolHref: 'schueler-sammelgruppe.html',
+        toolHref: 'schueler-lehrer-gruppen.html?kind=schueler',
         reviewHint: 'Mitglieder vergleichen'
     });
 
@@ -213,7 +213,7 @@ export function buildHygieneTargets(container, settings) {
         label: 'Lehrer:innen (Sammelgruppe)',
         groupId: lehrerGid || null,
         listCount: collectTeacherEmails(s.teachers).length,
-        toolHref: 'lehrer-sammelgruppe.html',
+        toolHref: 'schueler-lehrer-gruppen.html?kind=lehrer',
         reviewHint: 'Mitglieder vergleichen'
     });
 

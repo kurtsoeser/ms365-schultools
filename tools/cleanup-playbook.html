@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
     <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
-    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=1">
+    <link rel="stylesheet" href="../src/shared/playbook-shell.css?v=3">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
 </head>
 <body class="app-shell-chrome">
@@ -25,111 +25,183 @@
             </div>
             <p>
                 Geführte Reihenfolge zum Aufräumen – oft vor oder mit dem
-                <a href="playbook-schuljahresstart.html">Schuljahresstart-Playbook</a>:
-                Besitzlose, leere Gruppen, Archiv, Hygiene.
+                <a href="playbook-schuljahresstart.html">Schuljahresstart-Playbook</a>.
+                Besitzlose und leere Gruppen zuerst, dann Archiv und Hygiene.
             </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-cleanup-playbook" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
-                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="playbook-schuljahresstart.html"><i class="bi bi-rocket-takeoff"></i>Schuljahresstart</a>
-                <a class="btn" href="datenhygiene.html"><i class="bi bi-shield-check"></i>Datenhygiene</a>
+                <a class="fb-btn fb-btn--ghost" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="fb-btn fb-btn--ghost" href="playbook-schuljahresstart.html"><i class="bi bi-rocket-takeoff"></i>Schuljahresstart</a>
+                <a class="fb-btn fb-btn--ghost" href="datenhygiene.html"><i class="bi bi-shield-check"></i>Datenhygiene</a>
             </div>
         </div>
 
         <div class="content">
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+            <section class="tm-panel pb-panel" aria-labelledby="cpHeroTitle">
+                <p class="fb-sec-label">Aufräumen</p>
+                <h2 class="fb-greet" id="cpHeroTitle">
+                    <span class="fb-num" id="cpProgressNum">0</span>
+                    <span id="cpProgressLabel">von 7 erledigt</span>
+                </h2>
+                <p class="fb-sub">
+                    Zuerst Besitz und leere Gruppen, dann Archiv und Hygiene – Namenskonvention und Gäste danach.
+                </p>
+                <p id="cpProgress" class="pb-progress pb-progress--sync" aria-live="polite">0 / 7 erledigt</p>
+
+                <div class="pb-phases">
                     <div>
-                        <h3>Schritte</h3>
-                        <p id="cpProgress" class="pb-progress">0 / 7 erledigt</p>
+                        <p class="pb-phase__head">Phase 1 · Besitz &amp; leere Gruppen</p>
+                        <div class="pb-steps" id="cpStepsPhase1">
+                            <article class="pb-step cp-step" data-cp-step="owners" data-step="owners">
+                                <div class="pb-step__n">1</div>
+                                <div>
+                                    <h3>Gruppen ohne Besitzer <span class="pb-pill pb-pill--must">Zuerst</span></h3>
+                                    <p>Zuerst Besitzlosigkeit beheben oder löschen – sonst bleiben verwaiste Teams liegen.</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="owners"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="leere-gruppen-report.html?problem=no-owners"><i class="bi bi-person-x"></i>Prüfen</a>
+                                </div>
+                            </article>
+                            <article class="pb-step cp-step" data-cp-step="empty" data-step="empty">
+                                <div class="pb-step__n">2</div>
+                                <div>
+                                    <h3>Leere Gruppen</h3>
+                                    <p>Gruppen ohne Mitglieder finden und gezielt löschen (Bulk nur mit Bestätigung).</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="empty"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="leere-gruppen-report.html?problem=empty"><i class="bi bi-inbox"></i>Prüfen</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="pb-phase__head">Phase 2 · Archiv &amp; Hygiene</p>
+                        <div class="pb-steps">
+                            <article class="pb-step cp-step" data-cp-step="archiv" data-step="archiv">
+                                <div class="pb-step__n">3</div>
+                                <div>
+                                    <h3>Alte Fach-/Unterrichtsteams archivieren</h3>
+                                    <p>Nicht mehr benötigte Teams archivieren. Alltagspflege auch über Alle Gruppen → Details.</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="archiv"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="teams-archiv.html"><i class="bi bi-archive"></i>Teams archivieren</a>
+                                </div>
+                            </article>
+                            <article class="pb-step cp-step" data-cp-step="hygiene" data-step="hygiene">
+                                <div class="pb-step__n">4</div>
+                                <div>
+                                    <h3>Mitglieder- und Klassenfeld-Abgleich</h3>
+                                    <p>Stimmen Stammlisten mit Microsoft&nbsp;365 überein? Zusätzlich: Klasse in Entra vs. Stammdaten.</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="hygiene"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="datenhygiene.html"><i class="bi bi-intersect"></i>Hygiene</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="pb-phase__head">Phase 3 · Nacharbeit &amp; Sicherung</p>
+                        <div class="pb-steps">
+                            <article class="pb-step cp-step" data-cp-step="naming" data-step="naming">
+                                <div class="pb-step__n">5</div>
+                                <div>
+                                    <h3>Namenskonvention prüfen</h3>
+                                    <p>DisplayName/UPN-Chaos beheben (Cloud) oder als CSV für die AD-IT exportieren.</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="naming"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="namenskonvention-audit.html"><i class="bi bi-fonts"></i>Audit</a>
+                                </div>
+                            </article>
+                            <article class="pb-step cp-step" data-cp-step="gaeste" data-step="gaeste">
+                                <div class="pb-step__n">6</div>
+                                <div>
+                                    <h3>Gäste &amp; Lizenzen prüfen</h3>
+                                    <p>Alte Gast-Konten und falsche Education-Lizenzen (A1/A3) in Personen-Verwaltung und Gäste-Tool.</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="gaeste"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="gaeste-verwalten.html"><i class="bi bi-people"></i>Gäste</a>
+                                </div>
+                            </article>
+                            <article class="pb-step cp-step" data-cp-step="uebergabe" data-step="uebergabe">
+                                <div class="pb-step__n">7</div>
+                                <div>
+                                    <h3>Stammdaten auf SharePoint sichern</h3>
+                                    <p>JSON in die Intranet-Dokumentbibliothek – nicht als Schülerliste.</p>
+                                    <label class="pb-check"><input type="checkbox" data-cp-check="uebergabe"> Erledigt</label>
+                                </div>
+                                <div class="pb-step__actions">
+                                    <a class="fb-btn" href="stammdaten-uebergabe.html"><i class="bi bi-cloud-arrow-up"></i>Übergabe</a>
+                                </div>
+                            </article>
+                        </div>
                     </div>
                 </div>
-                <p class="pb-lead">Zuerst Besitz und leere Gruppen, dann Archiv und Hygiene – Namenskonvention und Gäste danach.</p>
-                <div class="pb-steps" id="cpSteps">
-                    <article class="pb-step cp-step" data-cp-step="owners" data-step="owners">
-                        <div class="pb-step__n">1</div>
-                        <div>
-                            <h3>Gruppen ohne Besitzer <span class="pb-pill pb-pill--must">Zuerst</span></h3>
-                            <p>Zuerst Besitzlosigkeit beheben oder löschen – sonst bleiben verwaiste Teams liegen.</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="owners"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="leere-gruppen-report.html?problem=no-owners"><i class="bi bi-person-x"></i>Prüfen</a>
-                    </article>
-                    <article class="pb-step cp-step" data-step="empty">
-                        <div class="pb-step__n">2</div>
-                        <div>
-                            <h3>Leere Gruppen</h3>
-                            <p>Gruppen ohne Mitglieder finden und gezielt löschen (Bulk nur mit Bestätigung).</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="empty"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="leere-gruppen-report.html?problem=empty"><i class="bi bi-inbox"></i>Prüfen</a>
-                    </article>
-                    <article class="pb-step cp-step" data-step="archiv">
-                        <div class="pb-step__n">3</div>
-                        <div>
-                            <h3>Alte Fach-/Unterrichtsteams archivieren</h3>
-                            <p>Nicht mehr benötigte Teams archivieren (Schreibschutz optional). Alltagspflege auch über Alle Gruppen → Details.</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="archiv"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="teams-archiv.html"><i class="bi bi-archive"></i>Teams archivieren</a>
-                    </article>
-                    <article class="pb-step cp-step" data-step="hygiene">
-                        <div class="pb-step__n">4</div>
-                        <div>
-                            <h3>Mitglieder- und Klassenfeld-Abgleich</h3>
-                            <p>Stimmen Stammlisten mit Microsoft&nbsp;365 überein? Zusätzlich: Klasse in Entra vs. Stammdaten.</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="hygiene"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="datenhygiene.html"><i class="bi bi-intersect"></i>Hygiene</a>
-                    </article>
-                    <article class="pb-step cp-step" data-step="naming">
-                        <div class="pb-step__n">5</div>
-                        <div>
-                            <h3>Namenskonvention prüfen</h3>
-                            <p>DisplayName/UPN-Chaos beheben (Cloud) oder als CSV für die AD-IT exportieren.</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="naming"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="namenskonvention-audit.html"><i class="bi bi-fonts"></i>Audit</a>
-                    </article>
-                    <article class="pb-step cp-step" data-step="gaeste">
-                        <div class="pb-step__n">6</div>
-                        <div>
-                            <h3>Gäste &amp; Lizenzen prüfen</h3>
-                            <p>Alte Gast-Konten und falsche Education-Lizenzen (A1/A3) in Personen-Verwaltung und Gäste-Tool.</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="gaeste"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="gaeste-verwalten.html"><i class="bi bi-people"></i>Gäste</a>
-                    </article>
-                    <article class="pb-step cp-step" data-step="uebergabe">
-                        <div class="pb-step__n">7</div>
-                        <div>
-                            <h3>Stammdaten auf SharePoint sichern</h3>
-                            <p>JSON in die Intranet-Dokumentbibliothek – nicht als Schülerliste.</p>
-                            <label class="pb-check"><input type="checkbox" data-cp-check="uebergabe"> Erledigt</label>
-                        </div>
-                        <a class="btn" href="stammdaten-uebergabe.html"><i class="bi bi-cloud-arrow-up"></i>Übergabe</a>
-                    </article>
-                </div>
+
                 <div class="pb-actions tm-actions">
                     <button type="button" class="fb-btn fb-btn--ghost" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
-                    <a class="btn" href="schulstruktur-sync.html"><i class="bi bi-diagram-2"></i>Alle Gruppen</a>
-                    <a class="btn" href="klassen-merge.html"><i class="bi bi-intersect"></i>Klassen zusammenlegen</a>
-                    <a class="btn" href="personen-verwaltung.html"><i class="bi bi-person-badge"></i>Personen / Lizenzen</a>
-                    <a class="btn" href="datei-migration.html"><i class="bi bi-files"></i>Datei-Migration</a>
-                    <a class="btn" href="diplomarbeiten.html"><i class="bi bi-mortarboard"></i>Diplomarbeiten</a>
+                </div>
+
+                <p class="fb-sec-label">Weitere Werkzeuge</p>
+                <div class="pb-related" role="list">
+                    <a class="pb-related__link" role="listitem" href="schulstruktur-sync.html"><i class="bi bi-diagram-2" aria-hidden="true"></i>Alle Gruppen</a>
+                    <a class="pb-related__link" role="listitem" href="klassen-merge.html"><i class="bi bi-intersect" aria-hidden="true"></i>Klassen zusammenlegen</a>
+                    <a class="pb-related__link" role="listitem" href="personen-verwaltung.html"><i class="bi bi-person-badge" aria-hidden="true"></i>Personen / Lizenzen</a>
+                    <a class="pb-related__link" role="listitem" href="datei-migration.html"><i class="bi bi-files" aria-hidden="true"></i>Datei-Migration</a>
+                    <a class="pb-related__link" role="listitem" href="diplomarbeiten.html"><i class="bi bi-mortarboard" aria-hidden="true"></i>Diplomarbeiten</a>
                 </div>
             </section>
         </div>
     </div>
 
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module">
         import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+
+        const stepIds = ['owners', 'empty', 'archiv', 'hygiene', 'naming', 'gaeste', 'uebergabe'];
+
+        function syncHeroProgress() {
+            const progress = document.getElementById('cpProgress');
+            const num = document.getElementById('cpProgressNum');
+            const label = document.getElementById('cpProgressLabel');
+            if (!progress || !num || !label) return;
+            const m = String(progress.textContent || '').match(/(\d+)\s*\/\s*(\d+)/);
+            if (!m) return;
+            num.textContent = m[1];
+            const done = Number(m[1]);
+            const total = Number(m[2]);
+            label.textContent =
+                done >= total && total > 0 ? 'von ' + total + ' erledigt – fertig' : 'von ' + total + ' erledigt';
+        }
+
         wirePlaybookPage({
             storageKey: 'ms365-cleanup-playbook-v1',
-            stepIds: ['owners', 'empty', 'archiv', 'hygiene', 'naming', 'gaeste', 'uebergabe']
+            stepIds: stepIds
+        });
+
+        syncHeroProgress();
+        const progressEl = document.getElementById('cpProgress');
+        if (progressEl && typeof MutationObserver !== 'undefined') {
+            new MutationObserver(syncHeroProgress).observe(progressEl, {
+                childList: true,
+                characterData: true,
+                subtree: true
+            });
+        }
+        document.addEventListener('change', function (ev) {
+            const t = ev.target;
+            if (t && t.matches && t.matches('[data-cp-check]')) syncHeroProgress();
+        });
+        document.getElementById('cpReset')?.addEventListener('click', function () {
+            setTimeout(syncHeroProgress, 0);
         });
     </script>
 </body>

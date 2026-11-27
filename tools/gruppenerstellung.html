@@ -1,161 +1,180 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
-    <title>MS365-Schul-Tools – Gruppenerstellung einschränken</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <title>MS365-Schul-Tools – Wer darf Teams anlegen</title>
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
-    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=2">
+    <link rel="stylesheet" href="../src/tools/gruppenerstellung/gruppenerstellung.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .gp-step-content { display: none; }
-        .gp-step-content.active { display: block; }
-        .tm-page .gp-steps.steps { margin-bottom: 8px; }
+.page-card.tm-page,
+.container.page-card { --brand: var(--brand1); --primary: var(--brand1); }
+.btn-success, .btn.btn-success, button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+.gp-step-content { display: none; }
+.gp-step-content.active { display: block; }
     </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page gp-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-shield-lock"></i>Gruppenerstellung einschränken</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-shield-lock"></i>Wer darf Teams anlegen</span>
             </div>
-            <p>Nur ausgewählte Personen dürfen noch Teams und Microsoft-365-Gruppen anlegen. Eine Sicherheitsgruppe bestimmt, wer noch Gruppen und Teams erstellen darf.</p>
+            <p>Nur ausgewählte Personen dürfen noch Teams und Microsoft-365-Gruppen anlegen.</p>
+            <p class="muted" style="margin:4px 0 0;font-size:0.9rem;">Eine Sicherheitsgruppe bestimmt, wer noch erstellen darf.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-gruppenerstellung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div id="panelGruppenPolicy">
-            <div class="steps gp-steps">
-                <div class="step active" data-gp-step="1">1. Wer darf?</div>
-                <div class="step" data-gp-step="2">2. Richtlinie setzen</div>
+            <section class="gp-hero" aria-label="Stand">
+                <h1 class="fb-greet">Gruppenerstellung einschränken</h1>
+                <p class="fb-sub">Sicherheitsgruppe wählen → Mitglieder pflegen → Richtlinie setzen.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="weitere-teams-gruppen.html">Weitere Teams &amp; Gruppen ↗</a>
+                <a href="gaeste-verwalten.html">Gäste verwalten ↗</a>
+                <a href="schulstruktur-sync.html">Gruppenverwaltung ↗</a>
+            </nav>
+
+            <div class="steps gp-steps pw-steps" role="navigation" aria-label="Wizard-Schritte">
+                <div class="step active" data-gp-step="1">1 · Wer darf?</div>
+                <div class="step" data-gp-step="2">2 · Richtlinie</div>
             </div>
 
             <div class="content">
-                <div class="gp-step-content active" data-gp-step="1">
-                    <section class="tm-panel">
-                        <div class="tm-flow" aria-hidden="true">
-                            <div class="tm-flow__node">
-                                <i class="bi bi-people"></i>
-                                <strong>Alle</strong>
-                                <span>können Teams anlegen</span>
-                            </div>
-                            <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
-                            <div class="tm-flow__node">
-                                <i class="bi bi-person-badge"></i>
-                                <strong>Sicherheitsgruppe</strong>
-                                <span>z. B. „GruppenErsteller“</span>
-                            </div>
-                            <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
-                            <div class="tm-flow__node">
-                                <i class="bi bi-check2-circle"></i>
-                                <strong>Nur Mitglieder</strong>
-                                <span>dürfen noch erstellen</span>
-                            </div>
+                <div class="gp-step-content active pw-form" data-gp-step="1">
+                    <div class="gp-flow" aria-hidden="true">
+                        <div class="gp-flow__node">
+                            <strong>Alle</strong>
+                            <span>können Teams anlegen</span>
                         </div>
-                    </section>
+                        <div class="gp-flow__arrow" aria-hidden="true">→</div>
+                        <div class="gp-flow__node">
+                            <strong>Sicherheitsgruppe</strong>
+                            <span>z. B. „GruppenErsteller“</span>
+                        </div>
+                        <div class="gp-flow__arrow" aria-hidden="true">→</div>
+                        <div class="gp-flow__node">
+                            <strong>Nur Mitglieder</strong>
+                            <span>dürfen noch erstellen</span>
+                        </div>
+                    </div>
 
-                    <section class="tm-panel">
-                        <div class="tm-panel__head">
-                            <i class="bi bi-key" aria-hidden="true"></i>
-                            <div>
-                                <h3>Sicherheitsgruppe wählen oder anlegen</h3>
-                                <p>Reine Sicherheitsgruppe – ohne E-Mail, keine Microsoft-365-Gruppe.</p>
-                            </div>
+                    <section class="gp-panel">
+                        <div class="gp-panel__head">
+                            <h3>Sicherheitsgruppe wählen oder anlegen</h3>
+                            <p>Reine Sicherheitsgruppe – ohne E-Mail, keine Microsoft-365-Gruppe.</p>
                         </div>
 
-                        <div class="tm-field">
+                        <div class="gp-field">
                             <label for="gpInputDisplayName">Anzeigename</label>
                             <input type="text" id="gpInputDisplayName" autocomplete="off" maxlength="200" placeholder="z. B. GruppenErsteller">
                         </div>
-                        <div class="tm-actions" style="margin-bottom:16px;">
-                            <button type="button" class="btn" id="gpBtnCreateGroup"><i class="bi bi-plus-lg"></i>Neue Gruppe anlegen</button>
+                        <div class="gp-actions">
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gpBtnCreateGroup"><i class="bi bi-plus-lg"></i>Neue Gruppe anlegen</button>
                         </div>
 
-                        <div class="tm-field">
+                        <div class="gp-field">
                             <label for="gpInputObjectId">Bestehende Gruppe (ID oder Suche)</label>
                             <input type="text" id="gpInputObjectId" autocomplete="off" placeholder="GUID oder Anzeigename" spellcheck="false">
                         </div>
-                        <div class="tm-actions">
-                            <button type="button" class="btn" id="gpBtnFindGroup"><i class="bi bi-search"></i>Gruppe suchen</button>
+                        <div class="gp-actions">
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gpBtnFindGroup"><i class="bi bi-search"></i>Gruppe suchen</button>
                         </div>
                         <input type="hidden" id="gpResolvedObjectId" value="">
-                        <p id="gpResolvedSummary" style="display:none;margin-top:14px;padding:12px 14px;background:color-mix(in srgb, var(--brand1) 10%, var(--card));border-radius:12px;border:1px solid color-mix(in srgb, var(--brand1) 28%, var(--border));color:var(--heading);font-size:0.95em;"></p>
+                        <p id="gpResolvedSummary" class="gp-resolved" style="display:none;"></p>
 
-                        <details class="tm-tech">
+                        <details class="gp-tech">
                             <summary>Links zu Entra / Admin Center</summary>
-                            <p style="margin:10px 0 0;line-height:1.5;">
+                            <p class="muted" style="margin:10px 0 0;line-height:1.5;">
                                 <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups" target="_blank" rel="noopener">Entra: Gruppen</a>
                                 · <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank" rel="noopener">Microsoft 365 Admin Center</a>
                             </p>
                         </details>
                     </section>
 
-                    <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn" id="gpBtnNext1">Weiter: Mitglieder &amp; Richtlinie →</button>
+                    <div class="gp-nav gp-nav--forward">
+                        <button type="button" class="fb-btn" id="gpBtnNext1"><i class="bi bi-arrow-right"></i>Weiter: Mitglieder &amp; Richtlinie</button>
                     </div>
                 </div>
 
-                <div class="gp-step-content" data-gp-step="2">
-                    <section class="tm-panel">
-                        <div class="tm-panel__head">
-                            <i class="bi bi-people" aria-hidden="true"></i>
-                            <div>
-                                <h3>Mitglieder pflegen</h3>
-                                <p>Wer in dieser Gruppe ist, darf weiterhin Teams/Gruppen anlegen.</p>
-                            </div>
+                <div class="gp-step-content pw-wide" data-gp-step="2">
+                    <section class="gp-panel">
+                        <div class="gp-panel__head">
+                            <h3>Mitglieder pflegen</h3>
+                            <p>Wer in dieser Gruppe ist, darf weiterhin Teams/Gruppen anlegen.</p>
                         </div>
                         <div id="groupDetailHost"></div>
                     </section>
 
-                    <section class="tm-panel">
-                        <div class="tm-panel__head">
-                            <i class="bi bi-sliders" aria-hidden="true"></i>
-                            <div>
-                                <h3>Richtlinie anwenden</h3>
-                                <p>Schaltet die Mandanten-Einstellung um: nur diese Gruppe darf erstellen.</p>
-                            </div>
+                    <section class="gp-panel">
+                        <div class="gp-panel__head">
+                            <h3>Richtlinie anwenden</h3>
+                            <p>Schaltet die Mandanten-Einstellung um: nur diese Gruppe darf erstellen.</p>
                         </div>
-                        <span class="tm-perm" style="margin-bottom:12px;"><i class="bi bi-shield-check"></i>Directory.ReadWrite.All + Admin-Zustimmung</span>
-                        <div class="tm-actions">
-                            <button type="button" class="btn" id="gpBtnLogin"><i class="bi bi-box-arrow-in-right"></i>Anmelden</button>
-                            <button type="button" class="btn" id="gpBtnApply"><i class="bi bi-shield-check"></i>Einschränkung anwenden</button>
-                            <button type="button" class="btn" id="gpBtnRefreshStatus"><i class="bi bi-arrow-clockwise"></i>Status lesen</button>
-                            <button type="button" class="btn btn-danger" id="gpBtnRemove"><i class="bi bi-x-circle"></i>Zurücksetzen</button>
+                        <p class="pw-msg__meta" style="margin:0 0 12px;"><i class="bi bi-shield-check"></i> Directory.ReadWrite.All + Admin-Zustimmung</p>
+                        <div class="gp-actions">
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gpBtnLogin"><i class="bi bi-box-arrow-in-right"></i>Anmelden</button>
+                            <button type="button" class="fb-btn" id="gpBtnApply"><i class="bi bi-shield-check"></i>Einschränkung anwenden</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gpBtnRefreshStatus"><i class="bi bi-arrow-clockwise"></i>Status lesen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gpBtnRemove"><i class="bi bi-x-circle"></i>Zurücksetzen</button>
                         </div>
-                        <details class="tm-tech" open>
+                        <details class="gp-tech" open>
                             <summary>Status &amp; Protokoll</summary>
-                            <pre id="gpStatusPre" class="tm-log" style="margin-top:10px;">Noch nicht gelesen – „Status lesen“ oder „Einschränkung anwenden“ wählen.</pre>
-                            <div id="gpOnlineLog" class="tm-log" style="margin-top:10px;"></div>
+                            <pre id="gpStatusPre" class="gp-log">Noch nicht gelesen – „Status lesen“ oder „Einschränkung anwenden“ wählen.</pre>
+                            <div id="gpOnlineLog" class="gp-log"></div>
                         </details>
                     </section>
 
-                    <div class="step-nav-row step-nav-row--back-only">
-                        <button type="button" class="btn" id="gpBtnBack2">← Zurück</button>
+                    <div class="gp-nav gp-nav--back">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="gpBtnBack2"><i class="bi bi-arrow-left"></i>Zurück</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-            <button type="button" class="btn" id="btnSaveState">Zwischenstand speichern</button>
-            <button type="button" class="btn" id="btnLoadState">Stand laden</button>
-            <button type="button" class="btn btn-danger" id="btnClearStorage">Lokalen Speicher löschen</button>
+        <div class="toolbar bottom-toolbar tool-state-bar" aria-label="Zwischenstand">
+            <div class="tool-state-bar__actions">
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnSaveState"><i class="bi bi-floppy"></i>Zwischenstand speichern</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnLoadState"><i class="bi bi-folder2-open"></i>Stand laden</button>
+                <button type="button" class="fb-btn fb-btn--ghost fb-btn--danger" id="btnClearStorage"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
+            </div>
         </div>
     </div>
 
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
@@ -165,6 +184,6 @@
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script type="module" src="../src/tools/gruppenerstellung/gruppenerstellung-policy.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

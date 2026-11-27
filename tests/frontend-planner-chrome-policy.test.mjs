@@ -1,5 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isFrontendPlannerPage, showItAppChrome } from '../src/shared/frontend-planner-chrome-policy.js';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+    isFrontendPlannerPage,
+    showItAppChrome,
+    shouldShowItAppChromeSync
+} from '../src/shared/frontend-planner-chrome-policy.js';
 
 function memoryStorage() {
     /** @type {Record<string, string>} */
@@ -53,6 +57,45 @@ describe('frontend-planner-chrome-policy', () => {
         it('Portal-Shell blendet IT-Chrome aus', () => {
             localStorage.setItem(key, 'portal');
             expect(showItAppChrome({ loggedIn: true, isIt: true })).toBe(false);
+        });
+    });
+
+    describe('shouldShowItAppChromeSync', () => {
+        const key = 'ms365-dashboard-it-preview-v1';
+        const prevLocal = globalThis.localStorage;
+        const prevSession = globalThis.sessionStorage;
+
+        beforeEach(() => {
+            globalThis.localStorage = memoryStorage();
+            globalThis.sessionStorage = memoryStorage();
+            vi.stubGlobal('document', {
+                body: { classList: { contains: () => false } },
+                documentElement: {}
+            });
+            vi.stubGlobal('window', {
+                location: { pathname: '/tools/verwaltung.html' },
+                __ms365DashboardPersonasLast: null
+            });
+            vi.stubGlobal('location', { pathname: '/tools/verwaltung.html' });
+        });
+
+        afterEach(() => {
+            if (prevLocal === undefined) delete globalThis.localStorage;
+            else globalThis.localStorage = prevLocal;
+            if (prevSession === undefined) delete globalThis.sessionStorage;
+            else globalThis.sessionStorage = prevSession;
+            vi.unstubAllGlobals();
+        });
+
+        it('hält IT-Chrome während Workspace-Seitenwechsel (ohne Persona noch)', () => {
+            localStorage.setItem(key, 'full');
+            sessionStorage.setItem('ms365-it-workspace-v1', '1');
+            expect(shouldShowItAppChromeSync()).toBe(true);
+        });
+
+        it('bleibt portal-first ohne Workspace-Flag und ohne Persona', () => {
+            localStorage.setItem(key, 'full');
+            expect(shouldShowItAppChromeSync()).toBe(false);
         });
     });
 });

@@ -21,7 +21,71 @@ import { loadLiveSchoolStammdatenCache } from './live-school-stammdaten-cache.js
  * }} LehrerPortalReadiness
  */
 
-export const LANDING_KONTAKT_URL = 'https://ms365.schule/#kontakt';
+/**
+ * mailto an die Schul-IT. Ohne gültige Adresse kein Link auf die Homepage.
+ * @param {{ itM365Admin?: string, itM365AdminEmail?: string }|null|undefined} profile
+ * @param {{ subject?: string, body?: string }} [opts]
+ * @returns {string}
+ */
+export function schoolItAdminMailto(profile, opts) {
+    const p = profile && typeof profile === 'object' ? profile : {};
+    const email = String(p.itM365AdminEmail || '')
+        .trim()
+        .toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return '';
+    const name = String(p.itM365Admin || '').trim();
+    const subject = (opts && opts.subject) || 'Anfrage MS365-Schul-Tools';
+    const body =
+        (opts && opts.body) ||
+        'Guten Tag' +
+            (name ? ' ' + name : '') +
+            ',\n\nich möchte eine Anfrage zu den MS365-Schul-Tools stellen.\n';
+    return (
+        'mailto:' +
+        email +
+        '?subject=' +
+        encodeURIComponent(subject) +
+        '&body=' +
+        encodeURIComponent(body)
+    );
+}
+
+/**
+ * Schul-IT aus dem lokalen Schulprofil oder der Lizenz-Antwort.
+ * @returns {string}
+ */
+export function readSchoolItAdminMailto() {
+    let profile = {};
+    try {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365AppDataV2 &&
+            typeof window.ms365AppDataV2.getSetup === 'function'
+        ) {
+            const setup = window.ms365AppDataV2.getSetup() || {};
+            profile = setup.schoolProfile && typeof setup.schoolProfile === 'object' ? setup.schoolProfile : {};
+        }
+    } catch {
+        profile = {};
+    }
+    let href = schoolItAdminMailto(profile);
+    if (href) return href;
+    try {
+        const core = typeof window !== 'undefined' ? window.ms365LicenseGateCore : null;
+        const cache = core && typeof core.readCache === 'function' ? core.readCache() : null;
+        const result = cache && (cache.result || cache);
+        const st = result && (result.schoolStammdaten || result);
+        if (st && typeof st === 'object') {
+            href = schoolItAdminMailto({
+                itM365Admin: st.ItM365Admin || st.itM365Admin || '',
+                itM365AdminEmail: st.ItM365AdminEmail || st.itM365AdminEmail || ''
+            });
+        }
+    } catch {
+        href = '';
+    }
+    return href || '';
+}
 
 const MISSING_LABELS = {
     license: 'Schul-Lizenz / Freischaltung',
@@ -61,7 +125,7 @@ export function evaluateLehrerPortalReadiness(input) {
             missing: ['license'],
             title: 'Schule noch nicht freigeschaltet',
             message:
-                'Ihre Schule ist für MS365-Schul-Tools noch nicht freigeschaltet. Bitte informieren Sie Ihren IT-Admin oder stellen Sie hier eine Anfrage – wir melden uns.'
+                'Ihre Schule ist für MS365-Schul-Tools noch nicht freigeschaltet. Bitte stellen Sie die Anfrage an die Schul-IT.'
         };
     }
 

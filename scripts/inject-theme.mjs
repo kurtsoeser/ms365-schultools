@@ -51,12 +51,12 @@ for (const full of files) {
         }
     }
 
-    const src = prefix + 'src/shared/theme-toggle.js?v=4';
-    if (/theme-toggle\.js\?v=[123]/.test(html)) {
-        html = html.replace(/theme-toggle\.js\?v=[123]/g, 'theme-toggle.js?v=4');
+    const src = prefix + 'src/shared/theme-toggle.js?v=5';
+    if (/theme-toggle\.js\?v=[1234]/.test(html)) {
+        html = html.replace(/theme-toggle\.js\?v=[1234]/g, 'theme-toggle.js?v=5');
         changed = true;
     } else if (html.includes('src/shared/theme-toggle.js"') && !html.includes('theme-toggle.js?v=')) {
-        html = html.replace(/src\/shared\/theme-toggle\.js/g, 'src/shared/theme-toggle.js?v=4');
+        html = html.replace(/src\/shared\/theme-toggle\.js/g, 'src/shared/theme-toggle.js?v=5');
         changed = true;
     }
     if (html.includes('app.css?v=12')) {

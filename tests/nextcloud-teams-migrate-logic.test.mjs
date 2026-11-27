@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     parseNumberedFolderName,
     suggestChannelMappings,
+    mergeChannelMapEdits,
     buildMigrationPlan,
     validateNcMigrateSelection,
     relativeInside,
@@ -37,6 +38,21 @@ describe('numbered folder → channel', () => {
         ]);
         expect(maps).toHaveLength(1);
         expect(maps[0].channelName).toBe('01 Fachkonferenz');
+    });
+
+    it('behält geänderte Kanalnamen beim erneuten Vorschlag', () => {
+        const suggested = suggestChannelMappings([
+            { name: '1. Bildungsplan', isFolder: true, relPath: 'Deutsch/1. Bildungsplan' }
+        ]);
+        const merged = mergeChannelMapEdits(suggested, [
+            {
+                sourceRelPath: 'Deutsch/1. Bildungsplan',
+                channelName: '01 Bildungsplan',
+                enabled: true
+            }
+        ]);
+        expect(merged[0].channelName).toBe('01 Bildungsplan');
+        expect(merged[0].enabled).toBe(true);
     });
 });
 

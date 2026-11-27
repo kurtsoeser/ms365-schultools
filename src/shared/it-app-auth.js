@@ -124,17 +124,20 @@ function authResponseParams() {
     return null;
 }
 
-function isInteractionRequired(e) {
+export function isInteractionRequired(e) {
     if (!e) return false;
     if (e.name === 'InteractionRequiredAuthError') return true;
-    const code = String(e.errorCode || '').toLowerCase();
+    const code = String(e.errorCode || e.code || '').toLowerCase();
     if (
         code === 'interaction_required' ||
         code === 'consent_required' ||
         code === 'login_required' ||
         code === 'invalid_grant' ||
         code === 'no_account_in_silent_request' ||
-        code === 'no_tokens_found'
+        code === 'no_tokens_found' ||
+        code === 'monitor_window_timeout' ||
+        code === 'timed_out' ||
+        code === 'block_iframe_reload'
     ) {
         return true;
     }
@@ -143,6 +146,8 @@ function isInteractionRequired(e) {
         msg.indexOf('interaction_required') !== -1 ||
         msg.indexOf('consent_required') !== -1 ||
         msg.indexOf('login_required') !== -1 ||
+        msg.indexOf('monitor_window_timeout') !== -1 ||
+        msg.indexOf('token acquisition in iframe failed') !== -1 ||
         msg.indexOf('aadsts65001') !== -1
     );
 }
@@ -187,6 +192,32 @@ function pickAccount(instance, hint) {
     return all[0] || null;
 }
 
+const SKIP_SILENT_KEY = 'ms365-it-skip-silent';
+
+function shouldSkipSilentIframe() {
+    try {
+        return sessionStorage.getItem(SKIP_SILENT_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function markSkipSilentIframe() {
+    try {
+        sessionStorage.setItem(SKIP_SILENT_KEY, '1');
+    } catch {
+        /* ignore */
+    }
+}
+
+function clearSkipSilentIframe() {
+    try {
+        sessionStorage.removeItem(SKIP_SILENT_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
 function rememberReturnUrl() {
     try {
         if (typeof window.ms365AuthRememberReturnUrl === 'function') {
@@ -209,11 +240,16 @@ export async function ensureItPca() {
             const PublicClientApplication =
                 m.PublicClientApplication || (m.default && m.default.PublicClientApplication);
             if (!PublicClientApplication) throw new Error('MSAL: PublicClientApplication nicht gefunden.');
+            const onSchooltool = /\/ms365-schooltool\.html$/i.test(
+                String((typeof location !== 'undefined' && location.pathname) || '')
+            );
             const instance = new PublicClientApplication({
                 auth: {
                     clientId: cfg.clientId,
                     authority: cfg.authority,
-                    redirectUri: cfg.redirectUri
+                    redirectUri: cfg.redirectUri,
+                    // Redirect-Seite: Rückkehr macht ms365-schooltool-redirect.js.
+                    navigateToLoginRequestUrl: !onSchooltool
                 },
                 cache: {
                     cacheLocation: 'localStorage',
@@ -264,15 +300,21 @@ export async function acquireItAppToken(scopes, opts) {
     if (hint) req.loginHint = hint;
     if (o.forceRefresh || mode === 'fresh') req.forceRefresh = true;
 
-    if (account && mode !== 'interactive-only') {
+    // Nach einem Iframe-Timeout den nächsten Klick sofort als Fenster öffnen.
+    // Sonst vergeht die Klick-Geste und der Browser blockt das Fenster.
+    const skipSilent = mode === 'popup' && shouldSkipSilentIframe();
+    const trySilent = account && mode !== 'interactive-only' && !skipSilent;
+    if (trySilent) {
         try {
             const result = await instance.acquireTokenSilent(req);
+            clearSkipSilentIframe();
             return result.accessToken;
         } catch (e) {
+            if (isInteractionRequired(e)) markSkipSilentIframe();
             if (mode === 'silent' || mode === 'fresh') throw e;
             if (!isInteractionRequired(e)) throw e;
         }
-    } else if (mode === 'silent' || mode === 'fresh') {
+    } else if (!account && (mode === 'silent' || mode === 'fresh')) {
         const err = new Error('Nicht an der IT-App angemeldet.');
         err.code = 'ms365_it_interaction_required';
         throw err;
@@ -289,10 +331,26 @@ export async function acquireItAppToken(scopes, opts) {
             if (result && result.account && typeof instance.setActiveAccount === 'function') {
                 instance.setActiveAccount(result.account);
             }
+            clearSkipSilentIframe();
             return result.accessToken;
         } catch (e) {
-            if (isUserCancelled(e) || !isPopupWindowError(e)) throw e;
+            if (isUserCancelled(e)) throw e;
+            if (mode === 'popup') {
+                if (isPopupWindowError(e)) {
+                    throw new Error(
+                        'Das Microsoft-Fenster wurde blockiert. Pop-ups für diese Seite erlauben und den Button noch einmal drücken.'
+                    );
+                }
+                throw e;
+            }
+            if (!isPopupWindowError(e)) throw e;
         }
+    }
+
+    if (mode === 'popup') {
+        throw new Error(
+            'Anmeldung braucht ein Microsoft-Fenster. Pop-ups erlauben und den Button noch einmal drücken.'
+        );
     }
 
     interactiveReq.redirectStartPage = window.location.href;

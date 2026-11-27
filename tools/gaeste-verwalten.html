@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,48 +9,68 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Gäste verwalten</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/gaeste-verwalten/gaeste-verwalten.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <script src="../ms365-config.js"></script>
     <style>
-        .page-card { max-width: var(--app-max-width); margin: 0 auto; }
+        .page-card.tm-page,
+        .container.page-card { --brand: var(--brand1); --primary: var(--brand1); max-width: var(--app-max-width); margin: 0 auto; }
+        .btn-success, .btn.btn-success, button.btn-success {
+            background: var(--brand1) !important;
+            border-color: var(--brand1) !important;
+            color: var(--on-accent, #04211d) !important;
+        }
+        .btn-primary:not(.btn-ghost):not(.btn-outline) {
+            background: var(--brand1);
+            border-color: var(--brand1);
+            color: var(--on-accent, #04211d);
+        }
         .gv-tablist {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            padding: 6px;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 6%, transparent) 0%, color-mix(in srgb, var(--brand2) 4%, transparent) 100%);
+            gap: 4px;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
         }
         .gv-tab {
-            border: 1px solid transparent;
+            border: 0;
             background: transparent;
-            color: var(--text-secondary);
-            padding: 10px 14px;
-            border-radius: 10px;
+            color: var(--muted);
+            padding: 8px 12px;
+            border-radius: 8px;
             font: inherit;
-            font-size: 0.95em;
-            font-weight: 700;
+            font-size: 0.86rem;
+            font-weight: 500;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 120ms ease;
             text-align: left;
         }
-        .gv-tab:hover { background: color-mix(in srgb, var(--brand1) 10%, var(--card)); color: var(--heading); }
+        .gv-tab:hover { background: color-mix(in srgb, var(--heading) 4%, transparent); color: var(--heading); }
         .gv-tab[aria-selected="true"] {
-            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
-            color: #fff;
-            box-shadow: 0 6px 16px color-mix(in srgb, var(--brand1) 28%, transparent);
+            background: color-mix(in srgb, var(--brand1) 10%, transparent);
+            color: var(--heading);
+            font-weight: 650;
+            box-shadow: inset 0 -2px 0 var(--brand1);
         }
-        .gv-tab[aria-selected="true"]:hover { color: #fff; }
+        .gv-tab[aria-selected="true"]:hover { color: var(--heading); }
         .gv-tab .bi { font-size: 1.05em; }
-        .gv-hero--tenant .gv-hero-icon { background: linear-gradient(135deg, #e53e3e 0%, #f97316 100%); }
-        .gv-hero--teams .gv-hero-icon { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); }
-        .gv-hero--audit .gv-hero-icon { background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%); }
-        .gv-hero--einlader .gv-hero-icon { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
+        .gv-hero--tenant .gv-hero-icon,
+        .gv-hero--teams .gv-hero-icon,
+        .gv-hero--audit .gv-hero-icon,
+        .gv-hero--einlader .gv-hero-icon {
+            background: color-mix(in srgb, var(--brand1) 14%, transparent);
+            color: var(--brand1);
+        }
         .gv-hero-stats {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -79,40 +99,8 @@
 
         /* === Tabs (vier Unterbereiche) === */
         .gv-tabs {
-            margin: 0 0 18px;
+            margin: 0 0 14px;
         }
-        .gv-tablist {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 6px;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 6%, transparent) 0%, color-mix(in srgb, var(--brand2) 4%, transparent) 100%);
-        }
-        .gv-tab {
-            border: 1px solid transparent;
-            background: transparent;
-            color: var(--text-secondary);
-            padding: 10px 14px;
-            border-radius: 10px;
-            font: inherit;
-            font-size: 0.95em;
-            font-weight: 700;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 120ms ease;
-        }
-        .gv-tab .bi { font-size: 1.05em; }
-        .gv-tab:hover { background: color-mix(in srgb, var(--brand1) 10%, var(--card)); color: var(--heading); }
-        .gv-tab[aria-selected="true"] {
-            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
-            color: #fff;
-            box-shadow: 0 6px 16px color-mix(in srgb, var(--brand1) 28%, transparent);
-        }
-        .gv-tab[aria-selected="true"]:hover { color: #fff; }
         .gv-tab:focus-visible {
             outline: 2px solid var(--brand1);
             outline-offset: 2px;
@@ -123,17 +111,18 @@
         /* === Panels (aus gast-zugaenge übernommen) === */
         .panel {
             border: 1px solid var(--border);
-            border-radius: 14px;
+            border-radius: 12px;
             background: var(--card);
             overflow: hidden;
             margin-bottom: 18px;
+            box-shadow: none;
         }
         .panel-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 10%, transparent) 0%, color-mix(in srgb, var(--brand2) 6%, transparent) 100%);
+            background: color-mix(in srgb, var(--heading) 2.5%, var(--card));
         }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: var(--heading); font-weight: 900; }
+        .panel-head h2 { margin: 0; font-size: 1.05rem; color: var(--heading); font-weight: 650; }
         .panel-body { padding: 14px 16px 22px; }
         .muted { color: var(--muted); }
         .hint {
@@ -152,7 +141,26 @@
             align-items: center;
             margin-bottom: 14px;
         }
-        .gz-toolbar .btn { margin: 0; }
+        .gz-toolbar .fb-btn { margin: 0; }
+        .gi-soft-panel {
+            margin: 0 0 16px;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: color-mix(in srgb, var(--heading) 2.5%, var(--card));
+        }
+        .gi-soft-panel--flush {
+            padding: 0;
+            border: 0;
+            background: transparent;
+        }
+        .gi-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin: 0 0 16px;
+        }
         .gz-table-wrap { overflow: auto; max-height: 48vh; border: 1px solid var(--border); border-radius: 12px; }
         table.gz-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
         table.gz-table th, table.gz-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
@@ -163,9 +171,10 @@
 
         /* „Schreibender" Bereich (Gäste verwalten) */
         .panel-write .panel-head {
-            background: linear-gradient(135deg, rgba(245, 101, 101, 0.12) 0%, rgba(237, 137, 54, 0.08) 100%);
+            background: color-mix(in srgb, #b42318 6%, var(--card));
+            border-bottom-color: color-mix(in srgb, #b42318 22%, var(--border));
         }
-        .panel-write .panel-head h2 { color: color-mix(in srgb, var(--danger1) 75%, var(--heading)); }
+        .panel-write .panel-head h2 { color: var(--heading); }
         .hint-warn {
             background: color-mix(in srgb, var(--danger1) 12%, var(--card));
             border-color: rgba(245, 101, 101, 0.35);
@@ -607,32 +616,42 @@
         .gv-info-body p:last-child { margin: 0; }
     </style>
 </head>
-<body data-ms365-skip-tenant-domain-prompt="true">
-    <div class="container page-card">
+<body class="app-shell-chrome" data-ms365-skip-tenant-domain-prompt="true">
+    <div class="container page-card tm-page gv-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Gäste verwalten</span>
             </div>
-            <p>Zentrales Werkzeug für externe Konten im Mandanten: Teams mit Gast-Mitgliedern auflisten, B2B-/Gast-Einladungen aus dem Verzeichnis-Audit einsehen, alle Gast-Benutzer:innen im Tenant verwalten (umbenennen, löschen) sowie tenantweit festlegen, wer Gäste einladen darf (Rolle „Gasteinladende:r“ &amp; Authorization Policy). Schreibende Aktionen verlangen entsprechende Entra-Berechtigungen.</p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-gaeste-verwalten" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Externe Konten im Mandanten finden, prüfen und steuern – inkl. Einladungsrechten.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-gaeste-verwalten" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
-                    <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                </div>
+                <a class="fb-btn fb-btn--ghost" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div class="content">
+            <section class="gv-page-hero" aria-label="Stand">
+                <h1 class="fb-greet">Gäste verwalten</h1>
+                <p class="fb-sub">Tenant-Gäste, Teams mit Gästen, B2B-Einladungen und Einladungsrechte – ein Werkzeug.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="personen-verwaltung.html">Personen ↗</a>
+                <a href="datenhygiene.html">Datenhygiene ↗</a>
+            </nav>
+
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten in diesem Browser. Gast-Listen aus Microsoft 365 laden Sie nach der Anmeldung – Einrichtung oder Demo hilft beim lokalen Kontext."></div>
 
             <div class="gv-tabs" role="region" aria-label="Bereiche">
-                <div class="gv-tablist" role="tablist" aria-label="Unterbereiche von Gäste verwalten">
-                    <button type="button" class="gv-tab" role="tab" id="gv-tab-tenant" aria-selected="true" aria-controls="gv-panel-tenant" data-gv-tab="tenant"><i class="bi bi-pencil-square"></i>Alle Gäste im Tenant</button>
-                    <button type="button" class="gv-tab" role="tab" id="gv-tab-teams" aria-selected="false" aria-controls="gv-panel-teams" data-gv-tab="teams"><i class="bi bi-microsoft-teams"></i>Teams mit Gast-Mitgliedern</button>
-                    <button type="button" class="gv-tab" role="tab" id="gv-tab-audit" aria-selected="false" aria-controls="gv-panel-audit" data-gv-tab="audit"><i class="bi bi-envelope-open"></i>B2B-/Gast-Einladungen (Verzeichnis-Audit)</button>
-                    <button type="button" class="gv-tab" role="tab" id="gv-tab-einlader" aria-selected="false" aria-controls="gv-panel-einlader" data-gv-tab="einlader"><i class="bi bi-person-plus-fill"></i>Gast-Einlader (Berechtigung)</button>
+                <div class="gv-tablist pw-steps" role="tablist" aria-label="Unterbereiche von Gäste verwalten">
+                    <button type="button" class="gv-tab" role="tab" id="gv-tab-tenant" aria-selected="true" aria-controls="gv-panel-tenant" data-gv-tab="tenant"><i class="bi bi-pencil-square"></i>Alle Gäste</button>
+                    <button type="button" class="gv-tab" role="tab" id="gv-tab-teams" aria-selected="false" aria-controls="gv-panel-teams" data-gv-tab="teams"><i class="bi bi-microsoft-teams"></i>Teams mit Gästen</button>
+                    <button type="button" class="gv-tab" role="tab" id="gv-tab-audit" aria-selected="false" aria-controls="gv-panel-audit" data-gv-tab="audit"><i class="bi bi-envelope-open"></i>B2B-Einladungen</button>
+                    <button type="button" class="gv-tab" role="tab" id="gv-tab-einlader" aria-selected="false" aria-controls="gv-panel-einlader" data-gv-tab="einlader"><i class="bi bi-person-plus-fill"></i>Einladungsrechte</button>
                 </div>
             </div>
 
@@ -644,9 +663,9 @@
                     </div>
                     <div class="panel-body">
                         <div class="gz-toolbar">
-                            <button type="button" class="btn btn-success" id="gzBtnRun"><i class="bi bi-cloud-download"></i>Daten laden (Teams &amp; B2B-Audit)</button>
-                            <button type="button" class="btn" id="gzBtnCsvTeams" disabled><i class="bi bi-download"></i>CSV Teams</button>
-                            <button type="button" class="btn" id="gzBtnCsvInv" disabled><i class="bi bi-download"></i>CSV Einladungen</button>
+                            <button type="button" class="fb-btn" id="gzBtnRun"><i class="bi bi-cloud-download"></i>Daten laden (Teams &amp; B2B-Audit)</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gzBtnCsvTeams" disabled><i class="bi bi-download"></i>CSV Teams</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gzBtnCsvInv" disabled><i class="bi bi-download"></i>CSV Einladungen</button>
                         </div>
                         <div id="gzProgress" class="hint" style="display:none; margin-bottom:12px;"></div>
                         <div class="gz-table-wrap">
@@ -715,9 +734,9 @@
                     </div>
                     <div class="panel-body">
                         <div class="gz-toolbar">
-                            <button type="button" class="btn btn-success" id="gzMgrBtnLoad"><i class="bi bi-cloud-download"></i>Gäste laden</button>
-                            <button type="button" class="btn" id="gzMgrBtnCsv" disabled><i class="bi bi-download"></i>CSV Export</button>
-                            <button type="button" class="btn" id="gzMgrBtnSelectFiltered3" style="display:none;" title="Alle aktuell gefilterten Gäste in die Auswahl übernehmen"><i class="bi bi-check2-all"></i>Alle gefilterten auswählen</button>
+                            <button type="button" class="fb-btn" id="gzMgrBtnLoad"><i class="bi bi-cloud-download"></i>Gäste laden</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gzMgrBtnCsv" disabled><i class="bi bi-download"></i>CSV Export</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gzMgrBtnSelectFiltered3" style="display:none;" title="Alle aktuell gefilterten Gäste in die Auswahl übernehmen"><i class="bi bi-check2-all"></i>Alle gefilterten auswählen</button>
                             <span id="gzMgrCount" class="muted" style="margin-left:auto;"></span>
                         </div>
                         <div class="gz-bulkbar" id="gzMgrBulkBar" hidden>
@@ -728,7 +747,7 @@
                                 <span class="muted" id="gzMgrBulkHint"></span>
                             </div>
                             <div class="gz-bulkbar-actions">
-                                <button type="button" class="btn" id="gzMgrBulkClear" title="Auswahl aufheben"><i class="bi bi-x-circle"></i>Auswahl aufheben</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="gzMgrBulkClear" title="Auswahl aufheben"><i class="bi bi-x-circle"></i>Auswahl aufheben</button>
                                 <button type="button" class="btn btn-danger" id="gzMgrBulkDelete"><i class="bi bi-trash"></i>Markierte Gäste löschen</button>
                             </div>
                         </div>
@@ -753,7 +772,7 @@
                             <label for="gzMgrCustomDays"><i class="bi bi-calendar-x"></i> Inaktiv seit mehr als</label>
                             <input type="number" id="gzMgrCustomDays" min="1" max="9999" value="180" aria-label="Anzahl Tage">
                             <label>Tagen</label>
-                            <button type="button" class="btn" id="gzMgrBtnSelectFiltered" style="margin-left:auto;" title="Alle aktuell gefilterten Gäste in die Auswahl übernehmen">
+                            <button type="button" class="fb-btn fb-btn--ghost" id="gzMgrBtnSelectFiltered" style="margin-left:auto;" title="Alle aktuell gefilterten Gäste in die Auswahl übernehmen">
                                 <i class="bi bi-check2-all"></i>Alle gefilterten auswählen
                             </button>
                         </div>
@@ -818,24 +837,25 @@
                                         <div class="gi-step-check"><strong>Empfehlung</strong>Rollenfähige, reine Sicherheitsgruppe verwenden.</div>
                                         <div class="gi-step-check"><strong>Ergebnis</strong>Mit „Weiter“ wird die Gruppe nach Schritt 2 übernommen.</div>
                                     </div>
-                                    <div class="alert alert-info">
-                                        <p style="margin:0 0 10px;"><strong>Empfohlen: rollenfähige Sicherheitsgruppe.</strong> Damit die Gruppe die Verzeichnisrolle <strong>Gasteinladende:r</strong> tragen kann, muss sie eine <strong>rollenfähige reine Sicherheitsgruppe</strong> sein (<code>securityEnabled=true</code>, <code>mailEnabled=false</code>, <code>isAssignableToRole=true</code>). Diese Option wird beim Anlegen unten gesetzt.</p>
-                                        <p style="margin:0 0 10px;"><strong>Mail-aktivierte Sicherheitsgruppen können die Rolle nicht direkt tragen</strong> (Microsoft-Einschränkung). Für solche Gruppen bietet Schritt 2 einen Fallback an: Die Mitglieder werden <em>einzeln</em> der Rolle „Gasteinladende:r“ zugewiesen.</p>
-                                        <p style="margin:0;">Im nächsten Schritt setzt dieses Tool zusätzlich die Tenant-Einstellung <code>authorizationPolicy.allowInvitesFrom = adminsAndGuestInviters</code>. Dadurch dürfen <strong>nur Admins und Mitglieder dieser Rolle/Gruppe</strong> Gäste einladen – alle anderen Konten nicht.</p>
+                                    <div class="pw-msg" role="note">
+                                        <p class="pw-msg__title">Empfohlen: rollenfähige Sicherheitsgruppe</p>
+                                        <p class="pw-msg__meta" style="margin:0 0 8px;">Damit die Gruppe die Verzeichnisrolle <strong>Gasteinladende:r</strong> tragen kann, muss sie eine <strong>rollenfähige reine Sicherheitsgruppe</strong> sein (<code>securityEnabled=true</code>, <code>mailEnabled=false</code>, <code>isAssignableToRole=true</code>). Diese Option wird beim Anlegen unten gesetzt.</p>
+                                        <p class="pw-msg__meta" style="margin:0 0 8px;"><strong>Mail-aktivierte Sicherheitsgruppen können die Rolle nicht direkt tragen</strong> (Microsoft-Einschränkung). Für solche Gruppen bietet Schritt 2 einen Fallback an: Die Mitglieder werden <em>einzeln</em> der Rolle „Gasteinladende:r“ zugewiesen.</p>
+                                        <p class="pw-msg__meta" style="margin:0;">Im nächsten Schritt setzt dieses Tool zusätzlich die Tenant-Einstellung <code>authorizationPolicy.allowInvitesFrom = adminsAndGuestInviters</code>. Dadurch dürfen <strong>nur Admins und Mitglieder dieser Rolle/Gruppe</strong> Gäste einladen – alle anderen Konten nicht.</p>
                                     </div>
-                                    <div class="filter-section">
+                                    <div class="gi-soft-panel">
                                         <div class="filter-group">
                                             <label for="giInputDisplayName">Anzeigename der Sicherheitsgruppe</label>
                                             <input type="text" id="giInputDisplayName" autocomplete="off" maxlength="200" placeholder="z. B. GastEinlader">
                                         </div>
                                         <p style="color: var(--muted);font-size:0.92em;margin:0 0 12px;line-height:1.45;">Optional: Gruppe hier per Microsoft Graph als <strong>rollenfähige Sicherheitsgruppe</strong> anlegen. Alternativ eine bestehende Gruppe per Object-ID oder Namen unten finden.</p>
-                                        <button type="button" class="btn btn-success" id="giBtnCreateGroup"><i class="bi bi-plus-circle"></i>Rollenfähige Sicherheitsgruppe per Graph anlegen</button>
+                                        <button type="button" class="fb-btn" id="giBtnCreateGroup"><i class="bi bi-plus-circle"></i>Rollenfähige Sicherheitsgruppe per Graph anlegen</button>
                                         <div class="filter-group" style="margin-top:18px;">
                                             <label for="giInputObjectId">Object-ID (GUID) oder Suche</label>
                                             <input type="text" id="giInputObjectId" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false">
                                             <small style="color: var(--muted);display:block;margin-top:8px;line-height:1.45;">GUID aus dem Admin Center einfügen <strong>oder</strong> Anzeigenamen oben ausfüllen und <strong>Gruppe suchen</strong> klicken.</small>
                                         </div>
-                                        <button type="button" class="btn" id="giBtnFindGroup"><i class="bi bi-search"></i>Gruppe suchen / Object-ID prüfen</button>
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="giBtnFindGroup"><i class="bi bi-search"></i>Gruppe suchen / Object-ID prüfen</button>
                                         <input type="hidden" id="giResolvedObjectId" value="">
                                         <p id="giResolvedSummary" style="display:none;margin-top:14px;padding:12px;background: color-mix(in srgb, var(--brand1) 14%, var(--card));border-radius:8px;border: 1px solid color-mix(in srgb, var(--brand1) 35%, var(--border));color: var(--brand1);font-size:0.95em;"></p>
                                         <p style="color: var(--text-secondary);line-height:1.5;margin:10px 0 0;">
@@ -845,7 +865,7 @@
                                         </p>
                                     </div>
                                     <div class="step-nav-row step-nav-row--forward-only">
-                                        <button type="button" class="btn btn-success" id="giBtnNext1">Weiter zu Richtlinie &amp; Rolle →</button>
+                                        <button type="button" class="fb-btn" id="giBtnNext1">Weiter zu Richtlinie &amp; Rolle →</button>
                                     </div>
                                     </div>
                                 </div>
@@ -867,13 +887,14 @@
                                         <div class="gi-step-check"><strong>Option A</strong>Rollenfähige Gruppe direkt der Rolle zuweisen.</div>
                                         <div class="gi-step-check"><strong>Option B</strong>Fallback per Mitglieder-Synchronisierung nutzen.</div>
                                     </div>
-                                    <div class="alert alert-info">
-                                        <p style="margin:0 0 8px;"><strong>Tenant-Einstellung:</strong> <code>authorizationPolicy.allowInvitesFrom</code> bestimmt, wer im Mandanten Gäste einladen darf. Für „nur ausgewählte Personen“ wählt dieses Tool den Wert <code>adminsAndGuestInviters</code> – damit zählen <strong>Admins</strong> und <strong>Träger:innen der Rolle „Gasteinladende:r“</strong>.</p>
-                                        <p style="margin:0 0 8px;"><strong>Rolle „Gasteinladende:r“ (Guest Inviter):</strong> Wird die Sicherheitsgruppe der Rolle zugewiesen (rollenfähige Gruppe nötig), gelten <strong>alle Gruppenmitglieder</strong> als einladeberechtigt.</p>
-                                        <p style="margin:0;"><strong>Fallback für bestehende/mail-aktivierte Gruppen:</strong> Mitglieder werden mit der Rolle einzeln synchronisiert (neue dazu, optional entfernen).</p>
+                                    <div class="pw-msg" role="note">
+                                        <p class="pw-msg__title">Richtlinie &amp; Rolle</p>
+                                        <p class="pw-msg__meta" style="margin:0 0 8px;"><strong>Tenant-Einstellung:</strong> <code>authorizationPolicy.allowInvitesFrom</code> bestimmt, wer im Mandanten Gäste einladen darf. Für „nur ausgewählte Personen“ wählt dieses Tool den Wert <code>adminsAndGuestInviters</code> – damit zählen <strong>Admins</strong> und <strong>Träger:innen der Rolle „Gasteinladende:r“</strong>.</p>
+                                        <p class="pw-msg__meta" style="margin:0 0 8px;"><strong>Rolle „Gasteinladende:r“ (Guest Inviter):</strong> Wird die Sicherheitsgruppe der Rolle zugewiesen (rollenfähige Gruppe nötig), gelten <strong>alle Gruppenmitglieder</strong> als einladeberechtigt.</p>
+                                        <p class="pw-msg__meta" style="margin:0;"><strong>Fallback für bestehende/mail-aktivierte Gruppen:</strong> Mitglieder werden mit der Rolle einzeln synchronisiert (neue dazu, optional entfernen).</p>
                                     </div>
 
-                                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background: var(--soft);border: 1px solid var(--border);border-radius:8px;">
+                                    <div class="gi-soft-panel">
                                         <h3 style="margin:0 0 10px;font-size:1rem;">Gruppe in Microsoft Entra öffnen</h3>
                                         <p style="margin:0 0 10px;color: var(--text-secondary);font-size:0.95em;line-height:1.5;">Mitglieder/Besitzer pflegen Sie wie gewohnt im Portal – hier sind Direktlinks:</p>
                                         <p style="margin:0;display:flex;flex-wrap:wrap;gap:8px 14px;">
@@ -884,7 +905,7 @@
                                         </p>
                                     </div>
 
-                                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background: var(--card);border: 1px solid var(--input-border);border-radius:8px;">
+                                    <div class="gi-soft-panel" style="background: var(--card);">
                                         <h3 style="margin:0 0 10px;font-size:1rem;">Gruppe (Microsoft Graph)</h3>
                                         <p id="giDetailsPlaceholder" style="margin:0;color: var(--muted);font-size:0.95em;">Wird geladen …</p>
                                         <dl id="giDetailsDl" style="display:none;margin:0;font-size:0.95em;line-height:1.55;">
@@ -907,8 +928,8 @@
                                         <p style="margin:0 0 10px;color: var(--text-secondary);font-size:0.92em;line-height:1.5;">Besitzer:innen können die Gruppe verwalten (Mitglieder hinzufügen/entfernen, Eigenschaften ändern). Für rollenfähige Sicherheitsgruppen besonders wichtig, weil Microsoft hier <em>keinen Self-Service</em> erlaubt.</p>
                                         <div class="gi-people-addrow">
                                             <input type="text" id="giOwnerAddInput" placeholder="UPN/E-Mail eintippen oder Anzeigename suchen …" autocomplete="off">
-                                            <button type="button" class="btn btn-success" id="giBtnAddOwner"><i class="bi bi-plus-circle"></i>Besitzer hinzufügen</button>
-                                            <button type="button" class="btn" id="giBtnRefreshOwners" title="Liste neu laden"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                                            <button type="button" class="fb-btn" id="giBtnAddOwner"><i class="bi bi-plus-circle"></i>Besitzer hinzufügen</button>
+                                            <button type="button" class="fb-btn fb-btn--ghost" id="giBtnRefreshOwners" title="Liste neu laden"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
                                         </div>
                                         <div class="gi-people-suggestions" id="giOwnerSuggestions" role="listbox" aria-label="Vorschläge zu Besitzer-Suche"></div>
                                         <div class="gi-people-tablewrap">
@@ -936,8 +957,8 @@
                                         <p style="margin:0 0 10px;color: var(--text-secondary);font-size:0.92em;line-height:1.5;">Mitglieder dieser Gruppe dürfen <strong>Gäste einladen</strong> (sofern die Richtlinie aus Abschnitt <em>„A) Richtlinie anwenden"</em> aktiv ist).</p>
                                         <div class="gi-people-addrow">
                                             <input type="text" id="giMemberAddInput" placeholder="UPN/E-Mail eintippen oder Anzeigename suchen …" autocomplete="off">
-                                            <button type="button" class="btn btn-success" id="giBtnAddMember"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
-                                            <button type="button" class="btn" id="giBtnRefreshMembers" title="Liste neu laden"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                                            <button type="button" class="fb-btn" id="giBtnAddMember"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
+                                            <button type="button" class="fb-btn fb-btn--ghost" id="giBtnRefreshMembers" title="Liste neu laden"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
                                         </div>
                                         <div class="gi-people-suggestions" id="giMemberSuggestions" role="listbox" aria-label="Vorschläge zu Mitglieder-Suche"></div>
                                         <div class="gi-people-tablewrap">
@@ -957,36 +978,38 @@
                                     </div>
 
                                     <h3 style="margin:0 0 8px;font-size:1rem;">Berechtigungen &amp; Anmeldung</h3>
-                                    <div class="alert alert-warning" style="margin-bottom:12px;">
-                                        <strong>Berechtigungen (delegiert, Admin-Zustimmung):</strong>
-                                        <code>Policy.ReadWrite.Authorization</code>,
-                                        <code>RoleManagement.ReadWrite.Directory</code>,
-                                        <code>Group.ReadWrite.All</code>.
+                                    <div class="pw-msg pw-msg--warn" role="note" style="margin-bottom:12px;">
+                                        <p class="pw-msg__title">Berechtigungen (delegiert, Admin-Zustimmung)</p>
+                                        <p class="pw-msg__meta" style="margin:0;">
+                                            <code>Policy.ReadWrite.Authorization</code>,
+                                            <code>RoleManagement.ReadWrite.Directory</code>,
+                                            <code>Group.ReadWrite.All</code>.
+                                        </p>
                                     </div>
-                                    <div class="filter-section" style="margin-bottom:16px;">
-                                        <button type="button" class="btn" id="giBtnLogin"><i class="bi bi-box-arrow-in-right"></i>Bei Microsoft anmelden</button>
-                                        <button type="button" class="btn" id="giBtnRefreshStatus" style="margin-left:8px;"><i class="bi bi-arrow-clockwise"></i>Status lesen</button>
+                                    <div class="gi-actions">
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="giBtnLogin"><i class="bi bi-box-arrow-in-right"></i>Bei Microsoft anmelden</button>
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="giBtnRefreshStatus" style="margin-left:8px;"><i class="bi bi-arrow-clockwise"></i>Status lesen</button>
                                     </div>
 
                                     <h3 style="margin-top:18px;font-size:1rem;">A) Richtlinie anwenden (empfohlen)</h3>
                                     <p style="margin:6px 0 10px;color: var(--text-secondary);line-height:1.5;">Setzt <code>allowInvitesFrom = adminsAndGuestInviters</code> und weist der Gruppe die Rolle „Gasteinladende:r“ zu. Erfordert eine <strong>rollenfähige</strong> Sicherheitsgruppe.</p>
-                                    <div class="filter-section" style="margin-bottom:16px;">
-                                        <button type="button" class="btn btn-success" id="giBtnApply"><i class="bi bi-shield-check"></i>Einschränkung jetzt anwenden (Gruppe ↔ Rolle)</button>
+                                    <div class="gi-actions">
+                                        <button type="button" class="fb-btn" id="giBtnApply"><i class="bi bi-shield-check"></i>Einschränkung jetzt anwenden (Gruppe ↔ Rolle)</button>
                                     </div>
 
                                     <h3 style="margin-top:18px;font-size:1rem;">B) Fallback: Mitglieder einzeln synchronisieren</h3>
                                     <p style="margin:6px 0 10px;color: var(--text-secondary);line-height:1.5;">Für <strong>nicht-rollenfähige</strong> oder <strong>mail-aktivierte</strong> Gruppen: Diese Aktion fügt jedes Mitglied der Gruppe <em>einzeln</em> als Träger der Rolle „Gasteinladende:r“ hinzu. „Aufräumen“ entfernt umgekehrt Rollenträger:innen, die nicht (mehr) in der Gruppe sind.</p>
-                                    <div class="filter-section" style="margin-bottom:16px;">
+                                    <div class="gi-actions">
                                         <label style="display:inline-flex;align-items:center;gap:8px;margin:0 14px 8px 0;">
                                             <input type="checkbox" id="giChkCleanup" />
                                             <span>Auch Personen aus der Rolle entfernen, die nicht (mehr) in der Gruppe sind</span>
                                         </label>
                                         <br>
-                                        <button type="button" class="btn" id="giBtnSyncMembers"><i class="bi bi-people-fill"></i>Mitglieder ↔ Rolle synchronisieren</button>
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="giBtnSyncMembers"><i class="bi bi-people-fill"></i>Mitglieder ↔ Rolle synchronisieren</button>
                                     </div>
 
                                     <h3 style="margin-top:18px;font-size:1rem;">Zurücksetzen</h3>
-                                    <div class="filter-section" style="margin-bottom:16px;">
+                                    <div class="gi-actions">
                                         <button type="button" class="btn btn-danger" id="giBtnResetPolicy"><i class="bi bi-arrow-counterclockwise"></i><code>allowInvitesFrom</code> auf <code>everyone</code> zurücksetzen</button>
                                         <button type="button" class="btn btn-danger" id="giBtnRemoveGroupFromRole" style="margin-left:8px;"><i class="bi bi-x-circle"></i>Gruppe aus Rolle entfernen</button>
                                     </div>
@@ -997,17 +1020,19 @@
                                     <pre id="giStatusPre" style="margin:0;padding:14px;background: var(--soft);border: 1px solid var(--border);border-radius:8px;font-size:0.88em;white-space:pre-wrap;word-break:break-word;">Noch nicht gelesen – „Status lesen“ wählen.</pre>
 
                                     <div class="step-nav-row step-nav-row--back-only">
-                                        <button type="button" class="btn" id="giBtnBack2">← Zurück zu Schritt 1</button>
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="giBtnBack2">← Zurück zu Schritt 1</button>
                                     </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-                            <button type="button" class="btn" id="btnSaveState"><i class="bi bi-save"></i>Zwischenstand speichern</button>
-                            <button type="button" class="btn" id="btnLoadState"><i class="bi bi-folder2-open"></i>Gespeicherten Stand laden</button>
-                            <button type="button" class="btn btn-danger" id="btnClearStorage"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
+                        <div class="toolbar bottom-toolbar tool-state-bar" aria-label="Zwischenstand">
+                            <div class="tool-state-bar__actions">
+                                <button type="button" class="fb-btn fb-btn--ghost" id="btnSaveState"><i class="bi bi-save"></i>Zwischenstand speichern</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="btnLoadState"><i class="bi bi-folder2-open"></i>Gespeicherten Stand laden</button>
+                                <button type="button" class="fb-btn fb-btn--ghost fb-btn--danger" id="btnClearStorage"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1050,8 +1075,8 @@
                 <div id="gzEditError" class="muted" style="color: color-mix(in srgb, var(--danger1) 75%, var(--heading));font-size:0.9em;"></div>
             </div>
             <div class="gz-modal-foot">
-                <button type="button" class="btn" data-gz-close="edit">Abbrechen</button>
-                <button type="button" class="btn btn-success" id="gzEditSave"><i class="bi bi-check2"></i>Speichern</button>
+                <button type="button" class="fb-btn fb-btn--ghost" data-gz-close="edit">Abbrechen</button>
+                <button type="button" class="fb-btn" id="gzEditSave"><i class="bi bi-check2"></i>Speichern</button>
             </div>
         </div>
     </div>
@@ -1086,7 +1111,7 @@
                 <div id="gzDelError" class="muted" style="color: color-mix(in srgb, var(--danger1) 75%, var(--heading));font-size:0.9em;"></div>
             </div>
             <div class="gz-modal-foot">
-                <button type="button" class="btn" data-gz-close="delete">Abbrechen</button>
+                <button type="button" class="fb-btn fb-btn--ghost" data-gz-close="delete">Abbrechen</button>
                 <button type="button" class="btn btn-danger" id="gzDelExecute" disabled><i class="bi bi-trash"></i>Endgültig löschen</button>
             </div>
         </div>
@@ -1121,7 +1146,7 @@
                 <div id="gzBulkDelError" class="muted" style="color: color-mix(in srgb, var(--danger1) 75%, var(--heading));font-size:0.9em;margin-top:10px;line-height:1.4;"></div>
             </div>
             <div class="gz-modal-foot">
-                <button type="button" class="btn" data-gz-close="bulk" id="gzBulkDelCancel">Abbrechen</button>
+                <button type="button" class="fb-btn fb-btn--ghost" data-gz-close="bulk" id="gzBulkDelCancel">Abbrechen</button>
                 <button type="button" class="btn btn-danger" id="gzBulkDelExecute" disabled><i class="bi bi-trash"></i>Endgültig löschen</button>
             </div>
         </div>
@@ -1134,7 +1159,7 @@
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/step-progress.js" defer></script>
     <script src="../src/tools/gaeste-verwalten/gaeste-verwalten.js" defer></script>

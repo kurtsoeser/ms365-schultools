@@ -12,6 +12,7 @@ export const SITE_STORAGE_KEY = 'ms365-pw-site-url';
 
 export const VIEWS = [
     { id: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', adminOnly: false, staffOnly: false },
+    { id: 'buchung', label: 'Meine Buchung', icon: 'bi-bookmark-check', adminOnly: false, staffOnly: false, schuelerOnly: true },
     { id: 'plan', label: 'Wochenplan', icon: 'bi-grid-3x3-gap', adminOnly: false, staffOnly: false },
     { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', adminOnly: false, staffOnly: false },
     { id: 'liste', label: 'Liste', icon: 'bi-table', adminOnly: false, staffOnly: false },
@@ -43,18 +44,8 @@ export function navSectionsForRole(role) {
         return [
             {
                 id: 'arbeit',
-                label: 'Arbeit',
-                items: [
-                    viewById('dashboard'),
-                    viewById('plan'),
-                    viewById('kalender'),
-                    viewById('liste'),
-                    viewById('neu'),
-                    viewById('meine'),
-                    viewById('admin'),
-                    viewById('teilnehmer'),
-                    viewById('export')
-                ].filter(Boolean)
+                label: '',
+                items: [viewById('admin'), viewById('plan'), viewById('teilnehmer')].filter(Boolean)
             },
             {
                 id: 'bookings',
@@ -74,11 +65,8 @@ export function navSectionsForRole(role) {
                 id: 'arbeit',
                 label: '',
                 items: [
-                    viewById('dashboard'),
-                    viewById('plan'),
-                    viewById('kalender'),
-                    viewById('liste'),
-                    viewById('export')
+                    viewById('buchung'),
+                    viewById('plan')
                 ].filter(Boolean)
             }
         ];
@@ -90,12 +78,8 @@ export function navSectionsForRole(role) {
             items: [
                 viewById('dashboard'),
                 viewById('plan'),
-                viewById('kalender'),
-                viewById('liste'),
-                viewById('neu'),
                 viewById('meine'),
-                viewById('teilnehmer'),
-                viewById('export')
+                viewById('teilnehmer')
             ].filter(Boolean)
         }
     ];
@@ -109,6 +93,28 @@ export function viewsForRole(role) {
     return navSectionsForRole(role).flatMap((s) => s.items || []);
 }
 
+/**
+ * Liste und Kalender sind Ansichten der Planfläche, kein eigener Navigationspunkt.
+ * Export landet auf dem Plan, das Menü sitzt dort.
+ * @param {string} role
+ * @param {string} view
+ */
+export function resolvePwView(role, view) {
+    const r = String(role || 'lehrer');
+    const v = String(view || '');
+    if (v === 'detail') return 'detail';
+    const ids = new Set(viewsForRole(r).map((item) => item.id));
+    if (ids.has('plan') && (v === 'kalender' || v === 'liste' || v === 'export')) {
+        return v === 'export' ? 'plan' : v;
+    }
+    if ((r === 'admin' || r === 'lehrer') && (v === 'neu' || v === 'meine')) return v;
+    if (r === 'admin' && (v === 'dashboard' || v === '')) return 'admin';
+    if (v && ids.has(v)) return v;
+    if (r === 'schueler') return 'buchung';
+    if (r === 'admin') return 'admin';
+    return ids.has('dashboard') ? 'dashboard' : 'plan';
+}
+
 export function createInitialState() {
     const now = new Date();
     return {
@@ -118,6 +124,7 @@ export function createInitialState() {
         systemTab: 'site',
         role: loadRole(),
         filters: { status: '', kategorie: '', tag: '', lehrer: '', klasse: '', q: '', buchung: '' },
+        filtersMore: false,
         stammdaten: { classes: [], teachers: [], students: [] },
         /** Live-Hydrate Meta (local-first) */
         stammdatenLive: {
@@ -150,6 +157,8 @@ export function createInitialState() {
         calYear: now.getFullYear(),
         calMonth: now.getMonth(),
         form: emptyForm(),
+        /** true erst nach einem Klick auf Antrag stellen / Speichern */
+        formTried: false,
         editingItemId: null,
         detailId: null,
         detailReturnView: 'dashboard',

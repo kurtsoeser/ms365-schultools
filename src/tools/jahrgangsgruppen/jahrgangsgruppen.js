@@ -129,6 +129,132 @@ function graphCountFor(groupId) {
     return typeof n === 'number' && n >= 0 ? n : null;
 }
 
+/**
+ * Sync-KPI direkt in der Listenzeile (nicht als Pille über der Liste).
+ * @param {HTMLElement|null} wrap
+ * @param {object|null} row
+ */
+function paintRowSyncCounts(wrap, row) {
+    if (!wrap) return { known: false, same: false, delta: 0 };
+    const gid = row ? graphGroupIdForRow(row) : '';
+    const listN = row ? emailsForClass(row).length : 0;
+    if (!gid) {
+        wrap.classList.remove('is-match', 'is-mismatch', 'slg-side-count--dual', 'slg-side-count--quiet');
+        wrap.replaceChildren();
+        wrap.removeAttribute('title');
+        wrap.removeAttribute('aria-label');
+        return { known: false, same: false, delta: 0 };
+    }
+    const groupTotalN = graphCountFor(gid);
+    const classDiff = gid ? classDiffForGroup(gid) : null;
+    const groupStudentN = classDiff ? classGroupStudentCountFromDiff(classDiff) : groupTotalN;
+    const preservedN = classDiff ? preservedMemberCountFromDiff(classDiff) : 0;
+    const G = window.ms365GroupDetail;
+    const known = groupStudentN !== null;
+    const same = known
+        ? classDiff
+            ? !classMembershipHasMismatch(classDiff)
+            : listN === groupStudentN
+        : false;
+
+    if (G && typeof G.paintMasterMemberSyncCounts === 'function') {
+        const painted = G.paintMasterMemberSyncCounts(wrap, {
+            listN: listN,
+            groupN: groupStudentN,
+            linked: !!gid,
+            memberWord: 'Schüler'
+        });
+        if (known && same && preservedN > 0) {
+            wrap.classList.add('is-match', 'slg-side-count--quiet');
+            wrap.classList.remove('slg-side-count--dual', 'is-mismatch');
+            wrap.replaceChildren();
+            const kpi = document.createElement('span');
+            kpi.className = 'slg-side-kpi';
+            kpi.innerHTML = '<span class="n">' + String(listN) + '</span><span class="l">Schüler</span>';
+            const ok = document.createElement('span');
+            ok.className = 'slg-side-sync-ok';
+            ok.innerHTML = '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Synchron';
+            const extra = document.createElement('span');
+            extra.className = 'muted';
+            extra.style.fontSize = '0.75rem';
+            extra.textContent = '+' + preservedN + ' weitere';
+            wrap.appendChild(kpi);
+            wrap.appendChild(ok);
+            wrap.appendChild(extra);
+            wrap.title =
+                'Klassenliste: ' +
+                listN +
+                ' Schüler · in der Gruppe: ' +
+                groupStudentN +
+                ' Schüler, zusätzlich ' +
+                preservedN +
+                (preservedN === 1 ? ' weiteres Mitglied' : ' weitere Mitglieder') +
+                ' (z. B. Lehrkräfte).';
+        } else if (known && !same && preservedN > 0) {
+            wrap.title =
+                (wrap.title || '') +
+                ' Zusätzlich ' +
+                preservedN +
+                (preservedN === 1 ? ' weiteres Mitglied' : ' weitere Mitglieder') +
+                ' (z. B. Lehrkräfte).';
+        }
+        return painted || { known: known, same: same, delta: known ? Math.abs(listN - groupStudentN) : 0 };
+    }
+
+    wrap.classList.remove('is-match', 'is-mismatch', 'slg-side-count--quiet');
+    wrap.classList.add('slg-side-count--dual');
+    wrap.replaceChildren();
+    const left = document.createElement('span');
+    left.className = 'slg-side-kpi';
+    left.innerHTML = '<span class="n">' + String(listN) + '</span><span class="l">erwartet</span>';
+    const sep = document.createElement('span');
+    sep.className = 'slg-side-kpi-sep';
+    sep.setAttribute('aria-hidden', 'true');
+    sep.textContent = '·';
+    const right = document.createElement('span');
+    right.className = 'slg-side-kpi';
+    let rightText = '–';
+    if (gid && groupStudentN === null) rightText = '…';
+    else if (gid && groupStudentN !== null) rightText = String(groupStudentN);
+    right.innerHTML = '<span class="n">' + rightText + '</span><span class="l">in M365</span>';
+    wrap.appendChild(left);
+    wrap.appendChild(sep);
+    wrap.appendChild(right);
+    if (known && !same) wrap.classList.add('is-mismatch');
+    if (known && same) {
+        wrap.classList.add('is-match', 'slg-side-count--quiet');
+        wrap.classList.remove('slg-side-count--dual');
+        wrap.replaceChildren();
+        const kpi = document.createElement('span');
+        kpi.className = 'slg-side-kpi';
+        kpi.innerHTML = '<span class="n">' + String(listN) + '</span><span class="l">Schüler</span>';
+        const ok = document.createElement('span');
+        ok.className = 'slg-side-sync-ok';
+        ok.innerHTML = '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Synchron';
+        wrap.appendChild(kpi);
+        wrap.appendChild(ok);
+    }
+    wrap.title = gid
+        ? known
+            ? listN + ' erwartet · ' + groupStudentN + ' in Microsoft 365'
+            : 'Klassenliste: ' + listN + ' Schüler. Mitgliederzahl wird geladen.'
+        : 'Noch nicht mit Microsoft 365 verknüpft.';
+    return { known: known, same: same, delta: known ? Math.abs(listN - groupStudentN) : 0 };
+}
+
+function paintAllVisibleRowSyncCounts() {
+    const host = document.getElementById('jgListItems');
+    if (!host) return;
+    host.querySelectorAll('button[data-jg-code]').forEach(function (btn) {
+        const key = btn.getAttribute('data-jg-code') || '';
+        const row = classes.find(function (r) {
+            return rowKey(r) === key;
+        });
+        const wrap = btn.querySelector('.slg-side-count');
+        if (row && wrap) paintRowSyncCounts(wrap, row);
+    });
+}
+
 function updateActiveClassCounts() {
     const row = getActiveRow();
     const gid = getActiveGroupId();
@@ -136,51 +262,9 @@ function updateActiveClassCounts() {
     const groupTotalN = graphCountFor(gid);
     const classDiff = gid ? classDiffForGroup(gid) : null;
     const groupStudentN = classDiff ? classGroupStudentCountFromDiff(classDiff) : groupTotalN;
-    const preservedN = classDiff ? preservedMemberCountFromDiff(classDiff) : 0;
-    const wrap = document.getElementById('jgActiveClassCounts');
-    const listEl = document.getElementById('jgActiveListCount');
-    const groupEl = document.getElementById('jgActiveGroupCount');
-    if (wrap) wrap.hidden = !row;
-    if (listEl) listEl.textContent = String(listN);
-    if (groupEl) {
-        if (!gid) groupEl.textContent = '–';
-        else if (groupStudentN === null) groupEl.textContent = '–';
-        else if (preservedN > 0) groupEl.textContent = String(groupStudentN) + ' (+' + preservedN + ')';
-        else groupEl.textContent = String(groupStudentN);
-    }
-    if (wrap) {
-        wrap.classList.remove('is-match', 'is-mismatch');
-        const known = gid && groupStudentN !== null;
-        if (known) {
-            const same = classDiff ? !classMembershipHasMismatch(classDiff) : listN === groupStudentN;
-            wrap.classList.add(same ? 'is-match' : 'is-mismatch');
-            if (same && preservedN > 0) {
-                wrap.title =
-                    'Klassenliste: ' +
-                    listN +
-                    ' Schüler · in der Gruppe: ' +
-                    groupStudentN +
-                    ' Schüler, zusätzlich ' +
-                    preservedN +
-                    (preservedN === 1 ? ' weiteres Mitglied' : ' weitere Mitglieder') +
-                    ' (z. B. Lehrkräfte).';
-            } else if (same) {
-                wrap.title = 'Klassenliste und Gruppe: je ' + listN + ' Schüler – stimmt überein.';
-            } else {
-                wrap.title =
-                    'Klassenliste: ' +
-                    listN +
-                    ' Schüler · in der Gruppe (Schüler): ' +
-                    groupStudentN +
-                    (preservedN > 0 ? ', zusätzlich ' + preservedN + ' weitere Mitglieder' : '') +
-                    '.';
-            }
-        } else {
-            wrap.title = gid
-                ? 'Klassenliste: ' + listN + ' Schüler. Mitgliederzahl wird aus Microsoft Graph geladen.'
-                : 'Noch keine Microsoft-365-Gruppe gematcht.';
-        }
-    }
+
+    paintAllVisibleRowSyncCounts();
+
     if (membershipReview) {
         const showMismatch =
             gid &&
@@ -452,7 +536,7 @@ function findClassTeam(row) {
 function persistNickForRow(row) {
     const existing = findClassTeam(row);
     // Nur bereits gematchte Gruppen behalten ihren echten Graph-Alias.
-    // Ungematchte Klassen nehmen immer das aktuelle Nomenklatur-Schema.
+    // Unverknüpfte Klassen nehmen immer das aktuelle Nomenklatur-Schema.
     if (graphGroupIdForRow(row)) {
         const pretty = graphMailNick(existing && existing.mailNickname);
         if (pretty) return pretty;
@@ -593,17 +677,37 @@ function graphMailNick(raw) {
     return sanitizeNick(s);
 }
 
+function readMetaField(el) {
+    if (!el) return '';
+    if (window.ms365SlgLiveDetails && typeof window.ms365SlgLiveDetails.getFieldText === 'function') {
+        return window.ms365SlgLiveDetails.getFieldText(el);
+    }
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return String(el.value || '');
+    const t = String(el.textContent || '').trim();
+    return t === '–' ? '' : t;
+}
+
+function writeMetaField(el, text) {
+    if (!el) return;
+    if (window.ms365SlgLiveDetails && typeof window.ms365SlgLiveDetails.setFieldText === 'function') {
+        window.ms365SlgLiveDetails.setFieldText(el, text, '–');
+        return;
+    }
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = String(text || '');
+    else el.textContent = String(text || '') || '–';
+}
+
 function previewMailFromAlias() {
     const mailEl = document.getElementById('slgLiveMail');
     const aliasEl = document.getElementById('slgLiveAlias');
-    if (!mailEl || !aliasEl || aliasEl.readOnly) return '';
-    const nick = graphMailNick(aliasEl.value);
+    if (!mailEl || !aliasEl || (aliasEl.tagName === 'INPUT' && aliasEl.readOnly)) return '';
+    const nick = graphMailNick(aliasEl.tagName === 'INPUT' ? aliasEl.value : readMetaField(aliasEl));
     const school = getSchoolDomainNoAt();
     const graphMail = String(mailEl.getAttribute('data-graph-mail') || '').trim();
     const domain = school || domainFromMail(graphMail);
     if (!nick || !domain) return '';
     const wanted = nick + '@' + domain;
-    mailEl.value = wanted;
+    writeMetaField(mailEl, wanted);
     return wanted;
 }
 
@@ -615,8 +719,10 @@ function refreshSmtpHint() {
     const mailEl = document.getElementById('slgLiveMail');
     const aliasEl = document.getElementById('slgLiveAlias');
     const actual = String((mailEl && mailEl.getAttribute('data-graph-mail')) || '').trim();
-    const nick = graphMailNick(aliasEl && aliasEl.value) || deriveNick(getActiveRow());
-    const wanted = nick && domain ? nick + '@' + domain : String((mailEl && mailEl.value) || '').trim();
+    const nick =
+        graphMailNick(aliasEl && (aliasEl.tagName === 'INPUT' ? aliasEl.value : readMetaField(aliasEl))) ||
+        deriveNick(getActiveRow());
+    const wanted = nick && domain ? nick + '@' + domain : readMetaField(mailEl);
     const actDom = domainFromMail(actual);
     if (!domain) {
         el.innerHTML =
@@ -645,7 +751,7 @@ async function runSmtpScript(onlyActive) {
         return;
     }
     if (!pack.items.length) {
-        toast(onlyActive ? 'Diese Klasse ist nicht mit einer Microsoft‑365‑Gruppe gematcht.' : 'Keine gematchten Klassengruppen.');
+        toast(onlyActive ? 'Diese Klasse ist nicht mit einer Microsoft‑365‑Gruppe verknüpft.' : 'Keine verknüpften Klassengruppen.');
         return;
     }
     const preview = pack.items
@@ -696,11 +802,7 @@ function readLists() {
     direktion = out;
     const yearEl = document.getElementById('jgYearLabel');
     if (yearEl) {
-        yearEl.textContent = schoolYearLabel
-            ? 'Schuljahr ' +
-              schoolYearLabel +
-              ' – links Klasse wählen bzw. neu anlegen, rechts matchen oder eine Gruppe erstellen.'
-            : 'Aktuelles Schuljahr – links Klasse wählen bzw. neu anlegen, rechts matchen oder eine Gruppe erstellen.';
+        yearEl.textContent = schoolYearLabel ? 'Schuljahr ' + schoolYearLabel : 'Aktuelles Schuljahr';
     }
 }
 
@@ -884,7 +986,7 @@ function persistClassDelete(code, year) {
 
 async function offerCreateM365Group(code) {
     const ok = await dlgConfirm(
-        'Klasse „' + code + '“ ist in den Stammdaten. Jetzt auch eine Microsoft‑365‑Gruppe anlegen und matchen?',
+        'Klasse „' + code + '“ ist in den Stammdaten. Jetzt auch eine Microsoft‑365‑Gruppe anlegen und verknüpfen?',
         {
             title: 'M365‑Gruppe anlegen?',
             okText: 'Ja, anlegen',
@@ -1110,7 +1212,7 @@ function renderOwnerPreview() {
         p.style.margin = '0';
         p.style.color = '#6c757d';
         p.textContent = row && row.headEmail
-            ? 'Keine Besitzer ausgewählt (Optionen unten in den Sammelaktionen prüfen).'
+            ? 'Keine Besitzer ausgewählt (Optionen unter Einstellungen prüfen).'
             : 'Kein Klassenvorstand in den Stammdaten hinterlegt und keine Direktion ausgewählt.';
         el.appendChild(p);
         return;
@@ -1236,8 +1338,8 @@ function renderLeftList() {
             (schoolYearLabel ? ' (' + schoolYearLabel + ')' : '') +
             ' · ' +
             String(matchedN) +
-            ' gematcht' +
-            (q ? ' · Filter: ' + String(list.length) : '');
+            ' verknüpft' +
+            (q ? ' · Treffer: ' + String(list.length) : '');
     }
     const hasRows = all.length > 0;
     if (empty) empty.style.display = hasRows ? 'none' : '';
@@ -1278,12 +1380,12 @@ function renderLeftList() {
         if (nick) prefix.push(nick);
         if (prefix.length) meta.appendChild(document.createTextNode(prefix.join(' · ') + ' · '));
         const badge = document.createElement('span');
-        badge.className = 'jg-match-badge ' + (gid ? 'is-ok' : 'is-warn');
+        badge.className = 'jg-match-badge gd-sync-badge ' + (gid ? 'is-ok gd-sync-badge--ok' : 'is-warn gd-sync-badge--warn');
         const ico = document.createElement('i');
-        ico.className = gid ? 'bi bi-check-circle-fill' : 'bi bi-exclamation-circle-fill';
+        ico.className = gid ? 'bi bi-check-circle-fill' : 'bi bi-exclamation-circle';
         ico.setAttribute('aria-hidden', 'true');
         badge.appendChild(ico);
-        badge.appendChild(document.createTextNode(gid ? 'Gematcht' : 'Kein Match'));
+        badge.appendChild(document.createTextNode(gid ? 'Verknüpft' : 'Nicht verknüpft'));
         meta.appendChild(badge);
         btn.classList.add(gid ? 'is-matched' : 'is-unmatched');
         if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.createThumb === 'function') {
@@ -1299,9 +1401,14 @@ function renderLeftList() {
         main.appendChild(t);
         main.appendChild(meta);
         btn.appendChild(main);
+        const countWrap = document.createElement('span');
+        countWrap.className = 'slg-side-count';
+        countWrap.setAttribute('aria-live', 'polite');
+        paintRowSyncCounts(countWrap, row);
+        btn.appendChild(countWrap);
         const pick = document.createElement('label');
         pick.className = 'jg-pick';
-        pick.title = 'Für Sammelaktion auswählen';
+        pick.title = 'Für Mehrfachauswahl markieren';
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.setAttribute('data-jg-pick', rowKey(row));
@@ -1340,15 +1447,32 @@ function ensureActiveKey() {
 }
 
 function setActiveKey(code) {
-    activeKey = normCode(code) || normStr(code).toUpperCase();
-    const search = document.getElementById('slgGroupSearch');
-    if (search) search.value = '';
-    gd().clearSearchResults();
-    renderLeftList();
-    applyCreateDefaults();
-    gd().setTab('general');
-    refreshMatchUi();
-    if (getActiveGroupId()) live().loadGroup({ silent: true });
+    const next = normCode(code) || normStr(code).toUpperCase();
+    const apply = function () {
+        activeKey = next;
+        const search = document.getElementById('slgGroupSearch');
+        if (search) search.value = '';
+        gd().clearSearchResults();
+        renderLeftList();
+        applyCreateDefaults();
+        gd().setTab('general');
+        refreshMatchUi();
+        if (getActiveGroupId()) live().loadGroup({ silent: true });
+    };
+    if (next && next === (normCode(activeKey) || normStr(activeKey).toUpperCase())) {
+        apply();
+        return;
+    }
+    if (live() && typeof live().confirmIfDirty === 'function') {
+        const row = getActiveRow();
+        const label = (row && (row.name || row.code)) || activeKey || 'diese Klasse';
+        Promise.resolve(live().confirmIfDirty(label)).then(function (ok) {
+            if (ok) apply();
+            else renderLeftList();
+        });
+        return;
+    }
+    apply();
 }
 
 function persistMatchForRow(row, g, mode) {
@@ -1600,7 +1724,7 @@ async function runSyncMembers() {
     readLists();
     const gid = getActiveGroupId();
     if (!gid) {
-        toast('Zuerst eine Gruppe matchen oder anlegen.');
+        toast('Zuerst eine Gruppe mit Microsoft 365 verknüpfen oder anlegen.');
         return;
     }
     const emails = emailsForClass(getActiveRow());
@@ -1759,10 +1883,12 @@ function updateBulkCount() {
     pruneSelection();
     const n = selectedKeys.size;
     const el = document.getElementById('jgBulkCount');
-    if (el) {
-        const label = n === 1 ? '1 Klasse ausgewählt' : String(n) + ' Klassen ausgewählt';
-        el.innerHTML = '<i class="bi bi-check2-square" aria-hidden="true"></i>' + label;
-        el.classList.toggle('is-active', n > 0);
+    const bar = document.getElementById('jgSelectionBar');
+    if (el) el.textContent = n === 1 ? '1 ausgewählt' : String(n) + ' ausgewählt';
+    if (bar) bar.classList.toggle('is-active', n > 0);
+    if (n === 0) {
+        const ownerPanel = document.getElementById('jgBulkOwnerPanel');
+        if (ownerPanel) ownerPanel.hidden = true;
     }
 }
 
@@ -1783,7 +1909,7 @@ function selectVisibleMatched() {
     });
     renderLeftList();
     const n = collectSelectedMatched().length;
-    toast(n ? String(n) + ' gematchte Klasse(n) angekreuzt.' : 'Keine gematchten Klassen in der aktuellen Liste.');
+    toast(n ? String(n) + ' verknüpfte Klasse(n) angekreuzt.' : 'Keine verknüpften Klassen in der aktuellen Liste.');
 }
 
 function visibleUnmatchedRows() {
@@ -1803,7 +1929,7 @@ function selectVisibleUnmatched() {
     });
     renderLeftList();
     const n = collectSelectedUnmatched().length;
-    toast(n ? String(n) + ' ungematchte Klasse(n) angekreuzt.' : 'Keine ungematchten Klassen in der aktuellen Liste.');
+    toast(n ? String(n) + ' nicht verknüpfte Klasse(n) angekreuzt.' : 'Keine nicht verknüpften Klassen in der aktuellen Liste.');
 }
 
 function clearSelection() {
@@ -1864,7 +1990,7 @@ async function runBulkOwnerSearch() {
 async function runBulkSetOwner() {
     const items = collectSelectedMatched();
     if (!items.length) {
-        toast('Bitte zuerst gematchte Klassen ankreuzen.');
+        toast('Bitte zuerst verknüpfte Klassen ankreuzen.');
         return;
     }
     const sel = document.getElementById('jgBulkOwnerResults');
@@ -1939,7 +2065,7 @@ async function runBulkSyncMembers() {
     readLists();
     const items = collectSelectedMatched();
     if (!items.length) {
-        toast('Bitte zuerst gematchte Klassen ankreuzen.');
+        toast('Bitte zuerst verknüpfte Klassen ankreuzen.');
         return;
     }
     const trust = bulkTrustOpts();
@@ -2068,7 +2194,7 @@ async function runBulkSyncMembers() {
 async function runBulkDelete() {
     const items = collectSelectedMatched();
     if (!items.length) {
-        toast('Bitte zuerst gematchte Klassen ankreuzen.');
+        toast('Bitte zuerst verknüpfte Klassen ankreuzen.');
         return;
     }
     const preview =
@@ -2149,13 +2275,13 @@ async function runBulkDelete() {
 async function runBulkCreateAndMatch() {
     const items = collectSelectedUnmatched();
     if (!items.length) {
-        toast('Bitte zuerst ungematchte Klassen ankreuzen (rote Badges).');
+        toast('Bitte zuerst unverknüpfte Klassen ankreuzen (rote Badges).');
         return;
     }
     const preview = items.slice(0, 12).map(function (it) { return it.name; }).join('\n') +
         (items.length > 12 ? '\n…' : '');
     if (!(await dlgConfirm(
-        String(items.length) + ' ungematchte Klasse(n) als Microsoft‑365‑Gruppe anlegen und matchen?\n\n' +
+        String(items.length) + ' nicht verknüpfte Klasse(n) als Microsoft‑365‑Gruppe anlegen und verknüpfen?\n\n' +
         preview +
         '\n\nAlias nach aktuellem Schema, z. B. ' +
         (persistNickForRow(items[0].row) || '–') +
@@ -2251,7 +2377,7 @@ function mountDetail() {
         title: 'Jahrgangsgruppe',
         searchPlaceholder: 'z. B. 1AK oder jg2030ak',
         unmatchedCreateHint:
-            'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit dieser Klasse. Standardmäßig wird auch ein Microsoft Team bereitgestellt (unter Sammelaktionen abschaltbar).',
+            'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit dieser Klasse. Standardmäßig wird auch ein Microsoft Team bereitgestellt (unter Einstellungen abschaltbar).',
         membersUnmatchedHint:
             'Wenn in den Stammdaten Schüler:innen mit E‑Mail für diese Klasse hinterlegt sind, können sie nach dem Match additiv synchronisiert werden. Sonst Mitglieder live in Graph pflegen.',
         membersUnmatchedTitle: 'Schüler:innen dieser Klasse',
@@ -2296,7 +2422,7 @@ function mountDetail() {
                 );
                 refreshSmtpHint();
                 const mailEl = document.getElementById('slgLiveMail');
-                const wanted = String((mailEl && mailEl.value) || '').trim();
+                const wanted = readMetaField(mailEl);
                 const graphMail = String((mailEl && mailEl.getAttribute('data-graph-mail')) || '').trim();
                 if (wanted && graphMail && wanted.toLowerCase() !== graphMail.toLowerCase()) {
                     const pack = collectSmtpScriptItems(true);
@@ -2424,7 +2550,7 @@ function wire() {
     });
     onClick('jgBtnBulkOwner', function () {
         if (!collectSelectedMatched().length) {
-            toast('Bitte zuerst gematchte Klassen ankreuzen.');
+            toast('Bitte zuerst verknüpfte Klassen ankreuzen.');
             return;
         }
         showBulkOwnerPanel(true);
@@ -2576,3 +2702,4 @@ if (document.readyState === 'complete') {
 } else {
     document.addEventListener('DOMContentLoaded', init);
 }
+

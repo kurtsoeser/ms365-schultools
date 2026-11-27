@@ -113,15 +113,20 @@ describe('ARGE & Fachgruppen Seite – Bulk anlegen', () => {
         expect(html).toContain('id="afgBtnBulkRename"');
         expect(html).toContain('id="afgBtnSelectUnmatched"');
         expect(html).toContain('id="afgBulkCreateTeam"');
-        expect(html).toContain('Anlegen &amp; matchen');
-        expect(html).toContain('Bestehende matchen');
-        expect(html).toContain('Namen bereinigen');
-        expect(html).toContain('Kürzel → Alias');
+        expect(html).toContain('Fehlende anlegen');
+        expect(html).toContain('Mit vorhandenen verknüpfen');
+        expect(html).toContain('Gruppennamen vereinheitlichen');
         expect(html).toContain('Leer lassen');
         expect(html).toContain('leer = nur Kürzel');
+        expect(html).toContain('id="afgSelectionBar"');
+        expect(html).toContain('id="afgBtnSelectionMode"');
+        expect(html).toContain('id="afgBtnAliasSettings"');
+        expect(html).toContain('id="afgMailPrefixPanel"');
 
         const js = readFileSync(join(projectRoot, 'src/tools/arge-fachgruppen/arge-fachgruppen.js'), 'utf8');
         expect(js).toContain('runBulkCreateAndMatch');
+        expect(js).toContain('setSelectionMode');
+        expect(js).toContain('openAliasPrefixSettings');
         expect(js).toContain('runBulkMatchExisting');
         expect(js).toContain('runBulkStripDisplayPrefix');
         expect(js).toContain('collectSelectedUnmatched');

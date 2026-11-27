@@ -14,21 +14,21 @@ import {
     refreshGroupInsightTile
 } from './dashboard-tools-view.js';
 import {
-    buildNavTreeFromDashboard,
     clearItWorkspaceNav,
     deactivateItWorkspace,
-    extractToolsFromTask,
-    IT_WORKSPACE_STAMMDATEN_TASK_ID,
+    defaultItWorkspaceTree,
     isDashboardItShellActive,
     persistItWorkspaceNav
 } from './it-workspace-nav.js';
-import { mergeStammdatenWorkspaceTools } from './stammdaten-nav-catalog.js';
+import { itNavAreaIcon, itNavAreaLabel, itNavToolsForTask } from './it-nav-catalog.js';
+import {
+    readItNavGroupOpenState,
+    readItNavMoreOpenState,
+    writeItNavGroupOpenState,
+    writeItNavMoreOpenState
+} from './it-nav-open-state.js';
 
 const STORAGE_KEY = 'ms365-dash-tasks-split-v1';
-/** Offen/zu je Bereich (Mitgliedschaften, Aufräumen, …) – nicht mehr Abgleich/Betrieb. */
-const NAV_GROUPS_STORAGE_KEY = 'ms365-dash-tasks-nav-groups-v2';
-/** „Mehr“-Overflow je Bereich in der Sidebar. */
-const NAV_MORE_STORAGE_KEY = 'ms365-dash-tasks-nav-more-v1';
 export const DASH_TASKS_SPLIT_NAV_WIDTH_KEY = 'ms365-dash-tasks-split-nav-width-v1';
 export const DASH_TASKS_SPLIT_NAV_WIDTH_MIN = 220;
 export const DASH_TASKS_SPLIT_NAV_WIDTH_MAX = 520;
@@ -45,44 +45,6 @@ const NAV_AREA_TASK_IDS = [
     'dashTaskSchulApps',
     'dashTaskOrdnung'
 ];
-
-/** @returns {Record<string, boolean>} */
-function readNavGroupOpenState() {
-    try {
-        const raw = JSON.parse(localStorage.getItem(NAV_GROUPS_STORAGE_KEY) || '{}');
-        return raw && typeof raw === 'object' ? raw : {};
-    } catch {
-        return {};
-    }
-}
-
-/** @param {Record<string, boolean>} state */
-function writeNavGroupOpenState(state) {
-    try {
-        localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(state || {}));
-    } catch {
-        /* ignore */
-    }
-}
-
-/** @returns {Record<string, boolean>} */
-function readNavMoreOpenState() {
-    try {
-        const raw = JSON.parse(localStorage.getItem(NAV_MORE_STORAGE_KEY) || '{}');
-        return raw && typeof raw === 'object' ? raw : {};
-    } catch {
-        return {};
-    }
-}
-
-/** @param {Record<string, boolean>} state */
-function writeNavMoreOpenState(state) {
-    try {
-        localStorage.setItem(NAV_MORE_STORAGE_KEY, JSON.stringify(state || {}));
-    } catch {
-        /* ignore */
-    }
-}
 
 /** @param {number} px */
 export function clampDashTasksSplitNavWidth(px) {
@@ -232,8 +194,8 @@ function wireDashTasksSplitNavResize(split) {
 }
 
 const NAV_LABELS = {
-    dashTaskImportVerknuepfen: 'Daten importieren',
-    dashTaskGruppen: 'Mitgliedschaften',
+    dashTaskImportVerknuepfen: 'Stammdaten',
+    dashTaskGruppen: 'MS365 Mitgliedschaft',
     dashTaskUnterricht: 'Klassen & Unterricht',
     dashTaskPersonen: 'Personen',
     dashTaskSchuljahr: 'Schuljahresstart',
@@ -279,7 +241,7 @@ const TASK_HASH_BY_ID = {
 };
 
 const NAV_ICONS = {
-    dashTaskImportVerknuepfen: 'bi bi-box-arrow-in-down',
+    dashTaskImportVerknuepfen: 'bi bi-database',
     dashTaskGruppen: 'bi bi-people',
     dashTaskUnterricht: 'bi bi-mortarboard',
     dashTaskPersonen: 'bi bi-person-badge',
@@ -312,7 +274,8 @@ function writeStoredTaskId(taskId) {
 /** @param {HTMLElement} task */
 function navLabelForTask(task) {
     const id = task.id || '';
-    if (id === 'dashTaskImportVerknuepfen' && hasMeaningfulStammdaten()) return 'Stammdaten';
+    const fromCatalog = itNavAreaLabel(id);
+    if (fromCatalog) return fromCatalog;
     if (NAV_LABELS[id]) return NAV_LABELS[id];
     const custom = task.getAttribute('data-dash-nav-label');
     if (custom) return custom.trim();
@@ -376,9 +339,9 @@ function applyImportTaskPersona(task, btn) {
     }
     if (btn) {
         const navIcon = btn.querySelector('.dash-tasks-split__nav-icon i');
-        if (navIcon) navIcon.className = hasData ? 'bi bi-database' : 'bi bi-box-arrow-in-down';
+        if (navIcon) navIcon.className = 'bi bi-database';
         const navLabel = btn.querySelector('.dash-tasks-split__nav-label');
-        if (navLabel) navLabel.textContent = navLabelForTask(task);
+        if (navLabel) navLabel.textContent = 'Stammdaten';
         const navIndex = btn.querySelector('.dash-tasks-split__nav-index');
         if (navIndex) {
             if (hasData) {
@@ -573,6 +536,8 @@ function layoutToolsGrid(task) {
 /** @param {HTMLElement} task */
 function navIconClassForTask(task) {
     const id = task.id || '';
+    const fromCatalog = itNavAreaIcon(id);
+    if (fromCatalog) return fromCatalog;
     if (NAV_ICONS[id]) return NAV_ICONS[id];
     const icon = task.querySelector('.dash-task-icon i');
     if (icon && icon.className) return icon.className;
@@ -749,7 +714,7 @@ export function mountDashboardTasksSplit() {
     const navButtons = [];
     /** @type {{ id: string, el: HTMLElement, toggle: HTMLButtonElement, body: HTMLElement, taskIds: string[] }[]} */
     const navGroups = [];
-    const groupOpenState = readNavGroupOpenState();
+    const groupOpenState = readItNavGroupOpenState();
     const taskById = {};
     navTasks.forEach(function (task) {
         taskById[task.id] = task;
@@ -764,15 +729,10 @@ export function mountDashboardTasksSplit() {
 
     function persistWorkspaceTree(activeTaskId) {
         if (!isDashboardItShellActive()) return;
-        const tree = buildNavTreeFromDashboard(navButtons, navLabelForTask, navIconClassForTask);
-        // Overview-Hashes ergänzen
-        tree.forEach(function (node) {
-            node.overviewHash = TASK_HASH_BY_ID[node.id] || '';
-        });
-        persistItWorkspaceNav(tree, activeTaskId || '');
+        persistItWorkspaceNav(defaultItWorkspaceTree(), activeTaskId || '');
     }
 
-    const moreOpenState = readNavMoreOpenState();
+    const moreOpenState = readItNavMoreOpenState();
 
     /**
      * @param {{ href: string, label: string, icon: string }} tool
@@ -799,11 +759,7 @@ export function mountDashboardTasksSplit() {
      * @returns {HTMLElement | null}
      */
     function buildNavSubForTask(task) {
-        const extracted = extractToolsFromTask(task);
-        const tools =
-            task && task.id === IT_WORKSPACE_STAMMDATEN_TASK_ID
-                ? mergeStammdatenWorkspaceTools(extracted)
-                : extracted;
+        const tools = itNavToolsForTask(task && task.id);
         if (!tools.length) return null;
         const primary = tools.filter(function (t) {
             return !t.expert;
@@ -846,7 +802,7 @@ export function mountDashboardTasksSplit() {
                     : 'Mehr …';
                 if (persist !== false) {
                     moreOpenState[task.id] = next;
-                    writeNavMoreOpenState(moreOpenState);
+                    writeItNavMoreOpenState(moreOpenState);
                 }
             }
             moreBtn.addEventListener('click', function (e) {
@@ -979,7 +935,7 @@ export function mountDashboardTasksSplit() {
         group.body.hidden = !next;
         if (persist !== false) {
             groupOpenState[group.id] = next;
-            writeNavGroupOpenState(groupOpenState);
+            writeItNavGroupOpenState(groupOpenState);
         }
     }
 
@@ -1008,6 +964,18 @@ export function mountDashboardTasksSplit() {
     applyToolsViewMode(readToolsViewMode());
     wireDashTasksSplitNavResize(split);
     grid.replaceWith(split);
+
+    function setSharedItRail() {
+        const shared = !!document.getElementById('itWorkspaceShell');
+        split.classList.toggle('dash-tasks-split--shared-rail', shared);
+        nav.hidden = shared;
+        if (shared) nav.setAttribute('aria-hidden', 'true');
+        else nav.removeAttribute('aria-hidden');
+        const handle = split.querySelector(':scope > .dash-tasks-split__resize');
+        if (handle) handle.hidden = shared;
+    }
+    setSharedItRail();
+    window.addEventListener('ms365-it-shell-changed', setSharedItRail);
 
     split.dataset.splitMounted = '1';
     document.body.classList.add('dash-tasks-split-active');
@@ -1182,6 +1150,11 @@ export function mountDashboardTasksSplit() {
 
     const initialId = taskIdFromLocationHash() || readStoredTaskId(defaultId);
     selectTask(initialId, { skipHash: !taskIdFromLocationHash() });
+
+    window.addEventListener('hashchange', function () {
+        const id = taskIdFromLocationHash();
+        if (id) selectTask(id, { skipHash: true });
+    });
 
     function refreshToolCards() {
         navButtons.forEach(function (item) {

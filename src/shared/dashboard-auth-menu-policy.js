@@ -1,9 +1,10 @@
 /**
  * Konto-Menü: Aktionsprotokoll nur für Schul-IT (Global Admin / Betreiber).
  * Tenant-ID und „+ Schuljahr“ gehören in Stammdaten, nicht ins Kontomenü.
- * Portal-Rolle wird für alle angemeldeten Nutzer angezeigt (ohne Umschalter für Nicht-IT).
- * Bereich Portal/IT/Schüler auch auf Tool-Seiten (nicht nur Dashboard).
- * Zusätzlich: kompakter Portal/IT-Chip im App-Header für Schul-IT.
+ * Portal-Rolle wird für alle angemeldeten Nutzer angezeigt.
+ * Bereich Portal/IT/Schüler nur bei klarem IT-Zugang (Schul-IT, Global Admin, Betreiber).
+ * Schüler/in, Lehrkraft, Direktion, Sekretariat und Schul-Administration bleiben im Portal.
+ * Zusätzlich: kompakter Portal/IT-Chip im App-Header, ebenfalls nur für diesen IT-Zugang.
  */
 import { getDashboardPersonas } from './dashboard-persona-session.js';
 import { primaryPersonaHint, primaryPersonaLabel } from './app-role-switcher-policy.js';
@@ -15,6 +16,47 @@ import {
 
 const DASH_AUTH_LAYOUT_IDS = ['full', 'preview-lehrer', 'preview-schueler'];
 const HEADER_SHELL_LAYOUT_IDS = ['full', 'preview-lehrer'];
+
+/**
+ * Umschalter Portal / IT / Schüler-Vorschau.
+ * Nur ein klarer IT-Zugang: Schul-IT-Kontakt, Entra-Global-Admin oder Betreiber.
+ * Schüler/in, Lehrkraft, Direktion, Sekretariat und Schul-Administration haben keinen Wechsler.
+ *
+ * @param {import('./dashboard-audience-resolve.js').DashboardPersonas|null|undefined} personas
+ * @returns {boolean}
+ */
+export function canUseItShellSwitch(personas) {
+    if (!personas || !personas.loggedIn) return false;
+    return !!(
+        personas.isIt ||
+        personas.designatedSchoolIt ||
+        personas.globalAdmin ||
+        personas.operator
+    );
+}
+
+function livePersonasAllowShellSwitch() {
+    try {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365DashboardAudience &&
+            typeof window.ms365DashboardAudience.getPersonas === 'function'
+        ) {
+            const fromDash = window.ms365DashboardAudience.getPersonas();
+            if (fromDash) return canUseItShellSwitch(fromDash);
+        }
+    } catch {
+        /* ignore */
+    }
+    try {
+        if (typeof window !== 'undefined' && window.__ms365DashboardPersonasLast) {
+            return canUseItShellSwitch(window.__ms365DashboardPersonasLast);
+        }
+    } catch {
+        /* ignore */
+    }
+    return false;
+}
 
 export function applyAuthMenuItAudience(showItExtras) {
     const actionLog = document.getElementById('ms365AuthActionLogLink');
@@ -66,7 +108,7 @@ export function syncAuthMenuDashViewSection(personas, layoutMode) {
     const section = document.getElementById('ms365AuthDashViewSection');
     if (!section) return;
 
-    const show = !!(personas && personas.loggedIn && personas.isIt);
+    const show = canUseItShellSwitch(personas);
     section.hidden = !show;
 
     const mode =
@@ -179,7 +221,7 @@ export function syncHeaderShellSwitch(personas, layoutMode) {
     const switcher = ensureHeaderShellSwitch();
     if (!switcher) return;
 
-    const show = !!(personas && personas.loggedIn && personas.isIt);
+    const show = canUseItShellSwitch(personas);
     switcher.hidden = !show;
     if (!show) {
         switcher.setAttribute('aria-hidden', 'true');
@@ -220,6 +262,7 @@ function refreshToolChromeAfterShellChange() {
  */
 export function commitItShellLayout(mode) {
     if (!DASH_AUTH_LAYOUT_IDS.includes(mode)) return;
+    if (!livePersonasAllowShellSwitch()) return;
 
     try {
         if (

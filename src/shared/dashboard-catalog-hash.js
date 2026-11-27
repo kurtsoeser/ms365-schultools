@@ -22,6 +22,7 @@ const HASH_TO_PANEL = (function () {
         map[CATALOG_PANEL_HASH[panel]] = panel;
     });
     map.import = 'gruppen';
+    map.sonstiges = 'schulapps';
     return map;
 })();
 

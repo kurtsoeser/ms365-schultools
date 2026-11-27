@@ -23,7 +23,7 @@ const GRAPH_WRITE_SCOPES = [
 function bind() {
 
     const progressEl = getEl('lgrProgress');
-    const previewPanel = getEl('lgrPreviewPanel');
+    const emptyHint = getEl('lgrEmptyHint');
     const tbody = getEl('lgrTbody');
     const btn = getEl('lgrBtnRun');
     const btnCsv = getEl('lgrBtnCsv');
@@ -31,6 +31,13 @@ function bind() {
     const filterKind = getEl('lgrFilterKind');
     const filterProblem = getEl('lgrFilterProblem');
     const resultCount = getEl('lgrResultCount');
+    const heroNum = getEl('lgrHeroNum');
+    const heroLabel = getEl('lgrHeroLabel');
+    const heroSub = getEl('lgrHeroSub');
+    const kpiNoOwners = getEl('lgrKpiNoOwners');
+    const kpiNoMembers = getEl('lgrKpiNoMembers');
+    const kpiEmpty = getEl('lgrKpiEmpty');
+    const kpiOk = getEl('lgrKpiOk');
 
     const selectAllCb = getEl('lgrSelectAll');
     const bulkBar = getEl('lgrBulkBar');
@@ -86,6 +93,84 @@ function bind() {
         if (filterKind) filterKind.disabled = !on;
         if (filterProblem) filterProblem.disabled = !on;
         if (selectAllCb) selectAllCb.disabled = !on;
+    }
+
+    function computeStats(rows) {
+        let noOwners = 0;
+        let noMembers = 0;
+        let empty = 0;
+        let ok = 0;
+        let problems = 0;
+        for (const r of rows) {
+            const owners = r.owners === 0;
+            const members = r.members === 0;
+            if (owners) noOwners += 1;
+            if (members) noMembers += 1;
+            if (owners && members) empty += 1;
+            if (owners || members) problems += 1;
+            else if (r.owners >= 0 && r.members >= 0) ok += 1;
+        }
+        return { noOwners, noMembers, empty, ok, problems, total: rows.length };
+    }
+
+    function updateHero(stats) {
+        const analyzed = stats && stats.total > 0;
+        if (emptyHint) {
+            if (analyzed) emptyHint.setAttribute('hidden', '');
+            else emptyHint.removeAttribute('hidden');
+        }
+        if (!analyzed) {
+            if (heroNum) heroNum.textContent = '–';
+            if (heroLabel) heroLabel.textContent = 'noch nicht analysiert';
+            if (heroSub) {
+                heroSub.textContent =
+                    'Nur Metadaten lesen · Analyse starten, dann auffällige Zeilen filtern.';
+            }
+            if (kpiNoOwners) kpiNoOwners.textContent = '–';
+            if (kpiNoMembers) kpiNoMembers.textContent = '–';
+            if (kpiEmpty) kpiEmpty.textContent = '–';
+            if (kpiOk) kpiOk.textContent = '–';
+            return;
+        }
+        if (heroNum) heroNum.textContent = String(stats.problems);
+        if (heroLabel) {
+            heroLabel.textContent =
+                stats.problems === 1 ? 'auffällige Gruppe' : 'auffällige Gruppen';
+        }
+        if (heroSub) {
+            heroSub.textContent =
+                stats.total +
+                ' ausgewertet · ' +
+                stats.ok +
+                ' in Ordnung · Löschen nur mit Bestätigung.';
+        }
+        if (kpiNoOwners) kpiNoOwners.textContent = String(stats.noOwners);
+        if (kpiNoMembers) kpiNoMembers.textContent = String(stats.noMembers);
+        if (kpiEmpty) kpiEmpty.textContent = String(stats.empty);
+        if (kpiOk) kpiOk.textContent = String(stats.ok);
+    }
+
+    function flagsHtml(row) {
+        const flags = String(row.flags || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s && s !== '–');
+        if (!flags.length) return '<span class="is-ok">ok</span>';
+        return (
+            '<span class="lgr-flags">' +
+            flags
+                .map((f) => {
+                    const tone =
+                        f.indexOf('fehlgeschlagen') >= 0
+                            ? 'fb-pill--bad'
+                            : f.indexOf('Besitzer') >= 0 || f.indexOf('Mitglieder') >= 0
+                              ? 'fb-pill--warn'
+                              : 'fb-pill--bad';
+                    return '<span class="fb-pill ' + tone + '">' + escapeHtml(f) + '</span>';
+                })
+                .join('') +
+            '</span>'
+        );
     }
 
     function matchesKindFilter(row, kind) {
@@ -175,6 +260,7 @@ function bind() {
     function renderRows() {
         if (!tbody) return;
         tbody.replaceChildren();
+        updateHero(lastRows.length ? computeStats(lastRows) : null);
 
         if (resultCount) {
             if (!lastRows.length) {
@@ -187,12 +273,14 @@ function bind() {
         }
 
         if (!viewRows.length) {
-            if (lastRows.length) {
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                    '<td colspan="8" class="muted" style="padding:14px 10px;">Keine Treffer für die aktuellen Filter/Suche.</td>';
-                tbody.appendChild(tr);
-            }
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td colspan="8" class="lgr-empty-cell">' +
+                (lastRows.length
+                    ? 'Keine Treffer für die aktuellen Filter/Suche.'
+                    : 'Noch keine Analyse – starten Sie oben.') +
+                '</td>';
+            tbody.appendChild(tr);
             updateSelectionUi();
             return;
         }
@@ -233,7 +321,7 @@ function bind() {
                 membersTxt +
                 '</td>' +
                 '<td>' +
-                escapeHtml(r.flags) +
+                flagsHtml(r) +
                 '</td>' +
                 '<td class="lgr-col-actions">' +
                 '<button type="button" class="btn btn-danger lgr-row-delete" data-lgr-act="del" title="Gruppe löschen" aria-label="Gruppe löschen">' +
@@ -628,7 +716,6 @@ function bind() {
         const scopeMode = String(getEl('lgrScope')?.value || 'unified');
         btn.disabled = true;
         btnCsv.disabled = true;
-        previewPanel?.setAttribute('hidden', '');
         lastRows = [];
         viewRows = [];
         selectedIds.clear();
@@ -690,7 +777,41 @@ function bind() {
         }
     });
 
+    function bindKpiFilters() {
+        const map = [
+            ['lgrKpiNoOwners', 'no-owners'],
+            ['lgrKpiNoMembers', 'no-members'],
+            ['lgrKpiEmpty', 'empty'],
+            ['lgrKpiOk', 'all']
+        ];
+        map.forEach(([id, problem]) => {
+            const el = getEl(id);
+            const card = el && el.closest('.lgr-kpi');
+            if (!card) return;
+            card.style.cursor = 'pointer';
+            card.title = 'Filter setzen';
+            card.addEventListener('click', () => {
+                if (!lastRows.length || !filterProblem) return;
+                filterProblem.value = problem;
+                if (problem === 'all' && filterKind) filterKind.value = 'all';
+                applyFiltersAndSort();
+            });
+        });
+    }
+
+    bindKpiFilters();
+    updateHero(null);
     updateSortIndicators();
+
+    window.ms365LeereGruppenNavigateProblem = function (problem) {
+        const allowed = ['all', 'problem', 'no-owners', 'no-members', 'empty'];
+        const next = String(problem || '').trim();
+        if (!filterProblem || allowed.indexOf(next) < 0) return false;
+        filterProblem.value = next;
+        if (next === 'all' && filterKind) filterKind.value = 'all';
+        applyFiltersAndSort();
+        return true;
+    };
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);

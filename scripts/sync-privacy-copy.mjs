@@ -119,6 +119,10 @@ function buildHelpCore() {
     parts.push(
         `                            <a href="https://ms365.schule/impressum.html" target="_blank" rel="noopener noreferrer">Impressum</a>`
     );
+    parts.push(`                            ·`);
+    parts.push(
+        `                            <a href="https://ms365.schule/nutzungsbedingungen.html" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a>`
+    );
     parts.push(`                        </p>`);
 
     return parts.join('\n');
@@ -203,16 +207,13 @@ function buildLandingCoreRest() {
         `          Abschnitt&nbsp;1 genannten Verarbeitungen an`
     );
     parts.push(
-        `          <a href="mailto:kontakt@kurtrocks.com">kontakt@kurtrocks.com</a>`
+        `          <a href="mailto:kontakt@ms365.schule">kontakt@ms365.schule</a>`
     );
     parts.push(
-        `          wenden. Ihnen steht außerdem das Recht zu, sich bei einer Aufsichtsbehörde zu`
+        `          wenden. Sie können sich außerdem bei der Österreichischen Datenschutzbehörde beschweren:`
     );
     parts.push(
-        `          beschweren (in Österreich typischerweise die`
-    );
-    parts.push(
-        `          <a href="https://www.dsb.gv.at/" target="_blank" rel="noopener noreferrer">Datenschutzbehörde</a>).`
+        `          <a href="https://www.dsb.gv.at/" target="_blank" rel="noopener noreferrer">www.dsb.gv.at</a>.`
     );
     parts.push(`        </p>`);
     parts.push(`      </section>`);

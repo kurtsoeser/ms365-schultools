@@ -171,11 +171,25 @@ export function installTenantStatusPanel(ctx) {
 
         ctx.setSummary = function setSummary(text, kind) {
             if (!ctx.summary) return;
+            if (ctx._summaryClearTimer) {
+                clearTimeout(ctx._summaryClearTimer);
+                ctx._summaryClearTimer = null;
+            }
             ctx.summary.hidden = false;
             ctx.summary.style.display = 'block';
             ctx.summary.textContent = text;
             ctx.summary.dataset.kind = kind || 'info';
             if (ctx.summary.dataset.stand) ctx.summary.dataset.stand = '';
+            const msg = String(text || '').trim();
+            if (!msg) return;
+            const ms = kind === 'warn' || kind === 'error' ? 16000 : 7000;
+            ctx._summaryClearTimer = setTimeout(function () {
+                ctx._summaryClearTimer = null;
+                if (!ctx.summary) return;
+                ctx.summary.textContent = '';
+                ctx.summary.hidden = true;
+                ctx.summary.style.display = 'none';
+            }, ms);
         }
 
         ctx.buildStandSummaryBody = function buildStandSummaryBody(s, yLbl) {

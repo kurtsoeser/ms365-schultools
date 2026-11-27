@@ -39,7 +39,7 @@ describe('Eine globale Menüleiste', () => {
         expect(auth).not.toContain('ms365AuthCtxTenant');
         expect(auth).not.toContain('ms365AuthTenantCopyBtn');
         expect(auth).toContain('Dunkles Design');
-        expect(auth).toContain("data-ms365-auth-menu-v', '12'");
+        expect(auth).toContain("data-ms365-auth-menu-v', '13'");
         expect(auth).toContain('ms365AuthCtxDomain');
         expect(auth).toContain('Schuljahr');
         expect(auth).toContain('Domain');

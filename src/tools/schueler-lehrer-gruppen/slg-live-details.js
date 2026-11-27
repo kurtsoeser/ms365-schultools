@@ -12,6 +12,107 @@
     let membersLoadedForId = '';
     let photoObjectUrl = '';
     let loadGroupGen = 0;
+    /** @type {{ name: string, description: string, visibility: string, alias: string }|null} */
+    let dirtySnapshot = null;
+    let dirtyWired = false;
+
+    function setFieldText(el, text, emptyFallback) {
+        if (!el) return;
+        const v = String(text == null ? '' : text);
+        const shown = v || (emptyFallback != null ? String(emptyFallback) : '–');
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+            el.value = v;
+        } else {
+            el.textContent = shown;
+        }
+    }
+
+    function getFieldText(el) {
+        if (!el) return '';
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+            return String(el.value || '');
+        }
+        const t = String(el.textContent || '').trim();
+        return t === '–' ? '' : t;
+    }
+
+    function readEditableSnapshot() {
+        const name = document.getElementById('slgLiveName');
+        const desc = document.getElementById('slgLiveDescription');
+        const vis = document.getElementById('slgLiveVisibility');
+        const alias = document.getElementById('slgLiveAlias');
+        return {
+            name: name ? String(name.value || '') : '',
+            description: desc ? String(desc.value || '') : '',
+            visibility: vis ? String(vis.value || '') : '',
+            alias: alias && alias.tagName === 'INPUT' && !alias.readOnly ? String(alias.value || '') : ''
+        };
+    }
+
+    function markClean() {
+        dirtySnapshot = readEditableSnapshot();
+        syncSaveButton();
+        hideSaveFeedback();
+    }
+
+    function isDirty() {
+        if (!dirtySnapshot) return false;
+        const cur = readEditableSnapshot();
+        return (
+            cur.name !== dirtySnapshot.name ||
+            cur.description !== dirtySnapshot.description ||
+            cur.visibility !== dirtySnapshot.visibility ||
+            cur.alias !== dirtySnapshot.alias
+        );
+    }
+
+    function syncSaveButton() {
+        const btn = document.getElementById('slgBtnUpdateGroup');
+        if (!btn) return;
+        const gid = getGroupId();
+        btn.disabled = !gid || !isDirty();
+    }
+
+    function hideSaveFeedback() {
+        const el = document.getElementById('slgSaveFeedback');
+        if (el) el.classList.remove('is-visible');
+    }
+
+    function showSaveFeedback() {
+        const el = document.getElementById('slgSaveFeedback');
+        if (!el) return;
+        el.innerHTML = '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Gespeichert';
+        el.classList.add('is-visible');
+        window.setTimeout(function () {
+            el.classList.remove('is-visible');
+        }, 2500);
+    }
+
+    async function confirmIfDirty(label) {
+        if (!isDirty()) return true;
+        const name = label || currentGroupLabel();
+        const ok = await dlgConfirm(
+            'Die Änderungen an „' + name + '“ wurden noch nicht gespeichert.',
+            {
+                title: 'Nicht gespeicherte Änderungen',
+                okText: 'Verwerfen',
+                cancelText: 'Abbrechen',
+                danger: true
+            }
+        );
+        return !!ok;
+    }
+
+    function wireDirtyTracking() {
+        if (dirtyWired) return;
+        dirtyWired = true;
+        ['slgLiveName', 'slgLiveDescription', 'slgLiveVisibility', 'slgLiveAlias'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', syncSaveButton);
+            el.addEventListener('change', syncSaveButton);
+        });
+    }
 
     function revokePhotoObjectUrl() {
         if (!photoObjectUrl) return;
@@ -47,6 +148,7 @@
         const matched = !!(opts && opts.matched);
         if (!matched) {
             revokePhotoObjectUrl();
+            wrap.hidden = true;
             wrap.style.display = 'none';
             if (img) {
                 img.hidden = true;
@@ -61,6 +163,7 @@
             return;
         }
 
+        wrap.hidden = false;
         wrap.style.display = '';
         const name = String((opts && opts.displayName) || '').trim();
         if (initials) {
@@ -121,7 +224,26 @@
         return ctx && ctx.getGroupId ? ctx.getGroupId() : null;
     }
 
+    function pinAuthReturnHere() {
+        try {
+            if (typeof window.ms365AuthPinReturnUrl === 'function') {
+                window.ms365AuthPinReturnUrl();
+                return;
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            sessionStorage.setItem('ms365-post-login-url', window.location.href);
+        } catch {
+            /* ignore */
+        }
+    }
+
     async function graphToken() {
+        // Schreibrechte laufen über die IT-App und können die Redirect-Seite öffnen.
+        // Vorher die aktuelle Werkzeugseite merken, nicht das zuletzt geöffnete.
+        pinAuthReturnHere();
         if (ctx && typeof ctx.getGraphToken === 'function') return ctx.getGraphToken();
         return gug().getGraphToken();
     }
@@ -183,29 +305,33 @@
         const idEl = document.getElementById('slgLiveId');
         const created = document.getElementById('slgLiveCreated');
         const teamEl = document.getElementById('slgLiveTeam');
+        const statusRow = document.getElementById('slgDetailStatusRow');
         if (!group) {
             if (name) name.value = '';
-            if (art) art.value = '';
-            if (mail) mail.value = '';
+            setFieldText(art, '', '–');
+            setFieldText(mail, '', '–');
             if (mail) mail.removeAttribute('data-graph-mail');
             if (vis) {
                 vis.disabled = false;
                 vis.value = 'Private';
             }
-            if (exp) exp.value = '';
-            if (alias) alias.value = '';
+            setFieldText(exp, '', 'Kein Ablaufdatum');
+            setFieldText(alias, '', '–');
             if (desc) desc.value = '';
-            if (idEl) idEl.value = '';
-            if (created) created.value = '';
+            setFieldText(idEl, '', '–');
+            setFieldText(created, '', '–');
             setTeamStatusEl(teamEl, '', false);
             syncTeamActions(false, '');
             setGroupPhotoUi({ matched: false });
+            syncMembershipTarget();
+            if (statusRow) statusRow.hidden = true;
+            markClean();
             return;
         }
         if (name) name.value = String(group.displayName || '');
-        if (art) art.value = gug().groupArtLabel(group);
+        setFieldText(art, gug().groupArtLabel(group), '–');
         if (mail) {
-            mail.value = String(group.mail || '');
+            setFieldText(mail, String(group.mail || ''), '–');
             mail.setAttribute('data-graph-mail', String(group.mail || ''));
         }
         if (vis) {
@@ -221,12 +347,18 @@
             }
         }
         if (exp) {
-            if (exp.type === 'date') exp.value = isoToDateInput(group.expirationDateTime);
-            else if (exp.type === 'datetime-local') {
+            if (exp.tagName === 'INPUT' && exp.type === 'date') exp.value = isoToDateInput(group.expirationDateTime);
+            else if (exp.tagName === 'INPUT' && exp.type === 'datetime-local') {
                 const d = group.expirationDateTime ? new Date(group.expirationDateTime) : null;
                 exp.value =
                     d && !isNaN(d.getTime()) ? d.toISOString().slice(0, 16) : '';
-            } else exp.value = formatDateTimeAT(group.expirationDateTime);
+            } else {
+                setFieldText(
+                    exp,
+                    group.expirationDateTime ? formatDateTimeAT(group.expirationDateTime) : '',
+                    'Kein Ablaufdatum'
+                );
+            }
         }
         const expHint = document.getElementById('slgLiveExpiresHint');
         if (expHint) {
@@ -234,10 +366,11 @@
                 ? 'Kommt aus der Gruppen-Lebenszyklusrichtlinie des Tenants. „Ablauf verlängern“ schiebt das Datum um die Richtlinien-Dauer weiter.'
                 : 'Kein Ablaufdatum in Microsoft. Graph kann kein frei gewähltes Datum setzen – nur verlängern, wenn im Tenant eine Lebenszyklusrichtlinie gilt.';
         }
-        if (alias) alias.value = String(group.mailNickname || '');
+        setFieldText(alias, String(group.mailNickname || ''), '–');
         if (desc) desc.value = String(group.description || '');
-        if (idEl) idEl.value = String(group.id || '');
-        if (created) created.value = formatDateTimeAT(group.createdDateTime);
+        setFieldText(idEl, String(group.id || ''), '–');
+        setFieldText(created, formatDateTimeAT(group.createdDateTime), '–');
+        if (statusRow) statusRow.hidden = false;
         const unified = !(gug().isUnifiedGroup) || gug().isUnifiedGroup(group);
         const hasTeam = !!(gug().groupHasTeam && gug().groupHasTeam(group));
         if (!unified) {
@@ -254,9 +387,11 @@
             displayName: group.displayName || '',
             hasPhoto: false
         });
+        syncMembershipTarget();
+        markClean();
         if (needsGraphGroupHydrate(group)) {
             const sub = document.getElementById('slgDetailSubtitle');
-            if (sub) sub.textContent = 'Gematcht – Details werden geladen …';
+            if (sub) sub.textContent = 'Verknüpft – Details werden geladen …';
             queueMicrotask(function () {
                 const gid = getGroupId();
                 if (gid && String(gid) === String(group.id)) {
@@ -359,13 +494,24 @@
         if (btnOpen) btnOpen.disabled = !has;
         if (btnUn) btnUn.disabled = !has;
         const sub = document.getElementById('slgDetailSubtitle');
-        if (!sub) return;
-        if (!has) {
-            sub.textContent = 'Gruppe matchen oder anlegen';
-        } else if (liveGroup && liveGroup.displayName) {
-            sub.textContent = liveGroup.displayName;
-        } else {
-            sub.textContent = 'Gematcht – anmelden oder „Neu laden“, um Details zu holen';
+        const statusRow = document.getElementById('slgDetailStatusRow');
+        const badge = document.getElementById('slgDetailSyncBadge');
+        if (sub) {
+            if (!has) {
+                sub.textContent = 'Noch nicht mit Microsoft 365 verknüpft';
+            } else if (liveGroup && liveGroup.displayName) {
+                sub.textContent = 'Microsoft 365-Gruppe';
+            } else {
+                sub.textContent = 'Microsoft 365-Gruppe';
+            }
+        }
+        if (statusRow) statusRow.hidden = false;
+        if (badge) {
+            badge.className =
+                'gd-sync-badge ' + (has ? 'gd-sync-badge--ok' : 'gd-sync-badge--warn');
+            badge.innerHTML = has
+                ? '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Verknüpft'
+                : '<i class="bi bi-exclamation-circle" aria-hidden="true"></i>Nicht verknüpft';
         }
     }
 
@@ -376,16 +522,65 @@
         membersLoadedForId = '';
     }
 
+    function clearPersonPick(kind) {
+        const inp = document.getElementById(kind === 'owner' ? 'slgOwnerSearch' : 'slgMemberSearch');
+        const host = document.getElementById(kind === 'owner' ? 'slgOwnerSearchResults' : 'slgMemberSearchResults');
+        if (inp) inp.value = '';
+        if (host) {
+            host.replaceChildren();
+            if (host.dataset) delete host.dataset.groupId;
+        }
+    }
+
     function resetCaches() {
         loadGroupGen += 1;
         invalidateMembership();
         liveGroup = null;
         revokePhotoObjectUrl();
+        clearPersonPick('owner');
+        clearPersonPick('member');
+    }
+
+    function currentGroupLabel() {
+        const title = document.getElementById('slgDetailTitle');
+        const fromTitle = title ? String(title.textContent || '').trim() : '';
+        if (fromTitle) return fromTitle;
+        if (liveGroup && liveGroup.displayName) return String(liveGroup.displayName);
+        return 'diese Gruppe';
+    }
+
+    function syncMembershipTarget() {
+        if (window.ms365GroupDetail && typeof window.ms365GroupDetail.syncMembershipTarget === 'function') {
+            window.ms365GroupDetail.syncMembershipTarget();
+        }
+    }
+
+    function searchTargetsCurrentGroup(host) {
+        const expected = host && host.dataset ? String(host.dataset.groupId || '') : '';
+        const current = String(getGroupId() || '');
+        return !!current && expected === current;
+    }
+
+    function readCheckedUsers(host) {
+        const checked = host
+            ? Array.from(host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]:checked'))
+            : [];
+        return checked
+            .map(function (cb) {
+                const row = cb.closest('.slg-user-checklist__item');
+                const labelEl = row ? row.querySelector('span') : null;
+                const label = labelEl ? String(labelEl.textContent || '').trim() : String(cb.value || '');
+                return { id: String(cb.value || '').trim(), label: label };
+            })
+            .filter(function (x) {
+                return !!x.id;
+            });
     }
 
     function fillUserSearchMultiChecklist(selId, users) {
         const host = document.getElementById(selId);
         if (!host) return;
+        host.dataset.groupId = String(getGroupId() || '');
         host.replaceChildren();
         const list = Array.isArray(users) ? users : [];
         if (!list.length) {
@@ -454,109 +649,164 @@
         syncSelectAll();
     }
 
-    function renderPersonRows(wrap, list, emptyText, removeAttr) {
+    function personParts(person) {
+        const dn = person && person.displayName ? String(person.displayName).trim() : '';
+        const mail = person
+            ? String(person.mail || person.userPrincipalName || '').trim()
+            : '';
+        const label = gug().personLabel(person) || '–';
+        return {
+            name: dn || mail || label,
+            mail: dn && mail && dn !== mail ? mail : dn ? '' : mail,
+            initials: groupPhotoInitials(dn || mail || label)
+        };
+    }
+
+    function setPeopleCount(elId, n) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        if (n == null || n < 0) {
+            el.textContent = '–';
+            return;
+        }
+        el.textContent = String(n);
+    }
+
+    function setTabCount(elId, n) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        if (n == null || n < 0) {
+            el.hidden = true;
+            el.textContent = '';
+            return;
+        }
+        el.hidden = false;
+        el.textContent = String(n);
+    }
+
+    function updateObjectHeaderSummary() {
+        const counts = document.getElementById('slgDetailCounts');
+        if (!counts) return;
+        const parts = [];
+        if (membersCountCache >= 0) {
+            parts.push(membersCountCache === 1 ? '1 Mitglied' : String(membersCountCache) + ' Mitglieder');
+        }
+        if (ownersCache && ownersCache.length) {
+            parts.push(ownersCache.length === 1 ? '1 Besitzer' : String(ownersCache.length) + ' Besitzer');
+        }
+        const teamEl = document.getElementById('slgLiveTeam');
+        const teamTxt = teamEl ? String(teamEl.textContent || '').trim() : '';
+        if (/Team vorhanden/i.test(teamTxt)) parts.push('Team vorhanden');
+        if (!parts.length) {
+            counts.hidden = true;
+            counts.textContent = '';
+            return;
+        }
+        counts.hidden = false;
+        counts.textContent = parts.join(' · ');
+    }
+
+    function renderPersonRows(wrap, list, emptyText, removeAttr, opts) {
         if (!wrap) return;
         wrap.replaceChildren();
         const items = Array.isArray(list) ? list : [];
+        const lastOwnerLock = !!(opts && opts.lastOwnerLock);
         if (!items.length) {
             const p = document.createElement('p');
-            p.style.margin = '0';
-            p.style.color = '#6c757d';
+            p.className = 'muted';
+            p.style.margin = '8px 0';
             p.textContent = emptyText;
             wrap.appendChild(p);
             return;
         }
         items.forEach(function (person) {
+            const parts = personParts(person);
             const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.justifyContent = 'space-between';
-            row.style.alignItems = 'flex-start';
-            row.style.gap = '10px';
-            row.style.padding = '8px 0';
-            row.style.borderBottom = '1px solid #e9ecef';
-            const txt = document.createElement('div');
-            txt.style.whiteSpace = 'pre-wrap';
-            txt.style.lineHeight = '1.35';
-            txt.style.fontSize = '0.92em';
-            txt.textContent = gug().personLabel(person) || '–';
+            row.className = 'gd-person-row';
+            const avatar = document.createElement('span');
+            avatar.className = 'gd-person-row__avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.textContent = parts.initials;
+            const main = document.createElement('div');
+            main.className = 'gd-person-row__main';
+            const name = document.createElement('span');
+            name.className = 'gd-person-row__name';
+            name.textContent = parts.name;
+            main.appendChild(name);
+            if (parts.mail) {
+                const mail = document.createElement('span');
+                mail.className = 'gd-person-row__mail';
+                mail.textContent = parts.mail;
+                main.appendChild(mail);
+            }
+            if (opts && opts.metaText) {
+                const meta = document.createElement('span');
+                meta.className = 'gd-person-row__meta';
+                meta.textContent = opts.metaText;
+                main.appendChild(meta);
+            }
+            const ov = document.createElement('details');
+            ov.className = 'gd-overflow';
+            const sum = document.createElement('summary');
+            sum.setAttribute('aria-label', 'Weitere Aktionen');
+            sum.textContent = '···';
+            const menu = document.createElement('div');
+            menu.className = 'gd-overflow__menu';
+            menu.setAttribute('role', 'menu');
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn';
-            btn.style.padding = '6px 10px';
-            btn.style.fontSize = '0.85em';
-            btn.textContent = 'Entfernen';
+            btn.className = 'gd-overflow__danger';
+            btn.setAttribute('role', 'menuitem');
+            btn.textContent =
+                removeAttr === 'data-slg-remove-owner' ? 'Als Besitzer entfernen' : 'Aus Gruppe entfernen';
             btn.setAttribute(removeAttr, person.id || '');
-            row.appendChild(txt);
-            row.appendChild(btn);
+            if (lastOwnerLock && items.length <= 1) {
+                btn.disabled = true;
+                btn.title = 'Mindestens ein Besitzer ist erforderlich.';
+            }
+            menu.appendChild(btn);
+            ov.appendChild(sum);
+            ov.appendChild(menu);
+            row.appendChild(avatar);
+            row.appendChild(main);
+            row.appendChild(ov);
             wrap.appendChild(row);
         });
     }
 
     function renderOwnersList(owners) {
+        const list = Array.isArray(owners) ? owners : [];
+        setPeopleCount('slgOwnersHeadCount', list.length);
+        setTabCount('slgTabOwnersCount', list.length);
         renderPersonRows(
             document.getElementById('slgOwnersList'),
-            owners,
-            'Keine Besitzer gefunden (Achtung: das ist meist ein Problem).',
-            'data-slg-remove-owner'
+            list,
+            'Keine Besitzer gefunden.',
+            'data-slg-remove-owner',
+            { lastOwnerLock: true }
         );
+        updateObjectHeaderSummary();
     }
 
     function renderMembersList(result, totalCount) {
         const wrap = document.getElementById('slgMembersList');
         if (!wrap) return;
-        wrap.replaceChildren();
         const list = result && Array.isArray(result.items) ? result.items : [];
         const truncated = !!(result && result.truncated);
-        const head = document.createElement('div');
-        head.style.display = 'flex';
-        head.style.justifyContent = 'space-between';
-        head.style.alignItems = 'baseline';
-        head.style.gap = '10px';
-        head.style.marginBottom = '8px';
-        const left = document.createElement('div');
-        left.style.fontWeight = '900';
-        left.style.color = '#32325d';
-        left.textContent =
-            'Mitglieder: ' + (totalCount >= 0 ? String(totalCount) : String(list.length)) + (truncated ? ' (Anzeige gekürzt)' : '');
-        const right = document.createElement('div');
-        right.className = 'muted';
-        right.style.fontWeight = '700';
-        right.textContent = truncated ? 'gekürzt' : 'vollständig';
-        head.appendChild(left);
-        head.appendChild(right);
-        wrap.appendChild(head);
-        if (!list.length) {
-            const p = document.createElement('p');
-            p.style.margin = '0';
-            p.style.color = '#6c757d';
-            p.textContent = 'Keine Mitglieder.';
-            wrap.appendChild(p);
-            return;
-        }
-        list.forEach(function (m) {
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.justifyContent = 'space-between';
-            row.style.alignItems = 'flex-start';
-            row.style.gap = '10px';
-            row.style.padding = '8px 0';
-            row.style.borderBottom = '1px solid #e9ecef';
-            const txt = document.createElement('div');
-            txt.style.whiteSpace = 'pre-wrap';
-            txt.style.lineHeight = '1.35';
-            txt.style.fontSize = '0.92em';
-            txt.textContent = gug().personLabel(m) || '–';
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn';
-            btn.style.padding = '6px 10px';
-            btn.style.fontSize = '0.85em';
-            btn.textContent = 'Entfernen';
-            btn.setAttribute('data-slg-remove-member', m.id || '');
-            row.appendChild(txt);
-            row.appendChild(btn);
-            wrap.appendChild(row);
+        const count = totalCount >= 0 ? totalCount : list.length;
+        setPeopleCount('slgMembersHeadCount', count);
+        setTabCount('slgTabMembersCount', count);
+        renderPersonRows(wrap, list, truncated ? 'Keine Mitglieder in der gekürzten Anzeige.' : 'Keine Mitglieder.', 'data-slg-remove-member', {
+            metaText: document.getElementById('slgBtnSync') ? '✓ Stammdaten + Microsoft 365' : ''
         });
+        if (truncated) {
+            const note = document.createElement('p');
+            note.className = 'muted';
+            note.style.margin = '8px 0 0';
+            note.textContent = 'Anzeige gekürzt – nicht alle Mitglieder geladen.';
+            wrap.appendChild(note);
+        }
+        updateObjectHeaderSummary();
     }
 
     function setBusy(ids, on) {
@@ -694,7 +944,7 @@
             description: descEl ? descEl.value : '',
             visibility: visEl ? visEl.value : 'Private'
         };
-        if (aliasEl && !aliasEl.readOnly) {
+        if (aliasEl && aliasEl.tagName === 'INPUT' && !aliasEl.readOnly) {
             const raw = String(aliasEl.value || '').trim();
             if (!raw) {
                 toast('Bitte einen Alias (Mail‑Nickname) eingeben.');
@@ -712,9 +962,10 @@
             if (ctx && typeof ctx.onAfterUpdate === 'function') {
                 extra = (await ctx.onAfterUpdate(liveGroup)) || '';
             }
-            toast(('Gruppe aktualisiert.' + extra).trim());
+            showSaveFeedback();
+            toast(('Änderungen gespeichert.' + extra).trim());
         } catch (e) {
-            toast('Update: ' + (e.message || e));
+            toast('Speichern: ' + (e.message || e));
         }
     }
 
@@ -799,10 +1050,19 @@
         const btnId = kind === 'owner' ? 'slgOwnerSearchBtn' : 'slgMemberSearchBtn';
         const selId = kind === 'owner' ? 'slgOwnerSearchResults' : 'slgMemberSearchResults';
         const btn = document.getElementById(btnId);
+        const gidAtStart = String(getGroupId() || '');
         if (btn) btn.disabled = true;
         try {
             const token = await graphToken();
             const users = await gug().searchUsers(token, q);
+            if (String(getGroupId() || '') !== gidAtStart) {
+                toast(
+                    'Die Auswahl ist jetzt „' +
+                        currentGroupLabel() +
+                        '“. Bitte die Person erneut suchen, damit sie dieser Gruppe zugeordnet wird.'
+                );
+                return;
+            }
             fillUserSearchMultiChecklist(selId, users);
             toast('Suche: ' + users.length + ' Treffer.');
         } catch (e) {
@@ -813,24 +1073,39 @@
     }
 
     async function runAddOwner() {
-        const gid = getGroupId();
-        if (!gid) return;
         const host = document.getElementById('slgOwnerSearchResults');
-        const checked = host
-            ? Array.from(host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]:checked'))
-            : [];
-        const selected = checked
-            .map(function (cb) {
-                const row = cb.closest('.slg-user-checklist__item');
-                const labelEl = row ? row.querySelector('span') : null;
-                const label = labelEl ? String(labelEl.textContent || '').trim() : String(cb.value || '');
-                return { id: String(cb.value || '').trim(), label: label };
-            })
-            .filter(function (x) {
-                return !!x.id;
-            });
+        const selected = readCheckedUsers(host);
         if (!selected.length) {
             toast('Bitte zuerst mindestens einen Benutzer aus den Treffern auswählen.');
+            return;
+        }
+        const gid = getGroupId();
+        if (!gid) {
+            toast('Bitte zuerst eine gematchte Gruppe wählen.');
+            return;
+        }
+        if (!searchTargetsCurrentGroup(host)) {
+            if (host) host.replaceChildren();
+            toast(
+                'Die Auswahl ist jetzt „' +
+                    currentGroupLabel() +
+                    '“. Bitte die Person erneut suchen, damit sie dieser Gruppe zugeordnet wird.'
+            );
+            return;
+        }
+        const names = selected.map(function (x) {
+            return x.label;
+        });
+        if (
+            !(await dlgConfirm(
+                'Diese Person(en) als Besitzer zu „' +
+                    currentGroupLabel() +
+                    '“ hinzufügen?\n\n' +
+                    names.join('\n') +
+                    '\n\nBestehende Besitzer bleiben erhalten.',
+                { title: 'Besitzer hinzufügen', okText: 'Hinzufügen' }
+            ))
+        ) {
             return;
         }
         const btn = document.getElementById('slgOwnerAddBtn');
@@ -864,9 +1139,9 @@
             const token = await graphToken();
             await ctx.ensureDirektionOwners(token, gid);
             await loadOwnersNow();
-            toast('Direktion als Besitzer gesetzt.');
+            toast('Direktion als Besitzer hinzugefügt.');
         } catch (e) {
-            toast('Direktion setzen: ' + (e.message || e));
+            toast('Direktion als Besitzer: ' + (e.message || e));
         }
     }
 
@@ -891,26 +1166,24 @@
     }
 
     async function runAddMember() {
-        const gid = getGroupId();
-        if (!gid) return;
         const host = document.getElementById('slgMemberSearchResults');
-        const checked = host
-            ? Array.from(
-                  host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]:checked')
-              )
-            : [];
-        const selected = checked
-            .map(function (cb) {
-                const row = cb.closest('.slg-user-checklist__item');
-                const labelEl = row ? row.querySelector('span') : null;
-                const label = labelEl ? String(labelEl.textContent || '').trim() : String(cb.value || '');
-                return { id: String(cb.value || '').trim(), label: label };
-            })
-            .filter(function (x) {
-                return !!x.id;
-            });
+        const selected = readCheckedUsers(host);
         if (!selected.length) {
             toast('Bitte zuerst mindestens einen Benutzer aus den Treffern auswählen.');
+            return;
+        }
+        const gid = getGroupId();
+        if (!gid) {
+            toast('Bitte zuerst eine gematchte Gruppe wählen.');
+            return;
+        }
+        if (!searchTargetsCurrentGroup(host)) {
+            if (host) host.replaceChildren();
+            toast(
+                'Die Auswahl ist jetzt „' +
+                    currentGroupLabel() +
+                    '“. Bitte die Person erneut suchen, damit sie dieser Gruppe zugeordnet wird.'
+            );
             return;
         }
         const btn = document.getElementById('slgMemberAddBtn');
@@ -923,8 +1196,9 @@
             if (
                 !(
                     await dlgConfirm(
-                        'Diese Person(en) zur Gruppe hinzufügen?\n\n' +
-                            (selected.length > 1 ? selected.length + ' Benutzer\n\n' : 'Benutzer\n\n') +
+                        'Diese Person(en) als Mitglied zu „' +
+                            currentGroupLabel() +
+                            '“ hinzufügen?\n\n' +
                             groupNames.join('\n'),
                         { title: 'Mitglieder hinzufügen', okText: 'Hinzufügen' }
                     )
@@ -1057,6 +1331,7 @@
     }
 
     function wire() {
+        wireDirtyTracking();
         onClick('slgBtnUpdateGroup', function () {
             runUpdate();
         });
@@ -1067,6 +1342,12 @@
             runProvisionTeam();
         });
         onClick('slgBtnRefreshGroup', function () {
+            if (isDirty()) {
+                confirmIfDirty().then(function (ok) {
+                    if (ok) loadGroup({ silent: false });
+                });
+                return;
+            }
             loadGroup({ silent: false });
         });
         onClick('slgOwnerSearchBtn', function () {
@@ -1096,6 +1377,38 @@
         bindEnter('slgMemberSearch', function () {
             runSearch('member');
         });
+        let ownerSearchTimer = 0;
+        let memberSearchTimer = 0;
+        const ownerSearch = document.getElementById('slgOwnerSearch');
+        if (ownerSearch) {
+            ownerSearch.addEventListener('input', function () {
+                window.clearTimeout(ownerSearchTimer);
+                const q = String(ownerSearch.value || '').trim();
+                if (q.length < 2) {
+                    const host = document.getElementById('slgOwnerSearchResults');
+                    if (host) host.replaceChildren();
+                    return;
+                }
+                ownerSearchTimer = window.setTimeout(function () {
+                    runSearch('owner');
+                }, 280);
+            });
+        }
+        const memberSearch = document.getElementById('slgMemberSearch');
+        if (memberSearch) {
+            memberSearch.addEventListener('input', function () {
+                window.clearTimeout(memberSearchTimer);
+                const q = String(memberSearch.value || '').trim();
+                if (q.length < 2) {
+                    const host = document.getElementById('slgMemberSearchResults');
+                    if (host) host.replaceChildren();
+                    return;
+                }
+                memberSearchTimer = window.setTimeout(function () {
+                    runSearch('member');
+                }, 280);
+            });
+        }
         const photoFile = document.getElementById('slgGroupPhotoFile');
         if (photoFile) {
             photoFile.addEventListener('change', function () {
@@ -1104,6 +1417,8 @@
             });
         }
         onClick('slgBtnRemoveGroupPhoto', function () {
+            const ov = document.getElementById('slgPhotoOverflow');
+            if (ov) ov.open = false;
             runRemoveGroupPhoto();
         });
         const ownersList = document.getElementById('slgOwnersList');
@@ -1111,7 +1426,9 @@
             ownersList.addEventListener('click', function (ev) {
                 const t = ev.target;
                 const btn = t && t.closest ? t.closest('button[data-slg-remove-owner]') : null;
-                if (!btn) return;
+                if (!btn || btn.disabled) return;
+                const details = btn.closest('details');
+                if (details) details.open = false;
                 runRemoveOwner(btn.getAttribute('data-slg-remove-owner') || '');
             });
         }
@@ -1121,6 +1438,8 @@
                 const t = ev.target;
                 const btn = t && t.closest ? t.closest('button[data-slg-remove-member]') : null;
                 if (!btn) return;
+                const details = btn.closest('details');
+                if (details) details.open = false;
                 runRemoveMember(btn.getAttribute('data-slg-remove-member') || '');
             });
         }
@@ -1140,6 +1459,11 @@
         loadGroup: loadGroup,
         loadOwners: loadOwnersNow,
         loadMembers: loadMembersNow,
-        onTab: onTab
+        onTab: onTab,
+        isDirty: isDirty,
+        confirmIfDirty: confirmIfDirty,
+        markClean: markClean,
+        getFieldText: getFieldText,
+        setFieldText: setFieldText
     };
 })();

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,11 +9,34 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Klassengruppen</title>
-    <link rel="stylesheet" href="../app.css?v=14">
-    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=3">
+    <link rel="stylesheet" href="../src/shared/membership-groups-fluent.css?v=3">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
+/* ===== Welle 3 UI chrome ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+
         .tree {
             overflow: auto;
             max-height: min(62vh, 640px);
@@ -47,61 +70,44 @@
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            font-weight: 800;
+            font-weight: 650;
             white-space: nowrap;
         }
         .jg-match-badge .bi { font-size: 1.05em; }
-        .jg-match-badge.is-ok { color: #0f7b4c; }
-        .jg-active-counts {
-            display: inline-flex;
-            margin: 0 0 10px;
-            padding: 6px 12px;
-            border-radius: var(--radius-pill);
+        /* .jg-match-badge.is-ok: siehe membership-groups-fluent.css */
+        .tree button .slg-side-count {
+            margin-left: auto;
+            padding-left: 10px;
+        }
+        .tree button .jg-match-badge {
+            font-size: 0.82em;
+        }
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+        }
+        .jg-settings {
+            margin: 0 0 12px;
+            padding: 10px 12px;
             border: 1px solid var(--border);
-            background: var(--soft);
-            font-size: 0.88em;
-            font-weight: 700;
-        }
-        .tree button.is-matched { box-shadow: inset 3px 0 0 #3cb371; }
-        .tree button.is-unmatched { box-shadow: inset 3px 0 0 #e07470; }
-        .jg-bulk {
-            margin-top: 14px;
-            padding: 14px;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            background: var(--soft);
-        }
-        .jg-bulk > summary.jg-bulk-toggle {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            width: 100%;
-            margin: 0;
-            padding: 2px 0;
-            list-style: none;
-            cursor: pointer;
-            color: inherit;
-            text-align: left;
-        }
-        .jg-bulk > summary.jg-bulk-toggle::-webkit-details-marker { display: none; }
-        .jg-bulk > summary.jg-bulk-toggle::marker { content: ''; }
-        .jg-bulk > summary.jg-bulk-toggle:focus-visible {
-            outline: 2px solid color-mix(in srgb, var(--brand1) 55%, transparent);
-            outline-offset: 3px;
             border-radius: 10px;
+            background: var(--soft);
         }
-        .jg-bulk-chevron {
-            margin-left: 4px;
-            font-size: 1em;
+        .jg-settings > summary {
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 650;
             color: var(--muted);
-            transition: transform 0.15s ease;
+            list-style: none;
         }
-        .jg-bulk[open] .jg-bulk-chevron { transform: rotate(180deg); }
-        .jg-bulk-head {
-            display: block;
-            margin-bottom: 6px;
+        .jg-settings > summary::-webkit-details-marker { display: none; }
+        .jg-settings__body { margin-top: 10px; }
+        #jgSelectionBar .gd-overflow > summary {
+            font-size: 0.88rem;
+            font-weight: 650;
+            letter-spacing: 0;
+            padding: 0 12px;
+            min-width: 0;
         }
         .jg-bulk-progress {
             margin: 10px 0 0;
@@ -287,51 +293,80 @@
         }
     </style>
 </head>
-<body>
-    <div class="container page-card">
+<body class="app-shell-chrome">
+    <div class="container page-card mg-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Klassengruppen</span>
             </div>
-            <p>Alltagspflege: Klassen aus den <strong>Stammdaten</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Klassen direkt hier erfassen (werden in die Stammdaten des aktuellen Schuljahrs zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-jahrgang" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Klassen aus den Stammdaten mit Microsoft&nbsp;365 verknüpfen oder anlegen – Live-Details wie in der Gruppenverwaltung.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-jahrgang" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html"><i class="bi bi-database"></i>Stammdaten</a>
+                <a class="btn" href="klassenvorstaende.html"><i class="bi bi-person-vcard"></i>Klassenvorstände</a>
             </div>
         </div>
 
         <div class="content">
+            <section class="mg-hero" aria-label="Stand">
+                <h1 class="fb-greet">Klassengruppen</h1>
+                <p class="fb-sub">Links Klasse wählen · rechts Besitzer und Mitglieder · fehlende Gruppen können Sie gebündelt anlegen.</p>
+            </section>
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen in den Stammdaten. Legen Sie Klassen in den Stammdaten an – oder starten Sie die Demo."></div>
             <div class="gd-layout">
                 <section class="panel" aria-label="Klassen auswählen">
-                    <div class="panel-head">
-                        <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Klassen</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;" id="jgYearLabel">Aktuelles Schuljahr – links Klasse wählen bzw. neu anlegen, rechts matchen oder eine Gruppe erstellen.</p>
-                    </div>
                     <div class="panel-body">
-                        <div class="field" style="margin:0 0 10px;">
-                            <label for="jgListFilter">Liste filtern</label>
-                            <input type="search" id="jgListFilter" placeholder="Kürzel, Name oder Nickname …" autocomplete="off" style="width:100%; box-sizing:border-box;">
-                            <div class="jg-catalog-actions" role="group" aria-label="Klassenaktionen">
-                                <button type="button" class="btn btn-success" id="jgBtnAddClass" title="Neue Klasse anlegen und in die Stammdaten schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
-                                <button type="button" class="btn" id="jgBtnEditClass" title="Ausgewählte Klasse bearbeiten" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
-                                <button type="button" class="btn" id="jgBtnDeleteClass" title="Ausgewählte Klasse aus den Stammdaten entfernen" disabled><i class="bi bi-trash"></i>Löschen</button>
-                                <button type="button" class="btn" id="slgBtnReloadLists" title="Klassenliste aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                        <div class="gd-master-head">
+                            <div class="gd-master-head__titles">
+                                <h2>Klassengruppen</h2>
+                                <p class="gd-master-head__count" id="jgListSummary">–</p>
+                                <p class="muted" style="margin:4px 0 0;font-size:0.86em;" id="jgYearLabel">Aktuelles Schuljahr</p>
+                            </div>
+                            <div class="gd-master-head__actions">
+                                <button type="button" class="btn btn-success" id="jgBtnAddClass" title="Neue Klasse anlegen und in die Stammdaten schreiben"><i class="bi bi-plus-lg"></i>Neue Klasse</button>
+                                <details class="gd-overflow" id="jgMasterOverflow">
+                                    <summary aria-label="Weitere Aktionen" title="Weitere Aktionen">···</summary>
+                                    <div class="gd-overflow__menu" role="menu">
+                                        <button type="button" id="jgBtnEditClass" role="menuitem" disabled><i class="bi bi-pencil" aria-hidden="true"></i>Bearbeiten</button>
+                                        <button type="button" class="gd-overflow__danger" id="jgBtnDeleteClass" role="menuitem" disabled><i class="bi bi-trash" aria-hidden="true"></i>Löschen</button>
+                                        <button type="button" id="slgBtnReloadLists" role="menuitem" title="Klassenliste aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Aktualisieren</button>
+                                        <button type="button" id="jgBtnSelectUnmatched" role="menuitem"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Nicht verknüpfte ankreuzen</button>
+                                        <button type="button" id="jgBtnSelectMatched" role="menuitem"><i class="bi bi-check2-all" aria-hidden="true"></i>Verknüpfte ankreuzen</button>
+                                    </div>
+                                </details>
                             </div>
                         </div>
-                        <p class="muted" id="jgListSummary" style="margin:0 0 8px;">–</p>
-                        <div id="jgActiveClassCounts" class="slg-side-count slg-side-count--dual jg-active-counts" hidden aria-live="polite">
-                            <span class="slg-side-kpi">
-                                <span class="n" id="jgActiveListCount">0</span>
-                                <span class="l">Liste</span>
-                            </span>
-                            <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
-                            <span class="slg-side-kpi">
-                                <span class="n" id="jgActiveGroupCount">–</span>
-                                <span class="l">Gruppe</span>
-                            </span>
+                        <div class="field" style="margin:0 0 10px;">
+                            <label class="visually-hidden" for="jgListFilter">Klassen suchen</label>
+                            <input type="search" id="jgListFilter" placeholder="Klassen suchen" autocomplete="off" style="width:100%; box-sizing:border-box;">
+                        </div>
+                        <div class="gd-selection-bar" id="jgSelectionBar" aria-label="Auswahlaktionen">
+                            <span class="gd-selection-bar__count" id="jgBulkCount">0 ausgewählt</span>
+                            <div class="gd-selection-bar__actions">
+                                <button type="button" class="btn" id="jgBtnBulkCreate" title="Fehlende Klassengruppen in Microsoft 365 anlegen">Fehlende anlegen</button>
+                                <button type="button" class="btn" id="jgBtnBulkSyncMembers" title="Mitglieder mit Stammliste abgleichen">Mitglieder abgleichen</button>
+                                <button type="button" class="btn" id="jgBtnBulkOwner" title="Besitzer setzen">Besitzer setzen</button>
+                                <details class="gd-overflow" id="jgBulkOverflow">
+                                    <summary aria-label="Weitere Aktionen">Weitere Aktionen</summary>
+                                    <div class="gd-overflow__menu" role="menu">
+                                        <button type="button" id="jgBtnSmtpAll" role="menuitem">SMTP-Skript</button>
+                                        <button type="button" class="gd-overflow__danger" id="jgBtnBulkDelete" role="menuitem">Löschen</button>
+                                    </div>
+                                </details>
+                                <button type="button" class="btn btn-ghost" id="jgBtnSelectNone">Auswahl aufheben</button>
+                            </div>
+                        </div>
+                        <div class="jg-bulk-progress ms365-bulk-progress" id="jgBulkProgress" data-ms365-bulk-progress hidden>
+                            <div class="jg-bulk-progress-track ms365-bulk-progress__bar" aria-hidden="true">
+                                <div class="jg-bulk-progress-bar" id="jgBulkProgressBar" data-fill></div>
+                            </div>
+                            <p class="jg-bulk-progress-label" id="jgBulkProgressLabel" data-text>0 / 0</p>
+                            <button type="button" class="btn btn-sm" data-cancel hidden id="jgBulkCancel">Abbrechen</button>
+                            <ul data-errors class="jg-bulk-errors" hidden id="jgBulkErrors"></ul>
                         </div>
                         <ul class="tree tree--scroll" id="jgListItems" aria-label="Klassengruppen"></ul>
                         <div id="slgMismatchBar" class="slg-mismatch-bar" hidden>
@@ -354,137 +389,83 @@
                             </div>
                             <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
                         </div>
-                        <details class="jg-bulk" id="jgBulk" aria-label="Sammelaktionen">
-                            <summary class="jg-bulk-toggle" id="jgBulkToggle">
-                                <div class="jg-bulk-head-title">
-                                    <i class="bi bi-layers" aria-hidden="true"></i>
-                                    <div class="slg-section-title">Sammelaktionen</div>
-                                    <i class="bi bi-chevron-down jg-bulk-chevron" aria-hidden="true"></i>
+                        <details class="jg-settings" id="jgBulk" aria-label="Einstellungen für Anlegen und Abgleich">
+                            <summary id="jgBulkToggle">Einstellungen für Anlegen &amp; Abgleich</summary>
+                            <div class="jg-settings__body" id="jgBulkBody">
+                                <div class="ms365-sync-trust" id="jgBulkSyncTrust" style="margin:0 0 12px;">
+                                    <label class="ms365-sync-trust__check"><input type="checkbox" id="jgBulkSyncDryRun" checked> Nur Vorschau (Dry-Run) – ändert Microsoft&nbsp;365 nicht</label>
+                                    <label class="ms365-sync-trust__check"><input type="checkbox" id="jgBulkSyncAllowLeave"> Entfernen (Leave) erlauben</label>
+                                    <p class="ms365-write-hint muted">Mitglieder-Abgleich schreibt nach Microsoft&nbsp;365, sobald Dry-Run aus ist.</p>
                                 </div>
-                                <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Klassen ausgewählt</span>
-                            </summary>
-                            <div class="jg-bulk-progress ms365-bulk-progress" id="jgBulkProgress" data-ms365-bulk-progress hidden>
-                                <div class="jg-bulk-progress-track ms365-bulk-progress__bar" aria-hidden="true">
-                                    <div class="jg-bulk-progress-bar" id="jgBulkProgressBar" data-fill></div>
-                                </div>
-                                <p class="jg-bulk-progress-label" id="jgBulkProgressLabel" data-text>0 / 0</p>
-                                <button type="button" class="btn btn-sm" data-cancel hidden id="jgBulkCancel">Abbrechen</button>
-                                <ul data-errors class="jg-bulk-errors" hidden id="jgBulkErrors"></ul>
-                            </div>
-                            <div class="ms365-sync-trust" id="jgBulkSyncTrust" style="margin:10px 0;">
-                                <label class="ms365-sync-trust__check"><input type="checkbox" id="jgBulkSyncDryRun" checked> Nur Vorschau (Dry-Run) – ändert Microsoft&nbsp;365 nicht</label>
-                                <label class="ms365-sync-trust__check"><input type="checkbox" id="jgBulkSyncAllowLeave"> Entfernen (Leave) erlauben</label>
-                                <p class="ms365-write-hint muted">Sammel-Sync schreibt nach Microsoft&nbsp;365 (nicht nur lokal), sobald Dry-Run aus ist.</p>
-                            </div>
-                            <div class="jg-bulk-body" id="jgBulkBody">
-                            <p class="jg-bulk-hint muted">Klassen ankreuzen (auch ungematchte). <strong>Anlegen &amp; matchen</strong> erstellt M365‑Gruppen für ungematchte Klassen. Mitglieder/Besitzer/Löschen wirken nur auf bereits gematchte Klassen.</p>
-                            <div class="jg-bulk-group" role="group" aria-label="Nomenklatur" id="jgNomenklaturGroup">
-                                <div class="jg-bulk-group-label">Nomenklatur (Mail-Nickname beim Anlegen)</div>
-                                <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-bottom:6px;">
-                                    <label for="jgNickPrefix" style="font-size:0.88em;font-weight:600;white-space:nowrap;">Präfix</label>
-                                    <input type="text" id="jgNickPrefix" value="jg" maxlength="16" autocomplete="off" spellcheck="false" style="font-family:Consolas,monospace;font-size:0.88em;max-width:10em;">
-                                    <label for="jgNickPattern" style="font-size:0.88em;font-weight:600;white-space:nowrap;">Schema</label>
-                                    <input type="text" id="jgNickPattern" value="{prefix}{year}-{suffix}" autocomplete="off" spellcheck="false" style="font-family:Consolas,monospace;font-size:0.88em;">
-                                </div>
-                                <p class="muted" style="margin:0 0 4px;font-size:0.82em;">
-                                    Platzhalter: <code>{prefix}</code> <code>{year}</code> <code>{suffix}</code> (Buchstaben, z.&nbsp;B. AK) <code>{klasse}</code> (z.&nbsp;B. 1AK) <code>{kv}</code> (KV-Kürzel)<br>
-                                    Vorschau: <code id="jgNickPreview">jg2031-AK</code>
-                                </p>
-                                <label class="checkbox-label" style="margin:0 0 6px;font-size:0.88em;">
-                                    <input type="checkbox" id="jgNickUpper">
-                                    <span>Kürzel/Schema groß schreiben</span>
-                                </label>
-                            </div>
-                            <div class="jg-bulk-group" role="group" aria-label="Besitzer beim Anlegen">
-                                <div class="jg-bulk-group-label">Besitzer beim Anlegen neuer Gruppen</div>
-                                <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">
-                                    <label class="checkbox-label" style="margin:0;">
-                                        <input type="checkbox" id="jgOwnerUseKV" checked>
-                                        <span>Klassenvorstand (aus Stammdaten) als Besitzer</span>
-                                    </label>
-                                    <label class="checkbox-label" style="margin:0;">
-                                        <input type="checkbox" id="jgOwnerUseDirektion">
-                                        <span>Direktion als Besitzer</span>
+                                <div class="jg-bulk-group" role="group" aria-label="Nomenklatur" id="jgNomenklaturGroup">
+                                    <div class="jg-bulk-group-label">Nomenklatur (Mail-Nickname beim Anlegen)</div>
+                                    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-bottom:6px;">
+                                        <label for="jgNickPrefix" style="font-size:0.88em;font-weight:600;white-space:nowrap;">Präfix</label>
+                                        <input type="text" id="jgNickPrefix" value="jg" maxlength="16" autocomplete="off" spellcheck="false" style="font-family:Consolas,monospace;font-size:0.88em;max-width:10em;">
+                                        <label for="jgNickPattern" style="font-size:0.88em;font-weight:600;white-space:nowrap;">Schema</label>
+                                        <input type="text" id="jgNickPattern" value="{prefix}{year}-{suffix}" autocomplete="off" spellcheck="false" style="font-family:Consolas,monospace;font-size:0.88em;">
+                                    </div>
+                                    <p class="muted" style="margin:0 0 4px;font-size:0.82em;">
+                                        Platzhalter: <code>{prefix}</code> <code>{year}</code> <code>{suffix}</code> <code>{klasse}</code> <code>{kv}</code><br>
+                                        Vorschau: <code id="jgNickPreview">jg2031-AK</code>
+                                    </p>
+                                    <label class="checkbox-label" style="margin:0 0 6px;font-size:0.88em;">
+                                        <input type="checkbox" id="jgNickUpper">
+                                        <span>Kürzel/Schema groß schreiben</span>
                                     </label>
                                 </div>
-                                <p class="muted" style="margin:6px 0 0; font-size:0.82em;">Klassenvorstände werden über die E‑Mail in den Stammdaten (<a href="../tenant.html#classes">Stammdaten → Klassen</a>) gesetzt. Mindestens eine Option muss aktiv sein.</p>
-                            </div>
-                            <div class="jg-bulk-group" role="group" aria-label="Mitglieder-Abgleich">
-                                <div class="jg-bulk-group-label">Mitglieder-Abgleich</div>
-                                <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">
-                                    <label class="checkbox-label" style="margin:0;">
-                                        <input type="checkbox" id="jgMembersStudentsOnly" checked>
-                                        <span>Nur Schüler:innen aufnehmen (Lehrkräfte/KV aus Stammliste ausfiltern)</span>
-                                    </label>
-                                    <label class="checkbox-label" style="margin:0;">
-                                        <input type="checkbox" id="jgOwnersNotMembers" checked>
-                                        <span>Klassenvorstand nur als Besitzer, nicht als Mitglied</span>
-                                    </label>
-                                </div>
-                                <p class="muted" style="margin:6px 0 0; font-size:0.82em;">
-                                    Verhindert, dass der Klassenvorstand beim „Gruppe zum Kursteam hinzufügen“ in Teams als Mitglied mitwandert.
-                                </p>
-                            </div>
-                            <div class="jg-bulk-group" role="group" aria-label="Microsoft Teams">
-                                <div class="jg-bulk-group-label">Microsoft Teams</div>
-                                <label class="checkbox-label" style="margin:0;">
-                                    <input type="checkbox" id="jgBulkCreateTeam" checked>
-                                    <span>Beim Anlegen auch Microsoft Team bereitstellen</span>
-                                </label>
-                                <p class="muted" style="margin:6px 0 0; font-size:0.82em;">Gilt für <strong>Anlegen &amp; matchen</strong> (Sammelaktion und rechts im Detail). SharePoint und Teams hängen am Gruppen-Alias.</p>
-                            </div>
-                            <div class="jg-bulk-group" role="group" aria-label="Auswahl">
-                                <div class="jg-bulk-group-label">Auswahl</div>
-                                <div class="jg-bulk-toolbar">
-                                    <button type="button" class="btn btn-ghost" id="jgBtnSelectUnmatched" title="Alle ungematchten Klassen (rote Badges) in der aktuellen Liste ankreuzen"><i class="bi bi-exclamation-circle"></i>Ungematchte ankreuzen</button>
-                                    <button type="button" class="btn btn-ghost" id="jgBtnSelectMatched" title="Alle gematchten Klassen in der aktuellen Liste ankreuzen"><i class="bi bi-check2-all"></i>Gematchte ankreuzen</button>
-                                    <button type="button" class="btn btn-ghost" id="jgBtnSelectNone" title="Alle Häkchen in der Klassenliste entfernen"><i class="bi bi-x-square"></i>Auswahl aufheben</button>
-                                </div>
-                            </div>
-                            <div class="jg-bulk-group" role="group" aria-label="Aktionen">
-                                <div class="jg-bulk-group-label">Aktionen</div>
-                                <div class="jg-bulk-actions">
-                                    <button type="button" class="btn btn-success jg-bulk-tile" id="jgBtnBulkCreate" title="Für angekreuzte ungematchte Klassen je eine Microsoft‑365‑Gruppe anlegen und direkt matchen">
-                                        <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">Anlegen &amp; matchen<small>ungematchte Klassen</small></span>
-                                    </button>
-                                    <button type="button" class="btn btn-success jg-bulk-tile" id="jgBtnBulkSyncMembers" title="Schüler:innen der Stammliste in die angekreuzten Klassengruppen übernehmen">
-                                        <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">Mitglieder<small>Stammliste abgleichen</small></span>
-                                    </button>
-                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnBulkOwner" title="Eine Person als Besitzer zu den angekreuzten Gruppen hinzufügen">
-                                        <i class="bi bi-person-plus" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">Besitzer setzen<small>Person hinzufügen</small></span>
-                                    </button>
-                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnSmtpAll" title="Exchange-Skript: primäre SMTP aller gematchten Klassen auf die Schul-Domain setzen">
-                                        <i class="bi bi-envelope-at" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">SMTP-Skript<small>alle Klassen</small></span>
-                                    </button>
-                                    <button type="button" class="btn btn-danger jg-bulk-tile" id="jgBtnBulkDelete" title="Angekreuzte Microsoft-365-Gruppen löschen">
-                                        <i class="bi bi-trash" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">Löschen<small>ausgewählte Gruppen</small></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="jg-bulk-owner" id="jgBulkOwnerPanel" hidden>
-                                <div class="field">
-                                    <label for="jgBulkOwnerSearch">Benutzer suchen (wird Besitzer aller ausgewählten Gruppen)</label>
-                                    <div class="jg-bulk-owner-row">
-                                        <input type="text" id="jgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                        <button type="button" class="btn" id="jgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
+                                <div class="jg-bulk-group" role="group" aria-label="Besitzer beim Anlegen">
+                                    <div class="jg-bulk-group-label">Besitzer beim Anlegen</div>
+                                    <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">
+                                        <label class="checkbox-label" style="margin:0;">
+                                            <input type="checkbox" id="jgOwnerUseKV" checked>
+                                            <span>Klassenvorstand (aus Stammdaten) als Besitzer</span>
+                                        </label>
+                                        <label class="checkbox-label" style="margin:0;">
+                                            <input type="checkbox" id="jgOwnerUseDirektion">
+                                            <span>Direktion als Besitzer</span>
+                                        </label>
                                     </div>
                                 </div>
-                                <div class="field">
-                                    <label for="jgBulkOwnerResults">Treffer</label>
-                                    <div class="jg-bulk-owner-row">
-                                        <select id="jgBulkOwnerResults"></select>
-                                        <button type="button" class="btn btn-success" id="jgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
+                                <div class="jg-bulk-group" role="group" aria-label="Mitglieder-Abgleich">
+                                    <div class="jg-bulk-group-label">Mitglieder-Abgleich</div>
+                                    <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">
+                                        <label class="checkbox-label" style="margin:0;">
+                                            <input type="checkbox" id="jgMembersStudentsOnly" checked>
+                                            <span>Nur Schüler:innen aufnehmen</span>
+                                        </label>
+                                        <label class="checkbox-label" style="margin:0;">
+                                            <input type="checkbox" id="jgOwnersNotMembers" checked>
+                                            <span>Klassenvorstand nur als Besitzer, nicht als Mitglied</span>
+                                        </label>
                                     </div>
                                 </div>
+                                <div class="jg-bulk-group" role="group" aria-label="Microsoft Teams">
+                                    <div class="jg-bulk-group-label">Microsoft Teams</div>
+                                    <label class="checkbox-label" style="margin:0;">
+                                        <input type="checkbox" id="jgBulkCreateTeam" checked>
+                                        <span>Beim Anlegen auch Microsoft Team bereitstellen</span>
+                                    </label>
+                                </div>
                             </div>
-                            </div>
-                            <p class="jg-bulk-status muted" id="jgBulkStatus" hidden></p>
                         </details>
+                        <div class="jg-bulk-owner" id="jgBulkOwnerPanel" hidden>
+                            <div class="field">
+                                <label for="jgBulkOwnerSearch">Benutzer suchen (wird Besitzer aller ausgewählten Gruppen)</label>
+                                <div class="jg-bulk-owner-row">
+                                    <input type="text" id="jgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
+                                    <button type="button" class="btn" id="jgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="jgBulkOwnerResults">Treffer</label>
+                                <div class="jg-bulk-owner-row">
+                                    <select id="jgBulkOwnerResults"></select>
+                                    <button type="button" class="btn btn-success" id="jgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="jg-bulk-status muted" id="jgBulkStatus" hidden></p>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
                             <a href="../tenant.html#classes" style="text-decoration:none; color:inherit;"><i class="bi bi-gear"></i> Stammdaten</a>
                             · <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung</a>
@@ -501,11 +482,8 @@
                 <div class="gd-page-info__body">
                     <p>
                         <strong>Quelle:</strong> <a href="../tenant.html#classes">Stammdaten</a> (Klassen des aktuellen Schuljahrs).
-                        Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
-                        Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
-                        Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Klassenkürzel.
-                        Die Sammelaktion <strong>Mitglieder</strong> gleicht angekreuzte Gruppen mit der Schülerliste in den Stammdaten ab.
-                        Optionen: nur Schüler:innen aufnehmen und Klassenvorstand nur als Besitzer (nicht als Mitglied) belassen.
+                        Neue Einträge über <strong>Neue Klasse</strong> werden dort ebenfalls gespeichert.
+                        Mehrfachaktionen erscheinen erst nach Auswahl. Einstellungen für Nickname, Teams und Abgleich liegen unter <strong>Einstellungen für Anlegen &amp; Abgleich</strong>.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
@@ -556,6 +534,7 @@
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
@@ -571,6 +550,6 @@
     <script type="module" src="../src/shared/membership-import-ui.js"></script>
     <script type="module" src="../src/shared/membership-review-ui.js"></script>
     <script type="module" src="../src/tools/jahrgangsgruppen/jahrgangsgruppen.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

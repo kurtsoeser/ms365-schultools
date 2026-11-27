@@ -1,0 +1,173 @@
+/**
+ * Fluent-Ruhe für Mitgliedschafts-Tools (Jahrgangsgruppen, KV, ARGE, SLG, Verwaltung).
+ * Listen flach, Teal-Primary, Tabellen ruhig – keine Fachlogik.
+ * `.vw-page` teilt die gleichen Regeln (Verwaltung Master-Detail).
+ */
+
+:is(.mg-page, .vw-page) .content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 24px;
+}
+
+.mg-hero {
+    margin: 0 0 2px;
+}
+
+.mg-hero .fb-greet {
+    margin: 0 0 6px;
+}
+
+.mg-hero .fb-sub {
+    margin: 0;
+    max-width: 68ch;
+}
+
+:is(.mg-page, .vw-page) .panel {
+    border-radius: 12px;
+    box-shadow: none;
+    border-color: var(--border);
+}
+
+:is(.mg-page, .vw-page) .gd-master-head__titles h2 {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+:is(.mg-page, .vw-page) .gd-master-head__count {
+    font-size: 0.84rem;
+    color: var(--muted);
+}
+
+:is(.mg-page, .vw-page) .tree button:hover {
+    background: color-mix(in srgb, var(--heading) 4%, transparent);
+}
+
+:is(.mg-page, .vw-page) .tree button[aria-current='true'] {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+    box-shadow: inset 3px 0 0 var(--brand1);
+}
+
+:is(.mg-page, .vw-page) .tree button .slg-side-count .n {
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+}
+
+:is(.mg-page, .vw-page) .tree input[type='checkbox'] {
+    accent-color: var(--brand1);
+}
+
+:is(.mg-page, .vw-page) .kv-class-table-wrap,
+:is(.mg-page, .vw-page) .sp-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: auto;
+    background: var(--card);
+}
+
+:is(.mg-page, .vw-page) .kv-class-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+:is(.mg-page, .vw-page) .kv-class-table th,
+:is(.mg-page, .vw-page) .kv-class-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+:is(.mg-page, .vw-page) .kv-class-table th:nth-child(1),
+:is(.mg-page, .vw-page) .kv-class-table td:nth-child(1) {
+    width: 18%;
+    white-space: nowrap;
+}
+:is(.mg-page, .vw-page) .kv-class-table th:nth-child(3),
+:is(.mg-page, .vw-page) .kv-class-table td:nth-child(3) {
+    min-width: 14rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+:is(.mg-page, .vw-page) .kv-class-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: color-mix(in srgb, var(--heading) 3%, var(--card));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+:is(.mg-page, .vw-page) .kv-class-table tbody tr:hover td {
+    background: color-mix(in srgb, var(--brand1) 5%, transparent);
+}
+
+:is(.mg-page, .vw-page) .kv-class-table .kv-missing {
+    color: color-mix(in srgb, #b42318 80%, var(--heading));
+}
+
+:is(.mg-page, .vw-page) .kv-class-table .kv-ok {
+    color: var(--muted);
+}
+
+:is(.mg-page, .vw-page) .jg-match-badge.is-ok {
+    color: color-mix(in srgb, #0e7a0b 85%, var(--heading));
+    font-weight: 650;
+}
+
+:is(.mg-page, .vw-page) .afg-kind-switch .btn {
+    border-radius: 8px;
+    font-weight: 550;
+}
+
+:is(.mg-page, .vw-page) .afg-kind-switch .btn[aria-pressed='true'] {
+    background: var(--card);
+    border-color: transparent;
+    color: var(--heading);
+    font-weight: 650;
+}
+
+:is(.mg-page, .vw-page) .afg-subject-pick {
+    max-height: 160px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: color-mix(in srgb, var(--heading) 2%, var(--card));
+}
+
+:is(.mg-page, .vw-page) .afg-subject-pick label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    margin: 0;
+    padding: 6px 0;
+    cursor: pointer;
+}
+
+:is(.mg-page, .vw-page) .afg-subject-pick label + label {
+    border-top: 1px solid var(--border);
+}
+
+:is(.mg-page, .vw-page) .gd-page-info {
+    border-radius: 10px;
+}
+
+:is(.mg-page, .vw-page) .jg-bulk-tile {
+    border-radius: 10px;
+}
+
+html[data-theme='dark'] :is(.mg-page, .vw-page) .kv-class-table .kv-missing {
+    color: #ff99a1;
+}
+
+html[data-theme='dark'] :is(.mg-page, .vw-page) .jg-match-badge.is-ok {
+    color: #7ee27a;
+}

@@ -1,7 +1,8 @@
 /**
- * First-Run-Tour für Schul-IT: Willkommen → Dashboard-Spotlight → Stammdaten-Fortsetzung.
+ * First-Run-Tour für Schul-IT: Willkommen → Portal, IT-Leiste, Stammdaten, Tool-Site.
  */
 import { getDashboardPersonas } from './dashboard-persona-session.js';
+import { readItShellChoice } from './dashboard-layout-mode.js';
 import {
     chipLabelFromPhase,
     isFirstSaveTipDone,
@@ -21,7 +22,7 @@ import { openWelcomeTour, startSpotlightTour } from './product-tour.js';
 import { activateStammdatenSetupPane } from './tenant-stammdaten-setup-nav.js';
 
 const FEEDBACK_HINT =
-    '<p><strong>Feedback ist erwünscht.</strong> In den Pilotwochen hilft uns jeder Hinweis – unten in der Fußzeile unter <em>Feedback</em> oder jederzeit über denselben Dialog.</p>';
+    '<p><strong>Feedback ist erwünscht.</strong> In den Pilotwochen hilft uns jeder Hinweis – über das Fragezeichen unten rechts, Eintrag <em>Feedback</em>.</p>';
 
 function openFeedbackPrefill(title) {
     try {
@@ -34,6 +35,16 @@ function openFeedbackPrefill(title) {
     }
     try {
         document.querySelector('.site-feedback-link')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    } catch {
+        /* ignore */
+    }
+}
+
+function openFooterHelp() {
+    try {
+        if (window.ms365FooterHelp && typeof window.ms365FooterHelp.open === 'function') {
+            window.ms365FooterHelp.open();
+        }
     } catch {
         /* ignore */
     }
@@ -88,6 +99,78 @@ function activateTenantMainTab(tabId) {
     } catch {
         /* ignore */
     }
+}
+
+function isItPortalLayout() {
+    try {
+        const api = window.ms365DashboardAudience;
+        if (api && typeof api.getLayoutMode === 'function') {
+            const mode = String(api.getLayoutMode() || '');
+            return (
+                mode === 'preview-lehrer' ||
+                mode === 'preview-schueler' ||
+                mode === 'apps-lehrer' ||
+                mode === 'apps-schueler'
+            );
+        }
+    } catch {
+        /* ignore */
+    }
+    try {
+        return document.documentElement.hasAttribute('data-dash-app-only');
+    } catch {
+        return false;
+    }
+}
+
+/** Gemerkte Ansicht, falls die Tour nur für die Backend-Schritte auf IT schaltet. */
+let itTourLayoutRestore = '';
+
+/** IT-Schritte brauchen das Backend. Die gespeicherte Portal-Wahl bleibt danach erhalten. */
+function ensureItBackend() {
+    try {
+        const api = window.ms365DashboardAudience;
+        if (!api || typeof api.setLayoutMode !== 'function') return;
+        const current = typeof api.getLayoutMode === 'function' ? String(api.getLayoutMode() || '') : '';
+        // Gespeicherte IT-Wahl nie auf Portal zurückschreiben (Tour-Restore).
+        if (readItShellChoice() === 'full') {
+            itTourLayoutRestore = '';
+            if (current !== 'full') api.setLayoutMode('full');
+            return;
+        }
+        if (current === 'full') return;
+        if (!itTourLayoutRestore) itTourLayoutRestore = current || 'preview-lehrer';
+        api.setLayoutMode('full');
+    } catch {
+        /* ignore */
+    }
+}
+
+function restoreItTourLayout() {
+    const mode = itTourLayoutRestore;
+    if (!mode) return;
+    itTourLayoutRestore = '';
+    try {
+        const api = window.ms365DashboardAudience;
+        if (api && typeof api.setLayoutMode === 'function') api.setLayoutMode(mode);
+    } catch {
+        /* ignore */
+    }
+}
+
+/**
+ * @param {string} taskId
+ */
+async function selectItArea(taskId) {
+    ensureItBackend();
+    await waitForSelector('#dashTasksSplit, #' + taskId, 2500);
+    try {
+        const api = window.ms365DashTasksSplit;
+        if (api && typeof api.select === 'function') api.select(taskId, { pulse: false });
+    } catch {
+        /* ignore */
+    }
+    await waitForSelector('#' + taskId, 1500);
 }
 
 /** @param {'tasks'|'catalog'|'playbooks'} section */
@@ -187,23 +270,24 @@ function welcomePanels() {
     return [
         {
             id: 'role',
-            title: 'Sie sind als Schul-IT unterwegs',
+            title: 'Zwei Ansichten: Portal und IT',
             bodyHtml:
-                '<p>Als Tenant-Administrator sehen Sie das <strong>IT-Backend</strong>: Stammdaten, Playbooks, Gruppenhygiene und die Einrichtung der Schul-Apps.</p>' +
-                '<ul><li>Admin-Zustimmung (Consent) in Microsoft&nbsp;365 freigeben</li>' +
-                '<li>Schuldaten einmal zentral pflegen – die Apps greifen darauf zu</li>' +
-                '<li>Lehrkräfte und Schüler:innen sehen später ihr Portal, nicht dieses Backend</li></ul>'
+                '<p>Als Schul-IT starten Sie im <strong>Portal</strong> – derselben Startseite, die Lehrkräfte und Schüler:innen sehen. Oben rechts schalten Sie auf <strong>IT</strong>, das Einrichtungs-Backend.</p>' +
+                '<ul><li><strong>Portal:</strong> Begrüßung, Kacheln „Für dich“, Schnellzugriff und Meine Apps</li>' +
+                '<li><strong>IT:</strong> linke Leiste mit Stammdaten, MS365 Mitgliedschaft, Klassen, Schul-Apps und den übrigen Bereichen</li>' +
+                '<li>Die Schüler-Vorschau liegt im Kontomenü</li></ul>'
         },
         {
             id: 'stammdaten',
-            title: 'Sinnvoller Start: Stammdaten + Tool-Site',
+            title: 'Sinnvoller Start im IT-Bereich',
             bodyHtml:
                 '<p>Empfohlene Reihenfolge für neue Schulen:</p>' +
-                '<ul><li><strong>Schulprofil</strong> – Name, Domain, Logo</li>' +
-                '<li><strong>Lehrkräfte &amp; Klassen</strong> – Import (z. B. WebUntis) oder manuell</li>' +
-                '<li><strong>Primär-Site (SharePoint)</strong> – Website im Schul-Tenant für die Tool-Listen</li>' +
-                '<li>Danach die Blaupause <strong>Erste Einrichtung</strong> (Playbook) abhaken</li></ul>' +
-                '<p class="muted">Die Tour orientiert nur – die Checkliste im Playbook ist die Arbeitsgrundlage.</p>'
+                '<ul><li><strong>Stammdaten → Schulprofil</strong> – Name, Domain, Logo, danach E-Mail-Muster</li>' +
+                '<li><strong>Lehrer, Klassen, Fächer</strong> – in derselben Leiste, Import (z. B. WebUntis) oder manuell</li>' +
+                '<li><strong>Schulprofil → Planer &amp; Apps</strong> – SharePoint-Website für die Tool-Listen</li>' +
+                '<li><strong>Blaupause Erste Einrichtung</strong> – unter Stammdaten bei „Mehr …“</li>' +
+                '<li><strong>Schul-Apps → Portal vorbereiten</strong> – damit im Portal Apps und Kacheln erscheinen</li></ul>' +
+                '<p class="muted">Die Tour orientiert. Abhaken tun Sie in der Blaupause.</p>'
         },
         {
             id: 'feedback',
@@ -217,49 +301,95 @@ function welcomePanels() {
 }
 
 function dashboardSpotlightSteps() {
-    return [
+    const steps = [];
+
+    if (isItPortalLayout()) {
+        steps.push(
+            {
+                id: 'portal-home',
+                selector: '.dash-portal-hero, #dashQuickApps',
+                title: 'Das Portal, das alle sehen',
+                bodyHtml:
+                    '<p>Das ist die Startseite für Lehrkräfte und Schüler:innen – und Ihr Standard, bis Sie auf <strong>IT</strong> schalten.</p>' +
+                    '<p>Unter der Begrüßung liegen die Kacheln <strong>Für dich</strong> (Termine, offene Anträge, Aufgaben), danach Schnellzugriff und <strong>Meine Apps</strong>. Die Kacheln kann jede Person selbst anordnen.</p>',
+                placement: 'bottom',
+                before: async () => {
+                    restoreItTourLayout();
+                    await waitForSelector('.dash-portal-hero, #dashPortalBriefing, #dashQuickApps', 2500);
+                }
+            },
+            {
+                id: 'portal-tiles',
+                selector: '#dashPortalBriefing:not([hidden]), .dash-portal-section[aria-label="Meine Apps"]',
+                title: 'Kacheln „Für dich“',
+                bodyHtml:
+                    '<p>Sobald ein Werkzeug freigeschaltet ist und Daten hat, erscheint es hier als Kachel: heute, nächste Termine, Aktivitäten, Freistellungen, Schularbeiten, Aufgaben, Elternbriefe, Technik.</p>' +
+                    '<p><strong>Anordnen</strong> verschiebt, vergrößert, ergänzt oder entfernt Kacheln. <em>Fertig</em> speichert das für dieses Konto auf diesem Gerät. Welche Kacheln es überhaupt gibt, entscheiden Sie unter <strong>Schul-Apps → Portal vorbereiten</strong>.</p>',
+                placement: 'top',
+                before: async () => {
+                    restoreItTourLayout();
+                    await waitForSelector(
+                        '#dashPortalBriefing:not([hidden]), .dash-portal-section[aria-label="Meine Apps"]',
+                        4000
+                    );
+                }
+            }
+        );
+    }
+
+    steps.push(
         {
-            id: 'greeting',
-            selector: '#dashGreetingBand',
-            title: 'Ihr IT-Überblick',
+            id: 'switch',
+            selector: '#ms365HeaderShellSwitch, #ms365AuthWidget',
+            title: 'Umschalter Portal / IT',
             bodyHtml:
-                '<p>Hier sehen Sie Begrüßung und Kurzstatus. Als Schul-IT ist das der Einstieg ins Backend – nicht die Lehrer-Portal-Ansicht.</p>',
+                '<p>Oben rechts: <strong>Portal</strong> ist die Alltags-Startseite, <strong>IT</strong> die Einrichtung. Die Schüler-Vorschau bleibt im Kontomenü.</p>' +
+                '<p>Als Nächstes wechseln wir ins IT-Backend – dort liegen Stammdaten, Bereiche und Portal vorbereiten.</p>',
             placement: 'bottom',
             before: async () => {
+                await waitForSelector('#ms365HeaderShellSwitch, #ms365AuthWidget', 2500);
+            }
+        },
+        {
+            id: 'rail',
+            selector: '#itWorkspaceNav, #dashTasksSplit .dash-tasks-split__nav',
+            title: 'IT-Bereiche in der Leiste',
+            bodyHtml:
+                '<p>Links liegen die Bereiche, jeder klappt seine Werkzeuge auf: <strong>Stammdaten</strong>, MS365 Mitgliedschaft, Klassen &amp; Unterricht, Personen, Schuljahresstart, Intranet, <strong>Schul-Apps</strong>, Aufräumen.</p>' +
+                '<p>Playbooks und Katalog sind keine eigenen Reiter mehr – die Checklisten hängen im passenden Bereich. Die Suche darüber findet Werkzeuge über alle Bereiche.</p>',
+            placement: 'right',
+            padding: 6,
+            before: async () => {
                 setDashboardMainSection('tasks');
+                ensureItBackend();
+                await waitForSelector('#itWorkspaceNav, #dashTasksSplit .dash-tasks-split__nav', 2500);
             }
         },
         {
             id: 'import',
             selector: '#dashTaskImportVerknuepfen',
-            title: 'Blaupause: Erste Einrichtung',
+            title: 'Stammdaten und Blaupause',
             bodyHtml:
-                '<p>Das Playbook <strong>Erste Einrichtung</strong> ist Ihre Checkliste – nicht nur „Daten importieren“, sondern der rote Faden: Profil, Tool-Site, Import, Verknüpfen, Sicherung.</p>' +
-                '<p>Die Tour hier orientiert nur; im Playbook arbeiten Sie die Schritte mit Haken ab.</p>',
-            placement: 'right',
+                '<p>Der erste Bereich heißt ohne Schuldaten <strong>Erste Einrichtung</strong>, mit Daten <strong>Stammdaten</strong>. In der Leiste: Schulprofil, Lehrer, Klassen, Fächer – Import und Blaupause unter <em>Mehr …</em>.</p>' +
+                '<p>Die Blaupause ist die Checkliste: Profil, Tool-Site, Import, Verknüpfen, Sicherung. Die Tour hier orientiert nur.</p>',
+            placement: 'left',
             padding: 6,
             before: async () => {
                 setDashboardMainSection('tasks');
-                await waitForSelector('#dashTaskImportVerknuepfen', 1500);
+                await selectItArea('dashTaskImportVerknuepfen');
             }
         },
         {
-            id: 'playbooks',
-            selector: '#dashTaskSchuljahr, [data-task-id="dashTaskSchuljahr"]',
-            title: 'Weitere Playbooks in den Bereichen',
+            id: 'schulapps',
+            selector: '#dashTaskSchulApps, [data-task-id="dashTaskSchulApps"]',
+            title: 'Schul-Apps und Portal vorbereiten',
             bodyHtml:
-                '<p>Schuljahresstart, Intranet, Freistellungen &amp; Co. sitzen in der linken Navigation – jeweils in der passenden Gruppe. Zuerst Fundament und Import-Checkliste.</p>',
-            placement: 'right',
+                '<p><strong>Portal vorbereiten</strong> gibt frei, was Lehrkräfte und Schüler:innen auf der Startseite sehen: Apps in den Bereichen und die Kacheln „Für dich“.</p>' +
+                '<p>Dieselben Schul-Apps (Schularbeiten, Freistellungen, Elternsprechtag …) richten Sie hier ein. Schuljahresstart, Intranet und Aufräumen sind eigene Bereiche in derselben Leiste.</p>',
+            placement: 'left',
             before: async () => {
                 setDashboardMainSection('tasks');
-                try {
-                    if (window.ms365DashTasksSplit && typeof window.ms365DashTasksSplit.select === 'function') {
-                        window.ms365DashTasksSplit.select('dashTaskSchuljahr', { pulse: false });
-                    }
-                } catch {
-                    /* ignore */
-                }
-                await waitForSelector('#dashTaskSchuljahr, [data-task-id="dashTaskSchuljahr"]', 1500);
+                await selectItArea('dashTaskSchulApps');
             }
         },
         {
@@ -269,10 +399,11 @@ function dashboardSpotlightSteps() {
             primaryLabel: 'Zur Blaupause (Playbook)',
             bodyHtml:
                 FEEDBACK_HINT +
-                '<p>Als Nächstes: Playbook öffnen – oder kurz Stammdaten-Schulprofil ansehen und dann die Checkliste.</p>',
+                '<p>Als Nächstes die Blaupause öffnen – oder im Bereich Stammdaten das Schulprofil ansehen und danach die Checkliste abhaken. Portal vorbereiten folgt, sobald Profil und Tool-Site stehen.</p>',
             placement: 'top',
             before: async () => {
-                await waitForSelector('.site-feedback-link', 3000);
+                await waitForSelector('.site-feedback-link, #appFooterHelpBtn', 3000);
+                openFooterHelp();
             },
             onPrimary: async () => {
                 markWelcomeTourDone(localStorage, 'seen');
@@ -281,7 +412,9 @@ function dashboardSpotlightSteps() {
                 return 'finish';
             }
         }
-    ];
+    );
+
+    return steps;
 }
 
 function stammdatenSpotlightSteps() {
@@ -316,7 +449,7 @@ function stammdatenSpotlightSteps() {
             selector: '#tabMainLehrer, #panelMainLehrer',
             title: '3 · Lehrkräfte eintragen',
             bodyHtml:
-                '<p>Aus Microsoft&nbsp;365 übernehmen, WebUntis/CSV importieren oder manuell pflegen. Die Apps brauchen diese Liste für Rollen und Zielgruppen.</p>',
+                '<p>In der Leiste unter <strong>Personen → Lehrer</strong>. Aus Microsoft&nbsp;365 übernehmen, WebUntis/CSV importieren oder manuell pflegen. Die Apps brauchen diese Liste für Rollen und Zielgruppen.</p>',
             placement: 'bottom',
             before: async () => {
                 activateTenantMainTab('tabMainLehrer');
@@ -328,7 +461,7 @@ function stammdatenSpotlightSteps() {
             selector: '#tabMainKlassen, #panelMainKlassen',
             title: '4 · Klassen',
             bodyHtml:
-                '<p>Klassenliste mit Klassenvorstand – Grundlage für Gruppen, Planer und Kommunikation.</p>',
+                '<p>Unter <strong>Unterricht → Klassen</strong>, mit Klassenvorstand. Daneben liegen Fächer, ARGE und Lehrer je Klasse – Grundlage für Gruppen, Planer und Kommunikation.</p>',
             placement: 'bottom',
             before: async () => {
                 activateTenantMainTab('tabMainKlassen');
@@ -336,18 +469,33 @@ function stammdatenSpotlightSteps() {
             }
         },
         {
+            id: 'tool-site',
+            selector: '#tenantPlanerSitesPanel, #tenantPlanerDefaultSiteUrl, [data-stammdaten-pane="spo-planer"]',
+            title: '5 · Planer & Apps',
+            bodyHtml:
+                '<p>Unter <strong>Schulprofil → SharePoint &amp; Dienste → Planer &amp; Apps</strong> die Website im Schul-Tenant eintragen. Dort liegen die Listen der Schul-Apps.</p>' +
+                '<p>Ohne diese Tool-Site bleiben Freistellungen, Schularbeiten, Aktivitäten und die Kacheln im Portal leer.</p>',
+            placement: 'right',
+            before: async () => {
+                activateTenantMainTab('tabMainStammdaten');
+                activateStammdatenPane('spo-planer');
+                await waitForSelector('#tenantPlanerSitesPanel, #tenantPlanerDefaultSiteUrl', 2000);
+            }
+        },
+        {
             id: 'feedback-end',
             selector: '.site-feedback-link, #siteCreditKurtrocks',
-            title: 'Als Nächstes: Blaupause',
+            title: 'Als Nächstes: Blaupause, dann Portal',
             primaryLabel: 'Blaupause öffnen',
             bodyHtml:
-                '<p>Schulprofil können Sie jederzeit nachziehen. Die Checkliste <strong>Erste Einrichtung</strong> führt Import, Verknüpfen und Sicherung – dort arbeiten Sie mit Haken weiter.</p>' +
+                '<p>Die Checkliste <strong>Erste Einrichtung</strong> (Stammdaten → Mehr …) führt Import, Verknüpfen und Sicherung. Danach <strong>Schul-Apps → Portal vorbereiten</strong>, damit die Startseite der Lehrkräfte Apps und Kacheln zeigt.</p>' +
                 FEEDBACK_HINT,
             placement: 'top',
             before: async () => {
                 activateTenantMainTab('tabMainStammdaten');
                 activateStammdatenPane('profile');
-                await waitForSelector('.site-feedback-link', 2500);
+                await waitForSelector('.site-feedback-link, #appFooterHelpBtn', 2500);
+                openFooterHelp();
             },
             onPrimary: async () => {
                 window.location.href = 'tools/playbook-daten-import-verknuepfen.html';
@@ -480,7 +628,7 @@ function itLibraryTipStep(primaryLabel) {
         primaryLabel: primaryLabel || 'Verstanden',
         bodyHtml:
             '<p>Die Daten liegen zuerst <strong>nur in diesem Browser</strong>. Legen Sie bitte die <strong>IT-Sicherungsbibliothek</strong> in SharePoint an – dann können Sie manuell sichern und laden (mit Versionierung).</p>' +
-            '<p>Im Panel: <em>IT-Sicherungsbibliothek einrichten</em> – oder unter Stammdaten → SharePoint &amp; Dienste.</p>' +
+            '<p>Im Panel: <em>IT-Sicherungsbibliothek einrichten</em>. Die Tool-Listen der Apps sind eine andere Website: Schulprofil → Planer &amp; Apps.</p>' +
             FEEDBACK_HINT,
         placement: 'bottom',
         before: async () => {
@@ -512,8 +660,8 @@ function firstSaveTipSteps() {
             selector: '#tenantPlanerSitesPanel, #tenantPlanerDefaultSiteUrl, [data-stammdaten-pane="spo-planer"]',
             title: 'Schul-SharePoint für die Tools',
             bodyHtml:
-                '<p>Damit Lehrkräfte Schulaktivitäten, Freistellungen &amp; Co. nutzen können, brauchen die Apps eine <strong>SharePoint-Website in Ihrem Schul-Tenant</strong> – dort liegen die Listen.</p>' +
-                '<p>Unter <strong>Stammdaten → Planer &amp; Apps</strong> die Primär-Site eintragen und prüfen. Diese URL wird automatisch dem Betreiber gemeldet (Feld „Tool-Site-URL“), damit das System weiß, wo Ihre Schule arbeitet.</p>',
+                '<p>Damit Lehrkräfte Schulaktivitäten, Freistellungen und die Kacheln auf der Startseite nutzen können, brauchen die Apps eine <strong>SharePoint-Website in Ihrem Schul-Tenant</strong> – dort liegen die Listen.</p>' +
+                '<p>Unter <strong>Schulprofil → SharePoint &amp; Dienste → Planer &amp; Apps</strong> die Primär-Site eintragen und prüfen. Diese URL wird automatisch dem Betreiber gemeldet (Feld „Tool-Site-URL“).</p>',
             placement: 'right',
             before: async () => {
                 activateTenantMainTab('tabMainStammdaten');
@@ -770,7 +918,7 @@ export async function startItDashboardFirstRun(opts) {
 
     openWelcomeTour(welcomePanels(), {
         title: 'Willkommen, Schul-IT',
-        lead: 'Die nächsten Minuten: Orientierung, Stammdaten-Pfad und Feedback-Kanal für die Pilotwochen.',
+        lead: 'Portal und IT-Bereich, Stammdaten-Pfad, Kacheln der Lehrkräfte und der Feedback-Kanal.',
         onComplete(reason) {
             if (reason === 'skipped') {
                 finishFirstRun('skipped');
@@ -780,6 +928,7 @@ export async function startItDashboardFirstRun(opts) {
             window.setTimeout(() => {
                 startSpotlightTour(dashboardSpotlightSteps(), {
                     onComplete(spotReason) {
+                        restoreItTourLayout();
                         if (readItFirstRunState(localStorage).phase === 'stammdaten') return;
                         finishFirstRun(spotReason === 'skipped' ? 'skipped' : 'done');
                     }

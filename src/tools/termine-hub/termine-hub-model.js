@@ -165,6 +165,7 @@ export function normalizeTermin(raw) {
         terminTyp: Object.values(TERMIN_TYP).includes(terminTyp) ? terminTyp : TERMIN_TYP.SONSTIGES,
         zielgruppe: String(o.zielgruppe || o.Zielgruppe || '').trim(),
         graphEventId: String(o.graphEventId || o.GraphEventId || o.OutlookEventID || '').trim(),
+        sourceId: String(o.sourceId || '').trim(),
         syncStatus: Object.values(SYNC_STATUS).includes(syncStatus) ? syncStatus : SYNC_STATUS.LOKAL,
         createdAt: String(o.createdAt || '').trim() || new Date().toISOString(),
         updatedAt: String(o.updatedAt || '').trim() || new Date().toISOString()

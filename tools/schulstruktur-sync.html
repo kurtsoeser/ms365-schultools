@@ -1,27 +1,77 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – MS 365 Gruppenverwaltung</title>
-    <link rel="stylesheet" href="../app.css?v=14">
-    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=2">
+    <link rel="stylesheet" href="../src/shared/membership-groups-fluent.css?v=2">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
+/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+
         .page-card { max-width: var(--app-max-width); margin: 0 auto; }
+        /* Fluent Master-Detail: kompakter Master, flexibler Detailbereich */
         .layout {
             display: grid;
-            /* 1/2 links (Liste), 1/2 rechts (Details) */
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            grid-template-columns: clamp(320px, 32vw, 440px) minmax(0, 1fr);
+            gap: 20px;
             align-items: start;
             padding-bottom: 28px;
         }
         @media (max-width: 1050px) {
             .layout { grid-template-columns: 1fr; }
+        }
+        .layout > .panel:first-child .panel-head h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        #ssTree button.is-matched .gd-sync-badge--ok,
+        #ssTree button .gd-sync-badge {
+            flex-shrink: 0;
+        }
+        #ssTenantBulkWrap.gd-selection-bar {
+            display: none;
+            margin: 0 0 12px;
+        }
+        #ssTenantBulkWrap.gd-selection-bar.is-active {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        #ssTenantBulkWrap .gd-selection-bar__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         .panel {
             border: 1px solid var(--border);
@@ -32,14 +82,14 @@
         .panel-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 10%, transparent) 0%, color-mix(in srgb, var(--brand2) 6%, transparent) 100%);
+            background: color-mix(in srgb, var(--brand1) 5%, var(--card));
         }
         .panel-head h2 { margin: 0; font-size: 1.05em; color: var(--heading); font-weight: 900; }
         .panel-body { padding: 14px 16px; }
         .muted { color: var(--muted); }
 
         .tree-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-        .tree-actions .btn { margin: 0; padding: 10px 12px; border-radius: 10px; }
+        .tree-actions .fb-btn { margin: 0; }
         .small-btn { padding: 8px 10px !important; font-size: 0.92em; }
 
         .tree-filter { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
@@ -50,7 +100,8 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             font: inherit;
-            background: #fff;
+            background: var(--input-bg, var(--card));
+            color: var(--text);
         }
         #ssTenantAdSummary .ss-ad-filter-link {
             appearance: none;
@@ -135,7 +186,7 @@
         .ss-modal-backdrop.active { display: flex; }
         .ss-modal {
             width: min(760px, 96vw);
-            background: #fff;
+            background: var(--input-bg, var(--card));
             border-radius: 16px;
             border: 1px solid color-mix(in srgb, var(--brand1) 22%, transparent);
             box-shadow: 0 24px 70px rgba(0,0,0,0.35);
@@ -144,22 +195,22 @@
         .ss-modal-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 10%, transparent) 0%, color-mix(in srgb, var(--brand2) 6%, transparent) 100%);
+            background: color-mix(in srgb, var(--brand1) 5%, var(--card));
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 10px;
         }
-        .ss-modal-head h3 { margin: 0; color: #32325d; font-size: 1.05em; font-weight: 1000; }
+        .ss-modal-head h3 { margin: 0; color: var(--heading); font-size: 1.05em; font-weight: 1000; }
         .ss-modal-body { padding: 14px 16px; }
         .ss-modal-close {
             border: 1px solid color-mix(in srgb, var(--brand1) 22%, transparent);
-            background: #fff;
+            background: var(--input-bg, var(--card));
             border-radius: 12px;
             padding: 8px 10px;
             cursor: pointer;
             font-weight: 900;
-            color: #32325d;
+            color: var(--heading);
         }
         /* Details-Popup (Organigramm): "schöne" Tabs */
         .ss-tabs {
@@ -175,8 +226,8 @@
             appearance: none;
             border: 1px solid color-mix(in srgb, var(--brand1) 18%, transparent);
             border-bottom: 0;
-            background: linear-gradient(180deg, color-mix(in srgb, var(--brand1) 6%, transparent) 0%, rgba(255,255,255,0.92) 100%);
-            color: #32325d;
+            background: color-mix(in srgb, var(--brand1) 4%, var(--card));
+            color: var(--heading);
             border-top-left-radius: 14px;
             border-top-right-radius: 14px;
             padding: 10px 12px;
@@ -187,7 +238,7 @@
         }
         .ss-tab-btn.active,
         .ss-tab-btn[aria-selected="true"] {
-            background: #fff;
+            background: var(--input-bg, var(--card));
             border-color: color-mix(in srgb, var(--brand1) 30%, transparent);
             box-shadow: 0 12px 22px color-mix(in srgb, var(--brand1) 16%, transparent);
             transform: translateY(1px);
@@ -228,10 +279,12 @@
         .field input, .field select, .field textarea {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--border);
             border-radius: 10px;
             font: inherit;
             box-sizing: border-box;
+            background: var(--input-bg, var(--card));
+            color: var(--text);
         }
         .ss-modal .field input,
         .ss-modal .field select,
@@ -368,8 +421,8 @@
         .bulk-disabled { opacity: 0.55; pointer-events: none; filter: grayscale(0.15); }
     </style>
 </head>
-<body data-ms365-skip-tenant-domain-prompt="true" data-ss-default-mode="tenant">
-    <div class="container page-card">
+<body class="app-shell-chrome" data-ms365-skip-tenant-domain-prompt="true" data-ss-default-mode="tenant">
+    <div class="container page-card tm-page ss-page mg-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
@@ -381,13 +434,13 @@
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;">
-                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                        <a class="fb-btn fb-btn--ghost" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                        <a class="btn" href="leere-gruppen-report.html?problem=no-owners" style="text-decoration:none;display:inline-block;"><i class="bi bi-clipboard2-pulse"></i>Hygiene</a>
-                        <a class="btn" href="weitere-teams-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-magic"></i>Wizard: weitere Gruppen</a>
-                        <button type="button" class="btn" id="ssBtnExport"><i class="bi bi-download"></i>Export (JSON)</button>
-                        <label class="btn" for="ssImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
+                        <a class="fb-btn fb-btn--ghost" href="leere-gruppen-report.html?problem=no-owners" style="text-decoration:none;display:inline-block;"><i class="bi bi-clipboard2-pulse"></i>Hygiene</a>
+                        <a class="fb-btn fb-btn--ghost" href="weitere-teams-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-magic"></i>Wizard: weitere Gruppen</a>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="ssBtnExport"><i class="bi bi-download"></i>Export (JSON)</button>
+                        <label class="fb-btn fb-btn--ghost" for="ssImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
                         <input type="file" id="ssImportFile" accept="application/json,.json" style="display:none;">
                     </div>
                 </div>
@@ -395,7 +448,11 @@
         </div>
 
         <div class="content">
-            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen/Gruppen in den Stammdaten. Stammdaten öffnen oder Demo laden – danach können Sie hier matchen."></div>
+            <section class="mg-hero" aria-label="Stand">
+                <h1 class="fb-greet">MS 365 Gruppenverwaltung</h1>
+                <p class="fb-sub">Links Gruppe wählen · rechts Details und Mitglieder · Tenant einlesen für Live-Daten.</p>
+            </section>
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen/Gruppen in den Stammdaten. Stammdaten öffnen oder Demo laden – danach können Sie hier verknüpfen."></div>
 
             <div class="mode-tabs" aria-label="Ansicht wechseln">
                 <div class="tabs" role="tablist" aria-label="Gruppenverwaltung-Modus">
@@ -406,7 +463,7 @@
 
             <div class="live-banner" id="ssLiveBanner" role="status" aria-live="polite">
                 <div class="live-banner-row">
-                    <button type="button" class="btn btn-success small-btn" id="ssBtnTenantLoadTop" style="margin:0;">
+                    <button type="button" class="fb-btn" id="ssBtnTenantLoadTop" style="margin:0;">
                         <i class="bi bi-cloud-download"></i>Tenant einlesen
                     </button>
                     <span class="live-badge" id="ssLiveBadge" hidden><i class="bi bi-broadcast"></i>LIVE‑TENANT</span>
@@ -417,8 +474,8 @@
             </div>
 
             <div class="live-banner" id="ssMatchBanner" role="status" aria-live="polite" style="display:none;">
-                <span class="live-badge" style="background:color-mix(in srgb, var(--brand1) 14%, transparent);border-color:color-mix(in srgb, var(--brand1) 25%, transparent);color:#32325d;"><i class="bi bi-intersect"></i>ABGLEICH</span>
-                Hier verknüpfst du Einträge aus der <strong>lokalen Planungsliste</strong> (links) mit <strong>Tenant‑Gruppen/Teams</strong> aus „Verwalten“. Für Klassen, Sammelgruppen und Fächer sind die Spezialwerkzeuge in den Stammdaten meist der einfachere Weg. Das Mapping wird lokal gespeichert.
+                <span class="live-badge" style="background:color-mix(in srgb, var(--brand1) 14%, transparent);border-color:color-mix(in srgb, var(--brand1) 25%, transparent);color:#32325d;"><i class="bi bi-link-45deg"></i>VERKNÜPFUNG</span>
+                Hier verknüpfst du Einträge aus der <strong>lokalen Planungsliste</strong> (links) mit <strong>Tenant‑Gruppen/Teams</strong> aus „Verwalten“. Für Klassen, Sammelgruppen und Fächer sind die Spezialwerkzeuge in den Stammdaten meist der einfachere Weg. Die Verknüpfung wird lokal gespeichert.
             </div>
 
             <div class="layout">
@@ -426,14 +483,14 @@
                     <div class="panel-head">
                         <h2><i class="bi bi-diagram-3" style="margin-right:10px;"></i>Struktur</h2>
                         <div class="tree-actions">
-                            <button type="button" class="btn btn-success small-btn" id="ssBtnTenantCreate" style="display:none;" title="Einfache Gruppe im Tenant anlegen">
+                            <button type="button" class="fb-btn" id="ssBtnTenantCreate" style="display:none;" title="Einfache Gruppe im Tenant anlegen">
                                 <i class="bi bi-plus-lg"></i>Gruppe anlegen
                             </button>
-                            <button type="button" class="btn btn-success small-btn" id="ssBtnNeu"><i class="bi bi-plus-circle"></i>Neu</button>
-                            <button type="button" class="btn small-btn" id="ssBtnDemo"><i class="bi bi-stars"></i>Demo</button>
-                            <button type="button" class="btn btn-danger small-btn" id="ssBtnReset"><i class="bi bi-trash"></i>Zurücksetzen</button>
+                            <button type="button" class="fb-btn" id="ssBtnNeu"><i class="bi bi-plus-circle"></i>Neu</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="ssBtnDemo"><i class="bi bi-stars"></i>Demo</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="ssBtnReset"><i class="bi bi-trash"></i>Zurücksetzen</button>
                             <span id="ssWrapSchoolYearRollBtn">
-                                <button type="button" class="btn small-btn" id="ssBtnSchoolYearRoll"><i class="bi bi-arrow-up-right-circle"></i>Schuljahrswechsel</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="ssBtnSchoolYearRoll"><i class="bi bi-arrow-up-right-circle"></i>Schuljahrswechsel</button>
                             </span>
                         </div>
                         <div class="tree-filter" aria-label="Filter">
@@ -495,10 +552,10 @@
                         </ul>
                         <p class="hint" id="ssTenantAdSummary" style="display:none;margin:10px 0 0;line-height:1.45;"></p>
                         <div class="tm-actions" id="ssTenantAdActions" style="display:none;margin-top:10px;flex-wrap:wrap;gap:8px;">
-                            <button type="button" class="btn small-btn" id="ssBtnExportAdFlagged" title="Markierte Gruppen als Liste für den lokalen AD-Admin">
+                            <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssBtnExportAdFlagged" title="Markierte Gruppen als Liste für den lokalen AD-Admin">
                                 <i class="bi bi-clipboard-data"></i>Markierte exportieren
                             </button>
-                            <button type="button" class="btn small-btn" id="ssBtnExportAdSync" title="Alle AD-gesyncten Gruppen exportieren">
+                            <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssBtnExportAdSync" title="Alle AD-gesyncten Gruppen exportieren">
                                 <i class="bi bi-hdd-network"></i>AD‑Sync exportieren
                             </button>
                         </div>
@@ -530,15 +587,15 @@
                         </div>
                         <div id="ssGraphViewPanel" class="tab-panel" role="tabpanel" aria-labelledby="ssViewTabGraphBtn" aria-label="Organigramm SOLL">
                             <div class="ss-graph-toolbar" aria-label="Organigramm-Werkzeuge">
-                                <button type="button" class="btn small-btn ss-graph-layout-btn ss-graph-layout-btn--active" id="ssGraphLayoutHorizontalBtn" title="Layout waagrecht" aria-pressed="true"><i class="bi bi-diagram-3"></i>Horizontal</button>
-                                <button type="button" class="btn small-btn ss-graph-layout-btn" id="ssGraphLayoutVerticalBtn" title="Layout senkrecht" aria-pressed="false"><i class="bi bi-diagram-2"></i>Vertikal</button>
-                                <button type="button" class="btn small-btn" id="ssGraphCollapseAllBtn"><i class="bi bi-arrows-collapse"></i>Alles einklappen</button>
-                                <button type="button" class="btn small-btn" id="ssGraphExpandToClassesBtn"><i class="bi bi-ui-checks-grid"></i>Bis Klassen/Gruppen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn ss-graph-layout-btn ss-graph-layout-btn--active" id="ssGraphLayoutHorizontalBtn" title="Layout waagrecht" aria-pressed="true"><i class="bi bi-diagram-3"></i>Horizontal</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn ss-graph-layout-btn" id="ssGraphLayoutVerticalBtn" title="Layout senkrecht" aria-pressed="false"><i class="bi bi-diagram-2"></i>Vertikal</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssGraphCollapseAllBtn"><i class="bi bi-arrows-collapse"></i>Alles einklappen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssGraphExpandToClassesBtn"><i class="bi bi-ui-checks-grid"></i>Bis Klassen/Gruppen</button>
                                 <span style="flex:1"></span>
-                                <button type="button" class="btn small-btn" id="ssGraphEditBtn" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
-                                <button type="button" class="btn small-btn" id="ssGraphDeleteBtn" disabled><i class="bi bi-trash"></i>Löschen</button>
-                                <button type="button" class="btn small-btn" id="ssGraphCopyBtn" disabled><i class="bi bi-clipboard"></i>Kopieren</button>
-                                <button type="button" class="btn small-btn" id="ssGraphFullscreenBtn"><i class="bi bi-arrows-fullscreen"></i>Vollbild</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssGraphEditBtn" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssGraphDeleteBtn" disabled><i class="bi bi-trash"></i>Löschen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssGraphCopyBtn" disabled><i class="bi bi-clipboard"></i>Kopieren</button>
+                                <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssGraphFullscreenBtn"><i class="bi bi-arrows-fullscreen"></i>Vollbild</button>
                             </div>
                             <div id="ssGraphFullscreenContainer">
                                 <div id="ssGraphWrap" aria-label="Organigramm-Fläche">
@@ -684,7 +741,7 @@
 
                                         <div id="ssAnlegenSchemaUnitPreview" class="muted" style="margin-top:8px; line-height:1.5;"></div>
                                         <div class="detail-actions" style="margin-top:10px;">
-                                            <button type="button" class="btn btn-success" id="ssApplyNameSuggestion"><i class="bi bi-arrow-down-circle"></i>Vorschlag in Bezeichnung übernehmen</button>
+                                            <button type="button" class="fb-btn" id="ssApplyNameSuggestion"><i class="bi bi-arrow-down-circle"></i>Vorschlag in Bezeichnung übernehmen</button>
                                         </div>
                                     </div>
                                 </div>
@@ -720,7 +777,7 @@
                                         </div>
                                     </div>
                                     <div class="detail-actions">
-                                        <button type="button" class="btn btn-success" id="ssStructTenantCreateBtn"><i class="bi bi-cloud-plus"></i>Anlegen im Tenant</button>
+                                        <button type="button" class="fb-btn" id="ssStructTenantCreateBtn"><i class="bi bi-cloud-plus"></i>Anlegen im Tenant</button>
                                     </div>
 
                                     <div id="ssStructKursteamPsWrap" class="hint" style="display:none; margin-top:12px;">
@@ -729,9 +786,9 @@
                                             Für Kursteams ist „Online anlegen“ in vielen Umgebungen nicht zuverlässig. Nutze daher CSV + PowerShell.
                                         </div>
                                         <div class="detail-actions" style="margin-top:0;">
-                                            <button type="button" class="btn btn-success" id="ssKursteamCsvDownload"><i class="bi bi-filetype-csv"></i>CSV herunterladen</button>
-                                            <button type="button" class="btn" id="ssKursteamPsCopy"><i class="bi bi-clipboard"></i>Script kopieren</button>
-                                            <button type="button" class="btn" id="ssKursteamPsDownload"><i class="bi bi-download"></i>.ps1 herunterladen</button>
+                                            <button type="button" class="fb-btn" id="ssKursteamCsvDownload"><i class="bi bi-filetype-csv"></i>CSV herunterladen</button>
+                                            <button type="button" class="fb-btn fb-btn--ghost" id="ssKursteamPsCopy"><i class="bi bi-clipboard"></i>Script kopieren</button>
+                                            <button type="button" class="fb-btn fb-btn--ghost" id="ssKursteamPsDownload"><i class="bi bi-download"></i>.ps1 herunterladen</button>
                                         </div>
                                         <div class="field" style="margin-top:10px;">
                                             <label for="ssKursteamPsScript">Script (liest CSV und legt Kursteams an)</label>
@@ -741,8 +798,8 @@
                                 </div>
 
                                 <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="ssBtnSpeichern"><i class="bi bi-check2-circle"></i>Speichern</button>
-                                    <button type="button" class="btn" id="ssBtnGraphCreate" style="display:none;"><i class="bi bi-cloud-plus"></i>Per Graph anlegen</button>
+                                    <button type="button" class="fb-btn" id="ssBtnSpeichern"><i class="bi bi-check2-circle"></i>Speichern</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssBtnGraphCreate" style="display:none;"><i class="bi bi-cloud-plus"></i>Per Graph anlegen</button>
                                     <button type="button" class="btn btn-danger" id="ssBtnLoeschen"><i class="bi bi-trash"></i>Löschen</button>
                                 </div>
                                 <p class="muted" style="margin:12px 0 0; font-size:0.92em;">
@@ -761,14 +818,14 @@
                                             <label for="ssStructOwnerSearch">Benutzer suchen</label>
                                             <input type="text" id="ssStructOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                         </div>
-                                        <button type="button" class="btn" id="ssStructOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="ssStructOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
                                     </div>
                                     <div class="field" style="margin-top:10px;">
                                         <label for="ssStructOwnerSearchResults">Treffer</label>
                                         <select id="ssStructOwnerSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                     </div>
                                     <div class="detail-actions" style="margin-top:10px;">
-                                        <button type="button" class="btn btn-success" id="ssStructOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>
+                                        <button type="button" class="fb-btn" id="ssStructOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>
                                     </div>
                                     <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Besitzer-Liste (Schulstruktur)">
                                         <div id="ssStructOwnersList" style="padding:10px 12px;"></div>
@@ -787,14 +844,14 @@
                                             <label for="ssStructMemberSearch">Benutzer suchen</label>
                                             <input type="text" id="ssStructMemberSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                         </div>
-                                        <button type="button" class="btn" id="ssStructMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="ssStructMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
                                     </div>
                                     <div class="field" style="margin-top:10px;">
                                         <label for="ssStructMemberSearchResults">Treffer</label>
                                         <select id="ssStructMemberSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                     </div>
                                     <div class="detail-actions" style="margin-top:10px;">
-                                        <button type="button" class="btn btn-success" id="ssStructMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
+                                        <button type="button" class="fb-btn" id="ssStructMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
                                     </div>
                                     <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Mitglieder-Liste (Schulstruktur)">
                                         <div id="ssStructMembersList" style="padding:10px 12px;"></div>
@@ -835,7 +892,7 @@
                                         <input type="checkbox" id="ssAdFlagged">
                                         Für lokalen Admin markieren
                                     </label>
-                                    <button type="button" class="btn btn-success small-btn" id="ssAdFlagSave"><i class="bi bi-bookmark-check"></i>Marke speichern</button>
+                                    <button type="button" class="fb-btn" id="ssAdFlagSave"><i class="bi bi-bookmark-check"></i>Marke speichern</button>
                                 </div>
                             </div>
                             <div id="ssTenantCloudFlagPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--soft);">
@@ -855,43 +912,40 @@
                                         <input type="checkbox" id="ssCloudFlagged">
                                         Markieren
                                     </label>
-                                    <button type="button" class="btn small-btn" id="ssCloudFlagSave"><i class="bi bi-bookmark-check"></i>Speichern</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost small-btn" id="ssCloudFlagSave"><i class="bi bi-bookmark-check"></i>Speichern</button>
                                 </div>
                             </div>
                             <div id="groupDetailHost"></div>
-                            <div id="ssTenantBulkWrap" style="display:none; margin: 0 0 12px; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#fff;">
-                                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                                    <div style="font-weight:1000; color:#32325d;">
-                                        <i class="bi bi-check2-square" style="margin-right:8px;"></i>
-                                        <span id="ssTenantBulkCount">0</span> ausgewählt (Bulk‑Modus)
+                            <div id="ssTenantBulkWrap" class="gd-selection-bar" hidden aria-label="Auswahlaktionen">
+                                <div class="gd-selection-bar__head">
+                                    <span class="gd-selection-bar__count"><span id="ssTenantBulkCount">0</span> ausgewählt</span>
+                                    <div class="gd-selection-bar__actions">
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="ssTenantBulkClear"><i class="bi bi-x-circle"></i>Auswahl aufheben</button>
                                     </div>
-                                    <button type="button" class="btn btn-danger small-btn" id="ssTenantBulkClear"><i class="bi bi-x-circle"></i>Auswahl löschen</button>
                                 </div>
-
-                                <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; margin-top:10px;">
+                                <div class="gd-people-toolbar" style="margin:0;">
                                     <div class="field" style="margin:0;">
-                                        <label for="ssTenantBulkOwnerSearch">Besitzer suchen</label>
-                                        <input type="text" id="ssTenantBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
+                                        <label class="visually-hidden" for="ssTenantBulkOwnerSearch">Besitzer suchen oder hinzufügen</label>
+                                        <input type="text" id="ssTenantBulkOwnerSearch" placeholder="Besitzer suchen oder hinzufügen …" autocomplete="off">
                                     </div>
-                                    <button type="button" class="btn" id="ssTenantBulkOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssTenantBulkOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
                                 </div>
-                                <div class="field" style="margin-top:10px;">
-                                    <label for="ssTenantBulkOwnerResults">Treffer</label>
-                                    <select id="ssTenantBulkOwnerResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
+                                <div id="ssTenantBulkOwnerResultsHost" class="gd-people-results" style="margin:0;">
+                                    <select id="ssTenantBulkOwnerResults" aria-label="Treffer" style="width:100%;padding:10px 12px;border:0;background:transparent;font:inherit;"></select>
                                 </div>
-                                <div class="detail-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="ssTenantBulkAddOwnerBtn"><i class="bi bi-people-fill"></i>Besitzer zu allen hinzufügen</button>
+                                <div class="gd-selection-bar__actions">
+                                    <button type="button" class="fb-btn" id="ssTenantBulkAddOwnerBtn"><i class="bi bi-people-fill"></i>Besitzer zu allen hinzufügen</button>
                                 </div>
-                                <p class="muted" style="margin:10px 0 0; font-size:0.9em;">
-                                    Tipp: Mit <strong>STRG</strong> (Windows) bzw. <strong>⌘</strong> (Mac) mehrere Einträge anklicken.
+                                <p class="muted" style="margin:0; font-size:0.86em;">
+                                    Mit <strong>STRG</strong> (Windows) bzw. <strong>⌘</strong> (Mac) mehrere Einträge anklicken.
                                 </p>
                             </div>
                         </div>
 
                         <div id="ssMatchDetail" style="display:none;">
                             <div class="hint" style="margin-bottom:12px;">
-                                Wähle links eine Einheit aus (Klasse/Jahrgang/Gruppe/Person). Rechts verknüpfst du sie mit einer <strong>Microsoft‑365‑Gruppe/einem Team</strong> oder – bei <strong>Person</strong> (z. B. Direktion, Verwaltung) – mit einem <strong>Entra‑Benutzerkonto</strong>.
-                                Tipp: Unter <strong>Verwalten</strong> „Tenant einlesen“ (lädt Gruppen und Benutzer), dann hier abgleichen.
+                                Links eine Einheit wählen (Klasse/Jahrgang/Gruppe/Person). Rechts verknüpfst du sie mit einer <strong>Microsoft‑365‑Gruppe/einem Team</strong> oder – bei <strong>Person</strong> (z. B. Direktion, Verwaltung) – mit einem <strong>Entra‑Benutzerkonto</strong>.
+                                Tipp: Unter <strong>Verwalten</strong> zuerst „Tenant einlesen“, dann hier verknüpfen.
                             </div>
                             <div class="settings-module" style="margin-top:14px;">
                                 <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Verknüpfung</h3>
@@ -915,9 +969,9 @@
                                     </div>
                                 </div>
                                 <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="ssMatchSaveBtn"><i class="bi bi-link-45deg"></i>Verknüpfen</button>
-                                    <button type="button" class="btn" id="ssMatchClearBtn"><i class="bi bi-x-circle"></i>Verknüpfung lösen</button>
-                                    <button type="button" class="btn" id="ssMatchSuggestBtn"><i class="bi bi-magic"></i>Vorschlag</button>
+                                    <button type="button" class="fb-btn" id="ssMatchSaveBtn"><i class="bi bi-link-45deg"></i>Verknüpfen</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssMatchClearBtn"><i class="bi bi-x-circle"></i>Verknüpfung lösen</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssMatchSuggestBtn"><i class="bi bi-magic"></i>Vorschlag</button>
                                 </div>
                                 <p class="muted" style="margin:12px 0 0; font-size:0.92em;">
                                     Hinweis: „Vorschlag“ nutzt bei Gruppen Name/Alias, bei Personen Name, E‑Mail und Rollenbezeichnung gegen Entra‑Benutzer. Du kannst jederzeit manuell überschreiben.
@@ -1088,8 +1142,8 @@
                                 </div>
 
                                 <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="ssStructCreateOk"><i class="bi bi-plus-circle"></i>Anlegen</button>
-                                    <button type="button" class="btn" id="ssStructCreateCancel">Abbrechen</button>
+                                    <button type="button" class="fb-btn" id="ssStructCreateOk"><i class="bi bi-plus-circle"></i>Anlegen</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssStructCreateCancel">Abbrechen</button>
                                 </div>
                             </div>
                         </div>
@@ -1224,14 +1278,14 @@
                                                 <label for="ssStructEditOwnerSearch">Benutzer suchen</label>
                                                 <input type="text" id="ssStructEditOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                             </div>
-                                            <button type="button" class="btn" id="ssStructEditOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
+                                            <button type="button" class="fb-btn fb-btn--ghost" id="ssStructEditOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
                                         </div>
                                         <div class="field" style="margin-top:10px;">
                                             <label for="ssStructEditOwnerSearchResults">Treffer</label>
                                             <select id="ssStructEditOwnerSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                         </div>
                                         <div class="detail-actions" style="margin-top:10px;">
-                                            <button type="button" class="btn btn-success" id="ssStructEditOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>
+                                            <button type="button" class="fb-btn" id="ssStructEditOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>
                                         </div>
                                         <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Besitzer-Liste (Details Pop-Up)">
                                             <div id="ssStructEditOwnersList" style="padding:10px 12px;"></div>
@@ -1250,14 +1304,14 @@
                                                 <label for="ssStructEditMemberSearch">Benutzer suchen</label>
                                                 <input type="text" id="ssStructEditMemberSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                             </div>
-                                            <button type="button" class="btn" id="ssStructEditMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
+                                            <button type="button" class="fb-btn fb-btn--ghost" id="ssStructEditMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
                                         </div>
                                         <div class="field" style="margin-top:10px;">
                                             <label for="ssStructEditMemberSearchResults">Treffer</label>
                                             <select id="ssStructEditMemberSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                         </div>
                                         <div class="detail-actions" style="margin-top:10px;">
-                                            <button type="button" class="btn btn-success" id="ssStructEditMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
+                                            <button type="button" class="fb-btn" id="ssStructEditMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
                                         </div>
                                         <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Mitglieder-Liste (Details Pop-Up)">
                                             <div id="ssStructEditMembersList" style="padding:10px 12px;"></div>
@@ -1266,9 +1320,9 @@
                                 </div>
 
                                 <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="ssStructEditSave"><i class="bi bi-save"></i>Speichern</button>
+                                    <button type="button" class="fb-btn" id="ssStructEditSave"><i class="bi bi-save"></i>Speichern</button>
                                     <button type="button" class="btn btn-danger" id="ssStructEditDelete"><i class="bi bi-trash"></i>Löschen</button>
-                                    <button type="button" class="btn" id="ssStructEditCancel">Schließen</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssStructEditCancel">Schließen</button>
                                 </div>
                             </div>
                         </div>
@@ -1317,8 +1371,8 @@
                                 </label>
                                 <p class="muted" id="ssTenantCreateHint" style="margin:12px 0 0;font-size:0.9em;line-height:1.45;"></p>
                                 <div class="detail-actions" style="margin-top:14px;">
-                                    <button type="button" class="btn btn-success" id="ssTenantCreateOk"><i class="bi bi-plus-lg"></i>Anlegen</button>
-                                    <button type="button" class="btn" id="ssTenantCreateCancel">Abbrechen</button>
+                                    <button type="button" class="fb-btn" id="ssTenantCreateOk"><i class="bi bi-plus-lg"></i>Anlegen</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="ssTenantCreateCancel">Abbrechen</button>
                                 </div>
                             </div>
                         </div>
@@ -1335,7 +1389,7 @@
     <script src="../src/tools/schulstruktur-sync/schulstruktur-sync.js" type="module"></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>
 

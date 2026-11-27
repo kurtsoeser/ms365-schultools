@@ -159,6 +159,7 @@ describe('wahlfach-zuteilung-logic', () => {
         expect(own.schuelerEmail).toBe('ada@schule.at');
         expect(own.klasse).toBe('3AK');
         expect(own.schuelerName).toMatch(/Ada/);
+        expect(own.matchedStudent).toBe(true);
         expect(() => assertWzOwnership(own)).not.toThrow();
         expect(() => assertWzOwnership({ schuelerEmail: '' })).toThrow(/E-Mail|Konto/i);
         expect(isWzAccessDeniedError(new Error('403 Forbidden'))).toBe(true);

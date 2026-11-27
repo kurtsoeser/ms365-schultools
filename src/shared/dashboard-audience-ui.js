@@ -6,13 +6,13 @@ import {
     isToolVisibleForView,
     DASHBOARD_QUICKSTART_BY_VIEW,
     DASHBOARD_PORTAL_SECTIONS_BY_VIEW,
-    DASHBOARD_TOOL_LINKS,
     DASHBOARD_TOOL_ICONS,
     DASHBOARD_TOOL_BLURBS,
     toolLabel,
     viewLabel
 } from './dashboard-audience-catalog.js';
 import { getEffectiveToolRule, loadDashboardToolAccessConfig } from './dashboard-audience-store.js';
+import { refreshWahlfachMenuRole } from '../tools/wahlfach-zuteilung/wahlfach-portal-menu.js';
 import {
     applyPortalSectionOrder,
     loadPortalDefaultsConfig,
@@ -31,6 +31,7 @@ import {
     resolveLayoutModeFromPersonas,
     isAppsOnlyLayout,
     catalogViewForLayout,
+    readItShellChoice,
     writeItPreviewChoice
 } from './dashboard-layout-mode.js';
 import {
@@ -43,16 +44,18 @@ import {
 import { greetingForHour, extractFirstName } from './dashboard-greeting-band.js';
 import { primaryPersonaLabel } from './app-role-switcher-policy.js';
 import { buildDashboardSchoolCard } from './school-profile-logic.js';
-import { LANDING_KONTAKT_URL } from './lehrer-portal-readiness.js';
 import { readLehrerPortalWithReleaseGate } from './portal-release-gate.js';
+import { readSchoolItAdminMailto } from './lehrer-portal-readiness.js';
 import {
     persistPortalWorkspaceNav,
+    portalToolHref,
     portalTreeFromSections,
     PORTAL_SECTION_NAV_KEY
 } from './portal-workspace-nav.js';
+import { mountPortalBriefing } from './portal-briefing-ui.js';
 
 /** @type {import('./dashboard-layout-mode.js').DashboardLayoutMode} */
-let layoutMode = 'preview-lehrer';
+let layoutMode = readItShellChoice() === 'full' ? 'full' : 'preview-lehrer';
 /** @type {import('./dashboard-audience-resolve.js').DashboardPersonas|null} */
 let personas = null;
 
@@ -152,18 +155,23 @@ function syncLehrerPortalSetupBanner(stack) {
         banner.setAttribute('role', 'status');
     }
 
+    const requestHref = readSchoolItAdminMailto();
+    const requestAction = requestHref
+        ? '<div class="ms365-empty-state-banner__actions">' +
+          '<a class="btn btn-ghost" href="' +
+          escapeHtml(requestHref) +
+          '">' +
+          '<i class="bi bi-envelope" aria-hidden="true"></i> Anfrage stellen</a>' +
+          '</div>'
+        : '';
+
     banner.innerHTML =
         '<p><strong>' +
         escapeHtml(readiness.title) +
         '</strong> ' +
         escapeHtml(readiness.message) +
         '</p>' +
-        '<div class="ms365-empty-state-banner__actions">' +
-        '<a class="btn btn-ghost" href="' +
-        escapeHtml(LANDING_KONTAKT_URL) +
-        '" target="_blank" rel="noopener noreferrer">' +
-        '<i class="bi bi-envelope" aria-hidden="true"></i> Anfrage stellen</a>' +
-        '</div>';
+        requestAction;
 
     const quick = document.getElementById('dashQuickApps');
     if (quick && quick.parentElement === stack) {
@@ -208,28 +216,81 @@ function portalDisplayName() {
     return '';
 }
 
+/** Konto kommt oft erst nach dem ersten Portal-Render. Die Begrüßung holt den Vornamen nach. */
+function syncPortalGreeting(wrap) {
+    const title =
+        wrap && wrap.querySelector('.dash-portal-hero:not(.dash-portal-hero--section) .dash-portal-hero__title');
+    if (!title) return;
+    const firstName = extractFirstName(portalDisplayName());
+    if (!firstName) return;
+    const next = greetingForHour() + ', ' + firstName + '!';
+    if (title.textContent !== next) title.textContent = next;
+}
+
+function schedulePortalGreeting(wrap) {
+    syncPortalGreeting(wrap);
+    [400, 1200, 3000].forEach((ms) => {
+        setTimeout(() => syncPortalGreeting(wrap), ms);
+    });
+}
+
+function refreshPortalForAccount() {
+    const wrap = document.getElementById('dashQuickApps');
+    if (!wrap || !isAppsOnlyLayout(layoutMode)) return;
+    syncPortalGreeting(wrap);
+    if (portalNavId !== 'home') return;
+    mountPortalBriefing(wrap.querySelector('#dashPortalBriefing'), {
+        view: catalogView() === 'schueler' ? 'schueler' : 'lehrer',
+        isVisible: (id) => isToolVisible(id) && isToolLicenseAllowed(id)
+    });
+}
+
+function portalDestination(id) {
+    const href = portalToolHref(id);
+    const external = id === 'sharepoint-intranet-hub' && /^https:\/\//i.test(href);
+    return {
+        href,
+        external,
+        unavailable: id === 'sharepoint-intranet-hub' && !external
+    };
+}
+
+function portalToolBlurb(id, dest) {
+    if (id === 'sharepoint-intranet-hub') {
+        return dest.unavailable
+            ? 'Die Schul-IT hinterlegt die Intranet-Adresse. Danach öffnet dieser Eintrag die SharePoint-Seite.'
+            : 'Öffnet die Intranet-Seite der Schule.';
+    }
+    return DASHBOARD_TOOL_BLURBS[id] || '';
+}
+
 function renderToolRow(id) {
-    const href = DASHBOARD_TOOL_LINKS[id] || `tools/${id}.html`;
+    const dest = portalDestination(id);
     const icon = DASHBOARD_TOOL_ICONS[id] || 'bi-box-arrow-up-right';
-    const blurb = DASHBOARD_TOOL_BLURBS[id] || '';
-    return `<a class="dash-portal-row" href="${escapeHtml(href)}" data-tool-id="${escapeHtml(id)}">
-        <span class="dash-portal-row__icon"><i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i></span>
+    const blurb = portalToolBlurb(id, dest);
+    const body = `<span class="dash-portal-row__icon"><i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i></span>
         <span class="dash-portal-row__text"><strong>${escapeHtml(toolLabel(id))}</strong>${blurb ? `<small>${escapeHtml(blurb)}</small>` : ''}</span>
-        <span class="dash-portal-row__go">Öffnen</span>
-    </a>`;
+        <span class="dash-portal-row__go">${dest.unavailable ? 'Noch nicht hinterlegt' : 'Öffnen'}</span>`;
+    if (dest.unavailable) {
+        return `<div class="dash-portal-row" data-tool-id="${escapeHtml(id)}" aria-disabled="true">${body}</div>`;
+    }
+    const external = dest.external ? ' target="_blank" rel="noopener noreferrer"' : '';
+    return `<a class="dash-portal-row" href="${escapeHtml(dest.href)}" data-tool-id="${escapeHtml(id)}"${external}>${body}</a>`;
 }
 
 function renderToolCard(id) {
-    const href = DASHBOARD_TOOL_LINKS[id] || `tools/${id}.html`;
+    const dest = portalDestination(id);
     const icon = DASHBOARD_TOOL_ICONS[id] || 'bi-box-arrow-up-right';
-    const blurb = DASHBOARD_TOOL_BLURBS[id] || '';
-    return `<a class="dash-quick-apps__card" href="${escapeHtml(href)}" data-tool-id="${escapeHtml(id)}">
+    const blurb = portalToolBlurb(id, dest);
+    const external = dest.external ? ' target="_blank" rel="noopener noreferrer"' : '';
+    const href = dest.unavailable ? '#' : dest.href;
+    return `<a class="dash-quick-apps__card" href="${escapeHtml(href)}" data-tool-id="${escapeHtml(id)}"${external}${dest.unavailable ? ' aria-disabled="true"' : ''}>
                 <div class="dash-quick-apps__card-head">
                   <h3><i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i>${escapeHtml(toolLabel(id))}</h3>
                   <i class="bi bi-chevron-right dash-quick-apps__chev" aria-hidden="true"></i>
                 </div>
                 ${blurb ? `<p class="dash-quick-apps__card-desc">${escapeHtml(blurb)}</p>` : ''}
-                <span class="dash-quick-apps__card-action">Öffnen <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span>
+                <span class="dash-quick-apps__card-action">${dest.unavailable ? 'Noch nicht hinterlegt' : 'Öffnen'} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span>
             </a>`;
 }
 
@@ -508,6 +569,7 @@ function renderPortalHome(view, sections, links) {
             </div>
             ${renderPortalSchoolCard()}
         </header>
+        <section class="dash-portal-briefing" id="dashPortalBriefing" aria-label="Für dich" hidden></section>
         ${renderPortalLinksStrip(links)}
         <section class="dash-portal-section" aria-label="Meine Apps">
             <h2 class="dash-portal-section__title">Meine Apps</h2>
@@ -581,9 +643,14 @@ function renderPortalNavHtml(sections) {
             }
             const subs = toolIds
                 .map((id) => {
-                    const href = DASHBOARD_TOOL_LINKS[id] || `tools/${id}.html`;
+                    const dest = portalDestination(id);
                     const icon = DASHBOARD_TOOL_ICONS[id] || 'bi-box-arrow-up-right';
-                    return `<a class="dash-portal-shell__subitem" href="${escapeHtml(href)}" data-tool-id="${escapeHtml(id)}"><i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i><span>${escapeHtml(toolLabel(id))}</span></a>`;
+                    const label = `<i class="bi ${escapeHtml(icon)}" aria-hidden="true"></i><span>${escapeHtml(toolLabel(id))}</span>`;
+                    if (dest.unavailable) {
+                        return `<span class="dash-portal-shell__subitem" data-tool-id="${escapeHtml(id)}" aria-disabled="true">${label}</span>`;
+                    }
+                    const external = dest.external ? ' target="_blank" rel="noopener noreferrer"' : '';
+                    return `<a class="dash-portal-shell__subitem" href="${escapeHtml(dest.href)}" data-tool-id="${escapeHtml(id)}"${external}>${label}</a>`;
                 })
                 .join('');
             return `<div class="dash-portal-shell__group">${btn}<div class="dash-portal-shell__sub"${open ? '' : ' hidden'}>${subs}</div></div>`;
@@ -705,8 +772,13 @@ function renderQuickstart() {
         </div>`;
 
     bindPortalShellEvents(wrap, view);
+    schedulePortalGreeting(wrap);
     if (portalNavId === 'home' || !activeSec) {
         bindPortalSchoolClock(wrap);
+        mountPortalBriefing(wrap.querySelector('#dashPortalBriefing'), {
+            view: view === 'schueler' ? 'schueler' : 'lehrer',
+            isVisible: (id) => isToolVisible(id) && isToolLicenseAllowed(id)
+        });
     } else if (wrap._portalClockTimer) {
         clearInterval(wrap._portalClockTimer);
         wrap._portalClockTimer = null;
@@ -822,7 +894,7 @@ function applyPersonas(next) {
     personas = next;
 
     if (!personas || !personas.loggedIn) {
-        layoutMode = 'preview-lehrer';
+        layoutMode = readItShellChoice() === 'full' ? 'full' : 'preview-lehrer';
         applyAuthMenuItAudience(false);
         applyDomFilter();
         return;
@@ -862,6 +934,18 @@ export function mountDashboardAudience(opts) {
 
     window.addEventListener('ms365-dashboard-persona-ready', () => {
         refreshPersonas({ force: false, keepLayout: true });
+    });
+
+    window.addEventListener('ms365-auth-widget-ready', () => {
+        const wrap = document.getElementById('dashQuickApps');
+        if (wrap) syncPortalGreeting(wrap);
+    });
+
+    window.addEventListener('ms365-auth-account-ready', () => {
+        refreshPortalForAccount();
+        void refreshWahlfachMenuRole().then((changed) => {
+            if (changed) applyDomFilter();
+        });
     });
 
     window.addEventListener('ms365-auth-state-changed', () => {

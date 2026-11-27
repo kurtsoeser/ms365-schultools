@@ -6,15 +6,18 @@ import {
 import { DASHBOARD_CLUSTER_ORDER, DASHBOARD_TOOL_CLUSTER } from '../src/shared/dashboard-audience-catalog.js';
 
 describe('dashboard-catalog-layout', () => {
-    it('hat acht Sidebar-Tabs ohne Übersicht', () => {
+    it('hat acht Sidebar-Tabs ohne Übersicht und ohne Sonstiges', () => {
         expect(DASHBOARD_CATALOG_TAB_IDS).toHaveLength(8);
         expect(DASHBOARD_CATALOG_TAB_IDS).not.toContain('uebersicht');
+        expect(DASHBOARD_CATALOG_TAB_IDS).not.toContain('sonstiges');
+        expect(DASHBOARD_CATALOG_TAB_IDS).toContain('schulapps');
     });
 
     it('migriert gespeicherte Legacy-Tabs', () => {
         expect(normalizeDashboardCatalogTab('uebersicht')).toBe('kommunikation');
         expect(normalizeDashboardCatalogTab('regeln')).toBe('kommunikation');
         expect(normalizeDashboardCatalogTab('website')).toBe('intranet');
+        expect(normalizeDashboardCatalogTab('sonstiges')).toBe('schulapps');
     });
 
     it('ordnet Personen-Werkzeuge dem Cluster Personen & Gäste zu', () => {
@@ -34,5 +37,6 @@ describe('dashboard-catalog-layout', () => {
             'kommunikation',
             'automationen'
         ]);
+        expect(DASHBOARD_TOOL_CLUSTER.schulsprecherwahl).toBe('schulapps');
     });
 });

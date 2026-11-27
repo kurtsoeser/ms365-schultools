@@ -60,6 +60,30 @@ export function suggestChannelMappings(items) {
 }
 
 /**
+ * Behält vom Nutzer geänderte Kanalnamen, wenn die Vorschläge neu gebaut werden.
+ * @param {Array<{ sourceRelPath?: string, sourceFolder?: string, channelName?: string, enabled?: boolean }>} suggested
+ * @param {Array<{ sourceRelPath?: string, sourceFolder?: string, channelName?: string, enabled?: boolean }>} previous
+ */
+export function mergeChannelMapEdits(suggested, previous) {
+    /** @type {Map<string, { channelName?: string, enabled?: boolean }>} */
+    const prev = new Map();
+    for (const m of previous || []) {
+        const key = norm(m && (m.sourceRelPath || m.sourceFolder));
+        if (key) prev.set(key, m);
+    }
+    return (suggested || []).map(function (s) {
+        const key = norm(s && (s.sourceRelPath || s.sourceFolder));
+        const old = key ? prev.get(key) : null;
+        if (!old) return s;
+        const channelName = norm(old.channelName).slice(0, 50);
+        return Object.assign({}, s, {
+            channelName: channelName || s.channelName,
+            enabled: old.enabled !== false
+        });
+    });
+}
+
+/**
  * @param {number} n
  */
 export function formatBytes(n) {

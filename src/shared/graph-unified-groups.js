@@ -29,7 +29,7 @@
         } catch {
             /* klassisches Script: Import ist relativ zur HTML-Seite */
         }
-        if (itModUrl) return import(itModUrl);
+        if (itModUrl) return import(/* @vite-ignore */ itModUrl);
         throw new Error('IT-App-Modul nicht geladen (it-app-auth.js).');
     }
 
@@ -52,7 +52,7 @@
         }
         if (scopeModUrl) {
             try {
-                scopeMod = await import(scopeModUrl);
+                scopeMod = await import(/* @vite-ignore */ scopeModUrl);
                 return scopeMod;
             } catch {
                 /* ignore */
@@ -299,7 +299,7 @@
         }
         if (needsIt) {
             const itMod = await loadItMod();
-            return itMod.acquireItAppToken(scopeList, { mode: 'interactive' });
+            return itMod.acquireItAppToken(scopeList, { mode: 'popup' });
         }
         await waitForMs365AuthUi();
         const viaUi = await acquireGraphTokenViaAuthUi(scopeList);

@@ -28,8 +28,10 @@ describe('Jahrgangsgruppen-Modul Seite', () => {
         expect(html).toContain('id="jgBtnEditClass"');
         expect(html).toContain('id="jgBtnDeleteClass"');
         expect(html).toContain('id="jgClassModal"');
-        expect(html).toContain('Sammelaktionen');
+        expect(html).toContain('id="jgSelectionBar"');
+        expect(html).toContain('Einstellungen für Anlegen');
         expect(html).toContain('id="jgPageInfo"');
+        expect(html).not.toContain('Sammelaktionen');
         const js = readFileSync(join(projectRoot, 'src/tools/jahrgangsgruppen/jahrgangsgruppen.js'), 'utf8');
         expect(js).toContain('ms365GroupDetail');
         expect(js).toContain("mount('#groupDetailHost'");

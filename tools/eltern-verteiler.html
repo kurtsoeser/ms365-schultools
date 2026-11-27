@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,10 +9,22 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Eltern-Verteiler</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/eltern-verteiler/eltern-verteiler.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .page-card { max-width: var(--app-max-width); margin: 0 auto; }
+        .page-card.tm-page,
+        .container.page-card { --brand: var(--brand1); --primary: var(--brand1); max-width: var(--app-max-width); margin: 0 auto; }
+        .btn-success, .btn.btn-success, button.btn-success {
+            background: var(--brand1) !important;
+            border-color: var(--brand1) !important;
+            color: var(--on-accent, #04211d) !important;
+        }
         .layout {
             display: grid;
             grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.4fr);
@@ -25,33 +37,58 @@
         }
         .panel {
             border: 1px solid var(--border);
-            border-radius: 14px;
-            background: #fff;
+            border-radius: 12px;
+            background: var(--card);
             overflow: hidden;
         }
         .panel-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, rgba(14, 116, 144, 0.10) 0%, rgba(45, 106, 79, 0.06) 100%);
+            background: color-mix(in srgb, var(--heading) 2.5%, var(--card));
         }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
+        .panel-head h2 { margin: 0; font-size: 1.05rem; color: var(--heading); font-weight: 650; }
         .panel-body { padding: 14px 16px; }
         .muted { color: var(--muted); }
-        .ev-tabs {
+        .ev-tabs.pw-steps {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin: 0 0 12px;
+            gap: 4px;
+            margin: 0 0 14px;
+            padding: 0;
+            border: 0;
+            background: transparent;
         }
-        .ev-tabs .btn {
+        .ev-tabs.pw-steps button,
+        .ev-tabs .ev-view-tab {
             margin: 0;
-            padding: 7px 12px;
-            font-size: 0.9em;
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font: inherit;
+            font-size: 0.86rem;
+            font-weight: 500;
+            cursor: pointer;
         }
-        .ev-tabs .btn[aria-selected="true"] {
-            background: #0e7490;
-            color: #fff;
-            border-color: #0e7490;
+        .ev-tabs.pw-steps button:hover,
+        .ev-tabs .ev-view-tab:hover {
+            background: color-mix(in srgb, var(--heading) 4%, transparent);
+            color: var(--heading);
+        }
+        .ev-tabs.pw-steps button[aria-current="step"],
+        .ev-tabs.pw-steps button.is-active,
+        .ev-tabs .ev-view-tab[aria-selected="true"],
+        .ev-tabs .ev-view-tab[aria-current="step"] {
+            background: color-mix(in srgb, var(--brand1) 10%, transparent);
+            color: var(--heading);
+            font-weight: 650;
+            box-shadow: inset 0 -2px 0 var(--brand1);
+        }
+        .ev-tabs.pw-steps button.is-done::before {
+            content: '✓ ';
+            color: var(--brand1);
+            font-weight: 700;
         }
         .tree-filter { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
         .tree-filter label { display: block; font-weight: 700; color: #495057; margin-bottom: 6px; font-size: 0.92em; }
@@ -147,7 +184,7 @@
             resize: vertical;
         }
         .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-        .detail-actions .btn { margin: 0; }
+        .detail-actions .fb-btn { margin: 0; }
         .student-card {
             border: 1px solid var(--border);
             border-radius: 12px;
@@ -193,7 +230,41 @@
             align-items: center;
             margin: 0 0 12px;
         }
-        .bulk-bar .btn { margin: 0; padding: 7px 11px; font-size: 0.88em; }
+        .bulk-bar .fb-btn { margin: 0; min-height: 32px; padding: 0 11px; font-size: 0.88em; }
+        .name-builder-palette .fb-btn,
+        .name-builder-inputs .fb-btn {
+            min-height: 30px;
+            padding: 0 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .ev-tabs[role="tablist"] {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 0 0 14px;
+        }
+        .ev-tabs[role="tablist"] .ev-view-tab {
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font: inherit;
+            font-size: 0.86rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .ev-tabs[role="tablist"] .ev-view-tab:hover {
+            background: color-mix(in srgb, var(--heading) 4%, transparent);
+            color: var(--heading);
+        }
+        .ev-tabs[role="tablist"] .ev-view-tab[aria-selected="true"] {
+            background: color-mix(in srgb, var(--brand1) 10%, transparent);
+            color: var(--heading);
+            font-weight: 650;
+            box-shadow: inset 0 -2px 0 var(--brand1);
+        }
         .ev-naming-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -241,46 +312,53 @@
         }
     </style>
 </head>
-<body data-ms365-skip-tenant-domain-prompt="true">
-    <div class="container page-card">
+<body class="app-shell-chrome" data-ms365-skip-tenant-domain-prompt="true">
+    <div class="container page-card tm-page ev-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Eltern-Verteiler</span>
             </div>
-            <p>
-                Geführter Weg: Stammdaten importieren, Namensschema prüfen, Diagnose (GAL/Contacts/Alias), dann Exchange-Skript erzeugen.
-                Die Listen erscheinen in der GAL; einzelne Elternmails bleiben verborgen.
-            </p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-eltern-verteiler" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe &amp; Datenschutz</a></p>
+            <p>Eltern-Verteilerlisten für die GAL erzeugen – ohne Eltern als Benutzer oder Gäste anzulegen.</p>
+            <p class="muted" style="margin:4px 0 0;font-size:0.9rem;">Stammdaten → Naming → Diagnose → Exchange-Skript.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-eltern-verteiler" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
-                    <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="../tenant.html" style="text-decoration:none;"><i class="bi bi-sliders2-vertical"></i>Stammdaten</a>
-                        <button type="button" class="btn" id="evBtnRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
-                    </div>
-                </div>
+                <a class="fb-btn fb-btn--ghost" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <button type="button" class="fb-btn fb-btn--ghost" id="evBtnRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
             </div>
         </div>
 
         <div class="content">
+            <section class="ev-hero" aria-label="Stand">
+                <h1 class="fb-greet">Eltern-Verteiler</h1>
+                <p class="fb-sub">Listen erscheinen in der GAL; einzelne Elternmails bleiben verborgen.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="../tenant.html">Stammdaten ↗</a>
+                <a href="personen-verwaltung.html">Personen ↗</a>
+            </nav>
+
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Schüler-/Eltern-Stammdaten. Stammdaten öffnen oder Demo laden."></div>
 
-            <div class="hint" style="margin-bottom:14px;">
-                <strong>Datenschutz:</strong> Erziehungsberechtigte werden <em>nicht</em> als Benutzer oder Gäste angelegt.
-                Das Sync-Skript legt nur <strong>GAL-versteckte Mail Contacts</strong> und
-                <strong>Verteilerlisten mit versteckter Mitgliedschaft</strong> an (Gruppe selbst in der GAL sichtbar).
-                Beim Start (Doppelklick auf die <code>.cmd</code>) prüft das Skript Modul, Exchange-Anmeldung, Schul-Domain im Mandanten und Rechte;
-                Sie melden sich mit dem Admin-Konto der Schule an und bestätigen mit <code>JA</code> (Exchange-Admin nötig).
-            </div>
+            <details class="ev-privacy">
+                <summary>Datenschutz &amp; Exchange-Hinweise</summary>
+                <p>
+                    Erziehungsberechtigte werden <em>nicht</em> als Benutzer oder Gäste angelegt.
+                    Das Sync-Skript legt nur <strong>GAL-versteckte Mail Contacts</strong> und
+                    <strong>Verteilerlisten mit versteckter Mitgliedschaft</strong> an.
+                    Beim Start (Doppelklick auf die <code>.cmd</code>) melden Sie sich mit dem Admin-Konto an und bestätigen mit <code>JA</code>.
+                </p>
+            </details>
 
-            <nav class="ev-tabs" id="evSetupSteps" aria-label="Einrichtungsschritte" style="margin-bottom:14px;">
-                <button type="button" class="btn" data-ev-step="1" aria-current="step">1. Stammdaten</button>
-                <button type="button" class="btn" data-ev-step="2">2. Naming</button>
-                <button type="button" class="btn" data-ev-step="3">3. Diagnose</button>
-                <button type="button" class="btn" data-ev-step="4">4. Skript</button>
+            <nav class="ev-tabs pw-steps" id="evSetupSteps" aria-label="Einrichtungsschritte">
+                <button type="button" data-ev-step="1" aria-current="step" class="is-active">1 · Stammdaten</button>
+                <button type="button" data-ev-step="2">2 · Naming</button>
+                <button type="button" data-ev-step="3">3 · Diagnose</button>
+                <button type="button" data-ev-step="4">4 · Skript</button>
             </nav>
 
             <details class="panel" id="evImportPanel" style="margin-bottom:16px;">
@@ -325,10 +403,10 @@
                                 <option value="all">Alle Vornamen</option>
                             </select>
                         </div>
-                        <label class="btn" for="evImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Datei(en) wählen</label>
+                        <label class="fb-btn fb-btn--ghost" for="evImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Datei(en) wählen</label>
                         <input type="file" id="evImportFile" accept=".csv,.xlsx,.xls,.txt" multiple style="display:none;">
-                        <button type="button" class="btn" id="evTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>
-                        <button type="button" class="btn" id="evTplCsv"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="evTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="evTplCsv"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
                     </div>
                     <p id="evImportStatus" class="muted" style="margin:10px 0 0;font-weight:700;"></p>
                     <div id="evImportPreview" class="panel" hidden style="margin-top:14px;border-style:dashed;">
@@ -338,10 +416,10 @@
                         <div class="panel-body">
                             <p id="evImportPreviewSummary" class="muted" style="margin-top:0;font-weight:700;"></p>
                             <div class="detail-actions" id="evImportApplyBar" hidden style="margin-top:0;">
-                                <button type="button" class="btn" id="evImportRemovedAll"><i class="bi bi-check2-square"></i>Alle Abgänger anhaken</button>
-                                <button type="button" class="btn" id="evImportRemovedNone"><i class="bi bi-square"></i>Keine anhaken</button>
-                                <button type="button" class="btn" id="evImportDiffCsv"><i class="bi bi-filetype-csv"></i>Diff als CSV</button>
-                                <button type="button" class="btn btn-success" id="evImportApply"><i class="bi bi-save"></i>Import übernehmen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="evImportRemovedAll"><i class="bi bi-check2-square"></i>Alle Abgänger anhaken</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="evImportRemovedNone"><i class="bi bi-square"></i>Keine anhaken</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="evImportDiffCsv"><i class="bi bi-filetype-csv"></i>Diff als CSV</button>
+                                <button type="button" class="fb-btn" id="evImportApply"><i class="bi bi-save"></i>Import übernehmen</button>
                                 <span class="muted" style="font-size:0.88em;font-weight:700;">Abgänger ausgewählt: <span id="evImportRemovedCount">0</span></span>
                             </div>
                             <div class="ev-naming-grid" style="margin-top:12px;">
@@ -387,19 +465,19 @@
                                 <div class="name-builder-dropzone" data-ev-zone="classAlias" aria-label="Klassen-Alias Bausteine"></div>
                             </div>
                             <div class="name-builder-palette">
-                                <button type="button" class="btn btn-small" data-ev-add-token="klasse" data-ev-for="classAlias">+ Klasse</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="classAlias">+ Abschlussjahr</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="classAlias">+ Schulstufe</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="classAlias">+ n. JG</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="classAlias">+ n. Klassen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="klasse" data-ev-for="classAlias">+ Klasse</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="year" data-ev-for="classAlias">+ Abschlussjahr</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="stufe" data-ev-for="classAlias">+ Schulstufe</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="jgDot" data-ev-for="classAlias">+ n. JG</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="klassenDot" data-ev-for="classAlias">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
                                     <label>Trenner / Text</label>
                                     <input type="text" data-ev-sep="classAlias" value="-" placeholder="- oder _ oder leer">
                                 </div>
-                                <button type="button" class="btn btn-small" data-ev-add-sep="classAlias">Trenner/Text</button>
-                                <button type="button" class="btn btn-small" data-ev-reset="classAlias">Standard</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-sep="classAlias">Trenner/Text</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-reset="classAlias">Standard</button>
                             </div>
                             <div class="name-preview" data-ev-preview="classAlias"></div>
                         </div>
@@ -409,19 +487,19 @@
                                 <div class="name-builder-dropzone" data-ev-zone="classDisplay" aria-label="Klassen-Anzeigename Bausteine"></div>
                             </div>
                             <div class="name-builder-palette">
-                                <button type="button" class="btn btn-small" data-ev-add-token="klasse" data-ev-for="classDisplay">+ Klasse</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="classDisplay">+ Abschlussjahr</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="classDisplay">+ Schulstufe</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="classDisplay">+ n. JG</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="classDisplay">+ n. Klassen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="klasse" data-ev-for="classDisplay">+ Klasse</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="year" data-ev-for="classDisplay">+ Abschlussjahr</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="stufe" data-ev-for="classDisplay">+ Schulstufe</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="jgDot" data-ev-for="classDisplay">+ n. JG</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="klassenDot" data-ev-for="classDisplay">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
                                     <label>Trenner / Text</label>
                                     <input type="text" data-ev-sep="classDisplay" value=" " placeholder="Leerzeichen oder Text">
                                 </div>
-                                <button type="button" class="btn btn-small" data-ev-add-sep="classDisplay">Trenner/Text</button>
-                                <button type="button" class="btn btn-small" data-ev-reset="classDisplay">Standard</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-sep="classDisplay">Trenner/Text</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-reset="classDisplay">Standard</button>
                             </div>
                             <div class="name-preview" data-ev-preview="classDisplay"></div>
                         </div>
@@ -431,18 +509,18 @@
                                 <div class="name-builder-dropzone" data-ev-zone="yearAlias" aria-label="Jahrgangs-Alias Bausteine"></div>
                             </div>
                             <div class="name-builder-palette">
-                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="yearAlias">+ Abschlussjahr</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="yearAlias">+ Schulstufe</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="yearAlias">+ n. JG</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="yearAlias">+ n. Klassen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="year" data-ev-for="yearAlias">+ Abschlussjahr</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="stufe" data-ev-for="yearAlias">+ Schulstufe</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="jgDot" data-ev-for="yearAlias">+ n. JG</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="klassenDot" data-ev-for="yearAlias">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
                                     <label>Trenner / Text</label>
                                     <input type="text" data-ev-sep="yearAlias" value="-" placeholder="- oder elternjg">
                                 </div>
-                                <button type="button" class="btn btn-small" data-ev-add-sep="yearAlias">Trenner/Text</button>
-                                <button type="button" class="btn btn-small" data-ev-reset="yearAlias">Standard</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-sep="yearAlias">Trenner/Text</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-reset="yearAlias">Standard</button>
                             </div>
                             <div class="name-preview" data-ev-preview="yearAlias"></div>
                         </div>
@@ -452,24 +530,24 @@
                                 <div class="name-builder-dropzone" data-ev-zone="yearDisplay" aria-label="Jahrgangs-Anzeigename Bausteine"></div>
                             </div>
                             <div class="name-builder-palette">
-                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="yearDisplay">+ Abschlussjahr</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="yearDisplay">+ Schulstufe</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="yearDisplay">+ n. JG</button>
-                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="yearDisplay">+ n. Klassen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="year" data-ev-for="yearDisplay">+ Abschlussjahr</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="stufe" data-ev-for="yearDisplay">+ Schulstufe</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="jgDot" data-ev-for="yearDisplay">+ n. JG</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-token="klassenDot" data-ev-for="yearDisplay">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
                                     <label>Trenner / Text</label>
                                     <input type="text" data-ev-sep="yearDisplay" value=" " placeholder="Leerzeichen oder Text">
                                 </div>
-                                <button type="button" class="btn btn-small" data-ev-add-sep="yearDisplay">Trenner/Text</button>
-                                <button type="button" class="btn btn-small" data-ev-reset="yearDisplay">Standard</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-add-sep="yearDisplay">Trenner/Text</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" data-ev-reset="yearDisplay">Standard</button>
                             </div>
                             <div class="name-preview" data-ev-preview="yearDisplay"></div>
                         </div>
                     </div>
                     <div class="detail-actions">
-                        <button type="button" class="btn btn-success" id="evNamingSave"><i class="bi bi-save"></i>Schema speichern</button>
+                        <button type="button" class="fb-btn" id="evNamingSave"><i class="bi bi-save"></i>Schema speichern</button>
                     </div>
                 </div>
             </details>
@@ -488,11 +566,11 @@
                     <p id="evDiagnoseHints" class="muted" style="line-height:1.45;"></p>
                     <div class="detail-actions" style="margin-top:0;">
                         <span id="evOrphanGuardians" class="muted" style="font-size:0.92em;font-weight:700;"></span>
-                        <button type="button" class="btn" id="evOrphanGuardiansClean"><i class="bi bi-broom"></i>Verwaiste Kontakte bereinigen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="evOrphanGuardiansClean"><i class="bi bi-broom"></i>Verwaiste Kontakte bereinigen</button>
                     </div>
                     <div class="detail-actions">
-                        <button type="button" class="btn" id="evDiagnoseRefresh"><i class="bi bi-arrow-clockwise"></i>Neu prüfen</button>
-                        <button type="button" class="btn" id="evDiagnoseScript"><i class="bi bi-terminal"></i>Exchange-Diagnose-Skript</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="evDiagnoseRefresh"><i class="bi bi-arrow-clockwise"></i>Neu prüfen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="evDiagnoseScript"><i class="bi bi-terminal"></i>Exchange-Diagnose-Skript</button>
                     </div>
                     <div class="field" style="margin-top:12px;">
                         <label for="evDiagnosePs">Diagnose-PowerShell (nur Get-*)</label>
@@ -502,8 +580,8 @@
             </div>
 
             <div class="ev-tabs" role="tablist" aria-label="Ansicht">
-                <button type="button" class="btn" role="tab" id="evTabClass" aria-selected="true" data-ev-tab="class">Klassen</button>
-                <button type="button" class="btn" role="tab" id="evTabYear" aria-selected="false" data-ev-tab="year">Jahrgänge</button>
+                <button type="button" class="ev-view-tab" role="tab" id="evTabClass" aria-selected="true" data-ev-tab="class">Klassen</button>
+                <button type="button" class="ev-view-tab" role="tab" id="evTabYear" aria-selected="false" data-ev-tab="year">Jahrgänge</button>
             </div>
 
             <div class="layout">
@@ -519,10 +597,10 @@
                     </div>
                     <div class="panel-body">
                         <div class="bulk-bar">
-                            <button type="button" class="btn" id="evBtnSelectAll" title="Alle Listen mit Elternmails auswählen"><i class="bi bi-check2-square"></i>Alle auswählen</button>
-                            <button type="button" class="btn" id="evBtnSelectNone" title="Auswahl leeren"><i class="bi bi-square"></i>Auswahl leeren</button>
-                            <button type="button" class="btn btn-success" id="evBtnScriptSelected"><i class="bi bi-terminal"></i>.cmd (Auswahl)</button>
-                            <button type="button" class="btn" id="evBtnScriptAll"><i class="bi bi-collection"></i>.cmd (alle mit Eltern)</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="evBtnSelectAll" title="Alle Listen mit Elternmails auswählen"><i class="bi bi-check2-square"></i>Alle auswählen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="evBtnSelectNone" title="Auswahl leeren"><i class="bi bi-square"></i>Auswahl leeren</button>
+                            <button type="button" class="fb-btn" id="evBtnScriptSelected"><i class="bi bi-terminal"></i>.cmd (Auswahl)</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="evBtnScriptAll"><i class="bi bi-collection"></i>.cmd (alle mit Eltern)</button>
                             <span class="muted" id="evListMeta" style="font-size:0.88em;font-weight:700;"></span>
                         </div>
                         <ul class="tree tree--scroll" id="evList" aria-label="Elternlisten"></ul>
@@ -538,8 +616,8 @@
                         <div id="evDetail" hidden>
                             <p id="evDetailSummary" class="muted" style="margin-top:0;"></p>
                             <div class="detail-actions" style="margin-top:0;margin-bottom:12px;">
-                                <button type="button" class="btn btn-success" id="evBtnScriptOne"><i class="bi bi-terminal"></i>.cmd für diese Liste</button>
-                                <label class="btn" style="cursor:pointer;margin:0;" title="Entspricht der Checkbox in der linken Liste">
+                                <button type="button" class="fb-btn" id="evBtnScriptOne"><i class="bi bi-terminal"></i>.cmd für diese Liste</button>
+                                <label class="fb-btn fb-btn--ghost" style="cursor:pointer;margin:0;" title="Entspricht der Checkbox in der linken Liste">
                                     <input type="checkbox" id="evSelectList" style="margin-right:6px;">In Auswahl für Sammel-Skript
                                 </label>
                             </div>
@@ -554,8 +632,8 @@
                                 <textarea id="evPsScript" readonly placeholder="Skript erscheint hier …"></textarea>
                             </div>
                             <div class="detail-actions">
-                                <button type="button" class="btn" id="evPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
-                                <button type="button" class="btn btn-success" id="evPsDownload"><i class="bi bi-download"></i>.cmd erneut herunterladen</button>
+                                <button type="button" class="fb-btn fb-btn--ghost" id="evPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
+                                <button type="button" class="fb-btn" id="evPsDownload"><i class="bi bi-download"></i>.cmd erneut herunterladen</button>
                             </div>
                         </div>
                     </div>
@@ -567,6 +645,7 @@
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../vendor/xlsx/xlsx.full.min.js" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/eltern-guardians.js" defer></script>
@@ -580,6 +659,6 @@
     <script src="../src/shared/polyglot-cmd.js" defer></script>
     <script type="module" src="../src/tools/eltern-verteiler/eltern-verteiler.js"></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

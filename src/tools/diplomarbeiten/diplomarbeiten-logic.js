@@ -54,6 +54,61 @@ export function slugify(raw) {
 }
 
 /**
+ * Schuljahr beginnt im September. November 2026 ergibt 2026 für 2026/27.
+ * @param {Date|string|number} [date]
+ */
+export function schoolYearStart(date) {
+    const d = date instanceof Date ? date : new Date(date == null ? Date.now() : date);
+    if (Number.isNaN(d.getTime())) return new Date().getFullYear();
+    return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+/**
+ * @param {number} startYear
+ */
+export function formatMaturajahrgang(startYear) {
+    const y = Number(startYear);
+    return y + '/' + String(y + 1).slice(-2);
+}
+
+/**
+ * Auswahl statt Freitext. Bereits angelegte Jahrgänge fehlen.
+ * @param {Date|string|number} [date]
+ * @param {string[]} [taken]
+ */
+export function maturajahrgangChoices(date, taken) {
+    const start = schoolYearStart(date);
+    const used = new Set((taken || []).map((s) => String(s || '').trim()));
+    const out = [];
+    for (let i = -1; i <= 4; i++) {
+        const value = formatMaturajahrgang(start + i);
+        if (used.has(value)) continue;
+        out.push({
+            value,
+            label: i === 0 ? value + ' · dieses Schuljahr' : value,
+            current: i === 0
+        });
+    }
+    return out;
+}
+
+/**
+ * Status einer Zeile: Jahrgang, dann Team, dann Kanäle.
+ * @param {{ id?: string, teamId?: string }} cohort
+ * @param {Array<{ cohortId?: string, channelId?: string }>} [arbeiten]
+ */
+export function cohortListStatus(cohort, arbeiten) {
+    const id = String((cohort && cohort.id) || '');
+    const list = (arbeiten || []).filter((a) => a && a.cohortId === id);
+    const channels = list.filter((a) => String((a && a.channelId) || '').trim()).length;
+    if (!String((cohort && cohort.teamId) || '').trim()) {
+        return { key: 'jahrgang', label: 'Jahrgang angelegt' };
+    }
+    if (!channels) return { key: 'team', label: 'Team verbunden' };
+    return { key: 'kanaele', label: channels === 1 ? '1 Kanal' : channels + ' Kanäle' };
+}
+
+/**
  * Dach-Team Anzeigename für Maturajahrgang.
  * @param {{ maturajahrgang?: string, arbeitTyp?: ArbeitTyp }} input
  */
@@ -188,6 +243,36 @@ export function buildDiplomPlan(input) {
 }
 
 /**
+ * Erster Schritt: zwei Ergebnisse, keine Fachwörter.
+ * @param {ArbeitTyp|string} [arbeitTyp]
+ */
+export function diplomSetupChoices(arbeitTyp) {
+    const L = labelsForArbeitTyp(arbeitTyp);
+    return [
+        {
+            modus: 'channels',
+            title: 'Ein Team pro Jahrgang',
+            text: 'Alle Arbeiten eines Maturajahrgangs liegen in einem Team. Jede Arbeit bekommt dort einen privaten Kanal.',
+            example: 'In Teams steht zum Beispiel „' + L.plural + ' 2026/27“.'
+        },
+        {
+            modus: 'legacy',
+            title: 'Ein Team pro Arbeit',
+            text: 'Jede Arbeit wird ein eigenes Team. Passend, wenn die Schule das bisher schon so führt.',
+            example: 'In Teams steht zum Beispiel „' + L.singular + ' 2027 – Thema“.'
+        }
+    ];
+}
+
+/** @returns {Array<{ arbeitTyp: ArbeitTyp, label: string }>} */
+export function diplomNameChoices() {
+    return [
+        { arbeitTyp: 'diplom', label: 'Diplomarbeit' },
+        { arbeitTyp: 'vwa', label: 'Vorwissenschaftliche Arbeit' }
+    ];
+}
+
+/**
  * @param {{ topic?: string, student?: string, mentorEmail?: string, studentEmails?: string[], arbeitTyp?: ArbeitTyp }} input
  */
 export function validateArbeit(input) {
@@ -229,5 +314,11 @@ export default {
     isDiplomGroup,
     filterDiplomGroups,
     buildDiplomPlan,
+    diplomSetupChoices,
+    diplomNameChoices,
+    schoolYearStart,
+    formatMaturajahrgang,
+    maturajahrgangChoices,
+    cohortListStatus,
     validateArbeit
 };

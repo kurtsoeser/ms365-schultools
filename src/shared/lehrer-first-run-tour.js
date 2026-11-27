@@ -1,6 +1,7 @@
 /**
- * First-Run-Tour für Lehrkräfte: Willkommen → Portal-Spotlight (Apps, Bereiche, Feedback).
+ * First-Run-Tour für Lehrkräfte und den Schulalltag: Willkommen → Kacheln, Links, Apps, Bereiche.
  */
+import { readItShellChoice } from './dashboard-layout-mode.js';
 import { getDashboardPersonas } from './dashboard-persona-session.js';
 import {
     isLehrerWelcomeTourDone,
@@ -23,7 +24,7 @@ import {
 } from './lehrer-portal-readiness.js';
 
 const FEEDBACK_HINT =
-    '<p><strong>Feedback ist erwünscht.</strong> In den Pilotwochen hilft uns jeder Hinweis – unten in der Fußzeile unter <em>Feedback</em> oder jederzeit über denselben Dialog.</p>';
+    '<p><strong>Feedback ist erwünscht.</strong> In den Pilotwochen hilft uns jeder Hinweis – über das Fragezeichen unten rechts, Eintrag <em>Feedback</em>.</p>';
 
 function openFeedbackPrefill(title) {
     try {
@@ -36,6 +37,16 @@ function openFeedbackPrefill(title) {
     }
     try {
         document.querySelector('.site-feedback-link')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    } catch {
+        /* ignore */
+    }
+}
+
+function openFooterHelp() {
+    try {
+        if (window.ms365FooterHelp && typeof window.ms365FooterHelp.open === 'function') {
+            window.ms365FooterHelp.open();
+        }
     } catch {
         /* ignore */
     }
@@ -190,19 +201,21 @@ function welcomePanels() {
     return [
         {
             id: 'role',
-            title: 'Sie sind im Lehrer-Portal',
+            title: 'Sie sind im Schulportal',
             bodyHtml:
-                '<p>Hier finden Sie die <strong>Alltags-Apps</strong> für den Unterricht und den Schulbetrieb – Freistellungen, Schularbeiten, Aktivitäten, Termine und mehr.</p>' +
-                '<ul><li>Kein IT-Backend: Einrichtung und Stammdaten macht die Schul-IT</li>' +
-                '<li>Ihre Apps hängen an der SharePoint-Welt Ihrer Schule</li>' +
-                '<li>Bereiche wie Unterricht, Schulalltag oder Eltern gliedern den Alltag</li></ul>'
+                '<p>Hier liegt der Schulalltag: Termine, Anträge, Schularbeiten, Aktivitäten und die übrigen Werkzeuge, die die Schul-IT für Sie freigeschaltet hat.</p>' +
+                '<ul><li>Einrichtung und Stammdaten macht die Schul-IT</li>' +
+                '<li>Die Startseite zeigt Begrüßung, Kacheln <strong>Für dich</strong>, Schnellzugriff und Meine Apps</li>' +
+                '<li>Links gliedern die Bereiche: Unterricht, Anträge, Schulalltag, Betrieb, Eltern, Kollegium, Intranet</li>' +
+                '<li>Schüler:innen nutzen dieselbe Startseite mit ihren eigenen Apps und Kacheln</li></ul>'
         },
         {
             id: 'apps',
-            title: 'Ausprobieren ist erwünscht',
+            title: 'Kacheln, Apps, Bereiche',
             bodyHtml:
-                '<p>Auf dem Dashboard sehen Sie zuerst <strong>Meine Apps</strong> – die wichtigsten Einstiege. Über die Tabs links öffnen Sie weitere Bereiche und Tools.</p>' +
-                '<p class="muted">Fehlt eine App? Oft muss die Schul-IT noch die Tool-Site oder die Lizenz freischalten – kurz nachfragen oder Feedback senden.</p>'
+                '<p><strong>Für dich</strong> sind Ihre Kacheln: was heute ansteht und was offen ist. Mit <em>Anordnen</em> ziehen Sie sie, ändern die Größe, nehmen welche dazu oder weg. <em>Fertig</em> merkt sich das für Ihr Konto auf diesem Gerät.</p>' +
+                '<p><strong>Meine Apps</strong> ist die kurze Liste darunter. Die übrigen Werkzeuge sitzen in den Bereichen links – ein Klick auf den Bereich klappt sie auf.</p>' +
+                '<p class="muted">Fehlt eine App oder eine Kachel? Oft hat die Schul-IT das Werkzeug noch nicht freigegeben – kurz nachfragen oder Feedback senden.</p>'
         },
         {
             id: 'feedback',
@@ -219,10 +232,10 @@ function portalSpotlightSteps() {
     return [
         {
             id: 'hero',
-            selector: '.dash-portal-hero, #dashQuickApps',
-            title: 'Ihr Lehrer-Dashboard',
+            selector: '.dash-portal-hero:not(.dash-portal-hero--section), #dashQuickApps',
+            title: 'Ihre Startseite',
             bodyHtml:
-                '<p>Begrüßung und Schulkarte – der Einstieg ins Portal. Von hier aus starten Sie in den Schulalltag, nicht ins IT-Backend.</p>',
+                '<p>Begrüßung und Schulkarte. Darunter kommt der Alltag: Kacheln, Links und die kurzen App-Einstiege. Die Einrichtung bleibt bei der Schul-IT.</p>',
             placement: 'bottom',
             before: async () => {
                 ensurePortalHome();
@@ -230,11 +243,41 @@ function portalSpotlightSteps() {
             }
         },
         {
+            id: 'tiles',
+            selector: '#dashPortalBriefing:not([hidden]), .dash-portal-section[aria-label="Meine Apps"]',
+            title: 'Kacheln „Für dich“',
+            bodyHtml:
+                '<p>Hier sehen Sie, was ansteht: Termine von heute und der nächsten Tage, offene Aktivitäten, Freistellungen, Schularbeiten, Aufgaben, Elternbriefe, eigene Technikmeldungen. Ein Klick öffnet das Werkzeug.</p>' +
+                '<p><strong>Anordnen</strong> schaltet das Raster frei: ziehen, an der Ecke Breite und Höhe ändern, über <em>Kachel</em> eine weitere dazu (auch dieselbe App als Liste oder als Zahl), mit × entfernen. <em>Fertig</em> speichert die Anordnung für Ihr Konto auf diesem Gerät, <em>Zurücksetzen</em> holt die Standardauswahl zurück.</p>' +
+                '<p class="muted">Ist der Bereich noch leer, hat die Schul-IT die Werkzeuge noch nicht freigegeben oder es liegen noch keine Einträge vor.</p>',
+            placement: 'top',
+            before: async () => {
+                ensurePortalHome();
+                await waitForSelector(
+                    '#dashPortalBriefing:not([hidden]), .dash-portal-section[aria-label="Meine Apps"]',
+                    4000
+                );
+            }
+        },
+        {
+            id: 'links',
+            selector: '.dash-portal-links, .dash-portal-links__title',
+            title: 'Schnellzugriff',
+            bodyHtml:
+                '<p>Outlook, Teams, Kalender und schulinterne Links (WebUntis, Sokrates, Intranet). Über <em>Links bearbeiten</em> passen Sie die Leiste an. Die Kacheln darüber bleiben Ihr persönlicher Überblick, die Links der Sprung nach draußen.</p>',
+            placement: 'bottom',
+            before: async () => {
+                ensurePortalHome();
+                await waitForSelector('.dash-portal-links', 2000);
+            }
+        },
+        {
             id: 'nav',
             selector: '.dash-portal-shell__nav, [data-portal-nav]',
-            title: 'Bereiche für den Alltag',
+            title: 'Bereiche links',
             bodyHtml:
-                '<p>Links liegen die Bereiche. Ein Klick öffnet die Übersicht und klappt die Werkzeuge auf – Unterricht, Schulalltag, Betrieb, Eltern und Kollegium, je nachdem, was an Ihrer Schule freigeschaltet ist.</p>',
+                '<p><strong>Dashboard</strong> ist diese Startseite. Die übrigen Einträge sind Bereiche: Unterricht, Anträge und Formulare, Schulalltag, Betrieb &amp; Technik, Eltern &amp; Ablauf, Kollegium, Intranet.</p>' +
+                '<p>Ein Klick öffnet den Bereich und klappt die Werkzeuge darunter auf. Ein zweiter Klick klappt sie wieder zu. Sichtbar ist nur, was die Schule freigegeben hat. Das Intranet öffnet die Schulwebsite.</p>',
             placement: 'right',
             padding: 6,
             before: async () => {
@@ -244,43 +287,35 @@ function portalSpotlightSteps() {
         },
         {
             id: 'apps',
-            selector: '.dash-portal-section[aria-label="Meine Apps"], .dash-portal-section, .dash-quick-apps__grid',
+            selector: '.dash-portal-section[aria-label="Meine Apps"]',
             title: 'Meine Apps',
             bodyHtml:
-                '<p>Hier liegen Ihre wichtigsten Tools als Kacheln. Tippen Sie eine App an und schauen Sie sich in Ruhe um – Anträge, Kalender, Genehmigungen, Formulare.</p>',
+                '<p>Die kurze Liste auf der Startseite: was die Schule angepinnt hat, Ihre Favoriten, sonst die wichtigsten Einstiege. Ein Klick öffnet das Werkzeug.</p>' +
+                '<p>Alles Weitere liegt in den Bereichen links – die Startseite zeigt absichtlich nur einen Ausschnitt.</p>',
             placement: 'top',
             before: async () => {
                 ensurePortalHome();
-                await waitForSelector('.dash-portal-section, .dash-quick-apps__grid', 2000);
+                await waitForSelector('.dash-portal-section[aria-label="Meine Apps"]', 2000);
             }
         },
         {
             id: 'section',
-            selector: '.dash-portal-section, .dash-portal-shell__main',
-            title: 'Mehr Apps in den Bereichen',
+            selector: '.dash-portal-section[data-portal-section], .dash-portal-shell__main',
+            title: 'Ein Bereich, die passenden Werkzeuge',
             bodyHtml:
-                '<p>Ein Bereich (z. B. Unterricht) zeigt alle zugehörigen Apps. So finden Sie Freistellungen, Schularbeiten oder sRDP, ohne den ganzen Katalog zu durchsuchen.</p>',
+                '<p>Unterricht bündelt Schularbeiten und Unterrichtsteams. Anträge und Formulare: Freistellungen, sRDP, Wahlfach. Schulalltag: Termine, Aktivitäten, Projektwochen, Aufgaben. Eltern &amp; Ablauf: Briefe, Elternsprechtag, Einsammler, Krankmeldung. Betrieb: Technik, Räume, Ausgaben.</p>' +
+                '<p>Jede Zeile öffnet genau dieses Werkzeug.</p>',
             placement: 'top',
             before: async () => {
-                const firstSection = document.querySelector(
-                    '.dash-portal-shell__nav [data-portal-nav]:not([data-portal-nav="home"]):not([data-portal-nav="it-bereich"])'
-                );
-                const id = firstSection ? firstSection.getAttribute('data-portal-nav') : '';
+                const preferred =
+                    document.querySelector('[data-portal-nav="unterricht"]') ||
+                    document.querySelector(
+                        '.dash-portal-shell__nav [data-portal-nav]:not([data-portal-nav="home"]):not([data-portal-nav="it-bereich"])'
+                    );
+                const id = preferred ? preferred.getAttribute('data-portal-nav') : '';
                 if (id) clickPortalNav(id);
                 else ensurePortalHome();
-                await waitForSelector('.dash-portal-section, .dash-portal-shell__main', 2000);
-            }
-        },
-        {
-            id: 'links',
-            selector: '.dash-portal-links, .dash-portal-links__title',
-            title: 'Schnellzugriff',
-            bodyHtml:
-                '<p>Outlook, Teams, Kalender und schulinterne Links (WebUntis, Intranet …) – einmal setzen, dann immer griffbereit. Lehrkräfte können die Links über <em>Links bearbeiten</em> anpassen.</p>',
-            placement: 'bottom',
-            before: async () => {
-                ensurePortalHome();
-                await waitForSelector('.dash-portal-links', 2000);
+                await waitForSelector('.dash-portal-section[data-portal-section], .dash-portal-shell__main', 2000);
             }
         },
         {
@@ -290,11 +325,12 @@ function portalSpotlightSteps() {
             primaryLabel: 'Feedback öffnen',
             bodyHtml:
                 FEEDBACK_HINT +
-                '<p>Als Nächstes: eine App öffnen und den Alltag ausprobieren. Die Tour können Sie im Kontomenü jederzeit erneut starten.</p>',
+                '<p>Als Nächstes: eine Kachel oder eine App öffnen und den Alltag ausprobieren. Die Tour starten Sie im Kontomenü jederzeit neu.</p>',
             placement: 'top',
             before: async () => {
                 ensurePortalHome();
-                await waitForSelector('.site-feedback-link, #siteCreditKurtrocks', 3000);
+                await waitForSelector('.site-feedback-link, #appFooterHelpBtn', 3000);
+                openFooterHelp();
             },
             onPrimary: async () => {
                 openFeedbackPrefill('Lehrer-Portal / First-Run');
@@ -521,6 +557,8 @@ export async function startLehrerDashboardFirstRun(opts) {
         evaluateLehrerPortalReadiness(gatherLehrerPortalReadinessInput())
     );
 
+    if (!force && readItShellChoice() === 'full') return false;
+
     if (
         !shouldStartLehrerWelcomeTour({
             force,
@@ -535,26 +573,15 @@ export async function startLehrerDashboardFirstRun(opts) {
         return false;
     }
 
-    // Tour braucht die Portal-Shell (Apps-only). IT im Backend → kurz auf Portal wechseln.
-    try {
-        if (!isPortalPreviewLayout(readLayoutMode())) {
-            const api = window.ms365DashboardAudience;
-            if (api && typeof api.setLayoutMode === 'function') {
-                api.setLayoutMode('preview-lehrer');
-            }
-        }
-    } catch {
-        /* ignore */
-    }
-
-    // Portal muss gerendert sein (Apps-only Shell)
-    await waitForSelector('#dashQuickApps, .dash-portal-shell', force ? 2500 : 5000);
+    // Portal-Tour darf die gespeicherte IT-Arbeitsfläche nicht auf „Portal“ umschreiben.
+    // setLayoutMode('preview-lehrer') hat das bisher dauerhaft gespeichert – danach landete
+    // jeder Wechsel auf dem Lehrer-Dashboard.
 
     patchLehrerFirstRunState(localStorage, { phase: 'welcome', step: 0 });
 
     openWelcomeTour(welcomePanels(), {
-        title: 'Willkommen im Lehrer-Portal',
-        lead: 'Kurze Orientierung: Dashboard, Apps und Feedback-Kanal für die Pilotwochen.',
+        title: 'Willkommen im Schulportal',
+        lead: 'Startseite, Kacheln „Für dich“, Bereiche links und der Feedback-Kanal für die Pilotwochen.',
         onComplete(reason) {
             if (reason === 'skipped') {
                 finishFirstRun('skipped');

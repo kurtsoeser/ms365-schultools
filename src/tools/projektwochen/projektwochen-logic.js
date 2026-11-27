@@ -3,6 +3,25 @@
  */
 
 export const STATUS_ANGEBOT = ['entwurf', 'beantragt', 'freigegeben', 'abgelehnt', 'abgesagt'];
+
+/** Anzeige. Die gespeicherten Werte bleiben die Schlüssel. */
+const STATUS_LABEL = {
+    entwurf: 'Entwurf',
+    beantragt: 'wartet',
+    freigegeben: 'frei',
+    abgelehnt: 'abgelehnt',
+    abgesagt: 'abgesagt',
+    offen: 'buchbar',
+    gesperrt: 'noch nicht buchbar'
+};
+
+/**
+ * @param {string} status
+ */
+export function statusLabel(status) {
+    const s = String(status || '').toLowerCase();
+    return STATUS_LABEL[s] || s || '–';
+}
 /** Formular/Schema: inkl. ganztags (Anzeige im Plan über PLAN_SLOTS gespannt). */
 export const SLOTS = ['ganztags', 'vormittag', 'nachmittag', 'abend'];
 /** Wochenplan-Spalten (ohne ganztags – ganztägige Angebote spannen alle drei). */
@@ -58,6 +77,51 @@ export function toDatetimeLocalValue(v) {
  * @param {string} isoDate
  * @returns {'Mo'|'Di'|'Mi'|'Do'|'Fr'|''}
  */
+const WOCHENTAG_NAME = {
+    Mo: 'Montag',
+    Di: 'Dienstag',
+    Mi: 'Mittwoch',
+    Do: 'Donnerstag',
+    Fr: 'Freitag',
+    Sa: 'Samstag',
+    So: 'Sonntag'
+};
+
+/**
+ * @param {string} code Mo … So
+ */
+export function weekdayNameDe(code) {
+    return WOCHENTAG_NAME[String(code || '').trim()] || '';
+}
+
+/** Standardzeiten je Tageszeit. Nur diese Paare darf ein Wechsel überschreiben. */
+export const SLOT_DEFAULT_TIMES = {
+    vormittag: ['08:00', '12:00'],
+    nachmittag: ['13:00', '17:00'],
+    abend: ['17:00', '20:00'],
+    ganztags: ['08:00', '16:00']
+};
+
+/**
+ * Neue Beginn/Ende-Zeiten, wenn die bisherigen noch zur vorigen Tageszeit gehören.
+ * Angepasste Zeiten bleiben. null = nichts ändern.
+ * @param {string} prevSlot
+ * @param {string} nextSlot
+ * @param {string} start
+ * @param {string} end
+ * @returns {{ startzeit: string, endzeit: string }|null}
+ */
+export function nextSlotTimes(prevSlot, nextSlot, start, end) {
+    const next = SLOT_DEFAULT_TIMES[String(nextSlot || '')];
+    if (!next) return null;
+    const prev = SLOT_DEFAULT_TIMES[String(prevSlot || '')];
+    const s = String(start || '').trim();
+    const e = String(end || '').trim();
+    const stillDefault = (!s && !e) || (!!prev && s === prev[0] && e === prev[1]);
+    if (!stillDefault) return null;
+    return { startzeit: next[0], endzeit: next[1] };
+}
+
 export function weekdayLabelDeFromIso(isoDate) {
     const d = toIsoDateOnly(isoDate);
     if (!d) return '';
@@ -128,8 +192,10 @@ export function validateAngebot(opts) {
     if (!datum) errors.push('Datum fehlt.');
 
     const kap = Number(draft.kapazitaet);
-    if (!Number.isFinite(kap) || kap < 1) errors.push('Kapazität muss mindestens 1 sein.');
-    else if (kap > 60) warnings.push('Kapazität über 60 – bitte prüfen.');
+    if (!Number.isFinite(kap) || kap < 1) errors.push('Plätze müssen mindestens 1 sein.');
+    else if (kap > 60) warnings.push('Plätze über 60 – bitte prüfen.');
+
+    if (!String(draft.ort || '').trim()) errors.push('Ort fehlt.');
 
     const preis = Number(draft.preisEuro);
     if (draft.preisEuro !== '' && draft.preisEuro != null && (!Number.isFinite(preis) || preis < 0)) {
@@ -137,7 +203,7 @@ export function validateAngebot(opts) {
     }
 
     if (!String(draft.lehrerCode || '').trim() && !String(draft.lehrerEmail || '').trim()) {
-        errors.push('Verantwortliche Lehrkraft (Kürzel oder E-Mail) fehlt.');
+        errors.push('Lehrkraft fehlt.');
     }
 
     const start = String(draft.startzeit || '').trim();
@@ -181,7 +247,7 @@ export function validateAngebot(opts) {
             );
         });
         if (clash.length) {
-            warnings.push('Dieselbe Lehrkraft hat am gleichen Tag/Slot bereits „' + (clash[0].title || 'anderes Angebot') + '“.');
+            warnings.push('Dieselbe Lehrkraft hat am gleichen Tag und zur gleichen Tageszeit bereits „' + (clash[0].title || 'anderes Angebot') + '“.');
         }
     }
 
@@ -475,6 +541,10 @@ export function computePwAttention(stateLike) {
         return false;
     });
     const myOpen = mine.filter((a) => a.status === 'entwurf' || a.status === 'beantragt').length;
+    const myBeantragt = mine.filter((a) => a.status === 'beantragt').length;
+    const myEntwurf = mine.filter((a) => a.status === 'entwurf').length;
+    const myFreigegeben = mine.filter((a) => a.status === 'freigegeben').length;
+    const myAbgelehnt = mine.filter((a) => a.status === 'abgelehnt' || a.status === 'abgesagt').length;
 
     return {
         role,
@@ -483,6 +553,101 @@ export function computePwAttention(stateLike) {
         pendingSync,
         myCount: mine.length,
         myOpen,
+        myBeantragt,
+        myEntwurf,
+        myFreigegeben,
+        myAbgelehnt,
         empty: items.length === 0
     };
+}
+
+/**
+ * Statuszeile der eigenen Angebote.
+ * @param {{ myBeantragt?: number, myEntwurf?: number, myFreigegeben?: number, myAbgelehnt?: number }} att
+ */
+export function teacherOfferLine(att) {
+    const a = att || {};
+    const parts = [];
+    const waiting = Number(a.myBeantragt) || 0;
+    const draft = Number(a.myEntwurf) || 0;
+    const released = Number(a.myFreigegeben) || 0;
+    const rejected = Number(a.myAbgelehnt) || 0;
+    if (waiting === 1) parts.push('1 wartet');
+    else if (waiting > 1) parts.push(waiting + ' warten');
+    if (draft === 1) parts.push('1 Entwurf');
+    else if (draft > 1) parts.push(draft + ' Entwürfe');
+    if (released === 1) parts.push('1 frei');
+    else if (released > 1) parts.push(released + ' frei');
+    if (rejected === 1) parts.push('1 abgelehnt');
+    else if (rejected > 1) parts.push(rejected + ' abgelehnt');
+    return parts.length ? parts.join(', ') + '.' : '';
+}
+
+/**
+ * Erster Satz auf dem Dashboard, passend zur Rolle.
+ * @param {{ role?: string, items?: object[], accountEmail?: string, teacherMatch?: { code?: string }|null, bootstrapped?: boolean }} stateLike
+ */
+export function dashboardHomeModel(stateLike) {
+    const att = computePwAttention(stateLike);
+    const ready = !!(stateLike && stateLike.bootstrapped);
+    if (att.role === 'schueler') {
+        return {
+            num: null,
+            title: 'Meine Buchung',
+            sub: 'Ihre Termine stehen unter Meine Buchung.',
+            primary: { view: 'buchung', label: 'Meine Buchung' },
+            ghost: null
+        };
+    }
+    if (att.role === 'lehrer') {
+        if (!ready) {
+            return {
+                num: null,
+                title: 'Noch keine Daten',
+                sub: 'Bitte warten Sie auf die Freischaltung durch die Administration.',
+                primary: null,
+                ghost: null
+            };
+        }
+        if (!att.myCount) {
+            return {
+                num: null,
+                title: 'Noch kein eigenes Angebot',
+                sub: 'Reichen Sie eines für die Projektwoche ein.',
+                primary: { view: 'neu', label: 'Neues Angebot' },
+                ghost: null
+            };
+        }
+        return {
+            num: att.myCount,
+            title: att.myCount === 1 ? 'eigenes Angebot' : 'eigene Angebote',
+            sub: teacherOfferLine(att) || 'In dieser Projektwoche.',
+            primary: null,
+            ghost: { view: 'neu', label: 'Neues Angebot' }
+        };
+    }
+    const n = att.beantragt;
+    const released =
+        att.freigegeben === 1 ? '1 Angebot ist frei.' : att.freigegeben + ' Angebote sind frei.';
+    return {
+        num: n,
+        title: n === 1 ? 'Antrag wartet' : 'Anträge warten',
+        sub: released,
+        primary: ready && n > 0 ? { view: 'admin', label: 'Zur Freigabe' } : null,
+        ghost: null
+    };
+}
+
+/**
+ * Buchungslink für Schüler auf einem freigegebenen Angebot.
+ * Leer, wenn die Person schon gebucht hat oder keine Service-Adresse da ist.
+ * @param {string} role
+ * @param {object|null} angebot
+ * @param {boolean} [alreadyBooked]
+ */
+export function studentBookingsUrl(role, angebot, alreadyBooked) {
+    if (String(role || '') !== 'schueler') return '';
+    if (alreadyBooked) return '';
+    if (!angebot || angebot.status !== 'freigegeben') return '';
+    return String(angebot.bookingsBookingUrl || '').trim();
 }

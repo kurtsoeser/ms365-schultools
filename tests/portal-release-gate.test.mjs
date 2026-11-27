@@ -15,7 +15,7 @@ describe('portal-release-gate (b6)', () => {
         expect(isPortalReleased({ portalReleasedAt: '2026-11-21T10:00:00.000Z' })).toBe(true);
     });
 
-    it('Lehrer sieht setup_incomplete ohne IT-Freigabe', () => {
+    it('nutzbares Portal bleibt frei, auch ohne lokales Freigabe-Datum', () => {
         const r = evaluateLehrerPortalWithReleaseGate({
             allowed: true,
             toolSiteUrl: 'https://schule.sharepoint.com/sites/x',
@@ -24,8 +24,8 @@ describe('portal-release-gate (b6)', () => {
             itLibraryReady: true,
             portalReleased: false
         });
-        expect(r.status).toBe('setup_incomplete');
-        expect(r.missing).toContain('portalRelease');
+        expect(r.status).toBe('ready');
+        expect(r.missing).not.toContain('portalRelease');
     });
 
     it('Lehrer ready mit Freigabe', () => {

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -12,8 +12,8 @@
     <link rel="stylesheet" href="../app.css?v=28">
         <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
 <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
-    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
-    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=2">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
@@ -46,7 +46,7 @@ button.btn-success {
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Lehrerinnen &amp; Schülerinnen</span>
             </div>
-            <p>Zwei Microsoft‑365‑Gruppen für Lehrerinnen &amp; Schülerinnen matchen oder anlegen. Nach dem Match gelten dieselben Details wie in der MS&nbsp;365 Gruppenverwaltung: Allgemein, Besitzer und Mitglieder live aus Graph. Mitglieder können zusätzlich aus den Schul‑Listen synchronisiert werden. Als <strong>Besitzer</strong> dienen Personen mit Rolle Direktion (o. Ä.) aus der Verwaltungsliste; sonst der angemeldete Benutzer.</p>
+            <p>Sammelgruppen für Schüler:innen und Lehrer:innen mit Microsoft&nbsp;365 verknüpfen oder anlegen. Links auswählen, rechts Informationen, Besitzer und Mitglieder bearbeiten.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-slg" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
@@ -60,16 +60,18 @@ button.btn-success {
         </div>
 
         <div class="content">
-            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Schüler- oder Lehrerlisten. Pflegen Sie die Stammdaten – danach können Sie hier die Sammelgruppen matchen oder anlegen."></div>
-            <div class="gd-layout gd-layout--split">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Schüler- oder Lehrerlisten. Pflegen Sie die Stammdaten – danach können Sie hier die Sammelgruppen mit Microsoft 365 verknüpfen oder anlegen."></div>
+            <div class="gd-layout">
                 <section class="panel" aria-label="Gruppen auswählen">
-                    <div class="panel-head">
-                        <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Listen</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Wählen Sie links <strong>Schüler:innen</strong> oder <strong>Lehrer:innen</strong>. Die Zahlen rechts: <strong>Liste</strong> (Stammdaten) und <strong>Gruppe</strong> (Mitglieder in Microsoft&nbsp;365) – gleich = grün, sonst rot. Bei Abweichung: <strong>Abgleich öffnen</strong> oder im Tab Mitglieder <strong>Mitglieder vergleichen</strong>.</p>
-                    </div>
                     <div class="panel-body">
-                        <div class="gd-filter-row" style="margin:0 0 10px; justify-content:flex-end;">
-                            <button type="button" class="btn" id="slgBtnReloadLists" title="Schüler- und Lehrerlisten aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                        <div class="gd-master-head">
+                            <div class="gd-master-head__titles">
+                                <h2>Sammelgruppen</h2>
+                                <p class="gd-master-head__count">Stammdaten · Microsoft 365</p>
+                            </div>
+                            <div class="gd-master-head__actions">
+                                <button type="button" class="btn btn-ghost" id="slgBtnReloadLists" title="Schüler- und Lehrerlisten aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                            </div>
                         </div>
                         <ul class="tree" id="slgListItems" aria-label="Schüler- und Lehrer-Gruppe">
                             <li>
@@ -81,12 +83,12 @@ button.btn-success {
                                     <span class="slg-side-count slg-side-count--dual" id="slgSchuelerCounts">
                                         <span class="slg-side-kpi">
                                             <span class="n" id="slgSchuelerCount">0</span>
-                                            <span class="l">Liste</span>
+                                            <span class="l">erwartet</span>
                                         </span>
-                                        <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                                        <span class="slg-side-kpi-sep" aria-hidden="true">·</span>
                                         <span class="slg-side-kpi">
                                             <span class="n" id="slgSchuelerGroupCount">–</span>
-                                            <span class="l">Gruppe</span>
+                                            <span class="l">in M365</span>
                                         </span>
                                     </span>
                                 </button>
@@ -100,12 +102,12 @@ button.btn-success {
                                     <span class="slg-side-count slg-side-count--dual" id="slgLehrerCounts">
                                         <span class="slg-side-kpi">
                                             <span class="n" id="slgLehrerCount">0</span>
-                                            <span class="l">Liste</span>
+                                            <span class="l">erwartet</span>
                                         </span>
-                                        <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                                        <span class="slg-side-kpi-sep" aria-hidden="true">·</span>
                                         <span class="slg-side-kpi">
                                             <span class="n" id="slgLehrerGroupCount">–</span>
-                                            <span class="l">Gruppe</span>
+                                            <span class="l">in M365</span>
                                         </span>
                                     </span>
                                 </button>
@@ -158,10 +160,12 @@ button.btn-success {
                 </div>
             </details>
 
-            <div class="toolbar bottom-toolbar" style="margin-top:22px;" aria-label="Zwischenstand">
-                <button type="button" class="btn" id="slgBtnSaveState"><i class="bi bi-floppy"></i>Speichern</button>
-                <button type="button" class="btn" id="slgBtnLoadState"><i class="bi bi-folder2-open"></i>Laden</button>
-                <button type="button" class="btn btn-danger" id="slgBtnClearStorage"><i class="bi bi-trash"></i>Zurücksetzen</button>
+            <div class="toolbar bottom-toolbar tool-state-bar" aria-label="Zwischenstand">
+                <div class="tool-state-bar__actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="slgBtnSaveState"><i class="bi bi-floppy"></i>Speichern</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="slgBtnLoadState"><i class="bi bi-folder2-open"></i>Laden</button>
+                    <button type="button" class="fb-btn fb-btn--ghost fb-btn--danger" id="slgBtnClearStorage"><i class="bi bi-trash"></i>Zurücksetzen</button>
+                </div>
             </div>
         </div>
     </div>
@@ -185,6 +189,6 @@ button.btn-success {
     <script type="module" src="../src/shared/membership-import-ui.js"></script>
     <script type="module" src="../src/shared/membership-review-render.js"></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-gruppenverwaltung.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

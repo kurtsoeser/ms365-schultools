@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-    LANDING_KONTAKT_URL,
     evaluateLehrerPortalReadiness,
     isLehrerPortalReady,
-    missingLabels
+    missingLabels,
+    schoolItAdminMailto
 } from '../src/shared/lehrer-portal-readiness.js';
 
 describe('lehrer-portal-readiness', () => {
-    it('liefert Landing-Kontakt-URL', () => {
-        expect(LANDING_KONTAKT_URL).toBe('https://ms365.schule/#kontakt');
+    it('baut mailto an die Schul-IT', () => {
+        expect(schoolItAdminMailto({ itM365AdminEmail: 'it@schule.at', itM365Admin: 'Ada' })).toMatch(
+            /^mailto:it@schule\.at\?/
+        );
+        expect(schoolItAdminMailto({ itM365AdminEmail: '' })).toBe('');
+        expect(schoolItAdminMailto({ itM365AdminEmail: 'keine-mail' })).toBe('');
     });
 
     it('denied wenn Lizenz nicht erlaubt', () => {

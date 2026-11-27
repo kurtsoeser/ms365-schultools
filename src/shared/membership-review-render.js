@@ -7,11 +7,15 @@ import { memberDisplayNameFromGraph } from './membership-reconcile.js';
 const SECTION_META = {
     onlyLocal: {
         variant: 'local',
-        direction: 'Lokal → Cloud'
+        direction: 'Lokal → Cloud',
+        presenceLocal: true,
+        presenceCloud: false
     },
     onlyGraph: {
         variant: 'cloud',
-        direction: 'Cloud → Lokal'
+        direction: 'Cloud → Lokal',
+        presenceLocal: false,
+        presenceCloud: true
     }
 };
 
@@ -80,18 +84,10 @@ export function renderMembershipReviewLegend() {
     const legend = document.createElement('div');
     legend.className = 'mr-flow-legend';
     legend.innerHTML =
-        '<p class="mr-flow-legend__intro">Es werden zwei Quellen verglichen – Abweichungen können in eine Richtung übernommen werden:</p>' +
-        '<div class="mr-flow-legend__sources">' +
-        '<div class="mr-source mr-source--local">' +
-        '<i class="bi bi-journal-text" aria-hidden="true"></i>' +
-        '<div><strong>Schul-Liste</strong><span>lokal (Stammdaten im Browser)</span></div>' +
-        '</div>' +
-        '<div class="mr-flow-legend__mid" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></div>' +
-        '<div class="mr-source mr-source--cloud">' +
-        '<i class="bi bi-cloud" aria-hidden="true"></i>' +
-        '<div><strong>Microsoft-365-Gruppe</strong><span>online in der Cloud</span></div>' +
-        '</div>' +
-        '</div>';
+        '<p class="mr-flow-legend__intro">' +
+        'Vergleich: <strong>Schul-Liste</strong> (Stammdaten lokal) und ' +
+        '<strong>Microsoft-365-Gruppe</strong> (Cloud). ' +
+        'Markieren Sie Personen und wählen Sie die Sync-Richtung darunter.</p>';
     return legend;
 }
 
@@ -104,28 +100,54 @@ export function renderMembershipReviewStats(listCount, diff, groupCountOverride)
     const groupCount =
         typeof groupCountOverride === 'number'
             ? groupCountOverride
-            : diff.onlyLocal.length + diff.onlyGraph.length + diff.both.length + (diff.preserved ? diff.preserved.length : 0);
+            : diff.onlyLocal.length +
+              diff.onlyGraph.length +
+              diff.both.length +
+              (diff.preserved ? diff.preserved.length : 0);
+    const diffs = diff.onlyLocal.length + diff.onlyGraph.length;
 
     const bar = document.createElement('div');
     bar.className = 'mr-stats-bar';
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', 'Abgleich-Übersicht');
     bar.innerHTML =
-        '<div class="mr-stat mr-stat--local"><span class="mr-stat__n">' +
+        '<div class="mr-stat"><span class="mr-stat__n">' +
         listCount +
         '</span><span class="mr-stat__l">Schul-Liste</span></div>' +
-        '<div class="mr-stat mr-stat--cloud"><span class="mr-stat__n">' +
+        '<div class="mr-stat"><span class="mr-stat__n">' +
         groupCount +
         '</span><span class="mr-stat__l">M365-Gruppe</span></div>' +
-        '<div class="mr-stat mr-stat--ok"><span class="mr-stat__n">' +
+        '<div class="mr-stat"><span class="mr-stat__n">' +
         diff.both.length +
         '</span><span class="mr-stat__l">Übereinstimmend</span></div>' +
-        '<div class="mr-stat mr-stat--diff"><span class="mr-stat__n">' +
-        (diff.onlyLocal.length + diff.onlyGraph.length) +
+        '<div class="mr-stat' +
+        (diffs ? ' mr-stat--diff' : '') +
+        '"><span class="mr-stat__n">' +
+        diffs +
         '</span><span class="mr-stat__l">Abweichungen</span></div>';
     return bar;
 }
 
+/**
+ * @param {boolean} on
+ * @param {string} label
+ */
+function presenceChip(on, label) {
+    const span = document.createElement('span');
+    span.className = 'mr-presence' + (on ? ' mr-presence--on' : ' mr-presence--off');
+    span.innerHTML =
+        '<i class="bi ' +
+        (on ? 'bi-check-lg' : 'bi-dash') +
+        '" aria-hidden="true"></i>' +
+        '<span>' +
+        label +
+        '</span>';
+    return span;
+}
+
 function renderReviewTable(sectionKey, emails, graphByEmail, opts) {
     const o = opts && typeof opts === 'object' ? opts : {};
+    const meta = SECTION_META[sectionKey] || {};
     const wrap = document.createElement('div');
     wrap.className = 'slg-deviation-table-wrap';
     if (!emails.length) {
@@ -137,13 +159,13 @@ function renderReviewTable(sectionKey, emails, graphByEmail, opts) {
         return wrap;
     }
     const table = document.createElement('table');
-    table.className = 'slg-deviation-table';
+    table.className = 'slg-deviation-table mr-diff-table';
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
-    ['', 'E-Mail', o.nameColumn ? 'Name (Graph)' : ''].forEach(function (label, idx) {
-        if (idx === 2 && !o.nameColumn) return;
+    ['', 'Person', 'Schul-Liste', 'M365'].forEach(function (label, idx) {
         const th = document.createElement('th');
-        th.className = idx === 0 ? 'col-check' : '';
+        if (idx === 0) th.className = 'col-check';
+        if (idx >= 2) th.className = 'col-presence';
         th.textContent = label;
         headRow.appendChild(th);
     });
@@ -161,15 +183,38 @@ function renderReviewTable(sectionKey, emails, graphByEmail, opts) {
         cb.setAttribute('data-mr-email', em);
         tdCheck.appendChild(cb);
         tr.appendChild(tdCheck);
-        const tdEm = document.createElement('td');
-        tdEm.textContent = em;
-        tr.appendChild(tdEm);
-        if (o.nameColumn) {
-            const tdName = document.createElement('td');
-            const person = graphByEmail.get(em);
-            tdName.textContent = person ? memberDisplayNameFromGraph(person, em) : '–';
-            tr.appendChild(tdName);
+
+        const tdPerson = document.createElement('td');
+        tdPerson.className = 'mr-person-cell';
+        const person = graphByEmail.get(em);
+        const name = person ? memberDisplayNameFromGraph(person, em) : '';
+        if (name && name !== em) {
+            const nameEl = document.createElement('span');
+            nameEl.className = 'mr-person-cell__name';
+            nameEl.textContent = name;
+            tdPerson.appendChild(nameEl);
+            const mailEl = document.createElement('span');
+            mailEl.className = 'mr-person-cell__email';
+            mailEl.textContent = em;
+            tdPerson.appendChild(mailEl);
+        } else {
+            const mailEl = document.createElement('span');
+            mailEl.className = 'mr-person-cell__email mr-person-cell__email--solo';
+            mailEl.textContent = em;
+            tdPerson.appendChild(mailEl);
         }
+        tr.appendChild(tdPerson);
+
+        const tdLocal = document.createElement('td');
+        tdLocal.className = 'col-presence';
+        tdLocal.appendChild(presenceChip(!!meta.presenceLocal, meta.presenceLocal ? 'ja' : 'nein'));
+        tr.appendChild(tdLocal);
+
+        const tdCloud = document.createElement('td');
+        tdCloud.className = 'col-presence';
+        tdCloud.appendChild(presenceChip(!!meta.presenceCloud, meta.presenceCloud ? 'ja' : 'nein'));
+        tr.appendChild(tdCloud);
+
         tbody.appendChild(tr);
     });
     table.appendChild(tbody);

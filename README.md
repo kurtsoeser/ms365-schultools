@@ -7,7 +7,7 @@ Einfache **Browser-App** (statische HTML/JS-Oberfläche): **Dashboard** (`index.
 Die Nutzerdokumentation liegt in **`hilfe.html`**: durchsuchbare Anleitungen zu allen Werkzeugen, empfohlene Abläufe, FAQ, Windows-Hinweise (u. a. blockierte `.cmd`) und die Datenschutzerklärung. In der App führt der Link **Hilfe, Datenschutz & Windows-Hinweise** (unten rechts) dorthin.
 
 <!-- privacy-copy:readme:start -->
-Sensible Schul- und Schülerdaten liegen im **Microsoft-365-Tenant der Schule** (SharePoint/Teams/Graph) bzw. lokal im Browser (`localStorage`) – **nicht** als Klassenlisten-Datenbank beim Betreiber. Schlanke Betreiber-Dienste (Lizenz-API, statisches Hosting, optionale Portale) speichern nur Minimaldaten für Freischaltung und Betrieb. Über **Browser-Backup** lassen sich lokale App-Daten als JSON übertragen; optional in die **IT-Sicherungsbibliothek auf der schulischen SharePoint-Site**. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz), ausführlich: [landing/datenschutz.html](landing/datenschutz.html).
+Sensible Schul- und Schülerdaten liegen im **Microsoft-365-Tenant der Schule** (SharePoint/Teams/Graph) bzw. lokal im Browser (`localStorage`, Anhänge in IndexedDB) – **nicht** als Klassenlisten-Datenbank beim Betreiber. Die Lizenz-API speichert Schul- und Kontaktangaben. Optionale Module (Wahl, Einsammler, Krankmeldung, Schülerportal, Kursteams) können weitere Daten an Azure-Dienste des Betreibers senden, wenn die Schule sie einschaltet. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz), ausführlich: [landing/datenschutz.html](landing/datenschutz.html).
 <!-- privacy-copy:readme:end -->
 
 ## Planung: Stammdaten über Bildungsportal (EdTech)

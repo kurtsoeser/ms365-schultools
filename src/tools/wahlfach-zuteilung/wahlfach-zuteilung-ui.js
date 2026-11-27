@@ -8,7 +8,6 @@ import {
     countBelegung,
     countUeberbuchung,
     ergebnisListenProAngebot,
-    isAnmeldefensterOffen,
     kapazitaetStatus,
     resolveWzActionHint,
     resolveWzAdminActor,
@@ -42,9 +41,10 @@ import {
     upsertAngebot,
     upsertRunde
 } from './wahlfach-zuteilung-store.js';
-import { resolveWahlfachAdminAccess } from './wahlfach-entra-role.js';
+import { resolveWahlfachAppRole } from './wahlfach-entra-role.js';
 import {
     classCodesFromStammdaten,
+    classResultRows,
     createWzUiState,
     ensureWzView,
     loadWzStammdaten,
@@ -78,14 +78,8 @@ function formatDeDate(iso) {
 function phaseBadgeHtml(runde) {
     const p = resolveWzPhase(runde);
     const cls =
-        p.tone === 'ok'
-            ? 'wz-badge--ok'
-            : p.tone === 'warn'
-              ? 'wz-badge--warn'
-              : p.tone === 'muted'
-                ? ''
-                : 'wz-badge--info';
-    return '<span class="wz-badge ' + cls + '">' + esc(p.label) + '</span>';
+        p.tone === 'ok' ? 'fb-pill--ok' : p.tone === 'warn' ? 'fb-pill--warn' : '';
+    return '<span class="fb-pill ' + cls + '">' + esc(p.label) + '</span>';
 }
 
 function quietEmpty(text) {
@@ -180,7 +174,7 @@ export function mountApp(root) {
         ui.softError = '';
         ui.hardError = '';
         if (ui.localDemoOnly) {
-            ui.softError = 'Demo lokal aktiv – SharePoint wird nicht überschrieben.';
+            ui.softError = 'Änderungen bleiben auf diesem Computer.';
             return;
         }
         ui.loading = true;
@@ -217,20 +211,122 @@ export function mountApp(root) {
         ui.localDemoOnly = true;
         ui.softError = '';
         ui.hardError = '';
-        setMessage('ok', 'Demo lokal geladen (15 Anmeldungen, manuelle Zuteilung).');
+        setMessage('ok', 'Beispieldaten geladen. Nichts geht an SharePoint.');
         return true;
     }
 
+    function renderRolePage(inner) {
+        root.innerHTML =
+            '<div class="wz-shell wz-shell--form"><div class="wz-main">' + inner + '</div></div>';
+    }
+
+    function renderLehrerQuiet() {
+        renderRolePage(
+            '<h1 class="fb-greet">Wahlfach-Zuteilung</h1>' +
+                '<p class="fb-sub">Die Zuteilung macht die Direktion. Als Lehrkraft siehst du hier nichts weiter.</p>' +
+                renderMessage() +
+                '<p class="wz-quiet-empty" role="status"><i class="bi bi-eye-slash" aria-hidden="true"></i><span>Klassenvorstände sehen das Ergebnis ihrer eigenen Klasse. Schülerinnen und Schüler füllen nur ihr Formular aus.</span></p>'
+        );
+    }
+
+    function renderMeineKlasse(s) {
+        const codes = (ui.access && ui.access.kvKlassen) || [];
+        const rows = classResultRows(s, codes, (ui.stammdaten && ui.stammdaten.students) || [])
+            .map((row) => {
+                const z = row.anmeldung
+                    ? (s.zuteilungen || []).find((x) => x && x.anmeldungId === row.anmeldung.id)
+                    : null;
+                return { row, z: z && z.angebotId ? z : null };
+            })
+            .sort((a, b) => {
+                const rank = (item) => (!item.row.anmeldung ? 0 : !item.z ? 1 : 2);
+                const byRank = rank(a) - rank(b);
+                if (byRank) return byRank;
+                return a.row.name.localeCompare(b.row.name, 'de');
+            });
+        const body = rows.length
+            ? rows
+                  .map(({ row, z }) => {
+                      const a = row.anmeldung;
+                      const zugeteilt = z && z.angebotId ? angebotLabel(s, z.angebotId) : '';
+                      return (
+                          '<tr><td>' +
+                          esc(row.name) +
+                          (row.email ? '<br><small>' + esc(row.email) + '</small>' : '') +
+                          '</td><td>' +
+                          esc(row.klasse) +
+                          '</td><td>' +
+                          (a ? esc(angebotLabel(s, a.wunsch1Id)) : '–') +
+                          '</td><td>' +
+                          (a && a.wunsch2Id ? esc(angebotLabel(s, a.wunsch2Id)) : '–') +
+                          '</td><td>' +
+                          (a && a.wunsch3Id ? esc(angebotLabel(s, a.wunsch3Id)) : '–') +
+                          '</td><td>' +
+                          (a
+                              ? esc(zugeteilt || 'noch offen')
+                              : 'noch keine Anmeldung') +
+                          '</td></tr>'
+                      );
+                  })
+                  .join('')
+            : '';
+        const assigned = rows.filter((item) => item.z).length;
+        const missing = rows.filter((item) => !item.row.anmeldung).length;
+        const open = rows.length - assigned - missing;
+        /** @type {Map<string, number>} */
+        const byOffer = new Map();
+        rows.forEach((item) => {
+            if (!item.z) return;
+            const name = angebotLabel(s, item.z.angebotId);
+            byOffer.set(name, (byOffer.get(name) || 0) + 1);
+        });
+        const offerLine = Array.from(byOffer.entries())
+            .map(([name, n]) => esc(name) + ' ' + n)
+            .join(' · ');
+        renderRolePage(
+            pageHead(
+                'Meine Klasse',
+                (codes.length ? codes.join(', ') : 'Deine Klasse') +
+                    ': ' +
+                    assigned +
+                    ' von ' +
+                    rows.length +
+                    ' zugeteilt.'
+            ) +
+            '<p class="wz-kv-facts"><span>' +
+            open +
+            ' noch offen</span><span>' +
+            missing +
+            ' ohne Anmeldung</span>' +
+            (offerLine ? '<span>' + offerLine + '</span>' : '') +
+            '</p>' +
+                renderMessage() +
+                (ui.loading
+                    ? '<p class="fb-sub">Lade …</p>'
+                    : !rows.length
+                      ? quietEmpty('In dieser Klasse liegt noch keine Anmeldung.')
+                      : '<div class="wz-table-wrap"><table class="wz-table"><thead><tr>' +
+                        '<th>Schüler/in</th><th>Klasse</th><th>1. Wunsch</th><th>2. Wunsch</th><th>3. Wunsch</th><th>Zuteilung</th>' +
+                        '</tr></thead><tbody>' +
+                        body +
+                        '</tbody></table></div>')
+        );
+    }
+
     function render() {
-        if (ui.access && !ui.access.ok) {
-            root.innerHTML =
-                '<div class="wz-shell"><div class="wz-main">' +
-                '<h2>Wahlfach-Zuteilung</h2>' +
-                '<p class="wz-msg wz-msg--err" role="alert">' +
-                esc(ui.access.reason) +
-                '</p>' +
-                '<p class="wz-nav__hint">Schüler:innen nutzen das <a href="wahlfach-anmeldung.html">Anmeldeformular</a>. IT-Vorschau: ?demoRole=1</p>' +
-                '</div></div>';
+        const role = ui.access && ui.access.role;
+        if (!ui.access || role === 'pending') {
+            renderRolePage(
+                '<h1 class="fb-greet">Wahlfach-Zuteilung</h1><p class="fb-sub">Konto wird gelesen …</p>'
+            );
+            return;
+        }
+        if (role === 'lehrer') {
+            renderLehrerQuiet();
+            return;
+        }
+        if (role === 'kv') {
+            renderMeineKlasse(state());
             return;
         }
         ui.view = ensureWzView(ui.view, { showSystem: showSystem() });
@@ -239,10 +335,9 @@ export function mountApp(root) {
             '<div class="wz-shell">' +
             renderNav(s) +
             '<div class="wz-main">' +
-            renderTop(s) +
             renderSoftBars() +
             renderMessage() +
-            (ui.loading ? '<p class="wz-nav__hint">Lade …</p>' : '') +
+            (ui.loading ? '<p class="fb-sub">Lade …</p>' : '') +
             renderView(s) +
             '</div></div>';
         bind(s);
@@ -253,7 +348,7 @@ export function mountApp(root) {
         const buttons = sections
             .map((sec) => {
                 const head = sec.label
-                    ? '<p class="wz-nav__section">' + esc(sec.label) + '</p>'
+                    ? '<span class="wz-nav__section-label">' + esc(sec.label) + '</span>'
                     : '';
                 const items = (sec.items || [])
                     .map(
@@ -264,12 +359,12 @@ export function mountApp(root) {
                             esc(v.id) +
                             '"><i class="bi ' +
                             esc(v.icon) +
-                            '" aria-hidden="true"></i>' +
+                            '" aria-hidden="true"></i><span class="wz-nav__btn-label">' +
                             esc(v.label) +
-                            '</button>'
+                            '</span></button>'
                     )
                     .join('');
-                return head + items;
+                return '<div class="wz-nav__section">' + head + items + '</div>';
             })
             .join('');
         const accessHint =
@@ -277,19 +372,19 @@ export function mountApp(root) {
                 ? 'IT-Vorschau (?demoRole=1).'
                 : ui.access && ui.access.reason
                   ? ui.access.reason
-                  : 'Schulleitung / Verwaltung – manuelle Zuteilung.';
+                  : 'Schulleitung teilt manuell zu.';
         const phase = resolveWzPhase(s.runde);
         return (
-            '<nav class="wz-nav" aria-label="Wahlfach-Zuteilung">' +
+            '<aside class="wz-nav" aria-label="Wahlfach-Zuteilung">' +
             '<div class="wz-nav__brand">' +
             '<i class="bi bi-diagram-3" aria-hidden="true"></i>' +
             '<div><strong>Wahlfach-Zuteilung</strong><span>' +
             esc(phase.label) +
             '</span></div>' +
             '</div>' +
-            '<div class="wz-nav__list">' +
+            '<nav class="wz-nav__list">' +
             buttons +
-            '</div>' +
+            '</nav>' +
             '<div class="wz-nav__role">' +
             '<span class="wz-nav__role-label">Zugang</span>' +
             '<p class="wz-nav__hint">' +
@@ -300,22 +395,7 @@ export function mountApp(root) {
             (showSystem()
                 ? '<a href="sharepoint-liste-wahlfach.html"><i class="bi bi-list-ul"></i> Listen (IT)</a>'
                 : '') +
-            '</div></div></nav>'
-        );
-    }
-
-    function renderTop(s) {
-        return (
-            '<header class="wz-top">' +
-            '<div><h2 class="wz-top__title">Wahlfach-Zuteilung</h2>' +
-            '<p class="wz-top__hint">Runde → Angebote → Wünsche → manuelle Zuteilung → CSV</p></div>' +
-            '<div class="wz-top__meta">' +
-            phaseBadgeHtml(s.runde) +
-            (ui.localDemoOnly ? '<span class="wz-badge wz-badge--warn">Demo lokal</span>' : '') +
-            (ui.accountEmail
-                ? '<small>' + esc(ui.accountName || ui.accountEmail) + '</small>'
-                : '<small>Bitte anmelden</small>') +
-            '</div></header>'
+            '</div></div></aside>'
         );
     }
 
@@ -343,25 +423,26 @@ export function mountApp(root) {
         return '<p class="wz-msg ' + cls + '" role="status">' + esc(ui.message.text) + '</p>';
     }
 
-    function renderActionBanner(s) {
+    function renderNextAction(s) {
         const hint = resolveWzActionHint(s);
-        if (!hint) {
-            return quietEmpty('Alles ruhig – keine offenen Zuteilungsaufgaben.');
-        }
+        if (!hint || hint.ctaView === ui.view) return '';
         return (
-            '<section class="wz-calm-banner wz-calm-banner--action" role="status">' +
-            '<div class="wz-calm-banner__text">' +
-            '<p class="wz-calm-banner__eyebrow">' +
-            esc(hint.eyebrow) +
-            '</p>' +
-            '<p>' +
-            esc(hint.text) +
-            '</p></div>' +
-            '<button type="button" class="btn btn-success" data-wz-view="' +
+            '<div class="fb-actions-row">' +
+            '<button type="button" class="fb-btn" data-wz-view="' +
             esc(hint.ctaView) +
             '">' +
             esc(hint.ctaLabel) +
-            '</button></section>'
+            '</button></div>'
+        );
+    }
+
+    function pageHead(titleHtml, lead) {
+        return (
+            '<h1 class="fb-greet">' +
+            titleHtml +
+            '</h1><p class="fb-sub">' +
+            lead +
+            '</p>'
         );
     }
 
@@ -384,42 +465,43 @@ export function mountApp(root) {
 
     function renderUebersicht(s) {
         const r = s.runde;
-        const offen = isAnmeldefensterOffen(r);
         const ueber = countUeberbuchung(s.angebote, s.zuteilungen);
         const zugeteilt = (s.zuteilungen || []).filter((z) => z.angebotId).length;
+        const hint = resolveWzActionHint(s);
+        const headline = !r
+            ? 'Noch keine Runde.'
+            : '<span class="fb-num">' +
+              esc(String(s.anmeldungen.length)) +
+              '</span> Anmeldungen.';
+        const lead = hint
+            ? esc(hint.text)
+            : 'Stand der Runde und der Zuteilung.';
         return (
-            '<section class="wz-panel">' +
-            '<h2 class="wz-panel__title">Übersicht</h2>' +
-            '<p class="wz-panel__lead">Phasen, Kapazität und Zuteilungsstand. SharePoint ist System of Record – lokal bleibt der Arbeitsstand.</p>' +
-            renderActionBanner(s) +
+            pageHead(headline, lead) +
+            '<div class="wz-meta-row">' +
+            (r ? phaseBadgeHtml(r) : '') +
+            '</div>' +
             '<div class="wz-kpis">' +
             kpi(s.angebote.length, 'Angebote') +
             kpi(s.anmeldungen.length, 'Anmeldungen') +
             kpi(zugeteilt, 'Zugeteilt') +
             kpi(ueber, 'Überbuchungen') +
             '</div>' +
+            renderNextAction(s) +
             (r
-                ? '<div class="wz-card"><h3>' +
+                ? '<p class="wz-round-line"><strong>' +
                   esc(r.titel) +
-                  '</h3><p>Schuljahr ' +
+                  '</strong> · Schuljahr ' +
                   esc(r.schuljahr) +
                   ' · ' +
                   formatDeDate(r.anmeldeVon) +
                   ' – ' +
                   formatDeDate(r.anmeldeBis) +
-                  '</p><p>' +
-                  phaseBadgeHtml(r) +
-                  ' <span class="wz-badge">' +
-                  esc(RUNDE_STATUS_LABEL[r.status] || r.status) +
-                  '</span> ' +
-                  (offen
-                      ? '<span class="wz-badge wz-badge--ok">Fenster offen</span>'
-                      : '<span class="wz-badge">Fenster zu</span>') +
-                  '</p></div>'
+                  '</p>'
                 : quietEmpty('Noch keine Runde – unten anlegen.')) +
-            '<h3 class="wz-panel__title" style="margin-top:14px;font-size:1rem">Runde bearbeiten</h3>' +
+            '<details class="wz-details"><summary>Runde bearbeiten</summary>' +
             rundeForm(r) +
-            '</section>'
+            '</details>'
         );
     }
 
@@ -467,7 +549,7 @@ export function mountApp(root) {
             '<select id="wzStatus" name="status">' +
             statusOpts +
             '</select></div></div>' +
-            '<div class="wz-actions"><button type="submit" class="btn">Runde speichern</button></div>' +
+            '<div class="fb-actions-row"><button type="submit" class="fb-btn">Runde speichern</button></div>' +
             '</form>'
         );
     }
@@ -479,10 +561,10 @@ export function mountApp(root) {
                 const st = kapazitaetStatus(a, bel);
                 const badge =
                     st.ueberbuchung > 0
-                        ? 'wz-badge--bad'
+                        ? 'fb-pill--bad'
                         : st.voll
-                          ? 'wz-badge--warn'
-                          : 'wz-badge--ok';
+                          ? 'fb-pill--warn'
+                          : 'fb-pill--ok';
                 return (
                     '<tr><td>' +
                     esc(a.bezeichnung) +
@@ -492,7 +574,7 @@ export function mountApp(root) {
                     esc(String(a.kapazitaetMax)) +
                     '</td><td>' +
                     esc(a.zielJahrgaenge || '–') +
-                    '</td><td><span class="wz-badge ' +
+                    '</td><td><span class="fb-pill ' +
                     badge +
                     '">' +
                     bel +
@@ -500,16 +582,17 @@ export function mountApp(root) {
                     a.kapazitaetMax +
                     '</span></td><td>' +
                     (a.aktiv ? 'ja' : 'nein') +
-                    '</td><td><button type="button" class="btn" data-wz-del-ang="' +
+                    '</td><td class="wz-row-actions"><button type="button" class="wz-link-btn" data-wz-del-ang="' +
                     esc(a.id) +
                     '">Löschen</button></td></tr>'
                 );
             })
             .join('');
         return (
-            '<section class="wz-panel">' +
-            '<h2 class="wz-panel__title">Angebote</h2>' +
-            '<p class="wz-panel__lead">Wahlfächer mit Kapazität (Min/Max) und Zieljahrgängen – Grundlage für manuelle Zuteilung.</p>' +
+            pageHead(
+                'Angebote',
+                'Wahlfächer mit Kapazität (Min/Max) und Zieljahrgängen – Grundlage für die manuelle Zuteilung.'
+            ) +
             '<form class="wz-form wz-form--inline" id="wzAngebotForm">' +
             '<div class="wz-field"><label for="wzAngBez">Bezeichnung</label>' +
             '<input id="wzAngBez" name="bezeichnung" required placeholder="z. B. Chor"></div>' +
@@ -519,7 +602,7 @@ export function mountApp(root) {
             '<input type="number" id="wzAngMax" name="kapazitaetMax" min="1" value="20" required></div>' +
             '<div class="wz-field"><label for="wzAngZiel">Jahrgänge</label>' +
             '<input id="wzAngZiel" name="zielJahrgaenge" placeholder="3–4"></div>' +
-            '<div class="wz-actions"><button type="submit" class="btn">Anlegen</button></div>' +
+            '<div class="wz-field wz-field--action"><button type="submit" class="fb-btn">Anlegen</button></div>' +
             '</form>' +
             (rows
                 ? '<div class="wz-table-wrap"><table class="wz-table"><thead><tr>' +
@@ -527,26 +610,38 @@ export function mountApp(root) {
                   '</tr></thead><tbody>' +
                   rows +
                   '</tbody></table></div>'
-                : quietEmpty('Noch keine Angebote.')) +
-            '</section>'
+                : quietEmpty('Noch keine Angebote.'))
         );
     }
 
-    function angebotOptions(s, selected, emptyLabel) {
+    function angebotOption(a, selected) {
+        return (
+            '<option value="' +
+            esc(a.id) +
+            '"' +
+            (selected === a.id ? ' selected' : '') +
+            '>' +
+            esc(a.bezeichnung) +
+            '</option>'
+        );
+    }
+
+    function angebotOptions(s, selected, emptyLabel, wishIds) {
         const opts = ['<option value="">' + esc(emptyLabel || '– wählen –') + '</option>'];
-        (s.angebote || [])
-            .filter((a) => a.aktiv)
-            .forEach((a) => {
-                opts.push(
-                    '<option value="' +
-                        esc(a.id) +
-                        '"' +
-                        (selected === a.id ? ' selected' : '') +
-                        '>' +
-                        esc(a.bezeichnung) +
-                        '</option>'
-                );
-            });
+        const active = (s.angebote || []).filter((a) => a.aktiv);
+        const wishSet = new Set((wishIds || []).filter(Boolean));
+        const wishes = active.filter((a) => wishSet.has(a.id));
+        const rest = active.filter((a) => !wishSet.has(a.id));
+        if (wishes.length && rest.length) {
+            opts.push('<optgroup label="Wünsche">' + wishes.map((a) => angebotOption(a, selected)).join('') + '</optgroup>');
+            opts.push(
+                '<optgroup label="Weitere Angebote">' +
+                    rest.map((a) => angebotOption(a, selected)).join('') +
+                    '</optgroup>'
+            );
+        } else {
+            active.forEach((a) => opts.push(angebotOption(a, selected)));
+        }
         return opts.join('');
     }
 
@@ -602,10 +697,21 @@ export function mountApp(root) {
             })
             .join('');
         return (
-            '<section class="wz-panel">' +
-            '<h2 class="wz-panel__title">Anmeldungen</h2>' +
-            '<p class="wz-panel__lead">Schüler:innen melden sich über das Anmeldeformular (1.–3. Wunsch). Optional Demo-Erfassung hier.</p>' +
-            '<p class="wz-actions" style="margin-bottom:12px"><a class="btn btn-success" href="wahlfach-anmeldung.html"><i class="bi bi-box-arrow-up-right"></i>Schüler-Formular</a></p>' +
+            pageHead(
+                'Anmeldungen',
+                'Schüler:innen tragen ihre Wünsche im Formular ein. Diese Liste ist die Übersicht für die Zuteilung.'
+            ) +
+            '<div class="fb-actions-row"><a class="fb-btn fb-btn--ghost" href="wahlfach-anmeldung.html"><i class="bi bi-box-arrow-up-right"></i>Schüler-Formular</a></div>' +
+            (rows
+                ? '<div class="wz-table-wrap"><table class="wz-table"><thead><tr>' +
+                  '<th>Schüler:in</th><th>Klasse</th><th>Wünsche</th><th>Status</th><th>Zuteilung</th>' +
+                  '</tr></thead><tbody>' +
+                  rows +
+                  '</tbody></table></div>'
+                : quietEmpty('Noch keine Anmeldungen.')) +
+            '<details class="wz-details"' +
+            (ui.captureOpen ? ' open' : '') +
+            '><summary>Anmeldung manuell erfassen</summary>' +
             '<form class="wz-form" id="wzAnmeldungForm">' +
             '<div class="wz-form wz-form--inline" style="margin:0">' +
             '<div class="wz-field"><label for="wzName">Name</label>' +
@@ -626,90 +732,115 @@ export function mountApp(root) {
             '<select id="wzW3" name="wunsch3Id">' +
             angebotOptions(s, '', '– optional –') +
             '</select></div></div>' +
-            '<div class="wz-actions"><button type="submit" class="btn">Anmeldung speichern</button></div>' +
-            '</form>' +
-            (rows
-                ? '<div class="wz-table-wrap"><table class="wz-table"><thead><tr>' +
-                  '<th>Schüler:in</th><th>Klasse</th><th>Wünsche</th><th>Status</th><th>Zuteilung</th>' +
-                  '</tr></thead><tbody>' +
-                  rows +
-                  '</tbody></table></div>'
-                : quietEmpty('Noch keine Anmeldungen.')) +
-            '</section>'
+            '<div class="fb-actions-row"><button type="submit" class="fb-btn">Anmeldung speichern</button></div>' +
+            '</form></details>'
         );
     }
 
     function renderZuteilung(s) {
-        const offen = (s.anmeldungen || []).filter((a) => a.status !== 'storniert');
-        if (!offen.length) {
+        const all = (s.anmeldungen || []).filter((a) => a.status !== 'storniert');
+        if (!all.length) {
             return (
-                '<section class="wz-panel"><h2 class="wz-panel__title">Zuteilung</h2>' +
-                quietEmpty('Zuerst Anmeldungen erfassen.') +
-                '</section>'
+                pageHead('Zuteilung', 'Zuerst Anmeldungen erfassen.') +
+                quietEmpty('Noch keine Anmeldungen.')
             );
         }
-        const rows = offen
+        const classSet = [];
+        const seenClass = new Set();
+        all.forEach((a) => {
+            const code = String(a.klasse || '').trim();
+            const key = code.toLowerCase();
+            if (!code || seenClass.has(key)) return;
+            seenClass.add(key);
+            classSet.push(code);
+        });
+        classSet.sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
+        const klasse = String(ui.zuteilKlasse || '');
+        const nurOffen = !!ui.zuteilNurOffen;
+        const rows = all
+            .filter((a) => !klasse || String(a.klasse || '').trim().toLowerCase() === klasse.toLowerCase())
+            .filter((a) => {
+                if (!nurOffen) return true;
+                const z = (s.zuteilungen || []).find((x) => x && x.anmeldungId === a.id);
+                return !(z && z.angebotId);
+            })
             .map((a) => {
                 const z = (s.zuteilungen || []).find((x) => x.anmeldungId === a.id);
                 const current = (z && z.angebotId) || '';
+                const wishes = [a.wunsch1Id, a.wunsch2Id, a.wunsch3Id].filter(Boolean);
                 return (
                     '<tr><td>' +
                     esc(a.schuelerName) +
                     '<br><small>' +
                     esc(a.klasse) +
-                    ' · Wünsche: ' +
-                    esc(angebotLabel(s, a.wunsch1Id)) +
-                    ', ' +
-                    esc(angebotLabel(s, a.wunsch2Id)) +
-                    (a.wunsch3Id ? ', ' + esc(angebotLabel(s, a.wunsch3Id)) : '') +
+                    ' · ' +
+                    wishes.map((id) => esc(angebotLabel(s, id))).join(' · ') +
                     '</small></td><td><select data-wz-zuteil-select="' +
                     esc(a.id) +
+                    '" aria-label="Zuteilung für ' +
+                    esc(a.schuelerName) +
                     '">' +
-                    angebotOptions(s, current, '– nicht zugeteilt –') +
-                    '</select></td><td><button type="button" class="btn" data-wz-zuteil="' +
-                    esc(a.id) +
-                    '">Zuweisen</button> ' +
-                    '<button type="button" class="btn" data-wz-zuteil-clear="' +
-                    esc(a.id) +
-                    '">Aufheben</button></td></tr>'
+                    angebotOptions(s, current, '– nicht zugeteilt –', wishes) +
+                    '</select></td></tr>'
                 );
             })
             .join('');
+        const classOpts =
+            '<option value="">Alle Klassen</option>' +
+            classSet
+                .map(
+                    (c) =>
+                        '<option value="' +
+                        esc(c) +
+                        '"' +
+                        (klasse === c ? ' selected' : '') +
+                        '>' +
+                        esc(c) +
+                        '</option>'
+                )
+                .join('');
         const ueber = countUeberbuchung(s.angebote, s.zuteilungen);
         return (
-            '<section class="wz-panel">' +
-            '<h2 class="wz-panel__title">Manuelle Zuteilung</h2>' +
-            '<p class="wz-panel__lead">Kapazität wird geprüft. Kein Auto-Matching, keine Genehmigungslogik – nur manuelle Zuweisung.</p>' +
+            pageHead(
+                'Manuelle Zuteilung',
+                'Angebot wählen. Die Zeile wird sofort gespeichert. „Nicht zugeteilt“ hebt sie auf.'
+            ) +
+            '<div class="wz-form wz-form--inline">' +
+            '<div class="wz-field"><label for="wzZuteilKlasse">Klasse</label>' +
+            '<select id="wzZuteilKlasse" data-wz-zuteil-klasse>' +
+            classOpts +
+            '</select></div>' +
+            '<div class="wz-field wz-field--action"><label class="wz-check"><input type="checkbox" data-wz-zuteil-offen' +
+            (nurOffen ? ' checked' : '') +
+            '> Nur noch offen</label></div></div>' +
             (ueber
                 ? '<p class="wz-msg wz-msg--warn">Aktuell ' +
                   ueber +
                   ' Überbuchung(en) über alle Angebote.</p>'
                 : '') +
-            '<div class="wz-table-wrap"><table class="wz-table"><thead><tr>' +
-            '<th>Anmeldung</th><th>Angebot</th><th></th></tr></thead><tbody>' +
-            rows +
-            '</tbody></table></div></section>'
+            (rows
+                ? '<div class="wz-table-wrap"><table class="wz-table"><thead><tr>' +
+                  '<th>Anmeldung</th><th>Angebot</th></tr></thead><tbody>' +
+                  rows +
+                  '</tbody></table></div>'
+                : quietEmpty(nurOffen ? 'In dieser Auswahl ist niemand mehr offen.' : 'Keine Anmeldung in dieser Klasse.'))
         );
     }
 
     function renderErgebnis(s) {
         const listen = ergebnisListenProAngebot(s.angebote, s.anmeldungen, s.zuteilungen);
         if (!listen.length) {
-            return (
-                '<section class="wz-panel"><h2 class="wz-panel__title">Ergebnis</h2>' +
-                quietEmpty('Keine Angebote.') +
-                '</section>'
-            );
+            return pageHead('Ergebnis', 'Keine Angebote.') + quietEmpty('Zuerst Angebote anlegen.');
         }
         const cards = listen
             .map((L) => {
                 const st = L.status;
                 const badge =
                     st.ueberbuchung > 0
-                        ? 'wz-badge--bad'
+                        ? 'fb-pill--bad'
                         : !st.kommtZustande
-                          ? 'wz-badge--warn'
-                          : 'wz-badge--ok';
+                          ? 'fb-pill--warn'
+                          : 'fb-pill--ok';
                 const people = L.teilnehmende.length
                     ? '<ul>' +
                       L.teilnehmende
@@ -727,7 +858,7 @@ export function mountApp(root) {
                 return (
                     '<article class="wz-card"><h3>' +
                     esc(L.angebot.bezeichnung) +
-                    ' <span class="wz-badge ' +
+                    ' <span class="fb-pill ' +
                     badge +
                     '">' +
                     L.belegt +
@@ -741,15 +872,16 @@ export function mountApp(root) {
             })
             .join('');
         return (
-            '<section class="wz-panel">' +
-            '<h2 class="wz-panel__title">Ergebnis</h2>' +
-            '<p class="wz-panel__lead">Teilnehmerlisten pro Angebot. CSV (UTF-8 BOM, Semikolon) für Access-Schülerakte.</p>' +
-            '<div class="wz-actions" style="margin-bottom:14px">' +
-            '<button type="button" class="btn btn-success" id="wzBtnExportCsv"><i class="bi bi-filetype-csv"></i>Ergebnis als CSV</button>' +
+            pageHead(
+                'Ergebnis',
+                'Teilnehmerlisten pro Angebot. Die CSV (UTF-8, Semikolon) ist für die Access-Schülerakte gedacht.'
+            ) +
+            '<div class="fb-actions-row">' +
+            '<button type="button" class="fb-btn" id="wzBtnExportCsv"><i class="bi bi-filetype-csv"></i>Ergebnis als CSV</button>' +
             '</div>' +
             '<div class="wz-card-list">' +
             cards +
-            '</div></section>'
+            '</div>'
         );
     }
 
@@ -804,10 +936,10 @@ export function mountApp(root) {
                             '<div class="wz-settings-note"><strong>SPO Live Sync:</strong> ' +
                             esc(syncNote) +
                             '</div>' +
-                            '<div class="wz-actions">' +
-                            '<button type="submit" class="btn btn-success">Einstellungen speichern</button>' +
-                            '<button type="button" class="btn" id="wzBtnSpoSync"><i class="bi bi-cloud-download"></i>Von SharePoint laden</button>' +
-                            '<a class="btn" href="sharepoint-liste-wahlfach.html"><i class="bi bi-list-ul"></i>Listen anlegen</a>' +
+                            '<div class="fb-actions-row">' +
+                            '<button type="submit" class="btn ms-sys-btn-primary">Einstellungen speichern</button>' +
+                            '<button type="button" class="btn ms-sys-btn-secondary" id="wzBtnSpoSync"><i class="bi bi-cloud-download"></i>Von SharePoint laden</button>' +
+                            '<a class="btn ms-sys-btn-secondary" href="sharepoint-liste-wahlfach.html"><i class="bi bi-list-ul"></i>Listen anlegen</a>' +
                             '</div>'
                     },
                     {
@@ -844,9 +976,9 @@ export function mountApp(root) {
                             '<textarea id="wzAccessHinweis" name="accessHinweis" rows="3">' +
                             esc(cfg.accessHinweis) +
                             '</textarea></div>' +
-                            '<div class="wz-actions">' +
-                            '<button type="submit" class="btn btn-success">Einstellungen speichern</button>' +
-                            '<button type="button" class="btn" id="wzBtnDemoLoad"><i class="bi bi-database"></i>Demo lokal laden</button>' +
+                            '<div class="fb-actions-row">' +
+                            '<button type="submit" class="btn ms-sys-btn-primary">Einstellungen speichern</button>' +
+                            '<button type="button" class="btn ms-sys-btn-secondary" id="wzBtnDemoLoad"><i class="bi bi-database"></i>Demo lokal laden</button>' +
                             '</div>' +
                             '<p class="wz-nav__hint">Oder URL: ?demo=1 – Demo wird nicht nach SharePoint gepusht</p>'
                     },
@@ -982,10 +1114,12 @@ export function mountApp(root) {
                     schuelerEmail: ui.accountEmail || undefined
                 });
                 if (!res.ok) {
+                    ui.captureOpen = true;
                     setMessage('err', res.errors.join(' '));
                     render();
                     return;
                 }
+                ui.captureOpen = false;
                 setMessage('ok', 'Anmeldung gespeichert.');
                 render();
                 void softPushWzAnmeldung(res.anmeldung, { localDemoOnly: ui.localDemoOnly }).then(
@@ -1000,21 +1134,30 @@ export function mountApp(root) {
             });
         }
 
-        root.querySelectorAll('[data-wz-zuteil]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-wz-zuteil');
-                const sel = root.querySelector('[data-wz-zuteil-select="' + id + '"]');
-                const angebotId = sel ? sel.value : '';
-                if (!angebotId) {
-                    setMessage('err', 'Bitte ein Angebot wählen.');
-                    render();
-                    return;
-                }
+        const klasseSel = root.querySelector('[data-wz-zuteil-klasse]');
+        if (klasseSel) {
+            klasseSel.addEventListener('change', () => {
+                ui.zuteilKlasse = klasseSel.value || '';
+                render();
+            });
+        }
+        const offenBox = root.querySelector('[data-wz-zuteil-offen]');
+        if (offenBox) {
+            offenBox.addEventListener('change', () => {
+                ui.zuteilNurOffen = !!offenBox.checked;
+                render();
+            });
+        }
+
+        root.querySelectorAll('[data-wz-zuteil-select]').forEach((sel) => {
+            sel.addEventListener('change', () => {
+                const id = sel.getAttribute('data-wz-zuteil-select');
+                const angebotId = sel.value || '';
                 const prevZ =
                     (s.zuteilungen || []).find((z) => z && z.anmeldungId === id) || null;
-                const res = applyZuteilung(id, angebotId, {
+                const res = applyZuteilung(id, angebotId || null, {
                     zugeteiltVon: adminActor(),
-                    begruendung: 'Manuelle Zuteilung'
+                    begruendung: angebotId ? 'Manuelle Zuteilung' : ''
                 });
                 if (!res.ok) {
                     setMessage('err', res.errors.join(' '));
@@ -1022,40 +1165,24 @@ export function mountApp(root) {
                     return;
                 }
                 if (res.warnings.length) setMessage('warn', res.warnings.join(' '));
-                else setMessage('ok', 'Zuteilung gespeichert.');
+                else setMessage('ok', angebotId ? 'Zuteilung gespeichert.' : 'Zuteilung aufgehoben.');
                 render();
                 const z =
                     (res.state.zuteilungen || []).find((row) => row && row.anmeldungId === id) ||
                     null;
                 void softPushWzZuteilung(
-                    { anmeldungId: id, angebotId, prevZuteilung: prevZ, zuteilung: z },
+                    {
+                        anmeldungId: id,
+                        angebotId: angebotId || null,
+                        prevZuteilung: prevZ,
+                        zuteilung: z
+                    },
                     { localDemoOnly: ui.localDemoOnly }
                 ).then((push) => {
                     applySoftPushResult(push);
-                    if (push.ok && !push.skipped) setMessage('ok', 'Zuteilung in SharePoint gespeichert.');
-                    render();
-                });
-            });
-        });
-
-        root.querySelectorAll('[data-wz-zuteil-clear]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-wz-zuteil-clear');
-                const prevZ =
-                    (s.zuteilungen || []).find((z) => z && z.anmeldungId === id) || null;
-                const res = applyZuteilung(id, null, { zugeteiltVon: adminActor() });
-                if (!res.ok) {
-                    setMessage('err', res.errors.join(' '));
-                    render();
-                    return;
-                }
-                setMessage('ok', 'Zuteilung aufgehoben.');
-                render();
-                void softPushWzZuteilung(
-                    { anmeldungId: id, angebotId: null, prevZuteilung: prevZ },
-                    { localDemoOnly: ui.localDemoOnly }
-                ).then((push) => {
-                    applySoftPushResult(push);
+                    if (push.ok && !push.skipped && angebotId) {
+                        setMessage('ok', 'Zuteilung in SharePoint gespeichert.');
+                    }
                     render();
                 });
             });
@@ -1118,27 +1245,49 @@ export function mountApp(root) {
     }
 
     root.innerHTML =
-        '<div class="wz-shell"><div class="wz-main"><p class="wz-nav__hint">Prüfe Zugang …</p></div></div>';
+        '<div class="wz-shell wz-shell--form"><div class="wz-main"><p class="wz-nav__hint">Prüfe Zugang …</p></div></div>';
 
-    void (async () => {
+    /** @type {{ ok: boolean, reason: string, source: string }|null} */
+    let direktionKnown = null;
+    let roleRetryWired = false;
+
+    async function settleAccess() {
+        ui.stammdaten = loadWzStammdaten();
         try {
-            ui.access = await resolveWahlfachAdminAccess();
+            ui.access = await resolveWahlfachAppRole({
+                stammdaten: ui.stammdaten,
+                direktion: direktionKnown
+            });
         } catch {
             ui.access = {
+                role: 'lehrer',
                 ok: false,
+                kvKlassen: [],
                 reason: 'Zugangsprüfung fehlgeschlagen. Bitte neu anmelden.',
-                demo: false
+                source: '',
+                demo: false,
+                email: ''
             };
+            setMessage('err', ui.access.reason);
+        }
+        if (ui.access && ui.access.role === 'direktion') {
+            direktionKnown = {
+                ok: true,
+                reason: ui.access.reason,
+                source: ui.access.source
+            };
+        } else if (ui.access && !ui.access.demo) {
+            direktionKnown = { ok: false, reason: '', source: '' };
         }
         const acc = readWzAccount();
         ui.accountEmail = acc.email;
         ui.accountName = acc.name;
 
-        if (ui.access && ui.access.ok) {
+        const role = ui.access && ui.access.role;
+        if (role === 'direktion' || role === 'kv') {
             if (wantsWzDemoFromUrl()) {
                 seedDemoIfEmpty();
                 ui.localDemoOnly = true;
-                setMessage('ok', 'Demo aktiv (?demo=1).');
             } else if (isWzDemoSeedState(state())) {
                 ui.localDemoOnly = true;
             } else {
@@ -1147,9 +1296,26 @@ export function mountApp(root) {
             if (!ui.stammdatenLive || ui.stammdatenLive.source === 'cache') {
                 await hydrateStammdaten(ui.siteId);
             }
+            if (role === 'kv' && ui.access && !ui.access.demo) {
+                ui.access = await resolveWahlfachAppRole({
+                    stammdaten: ui.stammdaten,
+                    direktion: direktionKnown
+                });
+            }
+        } else if (role === 'pending' && !roleRetryWired && typeof window !== 'undefined') {
+            roleRetryWired = true;
+            window.addEventListener(
+                'ms365-auth-widget-ready',
+                () => {
+                    void settleAccess();
+                },
+                { once: true }
+            );
         }
         render();
-    })();
+    }
+
+    void settleAccess();
 }
 
 export { mountApp as mountWahlfachZuteilung };

@@ -82,7 +82,7 @@ describe('Hilfe-Seite', () => {
         expect(html).toContain('Verantwortliche im Sinne der DSGVO');
         expect(html).toContain('Mark of the Web');
         expect(html).toContain('privacy-copy:help-core:start');
-        expect(html).toContain('Betreiber-Minimaldienste');
+        expect(html).toContain('Betreiber-Dienste');
         expect(html).not.toContain('Es gibt keinen App-Server dieser Software');
     });
 

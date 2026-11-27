@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    canonicalizeWorkspaceHref,
     clearItWorkspaceNav,
     deactivateItWorkspace,
     extractToolsFromTask,
@@ -18,7 +19,10 @@ import {
     mountItWorkspaceShell,
     resolveActiveWorkspaceTaskId,
     shouldMountItWorkspaceShell,
-    unmountItWorkspaceShell
+    trySoftItWorkspaceNavigate,
+    unmountItWorkspaceShell,
+    isItDashboardHomePath,
+    isItContentSwapHref
 } from '../src/shared/it-workspace-shell.js';
 
 function makeStorage() {
@@ -103,10 +107,10 @@ describe('it-workspace-shell & nav gating', () => {
 
         expect(shouldMountItWorkspaceShell()).toBe(false);
         expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBeNull();
-        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).not.toBeNull();
+        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
     });
 
-    it('blockiert und löscht IT-Workspace für eingeloggte Nicht-IT-Konten (Lehrkraft)', () => {
+    it('hält die IT-Leiste, wenn die Shell bewusst auf IT steht – auch bei Lehrkraft-Persona', () => {
         persistItWorkspaceNav(
             [{ id: 'dashTaskGruppen', label: 'Mitgliedschaften', tools: [] }],
             'dashTaskGruppen'
@@ -118,12 +122,59 @@ describe('it-workspace-shell & nav gating', () => {
                 key: 'teacher-1',
                 at: Date.now(),
                 ttl: 60000,
-                personas: { loggedIn: true, isIt: false, isTeacher: true }
+                personas: { loggedIn: true, isIt: false, isLehrer: true, unknownUser: false }
+            })
+        );
+
+        expect(shouldMountItWorkspaceShell()).toBe(true);
+        expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBe('1');
+        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
+    });
+
+    it('blockiert IT-Workspace für Lehrkraft ohne IT-Shell-Wahl', () => {
+        persistItWorkspaceNav(
+            [{ id: 'dashTaskGruppen', label: 'Mitgliedschaften', tools: [] }],
+            'dashTaskGruppen'
+        );
+        localStorage.setItem('ms365-dashboard-it-preview-v1', 'portal');
+        sessionStorage.setItem(
+            'ms365-dashboard-persona-cache-v2',
+            JSON.stringify({
+                key: 'teacher-1',
+                at: Date.now(),
+                ttl: 60000,
+                personas: { loggedIn: true, isIt: false, isLehrer: true, unknownUser: false }
             })
         );
 
         expect(shouldMountItWorkspaceShell()).toBe(false);
         expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBeNull();
+    });
+
+    it('hält IT-Workspace bei pending-directory / unknownUser (kein Lehrer-Flash)', () => {
+        persistItWorkspaceNav(
+            [{ id: 'dashTaskOrdnung', label: 'Aufräumen', tools: [] }],
+            'dashTaskOrdnung'
+        );
+        localStorage.setItem('ms365-dashboard-it-preview-v1', 'full');
+        sessionStorage.setItem(
+            'ms365-dashboard-persona-cache-v2',
+            JSON.stringify({
+                key: 'pending-1',
+                at: Date.now(),
+                ttl: 15000,
+                personas: {
+                    loggedIn: true,
+                    isIt: false,
+                    isLehrer: false,
+                    unknownUser: true,
+                    personaSource: 'pending-directory'
+                }
+            })
+        );
+
+        expect(shouldMountItWorkspaceShell()).toBe(true);
+        expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBe('1');
         expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
     });
 
@@ -158,7 +209,7 @@ describe('it-workspace-shell & nav gating', () => {
         sessionStorage.removeItem(IT_WORKSPACE_NAV_KEY);
 
         expect(shouldMountItWorkspaceShell()).toBe(true);
-        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).not.toBeNull();
+        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
         expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBe('1');
     });
 
@@ -279,15 +330,185 @@ describe('it-workspace-shell & nav gating', () => {
         expect(extracted.map((t) => t.expert)).toEqual([false, false, true]);
     });
 
-    it('räumt über clearItWorkspaceNav und deactivateItWorkspace sauber auf', () => {
+    it('speichert keine Menü-Kopie mehr; clearItWorkspaceNav löscht nur den Arbeitsflächen-Zustand', () => {
         persistItWorkspaceNav([{ id: 'x', label: 'X', tools: [] }], 'x');
+        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
+        expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBe('1');
         deactivateItWorkspace();
         expect(sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY)).toBeNull();
-        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).not.toBeNull();
 
         clearItWorkspaceNav();
         expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
         expect(unmountItWorkspaceShell()).toBe(false);
         expect(mountItWorkspaceShell()).toBe(false);
+    });
+
+    it('legt Aufräumen aus dem Katalog an, Cleanup-Playbook inklusive', async () => {
+        const { defaultItWorkspaceTree } = await import('../src/shared/it-workspace-nav.js');
+        const ordnung = defaultItWorkspaceTree().find((n) => n.id === 'dashTaskOrdnung');
+        expect(ordnung).toBeTruthy();
+        expect(ordnung.tools[0].href).toMatch(/datenhygiene\.html/i);
+        expect(ordnung.tools.some((t) => /cleanup-playbook\.html/i.test(t.href))).toBe(true);
+    });
+
+    it('zeigt Unterrichtsteams immer mit denselben Katalog-Einträgen', async () => {
+        const { defaultItWorkspaceTree, ensureItWorkspaceNavReady, loadItWorkspaceNav, IT_WORKSPACE_NAV_KEY } =
+            await import('../src/shared/it-workspace-nav.js');
+        sessionStorage.setItem(
+            IT_WORKSPACE_NAV_KEY,
+            JSON.stringify({
+                version: 1,
+                tree: [
+                    {
+                        id: 'dashTaskImportVerknuepfen',
+                        label: 'Stammdaten',
+                        icon: 'bi bi-box-arrow-in-down',
+                        tools: [{ href: 'tenant.html#profil', label: 'Schulprofil', icon: 'bi bi-window' }]
+                    }
+                ]
+            })
+        );
+        const loaded = loadItWorkspaceNav();
+        const profil = loaded.tree
+            .find((n) => n.id === 'dashTaskImportVerknuepfen')
+            .tools.find((t) => t.label === 'Schulprofil');
+        expect(profil.icon).toBe('bi bi-building');
+        expect(sessionStorage.getItem(IT_WORKSPACE_NAV_KEY)).toBeNull();
+        persistItWorkspaceNav(
+            [
+                {
+                    id: 'dashTaskUnterricht',
+                    label: 'Alt',
+                    tools: [{ href: 'tools/kursteams.html', label: 'Nur eines', icon: 'bi bi-easel' }]
+                }
+            ],
+            'dashTaskUnterricht'
+        );
+        const ready = ensureItWorkspaceNavReady();
+        const labels = ready.tree
+            .find((n) => n.id === 'dashTaskUnterricht')
+            .tools.map((t) => t.label);
+        expect(labels).toEqual(defaultItWorkspaceTree().find((n) => n.id === 'dashTaskUnterricht').tools.map((t) => t.label));
+        expect(labels).toEqual([
+            'Klassengruppen',
+            'Unterrichtsteams',
+            'Einzelne Unterrichtsteams',
+            'Playbook Unterrichtsteams',
+            'Unterrichtsteams-Katalog',
+            'Klassen zusammenlegen',
+            'OneNote-Inhalte verteilen'
+        ]);
+    });
+
+    it('mappt Sammelgruppen-Stubs auf schueler-lehrer-gruppen?kind=', () => {
+        expect(canonicalizeWorkspaceHref('tools/schueler-sammelgruppe.html')).toBe(
+            'tools/schueler-lehrer-gruppen.html?kind=schueler'
+        );
+        expect(canonicalizeWorkspaceHref('tools/lehrer-sammelgruppe.html')).toBe(
+            'tools/schueler-lehrer-gruppen.html?kind=lehrer'
+        );
+        expect(
+            workspaceHrefsMatch(
+                'tools/schueler-sammelgruppe.html',
+                'tools/schueler-lehrer-gruppen.html?kind=schueler'
+            )
+        ).toBe(true);
+        expect(
+            workspaceHrefsMatch(
+                'tools/lehrer-sammelgruppe.html',
+                'tools/schueler-lehrer-gruppen.html?kind=lehrer'
+            )
+        ).toBe(true);
+        expect(
+            workspaceHrefsMatch(
+                'tools/schueler-lehrer-gruppen.html?kind=schueler',
+                'tools/schueler-lehrer-gruppen.html?kind=lehrer'
+            )
+        ).toBe(false);
+    });
+
+    it('soft-navigiert verwaltung?kind= ohne Full-Reload', () => {
+        vi.stubGlobal('location', {
+            href: 'https://app.ms365.schule/tools/verwaltung.html?kind=schulleitung',
+            pathname: '/tools/verwaltung.html',
+            search: '?kind=schulleitung',
+            hash: ''
+        });
+        window.location = globalThis.location;
+        const pushed = [];
+        vi.stubGlobal('history', {
+            pushState: (_s, _t, url) => {
+                pushed.push(String(url || ''));
+            }
+        });
+        const kinds = [];
+        window.ms365VerwaltungNavigateKind = (kind) => {
+            kinds.push(kind);
+        };
+        document.getElementById = () => null;
+        document.querySelectorAll = () => [];
+
+        expect(trySoftItWorkspaceNavigate('tools/verwaltung.html?kind=verwaltung')).toBe(true);
+        expect(kinds).toEqual(['verwaltung']);
+        expect(pushed.some((u) => /kind=verwaltung/.test(u))).toBe(true);
+        expect(trySoftItWorkspaceNavigate('tools/klassenchats.html')).toBe(false);
+    });
+
+    it('lässt gespeichert offene Bereiche offen, auch wenn ein anderer aktiv ist', async () => {
+        const {
+            itNavGroupShouldOpen,
+            rememberItNavGroupOpen,
+            readItNavGroupOpenState
+        } = await import('../src/shared/it-nav-open-state.js');
+        rememberItNavGroupOpen('dashTaskImportVerknuepfen', true);
+        rememberItNavGroupOpen('dashTaskUnterricht', true);
+        rememberItNavGroupOpen('dashTaskOrdnung', false);
+
+        const state = readItNavGroupOpenState();
+        expect(itNavGroupShouldOpen(state, 'dashTaskImportVerknuepfen', false)).toBe(true);
+        expect(itNavGroupShouldOpen(state, 'dashTaskUnterricht', true)).toBe(true);
+        expect(itNavGroupShouldOpen(state, 'dashTaskOrdnung', true)).toBe(false);
+        expect(itNavGroupShouldOpen({}, 'dashTaskPersonen', true)).toBe(true);
+        expect(itNavGroupShouldOpen({}, 'dashTaskPersonen', false)).toBe(false);
+        expect(state.dashTaskImportVerknuepfen).toBe(true);
+        expect(state.dashTaskUnterricht).toBe(true);
+    });
+
+    it('zeigt die IT-Leiste auf der Startseite, wenn die Shell auf IT steht', () => {
+        vi.stubGlobal('location', {
+            href: 'https://app.ms365.schule/index.html#klassen',
+            pathname: '/index.html',
+            search: '',
+            hash: '#klassen'
+        });
+        window.location = globalThis.location;
+        localStorage.setItem('ms365-dashboard-it-preview-v1', 'full');
+        document.documentElement.setAttribute('data-dash-it-shell', '');
+
+        expect(isItDashboardHomePath()).toBe(true);
+        expect(shouldMountItWorkspaceShell()).toBe(true);
+    });
+
+    it('lässt die IT-Leiste auf der Landingpage aus', () => {
+        vi.stubGlobal('location', {
+            href: 'https://ms365.schule/landing/index.html',
+            pathname: '/landing/index.html',
+            search: '',
+            hash: ''
+        });
+        window.location = globalThis.location;
+        localStorage.setItem('ms365-dashboard-it-preview-v1', 'full');
+
+        expect(isItDashboardHomePath()).toBe(false);
+        expect(shouldMountItWorkspaceShell()).toBe(false);
+    });
+
+    it('tauscht Startseite und Werkzeuge im Rahmen, Willkommen und Admin nicht', () => {
+        expect(isItContentSwapHref('https://app.ms365.schule/index.html#klassen')).toBe(true);
+        expect(isItContentSwapHref('https://app.ms365.schule/tools/kursteams.html')).toBe(true);
+        expect(isItContentSwapHref('https://app.ms365.schule/')).toBe(true);
+        expect(isItContentSwapHref('https://app.ms365.schule/welcome.html')).toBe(false);
+        expect(isItContentSwapHref('https://app.ms365.schule/admin.html')).toBe(false);
+        expect(isItContentSwapHref('https://ms365.schule/landing/index.html')).toBe(false);
     });
 });

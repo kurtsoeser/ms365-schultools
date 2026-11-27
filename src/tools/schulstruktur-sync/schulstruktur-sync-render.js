@@ -46,7 +46,7 @@ export function setModeHint(mode, tenantLoadedAt) {
                 stale =
                     ' Hinweis: Cache ist ' +
                     Math.floor(ageH) +
-                    ' h alt – bitte Tenant neu einlesen, bevor Sie Match/Sync nutzen.';
+                    ' h alt – bitte Tenant neu einlesen, bevor Sie verknüpfen oder synchronisieren.';
             }
         }
     }
@@ -59,7 +59,7 @@ export function setModeHint(mode, tenantLoadedAt) {
     } else if (mode === 'match') {
         el.style.display = '';
         el.textContent =
-            'Abgleich: SOLL‑Einheiten werden mit bestehenden Tenant‑Gruppen/Teams verknüpft (Mapping lokal gespeichert). Über die Registerkarte „Organigramm" siehst du die SOLL‑Struktur vernetzt; im Baum und Organigramm kannst du per Drag&Drop umsortieren.' +
+            'Verknüpfung: SOLL‑Einheiten mit bestehenden Tenant‑Gruppen/Teams verbinden (lokal gespeichert). Im Organigramm siehst du die Struktur vernetzt; im Baum und Organigramm kannst du per Drag&Drop umsortieren.' +
             (tenantLoadedAt ? ' Tenant zuletzt eingelesen: ' + new Date(tenantLoadedAt).toLocaleString() : '') +
             stale;
     } else {

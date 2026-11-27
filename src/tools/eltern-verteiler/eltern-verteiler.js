@@ -447,8 +447,13 @@ function renderDiagnose() {
 
 function setSetupStep(n) {
     const step = String(n || '1');
+    const stepNum = Number(step) || 1;
     document.querySelectorAll('#evSetupSteps [data-ev-step]').forEach(function (btn) {
-        btn.setAttribute('aria-current', btn.getAttribute('data-ev-step') === step ? 'step' : 'false');
+        const nBtn = Number(btn.getAttribute('data-ev-step')) || 0;
+        const active = String(nBtn) === step;
+        btn.setAttribute('aria-current', active ? 'step' : 'false');
+        btn.classList.toggle('is-active', active);
+        btn.classList.toggle('is-done', nBtn < stepNum);
     });
     const importPanel = getEl('evImportPanel');
     const namingPanel = getEl('evNamingPanel');

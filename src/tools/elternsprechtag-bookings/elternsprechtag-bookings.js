@@ -4,6 +4,8 @@ import { bindSystemTabClicks, renderSystemTabBar } from '../../shared/system-adm
  * Elternsprechtag: Microsoft Bookings-Grundanlage per Graph.
  * Ein Dienst + alle ausgewählten Lehrkräfte als Mitarbeiter.
  */
+import { suggestPrimarySiteUrl } from '../../shared/school-tool-sites.js';
+import { publishSpiegelDay } from '../elternsprechtag/elternsprechtag-spiegel.js';
 import {
     weekdayFromIsoDate,
     weekdayLabelDe,
@@ -1058,7 +1060,10 @@ async function runSetup() {
             serviceName: form.serviceName,
             mode: biz.reused ? 'existing' : form.mode,
             bookingOpen: form.bookingOpen,
-            eventDate: form.date
+            eventDate: form.date,
+            start: form.start,
+            end: form.end,
+            minutes: form.minutes
         });
 
         if (biz.reused) {
@@ -1135,6 +1140,69 @@ async function runSetup() {
     } finally {
         if (btn) btn.disabled = false;
         refreshSummary();
+    }
+}
+
+async function runUebernehmen() {
+    const prefs = loadPrefs();
+    const businessId = resolveExistingBusinessId() || String(prefs.businessId || '').trim();
+    const eventDate = String(($('esDate') && $('esDate').value) || prefs.eventDate || '').trim();
+    const serviceName = String(($('esServiceName') && $('esServiceName').value) || prefs.serviceName || '').trim();
+    let siteUrl = '';
+    try {
+        const setup =
+            window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
+                ? window.ms365AppDataV2.getSetup()
+                : null;
+        siteUrl = suggestPrimarySiteUrl(setup);
+    } catch {
+        siteUrl = '';
+    }
+    if (!siteUrl && prefs.siteUrl) siteUrl = String(prefs.siteUrl).trim();
+    if (!businessId) {
+        toast('Zuerst die Bookings-Umgebung anlegen oder die Business-ID eintragen.');
+        return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
+        toast('Bitte das Datum des Elternsprechtags wählen.');
+        return;
+    }
+    if (!siteUrl) {
+        toast('Keine Schul-Website hinterlegt. In den Stammdaten die Planer-Website setzen.');
+        return;
+    }
+    const btn = $('esBtnSpiegel');
+    if (btn) btn.disabled = true;
+    try {
+        const token = await getToken();
+        const result = await publishSpiegelDay({
+            businessId: businessId,
+            eventDate: eventDate,
+            siteUrl: siteUrl,
+            serviceName: serviceName,
+            window: {
+                start: String(($('esStart') && $('esStart').value) || prefs.start || ''),
+                end: String(($('esEnd') && $('esEnd').value) || prefs.end || ''),
+                minutes: ($('esDuration') && $('esDuration').value) || prefs.minutes || ''
+            },
+            bookingsToken: token,
+            log: log
+        });
+        savePrefs({
+            siteUrl: siteUrl,
+            eventDate: eventDate,
+            businessId: businessId,
+            serviceName: serviceName,
+            start: String(($('esStart') && $('esStart').value) || ''),
+            end: String(($('esEnd') && $('esEnd').value) || ''),
+            minutes: ($('esDuration') && $('esDuration').value) || ''
+        });
+        toast('Übernommen: ' + result.written + (result.written === 1 ? ' Buchung.' : ' Buchungen.'));
+    } catch (e) {
+        log('FEHLER: ' + ((e && e.message) || e));
+        toast('Fehler: ' + ((e && e.message) || e));
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -1317,6 +1385,9 @@ function wire() {
 
     const btnRun = $('esBtnRun');
     if (btnRun) btnRun.addEventListener('click', runSetup);
+
+    const btnSpiegel = $('esBtnSpiegel');
+    if (btnSpiegel) btnSpiegel.addEventListener('click', runUebernehmen);
 
     refreshSummary();
 }

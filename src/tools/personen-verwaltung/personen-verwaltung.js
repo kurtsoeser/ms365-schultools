@@ -8,7 +8,6 @@ import {
     init as initCreateUi,
     openCreateModal,
     closeCreateModal,
-    submitCreateUser,
     updateDeleteModalUi,
     openDeleteModal,
     closeDeleteModal,
@@ -287,10 +286,12 @@ function selectUser(userId) {
     const hint = document.getElementById('pvHint');
     const detail = document.getElementById('pvDetail');
     const title = document.getElementById('pvManageTitle');
+    const sub = document.getElementById('pvManageSub');
 
     if (!pv.selectedUserId) {
         if (hint) hint.style.display = '';
         if (detail) detail.style.display = 'none';
+        if (sub) sub.textContent = '';
         fillUserAdPanels(null);
         updateDetailActionButtons();
         renderUserTree();
@@ -302,6 +303,13 @@ function selectUser(userId) {
     if (hint) hint.style.display = 'none';
     if (detail) detail.style.display = '';
     if (title) title.textContent = u && u.displayName ? String(u.displayName) : '(ohne Anzeigename)';
+    if (sub) {
+        const bits = [];
+        if (u && u.userPrincipalName) bits.push(String(u.userPrincipalName));
+        else if (u && u.mail) bits.push(String(u.mail));
+        if (u && u.department) bits.push(String(u.department).trim());
+        sub.textContent = bits.join(' · ');
+    }
 
     fillUserAdPanels(u || null);
     renderProfileTab(u || null, true);
@@ -663,9 +671,18 @@ function bind() {
 
     document.getElementById('pvModalCreateClose')?.addEventListener('click', closeCreateModal);
     document.getElementById('pvModalCreateCancel')?.addEventListener('click', closeCreateModal);
-    document.getElementById('pvModalCreateSubmit')?.addEventListener('click', () => submitCreateUser());
     document.getElementById('pvModalCreateBackdrop')?.addEventListener('click', function (ev) {
         if (ev.target === ev.currentTarget) closeCreateModal();
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Escape') return;
+        const createBd = document.getElementById('pvModalCreateBackdrop');
+        if (createBd && createBd.classList.contains('active')) {
+            closeCreateModal();
+            return;
+        }
+        const deleteBd = document.getElementById('pvModalDeleteBackdrop');
+        if (deleteBd && deleteBd.classList.contains('active')) closeDeleteModal();
     });
 
     document.getElementById('pvBtnCancelEdit')?.addEventListener('click', function () {

@@ -27,15 +27,18 @@ export const DASHBOARD_TOOL_RULES = {
     'klassen-merge': { audience: 'it' },
     kursteams: { audience: 'lehrer' },
     'playbook-kursteams': { audience: 'it' },
-    'unterrichtsteams-katalog': { audience: 'lehrer' },
-    'kursteam-einzeln': { audience: 'lehrer' },
+    // Katalog und Einzelanlage sind Schul-IT, nicht das Lehrer-Portal.
+    'unterrichtsteams-katalog': { audience: 'it' },
+    'kursteam-einzeln': { audience: 'it' },
     'kursteam-templates': { audience: 'it' },
     'onenote-verteilung': { audience: 'lehrer' },
     'arge-fachgruppen': { audience: 'it' },
-    diplomarbeiten: { audience: 'lehrer' },
+    // Jahrgangs-Team und Kanäle anlegen ist Schul-IT, nicht das Lehrer-Portal.
+    diplomarbeiten: { audience: 'it' },
     'pa-diplom-ordner': { audience: 'it' },
     spielwiesen: { audience: 'it' },
-    klassenchats: { audience: 'lehrer' },
+    // Einrichtung durch Schul-IT; Lehrkräfte und Schüler nutzen die Chats in Teams.
+    klassenchats: { audience: 'it' },
 
     // —— Personen ——
     lizenzverwaltung: { audience: 'it' },
@@ -67,7 +70,8 @@ export const DASHBOARD_TOOL_RULES = {
     'kalender-postfaecher': { audience: 'it' },
     verteilerlisten: { audience: 'it' },
     'eltern-verteiler': { audience: 'it' },
-    'elternsprechtag-bookings': { audience: 'lehrer' },
+    // Grundanlage der Bookings-Seite ist Schul-IT. Die Lehrer-Tagesansicht kommt später separat.
+    'elternsprechtag-bookings': { audience: 'it' },
     'playbook-eltern': { audience: 'it' },
     'playbook-elternsprechtag': { audience: 'it' },
     'raeume-ressourcen': { audience: 'it' },
@@ -104,7 +108,8 @@ export const DASHBOARD_TOOL_RULES = {
         audience: 'lehrer',
         planner: { app: 'schularbeiten', roles: ['admin', 'lehrer'] }
     },
-    schulsprecherwahl: { audience: ['lehrer', 'schueler'] },
+    // Durchführung und Auswertung liegen bei der Schul-IT, nicht im Schulalltag.
+    schulsprecherwahl: { audience: 'it' },
     'wahlfach-zuteilung': { audience: 'lehrer' },
     'wahlfach-anmeldung': { audience: 'schueler' },
     'sharepoint-liste-wahlfach': { audience: 'it' },
@@ -112,6 +117,7 @@ export const DASHBOARD_TOOL_RULES = {
     einsammler: { audience: 'lehrer' },
     'sharepoint-liste-einsammler': { audience: 'it' },
     elternbrief: { audience: 'lehrer' },
+    elternsprechtag: { audience: 'lehrer' },
     'sharepoint-liste-elternbrief': { audience: 'it' },
     krankmeldung: { audience: 'lehrer' },
     'sharepoint-liste-krankmeldung': { audience: 'it' },
@@ -181,7 +187,7 @@ export const DASHBOARD_CLUSTER_ORDER = [
 
 /** @type {Record<string, { label: string, icon: string, panel: string }>} */
 export const DASHBOARD_CLUSTER_META = {
-    gruppen: { label: '01 Mitgliedschaften', icon: 'bi-people', panel: 'gruppen' },
+    gruppen: { label: '01 MS365 Mitgliedschaft', icon: 'bi-people', panel: 'gruppen' },
     unterricht: { label: '02 Klassen & Unterricht', icon: 'bi-mortarboard', panel: 'unterricht' },
     personen: { label: '03 Personen & Gäste', icon: 'bi-person-badge', panel: 'personen' },
     planung: { label: '04 Schuljahresstart', icon: 'bi-rocket-takeoff', panel: 'schuljahr' },
@@ -261,6 +267,7 @@ export const DASHBOARD_TOOL_CLUSTER = {
     einsammler: 'schulapps',
     'sharepoint-liste-einsammler': 'schulapps',
     elternbrief: 'schulapps',
+    elternsprechtag: 'schulapps',
     'sharepoint-liste-elternbrief': 'schulapps',
     krankmeldung: 'schulapps',
     'sharepoint-liste-krankmeldung': 'schulapps',
@@ -375,21 +382,16 @@ export const DASHBOARD_LEHRER_SCHUELER_APPS = [
     'technik-meldungen',
     'raumplan',
     'elternbrief',
+    'elternsprechtag',
     'einsammler',
     'krankmeldung',
     'kollegium-umfragen',
     'teams-antrag',
-    'diplomarbeiten',
     'ausgaben',
     'srdp-anmeldung',
     'kursteams',
-    'unterrichtsteams-katalog',
-    'kursteam-einzeln',
     'onenote-verteilung',
-    'elternsprechtag-bookings',
     'sharepoint-intranet-hub',
-    'klassenchats',
-    'schulsprecherwahl',
     'wahlfach-zuteilung',
     'wahlfach-anmeldung'
 ];
@@ -404,15 +406,15 @@ export const DASHBOARD_PORTAL_SECTIONS_BY_VIEW = {
             id: 'unterricht',
             label: 'Unterricht',
             icon: 'bi-mortarboard',
+            toolIds: ['schularbeiten-planer', 'kursteams', 'onenote-verteilung']
+        },
+        {
+            id: 'antraege',
+            label: 'Anträge und Formulare',
+            icon: 'bi-file-earmark-text',
             toolIds: [
-                'schularbeiten-planer',
-                'freistellung-planer',
                 'lehrer-freistellung-planer',
-                'diplomarbeiten',
-                'kursteams',
-                'unterrichtsteams-katalog',
-                'kursteam-einzeln',
-                'onenote-verteilung',
+                'freistellung-planer',
                 'srdp-anmeldung',
                 'wahlfach-zuteilung'
             ]
@@ -425,27 +427,26 @@ export const DASHBOARD_PORTAL_SECTIONS_BY_VIEW = {
                 'termine-hub',
                 'schulaktivitaeten-planer',
                 'projektwochen',
-                'aufgaben',
-                'schulsprecherwahl'
+                'aufgaben'
             ]
         },
         {
             id: 'betrieb',
             label: 'Betrieb & Technik',
             icon: 'bi-wrench',
-            toolIds: ['technik-meldungen', 'raumplan', 'ausgaben']
+            toolIds: ['technik-meldungen', 'raumplan', 'ausgaben', 'teams-antrag']
         },
         {
             id: 'eltern',
             label: 'Eltern & Ablauf',
             icon: 'bi-mailbox',
-            toolIds: ['elternbrief', 'einsammler', 'krankmeldung', 'elternsprechtag-bookings']
+            toolIds: ['elternbrief', 'elternsprechtag', 'einsammler', 'krankmeldung']
         },
         {
             id: 'kollegium',
             label: 'Kollegium',
             icon: 'bi-people',
-            toolIds: ['kollegium-umfragen', 'teams-antrag', 'klassenchats']
+            toolIds: ['kollegium-umfragen']
         },
         {
             id: 'intranet',
@@ -464,7 +465,6 @@ export const DASHBOARD_PORTAL_SECTIONS_BY_VIEW = {
                 'schularbeiten-planer',
                 'freistellung-planer',
                 'srdp-anmeldung',
-                'schulsprecherwahl',
                 'wahlfach-anmeldung',
                 'technik-meldungen',
                 'teams-antrag',
@@ -473,6 +473,31 @@ export const DASHBOARD_PORTAL_SECTIONS_BY_VIEW = {
         }
     ]
 };
+
+/** @type {Array<(toolId: string, view: string) => boolean|null|undefined>} */
+const dashboardMenuHooks = [];
+
+/**
+ * Zusätzliche Sichtbarkeit, z. B. Wahlfach nur für Direktion und Klassenvorstand.
+ * `false` blendet aus. Alles andere lässt die Audience entscheiden.
+ * @param {(toolId: string, view: string) => boolean|null|undefined} fn
+ */
+export function registerDashboardMenuHook(fn) {
+    if (typeof fn !== 'function') return;
+    if (dashboardMenuHooks.indexOf(fn) >= 0) return;
+    dashboardMenuHooks.push(fn);
+}
+
+function dashboardMenuAllows(toolId, view) {
+    for (let i = 0; i < dashboardMenuHooks.length; i++) {
+        try {
+            if (dashboardMenuHooks[i](toolId, view) === false) return false;
+        } catch {
+            /* Hook darf die Kachel nicht versehentlich löschen */
+        }
+    }
+    return true;
+}
 
 export function isToolVisibleForView(toolId, ctx, view, ruleOverride) {
     if (view === 'it') return true;
@@ -483,8 +508,9 @@ export function isToolVisibleForView(toolId, ctx, view, ruleOverride) {
     if (view === 'lehrer' || view === 'schueler') {
         // Whitelist = portal-fähig; Audience (Default + IT-Matrix-Override) entscheidet.
         if (!DASHBOARD_LEHRER_SCHUELER_APPS.includes(toolId)) return false;
-        if (audiences.includes('all')) return true;
-        return audiences.includes(view);
+        const audienceOk = audiences.includes('all') || audiences.includes(view);
+        if (!audienceOk) return false;
+        return dashboardMenuAllows(toolId, view);
     }
 
     if (audiences.includes('all')) {
@@ -621,6 +647,7 @@ export const DASHBOARD_TOOL_LABELS = {
     einsammler: 'Einsammler',
     'sharepoint-liste-einsammler': 'Einsammler-Listen',
     elternbrief: 'Elternbrief',
+    elternsprechtag: 'Elternsprechtag',
     'sharepoint-liste-elternbrief': 'Elternbrief-Listen',
     krankmeldung: 'Krankmeldung',
     'sharepoint-liste-krankmeldung': 'Krankmeldungen-Liste',
@@ -676,7 +703,6 @@ export const DASHBOARD_QUICKSTART_BY_VIEW = {
         'freistellung-planer',
         'technik-meldungen',
         'srdp-anmeldung',
-        'schulsprecherwahl',
         'teams-antrag',
         'sharepoint-intranet-hub'
     ],
@@ -692,18 +718,15 @@ export const DASHBOARD_QUICKSTART_BY_VIEW = {
         'technik-meldungen',
         'raumplan',
         'elternbrief',
+        'elternsprechtag',
         'einsammler',
         'krankmeldung',
         'kollegium-umfragen',
         'teams-antrag',
-        'diplomarbeiten',
         'wahlfach-zuteilung',
         'wahlfach-anmeldung',
-        'schulsprecherwahl',
         'ausgaben',
         'onenote-verteilung',
-        'elternsprechtag-bookings',
-        'klassenchats',
         'sharepoint-intranet-hub'
     ]
 };
@@ -720,6 +743,7 @@ export const DASHBOARD_TOOL_LINKS = {
     'technik-meldungen': 'tools/technik-meldungen.html',
     raumplan: 'tools/raumplan.html',
     elternbrief: 'tools/elternbrief.html',
+    elternsprechtag: 'tools/elternsprechtag.html',
     einsammler: 'tools/einsammler.html',
     krankmeldung: 'tools/krankmeldung.html',
     'kollegium-umfragen': 'tools/kollegium-umfragen.html',
@@ -750,6 +774,7 @@ export const DASHBOARD_TOOL_ICONS = {
     'technik-meldungen': 'bi-wrench-adjustable',
     raumplan: 'bi-map',
     elternbrief: 'bi-envelope-paper',
+    elternsprechtag: 'bi-calendar2-heart',
     einsammler: 'bi-ui-checks',
     krankmeldung: 'bi-thermometer-half',
     'kollegium-umfragen': 'bi-clipboard2-check',
@@ -783,6 +808,7 @@ export const DASHBOARD_TOOL_BLURBS = {
         'Defekte oder problematische Technik melden – Lehrkräfte und Schüler; IT bearbeitet die Inbox.',
     raumplan: 'Räume suchen, Plan ansehen, CSV importieren.',
     elternbrief: 'Briefe an Eltern mit Lesebestätigung.',
+    elternsprechtag: 'Ihre Buchungen am Sprechtag – Zeiten, Eltern und Links aus dem eigenen Kalender.',
     einsammler: 'Einwilligungen und Rückläufe digital einsammeln.',
     krankmeldung: 'Krankmeldungen der Klasse einsehen und bearbeiten.',
     'kollegium-umfragen': 'Umfragen nur für Lehrkräfte – Antworten und Auswertung.',
@@ -793,10 +819,12 @@ export const DASHBOARD_TOOL_BLURBS = {
     'unterrichtsteams-katalog': 'Übersicht aller Unterrichtsteams der Schule.',
     'kursteam-einzeln': 'Einzelnes Unterrichtsteam anlegen oder nachziehen.',
     'onenote-verteilung': 'OneNote-Inhalte an Klassen und Kurse verteilen.',
-    'elternsprechtag-bookings': 'Elternsprechtag mit Bookings organisieren.',
+    'elternsprechtag-bookings':
+        'Bookings-Seite anlegen: ein Sprechtag, ein Dienst, Lehrkräfte als Mitarbeiter. Nur Schul-IT.',
     'sharepoint-intranet-hub': 'Schul-Intranet öffnen und Navigation nutzen.',
-    klassenchats: 'KlassenChats für den Alltag anlegen und pflegen.',
-    schulsprecherwahl: 'Schulwahlen digital durchführen und auswerten.',
+    klassenchats:
+        'Schul-IT legt Klassen-Chats an (Gruppenchat oder privater Kanal). Lehrkräfte nutzen sie in Teams.',
+    schulsprecherwahl: 'Wahl anlegen, QR-Abstimmung und Auswertung – nur für die Schul-IT.',
     'wahlfach-zuteilung': 'Wahlfächer erfassen, zuteilen und Übersicht behalten.',
     'wahlfach-anmeldung': '1.–3. Wunsch für Wahlfächer eintragen.',
     ausgaben: 'Schlüssel, Karten und Zugänge verwalten.',

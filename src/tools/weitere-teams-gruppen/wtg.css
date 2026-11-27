@@ -1,0 +1,228 @@
+/**
+ * Weitere Teams & Gruppen – Fluent / ProvisioningWizard skin
+ */
+
+.wtg-page .content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 20px;
+}
+
+.wtg-hero {
+    margin: 0 0 4px;
+    padding: 0 4px;
+}
+
+.wtg-hero .fb-greet {
+    margin: 0 0 6px;
+}
+
+.wtg-hero .fb-sub {
+    margin: 0;
+    max-width: 64ch;
+}
+
+/* Fluent Stepper über Legacy .steps */
+.wtg-page .wtg-steps.steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 16px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.wtg-page .wtg-steps .step {
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--muted) !important;
+    border-radius: 8px;
+    padding: 8px 12px !important;
+    font-size: 0.86rem !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    min-width: 0 !important;
+    cursor: pointer;
+}
+
+.wtg-page .wtg-steps .step:hover {
+    background: color-mix(in srgb, var(--heading) 4%, transparent) !important;
+    color: var(--heading) !important;
+}
+
+.wtg-page .wtg-steps .step.active {
+    background: color-mix(in srgb, var(--brand1) 10%, transparent) !important;
+    color: var(--heading) !important;
+    font-weight: 650 !important;
+    box-shadow: inset 0 -2px 0 var(--brand1) !important;
+}
+
+.wtg-page .wtg-steps .step.completed::before {
+    content: '✓ ';
+    color: var(--brand1);
+    font-weight: 700;
+}
+
+.wtg-step-content {
+    display: none;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 18px 20px 20px;
+}
+
+.wtg-step-content.active {
+    display: block;
+}
+
+.wtg-pane-head {
+    margin: 0 0 16px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.wtg-pane-head h2 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 650;
+    color: var(--heading);
+}
+
+.wtg-pane-head p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.wtg-field {
+    margin: 0 0 12px;
+}
+
+.wtg-field label {
+    display: block;
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--heading);
+}
+
+.wtg-field input,
+.wtg-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border, var(--border));
+    background: var(--input-bg, var(--card));
+    color: var(--text);
+    font: inherit;
+}
+
+.wtg-field textarea {
+    min-height: 140px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.wtg-checkbox {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 12px;
+    align-items: flex-start;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.wtg-checkbox input {
+    margin-top: 3px;
+    accent-color: var(--brand1);
+}
+
+.wtg-table-wrap {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.wtg-table-wrap--tall {
+    max-height: 520px;
+}
+
+.wtg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.wtg-table th,
+.wtg-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.wtg-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: color-mix(in srgb, var(--heading) 3%, var(--card));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.wtg-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.wtg-nav--forward {
+    justify-content: flex-end;
+}
+
+.wtg-nav .fb-btn {
+    margin: 0;
+    gap: 8px;
+}
+
+.wtg-tech {
+    margin-top: 14px;
+}
+
+.wtg-tech summary {
+    cursor: pointer;
+    font-size: 0.86rem;
+    color: var(--muted);
+}
+
+.wtg-log {
+    margin-top: 8px;
+    max-height: 320px;
+    overflow: auto;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--heading) 3%, var(--card));
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+}

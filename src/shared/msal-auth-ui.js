@@ -1,6 +1,13 @@
 // Statischer Import: wird von Vite mitgebündelt und funktioniert ebenso, wenn
 // diese Datei ungebündelt aus src/shared/ geladen wird (immer als type="module").
 import { loadMsalBrowser } from './msal-loader.js';
+import { pinAuthReturnToThisPage } from './auth-return-url.js';
+
+try {
+    pinAuthReturnToThisPage();
+} catch {
+    /* Rückkehr-URL darf den Start nicht blockieren */
+}
 
 (function () {
     'use strict';
@@ -36,8 +43,13 @@ import { loadMsalBrowser } from './msal-loader.js';
     const POST_LOGIN_KEY = 'ms365-post-login-url';
 
     function rememberPostLoginReturnUrl(url) {
-        const target = String(url || (window.location && window.location.href) || '').trim();
+        const here = String((window.location && window.location.href) || '').trim();
+        const target = String(url || here).trim();
         if (!target) return;
+        if (!url || target === here) {
+            pinAuthReturnToThisPage();
+            return;
+        }
         try {
             sessionStorage.setItem(POST_LOGIN_KEY, target);
         } catch {
@@ -135,7 +147,16 @@ import { loadMsalBrowser } from './msal-loader.js';
                 if (!PublicClientApplication) throw new Error('MSAL: PublicClientApplication nicht gefunden.');
                 const cfg = resolveMsalConfig();
                 const instance = new PublicClientApplication({
-                    auth: { clientId: cfg.clientId, authority: cfg.authority, redirectUri: cfg.redirectUri },
+                    auth: {
+                        clientId: cfg.clientId,
+                        authority: cfg.authority,
+                        redirectUri: cfg.redirectUri,
+                        // Auf der Redirect-Seite entscheidet ms365-schooltool-redirect.js,
+                        // sonst schickt MSAL auf eine ältere request.origin (anderes Werkzeug).
+                        navigateToLoginRequestUrl: !/\/ms365-schooltool\.html$/i.test(
+                            String((window.location && window.location.pathname) || '')
+                        )
+                    },
                     // localStorage statt sessionStorage: ermöglicht Single-Sign-On zwischen Browser-Tabs
                     // (Microsoft 365 Anmeldung wird übernommen, wenn der Benutzer bereits in einem
                     // anderen Tab/Modul angemeldet ist).
@@ -762,7 +783,9 @@ import { loadMsalBrowser } from './msal-loader.js';
         trigger.setAttribute('aria-label', 'Konto');
         /* Geschlossen: Chevron nach oben (Panel öffnet darüber). Offen: rotiert nach unten. */
         trigger.innerHTML =
-            '<i class="bi bi-person-circle" aria-hidden="true"></i>' +
+            '<span class="ms365-auth-menu__avatar" data-ms365-auth-avatar="1">' +
+            '<img alt="" hidden>' +
+            '<span class="ms365-auth-menu__avatar-fallback" aria-hidden="true"></span></span>' +
             '<span id="ms365AuthBadgeText">–</span>' +
             '<i class="bi bi-chevron-up ms365-auth-menu__chevron" aria-hidden="true"></i>';
 
@@ -771,12 +794,17 @@ import { loadMsalBrowser } from './msal-loader.js';
         drop.className = 'ms365-auth-menu__panel';
         drop.setAttribute('role', 'menu');
         drop.hidden = true;
-        drop.setAttribute('data-ms365-auth-menu-v', '12');
+        drop.setAttribute('data-ms365-auth-menu-v', '13');
         drop.innerHTML =
             '<div class="ms365-auth-menu__meta">' +
+            '<span class="ms365-auth-menu__avatar ms365-auth-menu__avatar--lg" data-ms365-auth-avatar="1">' +
+            '<img alt="" hidden>' +
+            '<span class="ms365-auth-menu__avatar-fallback" aria-hidden="true"></span></span>' +
+            '<div class="ms365-auth-menu__meta-copy">' +
             '<div class="ms365-auth-menu__meta-name" id="ms365AuthMenuName"></div>' +
             '<div class="ms365-auth-menu__meta-mail" id="ms365AuthMenuMail"></div>' +
-            '</div>' +
+            '<div class="ms365-auth-menu__meta-account">Microsoft 365</div>' +
+            '</div></div>' +
             '<div class="ms365-auth-menu__body">' +
             '<div class="ms365-auth-menu__section ms365-auth-menu__section--ctx" aria-label="Kontext">' +
             '<div class="ms365-auth-menu__section-label">Kontext</div>' +
@@ -1524,7 +1552,7 @@ import { loadMsalBrowser } from './msal-loader.js';
             wrap &&
             wrap.querySelector('#ms365AuthDropdown') &&
             wrap.querySelector('#ms365AuthDropdown').getAttribute('data-ms365-auth-menu-v');
-        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '12') {
+        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '13') {
             if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
             wrap = createAuthWidget();
         }
@@ -1676,6 +1704,131 @@ import { loadMsalBrowser } from './msal-loader.js';
         }
     }
 
+    /** @type {{ key: string, url: string, settled: boolean, inflight: boolean }} */
+    let signedInPhoto = { key: '', url: '', settled: false, inflight: false };
+
+    function accountInitials(name) {
+        const parts = String(name || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+        }
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return '';
+    }
+
+    function paintAuthAvatars(name, url) {
+        if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+        const initials = accountInitials(name);
+        document.querySelectorAll('[data-ms365-auth-avatar]').forEach(function (el) {
+            const img = el.querySelector('img');
+            const fallback = el.querySelector('.ms365-auth-menu__avatar-fallback');
+            if (url && img) {
+                img.src = url;
+                img.hidden = false;
+                el.classList.add('has-photo');
+                if (fallback) fallback.hidden = true;
+                return;
+            }
+            if (img) {
+                img.hidden = true;
+                img.removeAttribute('src');
+            }
+            el.classList.remove('has-photo');
+            if (fallback) {
+                fallback.hidden = false;
+                fallback.textContent = initials;
+            }
+        });
+    }
+
+    function clearSignedInPhoto() {
+        if (signedInPhoto.url) {
+            try {
+                URL.revokeObjectURL(signedInPhoto.url);
+            } catch {
+                /* ignore */
+            }
+        }
+        signedInPhoto = { key: '', url: '', settled: false, inflight: false };
+        paintAuthAvatars('', '');
+    }
+
+    /**
+     * Profilbild des angemeldeten Kontos (Graph /me/photo, User.Read).
+     * Ohne Foto bleiben die Initialen.
+     * @param {object|null} account
+     */
+    function syncSignedInPhoto(account) {
+        if (!account) {
+            clearSignedInPhoto();
+            return;
+        }
+        const key = String(account.username || account.homeAccountId || account.localAccountId || '')
+            .trim()
+            .toLowerCase();
+        const name = accountDisplayName(account);
+        if (!key) {
+            paintAuthAvatars(name, '');
+            return;
+        }
+        if (signedInPhoto.key === key && (signedInPhoto.settled || signedInPhoto.inflight)) {
+            paintAuthAvatars(name, signedInPhoto.url);
+            return;
+        }
+        if (signedInPhoto.key !== key && signedInPhoto.url) {
+            try {
+                URL.revokeObjectURL(signedInPhoto.url);
+            } catch {
+                /* ignore */
+            }
+            signedInPhoto.url = '';
+        }
+        signedInPhoto.key = key;
+        signedInPhoto.settled = false;
+        signedInPhoto.inflight = true;
+        paintAuthAvatars(name, '');
+        acquireTokenSilentOnly(DEFAULT_SCOPES)
+            .then(function (token) {
+                return fetch('https://graph.microsoft.com/v1.0/me/photos/96x96/$value', {
+                    headers: { Authorization: 'Bearer ' + token }
+                });
+            })
+            .then(function (res) {
+                if (signedInPhoto.key !== key) return null;
+                if (!res || !res.ok) {
+                    signedInPhoto.inflight = false;
+                    signedInPhoto.settled = !!(
+                        res &&
+                        (res.status === 404 || res.status === 400 || res.status === 403)
+                    );
+                    return null;
+                }
+                return res.blob();
+            })
+            .then(function (blob) {
+                if (signedInPhoto.key !== key) return;
+                if (!blob) return;
+                signedInPhoto.inflight = false;
+                const type = String(blob.type || '');
+                if (!blob.size || (type && type.indexOf('image/') !== 0)) {
+                    signedInPhoto.settled = true;
+                    paintAuthAvatars(name, '');
+                    return;
+                }
+                const url = URL.createObjectURL(blob);
+                signedInPhoto.url = url;
+                signedInPhoto.settled = true;
+                const current = getAccount();
+                paintAuthAvatars(current ? accountDisplayName(current) : name, url);
+            })
+            .catch(function () {
+                if (signedInPhoto.key === key) signedInPhoto.inflight = false;
+            });
+    }
+
     function setWidgetState(opts) {
         if (setWidgetState._busy) return;
         setWidgetState._busy = true;
@@ -1825,8 +1978,16 @@ import { loadMsalBrowser } from './msal-loader.js';
         }
         setWidgetState._lastLoggedIn = loggedIn;
         setWidgetState._lastLabel = label;
+        syncSignedInPhoto(a);
         if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
             window.ms365SyncFrontendPlannerHeaderChrome();
+        }
+        if (loggedIn && label && label !== prevLabel) {
+            try {
+                window.dispatchEvent(new CustomEvent('ms365-auth-account-ready'));
+            } catch {
+                /* ignore */
+            }
         }
         // Kein Event-Sturm: nur bei echtem Login-/Logout-Wechsel benachrichtigen
         if (silent) return;
@@ -1964,6 +2125,7 @@ import { loadMsalBrowser } from './msal-loader.js';
     window.ms365AuthSwitchAccount = switchAccount;
     window.ms365AuthLogout = logout;
     window.ms365AuthRememberReturnUrl = rememberPostLoginReturnUrl;
+    window.ms365AuthPinReturnUrl = pinAuthReturnToThisPage;
     window.ms365AuthAcquireToken = acquireToken;
     window.ms365AuthAcquireTokenSilent = acquireTokenSilentOnly;
     window.ms365AuthAcquireTokenFresh = acquireTokenFresh;

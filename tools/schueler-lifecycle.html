@@ -1,32 +1,36 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Schüler-Lifecycle</title>
     <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/schueler-lifecycle/schueler-lifecycle.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .slc-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:10px}
-        .slc-card{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--card)}
-        .slc-card h4{margin:0 0 8px;font-size:.95rem}
-        .slc-list{margin:0;padding-left:1.1em;font-size:.9em;line-height:1.45}
-        .slc-status{margin:10px 0 0;font-size:.92em}
-        .slc-status--err{color:#b42318}
-        .slc-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
-        .slc-check{display:flex;align-items:center;gap:8px;font-size:.92em}
-        .slc-egp{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
-        .slc-egp input[type=text]{flex:1 1 200px;min-width:0}
-        .slc-import-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px}
-        .slc-import-row input[type=file]{max-width:100%;font-size:.9em}
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
     </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page slc-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
@@ -42,44 +46,78 @@
             </div>
         </div>
         <div class="content">
+            <section class="slc-hero" aria-label="Stand">
+                <h1 class="fb-greet">Schüler-Lifecycle</h1>
+                <p class="fb-sub">Vergleicht einen <strong>Vorher-Stand</strong> mit den aktuellen Stammdaten – und zeigt Zugänge, Abgänge und Klassenwechsel, bevor Sie Microsoft&nbsp;365 anfassen.</p>
+            </section>
+
             <div id="slcBannerHost" data-ms365-empty-state data-ms365-empty-message="Für den Lifecycle brauchen Sie Schüler in den Stammdaten. Stammdaten öffnen oder Demo laden."></div>
 
-            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
-                <span class="tm-perm"><i class="bi bi-people"></i><span id="slcCurrentCount">Schüler werden geladen …</span></span>
+            <section class="slc-explain" aria-labelledby="slcExplainTitle">
+                <h2 id="slcExplainTitle" class="slc-explain__title">Wofür ist dieses Werkzeug?</h2>
+                <p class="slc-explain__lead">
+                    Typisch nach einem Import (WebUntis/CSV) oder am Schuljahreswechsel:
+                    Wer ist neu? Wer fehlt? Wer hat die Klasse gewechselt?
+                    Erst die Diff-Vorschau – dann gezielt in Sammel- und Klassengruppen nachziehen.
+                </p>
+                <ol class="slc-flow">
+                    <li class="slc-flow__item">
+                        <div class="slc-flow__top"><span class="slc-flow__n">1</span><span class="slc-flow__t">Vorher sichern</span></div>
+                        <p class="slc-flow__d">Snapshot der aktuellen Liste speichern – oder eine alte Datei / CSV als „Vorher“ laden.</p>
+                    </li>
+                    <li class="slc-flow__item">
+                        <div class="slc-flow__top"><span class="slc-flow__n">2</span><span class="slc-flow__t">Diff-Vorschau</span></div>
+                        <p class="slc-flow__d">Aktuelle Stammdaten gegen den Vorher-Stand halten. Ergebnis: Zugänge, Abgänge, Klassenwechsel.</p>
+                    </li>
+                    <li class="slc-flow__item">
+                        <div class="slc-flow__top"><span class="slc-flow__n">3</span><span class="slc-flow__t">Gezielt nachziehen</span></div>
+                        <p class="slc-flow__d">Mit der Vorschau als Checkliste Sammelgruppe und Klassengruppen abgleichen – kein blindes Massen-Remove.</p>
+                    </li>
+                </ol>
+            </section>
+
+            <div class="slc-status-row" aria-label="Status">
+                <span class="slc-pill"><i class="bi bi-people" aria-hidden="true"></i><span id="slcCurrentCount">Schüler werden geladen …</span></span>
             </div>
 
-            <section class="tm-panel">
-                <div class="tm-panel__head">
+            <ol class="slc-steps" aria-label="Fortschritt">
+                <li class="is-current" id="slcStep1Mark"><span class="slc-steps__n">1</span><span>Vorher-Stand</span></li>
+                <li id="slcStep2Mark"><span class="slc-steps__n">2</span><span>Diff-Vorschau</span></li>
+                <li id="slcStep3Mark"><span class="slc-steps__n">3</span><span>Nachziehen</span></li>
+            </ol>
+
+            <section class="slc-panel" aria-labelledby="slcStep1Title">
+                <div class="slc-panel__head">
                     <i class="bi bi-clock-history" aria-hidden="true"></i>
                     <div>
-                        <h3>1 · Vorher-Stand</h3>
-                        <p>Snapshot, Datei (CSV/XLSX/WebUntis) oder CSV-Text als Vergleichsquelle für den Vorher-Stand.</p>
+                        <h2 id="slcStep1Title">1 · Vorher-Stand</h2>
+                        <p>Das ist die Vergleichsbasis. Ohne Vorher gibt es keine sinnvolle Diff-Vorschau.</p>
                     </div>
                 </div>
-                <p id="slcSnapshotMeta" class="muted">Noch kein Vorher-Stand gespeichert.</p>
-                <div class="tm-field">
+                <p id="slcSnapshotMeta" class="slc-meta">Noch kein Vorher-Stand gespeichert.</p>
+                <div class="slc-field">
                     <label for="slcPrevMode">Vergleichsquelle</label>
                     <select id="slcPrevMode">
-                        <option value="snapshot">Gespeicherter Snapshot</option>
+                        <option value="snapshot">Gespeicherter Snapshot (aus diesem Browser)</option>
                         <option value="file">Datei (CSV / XLSX / WebUntis-Export)</option>
                         <option value="csv">CSV-Text einfügen (Name;E-Mail;Klasse)</option>
                     </select>
                 </div>
-                <div class="tm-field" id="slcFileField" hidden>
+                <div class="slc-field" id="slcFileField" hidden>
                     <label for="slcImportFile">Schülerliste importieren</label>
                     <div class="slc-import-row">
                         <input type="file" id="slcImportFile" accept=".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                         <a class="btn btn-sm alt" href="webuntis-stammdaten-import.html?from=schueler-lifecycle"><i class="bi bi-box-arrow-in-down"></i>WebUntis → Stammdaten</a>
                     </div>
-                    <p id="slcImportMeta" class="muted">Noch keine Datei geladen.</p>
+                    <p id="slcImportMeta" class="slc-meta">Noch keine Datei geladen.</p>
                 </div>
-                <div class="tm-field" id="slcCsvField" hidden>
+                <div class="slc-field" id="slcCsvField" hidden>
                     <label for="slcCsv">CSV-Text</label>
                     <textarea id="slcCsv" rows="5" placeholder="Name;E-Mail;Klasse" spellcheck="false"></textarea>
                 </div>
-                <div class="tm-field">
-                    <span class="tm-field__label">Sammelgruppe „Alle Schülerinnen“</span>
-                    <p class="muted" style="margin:0 0 6px;font-size:.88em">Vorausgefüllt aus Stammdaten – per Microsoft-365-Picker anpassbar.</p>
+                <div class="slc-field">
+                    <span class="slc-field__label">Sammelgruppe „Alle Schülerinnen“</span>
+                    <p class="slc-meta" style="margin-top:0">Für die Graph-Vorschau (Join/Leave). Vorausgefüllt aus Stammdaten – per Microsoft-365-Picker anpassbar.</p>
                     <div class="slc-egp">
                         <input type="text" id="slcSammelGroupLabel" readonly placeholder="Gruppe wählen …" autocomplete="off">
                         <input type="hidden" id="slcSammelGroupId">
@@ -89,32 +127,71 @@
                     </div>
                 </div>
                 <div class="slc-actions">
-                    <button type="button" class="btn" id="slcSaveSnapshot"><i class="bi bi-save"></i>Aktuellen Stand als Vorher speichern</button>
-                    <button type="button" class="btn" id="slcPreview"><i class="bi bi-eye"></i>Diff-Vorschau</button>
+                    <button type="button" class="btn alt" id="slcSaveSnapshot"><i class="bi bi-save"></i>Aktuellen Stand als Vorher speichern</button>
+                    <button type="button" class="btn btn-success" id="slcPreview"><i class="bi bi-eye"></i>Diff-Vorschau</button>
                 </div>
             </section>
 
-            <section class="tm-panel" id="slcPreviewPanel" hidden>
-                <div class="tm-panel__head">
-                    <i class="bi bi-diff" aria-hidden="true"></i>
+            <section class="slc-panel" id="slcPreviewPanel" hidden aria-labelledby="slcStep2Title">
+                <div class="slc-panel__head">
+                    <i class="bi bi-file-earmark-diff" aria-hidden="true"></i>
                     <div>
-                        <h3>2 · Vorschau</h3>
-                        <p id="slcDiffSummary">–</p>
+                        <h2 id="slcStep2Title">2 · Diff-Vorschau</h2>
+                        <p>Vorher gegen aktuelle Stammdaten – was sich geändert hat, bevor Sie Gruppen anfassen.</p>
                     </div>
                 </div>
+                <div class="slc-stats" id="slcDiffStats" aria-live="polite">
+                    <div class="slc-stat slc-stat--add"><span class="slc-stat__n" id="slcStatAdd">0</span><span class="slc-stat__l">Zugänge</span></div>
+                    <div class="slc-stat slc-stat--rem"><span class="slc-stat__n" id="slcStatRem">0</span><span class="slc-stat__l">Abgänge</span></div>
+                    <div class="slc-stat slc-stat--chg"><span class="slc-stat__n" id="slcStatChg">0</span><span class="slc-stat__l">Klassenwechsel</span></div>
+                    <div class="slc-stat"><span class="slc-stat__n" id="slcStatGraph">0/0</span><span class="slc-stat__l">Join / Leave</span></div>
+                </div>
+                <p id="slcDiffSummary" class="visually-hidden">–</p>
                 <div class="slc-grid">
-                    <div class="slc-card"><h4>Zugänge</h4><div id="slcAdded"></div></div>
-                    <div class="slc-card"><h4>Abgänge</h4><div id="slcRemoved"></div></div>
-                    <div class="slc-card"><h4>Klassenwechsel</h4><div id="slcChanged"></div></div>
-                    <div class="slc-card"><h4>Graph Join/Leave</h4><div id="slcPreviewGroups"></div></div>
+                    <div class="slc-card slc-card--add">
+                        <div class="slc-card__head">
+                            <i class="bi bi-person-plus" aria-hidden="true"></i>
+                            <h4>Zugänge</h4>
+                            <span class="slc-card__count" id="slcAddedCount">0</span>
+                        </div>
+                        <p class="slc-card__hint">Neu in den Stammdaten – oft in die Sammelgruppe aufnehmen.</p>
+                        <div id="slcAdded"></div>
+                    </div>
+                    <div class="slc-card slc-card--rem">
+                        <div class="slc-card__head">
+                            <i class="bi bi-person-dash" aria-hidden="true"></i>
+                            <h4>Abgänge</h4>
+                            <span class="slc-card__count" id="slcRemovedCount">0</span>
+                        </div>
+                        <p class="slc-card__hint">Nur noch im Vorher-Stand – Leave erst bewusst erlauben.</p>
+                        <div id="slcRemoved"></div>
+                    </div>
+                    <div class="slc-card slc-card--chg">
+                        <div class="slc-card__head">
+                            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                            <h4>Klassenwechsel</h4>
+                            <span class="slc-card__count" id="slcChangedCount">0</span>
+                        </div>
+                        <p class="slc-card__hint">Gleiche Person, andere Klasse – Klassengruppen nachziehen.</p>
+                        <div id="slcChanged"></div>
+                    </div>
+                    <div class="slc-card slc-card--graph">
+                        <div class="slc-card__head">
+                            <i class="bi bi-cloud" aria-hidden="true"></i>
+                            <h4>Graph Join/Leave</h4>
+                            <span class="slc-card__count" id="slcGraphCount">0</span>
+                        </div>
+                        <p class="slc-card__hint">Vorschau, welche M365-Gruppen betroffen wären.</p>
+                        <div id="slcPreviewGroups"></div>
+                    </div>
                 </div>
                 <div class="slc-actions">
                     <label class="slc-check"><input type="checkbox" id="slcDryRun" checked> Nur Dry-Run / Vorschau (Apply gesperrt)</label>
                     <label class="slc-check"><input type="checkbox" id="slcAllowLeave"> Entfernen (Leave) erlauben</label>
                     <button type="button" class="btn" id="slcApply" disabled><i class="bi bi-cloud-check"></i>Apply-Hinweis</button>
                 </div>
-                <p class="muted" style="margin-top:12px;font-size:.9em;line-height:1.45;">
-                    Empfohlen nach der Vorschau:
+                <p class="slc-next">
+                    <strong>3 · Nachziehen:</strong>
                     <a href="schueler-lehrer-gruppen.html">Schüler/Lehrkräfte abgleichen</a> ·
                     <a href="jahrgangsgruppen.html">Klassengruppen</a> ·
                     <a href="datenhygiene.html">Datenhygiene</a> ·
@@ -126,7 +203,7 @@
     </div>
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>

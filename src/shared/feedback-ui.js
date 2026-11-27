@@ -338,28 +338,43 @@
         }
     }
 
+    function placeFeedbackLink(link) {
+        var menu = document.getElementById('appFooterHelpMenu');
+        link.classList.add('app-footer-help__item');
+        link.setAttribute('role', 'menuitem');
+        if (!menu || link.parentElement === menu) return;
+        var sep = menu.querySelector('.app-footer-help__sep');
+        if (sep) menu.insertBefore(link, sep);
+        else menu.appendChild(link);
+    }
+
     function ensureFooterLink() {
-        var row = document.getElementById('siteCreditKurtrocks') || document.querySelector('.site-credit-row');
+        var menu = document.getElementById('appFooterHelpMenu');
+        var row = menu || document.getElementById('siteCreditKurtrocks') || document.querySelector('.site-credit-row');
         if (!row) return;
-        var existing = row.querySelector('.site-feedback-link');
-        if (existing) return;
+        var existing = document.querySelector('.site-feedback-link');
+        if (existing) {
+            placeFeedbackLink(existing);
+            return;
+        }
         var a = document.createElement('a');
         a.href = '#';
-        a.className = 'site-credit-link site-feedback-link';
+        a.className = 'app-footer-help__item site-feedback-link';
         a.title = 'Feedback an den Betreiber senden';
         a.setAttribute('aria-label', 'Feedback senden');
+        a.setAttribute('role', 'menuitem');
         var icon = document.createElement('i');
         icon.className = 'bi bi-chat-heart';
         icon.setAttribute('aria-hidden', 'true');
+        var label = document.createElement('span');
+        label.textContent = 'Feedback';
         a.appendChild(icon);
-        a.appendChild(document.createTextNode('Feedback'));
+        a.appendChild(label);
         a.addEventListener('click', function (ev) {
             ev.preventDefault();
             openDialog();
         });
-        var privacy = row.querySelector('.site-privacy-link');
-        if (privacy && privacy.nextSibling) row.insertBefore(a, privacy.nextSibling);
-        else if (privacy) privacy.after(a);
+        if (menu) placeFeedbackLink(a);
         else row.appendChild(a);
     }
 

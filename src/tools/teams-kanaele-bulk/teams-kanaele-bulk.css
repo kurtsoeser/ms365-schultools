@@ -1,13 +1,155 @@
-/* Kanäle bulk – Wizard-Ergänzungen */
+/* Kanäle bulk – Fluent / ProvisioningWizard */
 
-.tkb-wizard-glance {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+.tkb-page .content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 28px;
 }
 
-@media (max-width: 900px) {
-    .tkb-wizard-glance {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+.tkb-hero {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px 16px;
+    align-items: flex-start;
+}
+
+.tkb-hero .fb-greet {
+    margin: 0 0 6px;
+}
+
+.tkb-hero .fb-sub {
+    margin: 0;
+    max-width: 56ch;
+}
+
+.tkb-hero__actions .fb-btn {
+    margin: 0;
+    gap: 8px;
+}
+
+.tkb-wizard {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 18px 20px 16px;
+}
+
+.tkb-pane__head {
+    margin: 0 0 16px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.tkb-pane__head h3 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 650;
+    color: var(--heading);
+}
+
+.tkb-pane__head p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.tkb-field {
+    margin: 0 0 12px;
+}
+
+.tkb-field label {
+    display: block;
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--heading);
+}
+
+.tkb-field input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border, var(--border));
+    background: var(--input-bg, var(--card));
+    color: var(--text);
+    font: inherit;
+}
+
+.tkb-checkbox {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 14px;
+    align-items: flex-start;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.tkb-checkbox input {
+    margin-top: 3px;
+    accent-color: var(--brand1);
+}
+
+.tkb-inline-actions,
+.tkb-nav,
+.tkb-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.tkb-footer {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    justify-content: space-between;
+}
+
+.tkb-nav {
+    margin-top: 16px;
+}
+
+.tkb-preview-block {
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.tkb-preview-block h4 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: var(--heading);
+}
+
+.tkb-tech {
+    margin-top: 12px;
+}
+
+.tkb-tech summary {
+    cursor: pointer;
+    font-size: 0.86rem;
+    color: var(--muted);
+}
+
+.tkb-log {
+    margin-top: 8px;
+    max-height: 280px;
+    overflow: auto;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--heading) 3%, var(--card));
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    white-space: pre-wrap;
 }
 
 .tkb-search-row {
@@ -69,9 +211,9 @@
 }
 
 .tkb-team-card.is-on {
-    border-color: color-mix(in srgb, var(--brand1) 75%, transparent);
-    background: color-mix(in srgb, var(--brand1) 8%, var(--card));
-    box-shadow: 0 6px 16px color-mix(in srgb, var(--brand1) 12%, transparent);
+    border-color: color-mix(in srgb, var(--brand1) 55%, var(--border));
+    background: color-mix(in srgb, var(--brand1) 7%, var(--card));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand1) 30%, transparent);
 }
 
 .tkb-team-card__check {
@@ -119,22 +261,20 @@
     align-items: start;
     padding: 14px;
     border: 1px solid var(--border);
-    border-radius: 16px;
-    background:
-        linear-gradient(180deg, color-mix(in srgb, var(--brand1) 5%, var(--card)), var(--card));
+    border-radius: 10px;
+    background: var(--card);
 }
 
 .tkb-channel-card__num {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
     display: grid;
     place-items: center;
-    font-weight: 800;
-    font-size: 0.95rem;
-    color: #fff;
-    background: linear-gradient(135deg, var(--brand1), var(--brand2));
-    box-shadow: 0 8px 18px color-mix(in srgb, var(--brand1) 28%, transparent);
+    font-weight: 650;
+    font-size: 0.9rem;
+    color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 14%, transparent);
 }
 
 .tkb-channel-card__fields {

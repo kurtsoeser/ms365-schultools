@@ -651,15 +651,35 @@ function renderTree(rows, selectedId, mode, collapsedSet, onToggleCollapse, stru
         name.textContent = r.bezeichnung || '(ohne Bezeichnung)';
 
         const meta = document.createElement('div');
-        meta.className = 'pill ' + pillClass(r.syncStatus);
-        meta.title = mode === 'tenant' ? 'Art' : 'Sync-Status';
-        meta.textContent =
-            mode === 'tenant'
-                ? (r.hiddenMembership ? 'Kursteam' : String(r.typ || '–'))
-                : String(r.syncStatus || 'Ausstehend');
-        if (mode === 'struktur' || mode === 'match') {
-            // Im Struktur-Baum soll nicht der Status im Fokus stehen.
-            meta.style.display = 'none';
+        if (mode === 'match') {
+            const linkMap =
+                (typeof window !== 'undefined' && window.__ms365MatchLinks) || {};
+            const link = linkMap[String(r.id)] || null;
+            const linked = !!(
+                link &&
+                (String(link.tenantGroupId || '').trim() || String(link.tenantUserId || '').trim())
+            );
+            meta.className =
+                'jg-match-badge gd-sync-badge ' +
+                (linked ? 'is-ok gd-sync-badge--ok' : 'is-warn gd-sync-badge--warn');
+            meta.title = linked ? 'Mit Microsoft 365 verknüpft' : 'Noch nicht verknüpft';
+            meta.innerHTML = linked
+                ? '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Verknüpft'
+                : '<i class="bi bi-exclamation-circle" aria-hidden="true"></i>Nicht verknüpft';
+            btn.classList.add(linked ? 'is-matched' : 'is-unmatched');
+        } else {
+            meta.className = 'pill ' + pillClass(r.syncStatus);
+            meta.title = mode === 'tenant' ? 'Art' : 'Sync-Status';
+            meta.textContent =
+                mode === 'tenant'
+                    ? r.hiddenMembership
+                        ? 'Kursteam'
+                        : String(r.typ || '–')
+                    : String(r.syncStatus || 'Ausstehend');
+            if (mode === 'struktur') {
+                // Im Struktur-Baum soll nicht der Status im Fokus stehen.
+                meta.style.display = 'none';
+            }
         }
 
         const meta2 = document.createElement('div');
@@ -2202,11 +2222,16 @@ function bind() {
     }
 
     function setTenantBulkModeUi(isBulk) {
-        // Bulk-Controls (im Owner-Tab)
+        // Bulk-Controls (im Owner-Tab) – Selection-Bar nur bei Mehrfachauswahl
         const bulkWrap = getEl('ssTenantBulkWrap');
         const bulkCount = getEl('ssTenantBulkCount');
-        if (bulkWrap) bulkWrap.style.display = isBulk ? '' : 'none';
-        if (bulkCount) bulkCount.textContent = String(tenantMultiSel ? tenantMultiSel.size : 0);
+        const n = tenantMultiSel ? tenantMultiSel.size : 0;
+        if (bulkWrap) {
+            bulkWrap.hidden = !isBulk;
+            bulkWrap.classList.toggle('is-active', !!isBulk);
+            bulkWrap.style.display = isBulk ? '' : 'none';
+        }
+        if (bulkCount) bulkCount.textContent = String(n);
 
         // Disable other details in bulk mode (Allgemein/Mitglieder + Single-Owner-Controls)
         const allgPanel = getEl('slgTabGeneral');
@@ -4966,9 +4991,13 @@ function bind() {
         if (!G) throw new Error('group-detail.js muss vor diesem Skript geladen werden.');
         G.mount('#groupDetailHost', {
             title: 'Gruppe',
-            subtitle: 'Details der Microsoft 365‑Gruppe im Tenant',
+            subtitle: 'Microsoft 365-Gruppe',
+            matchedHintHtml:
+                'Tenant‑Gruppe. Hervorgehobene Felder speichert <strong>Änderungen speichern</strong> (Anzeigename, Beschreibung, Sichtbarkeit). Seltene Aktionen liegen unter ···.',
+            updateHintHtml:
+                '<strong>Änderungen speichern</strong> schreibt Anzeigename, Beschreibung und Sichtbarkeit sowie optional den Teams‑Archiv‑Status.',
             features: {
-                header: false,
+                header: true,
                 matchUi: false,
                 openEntra: true,
                 deleteGroup: true,
@@ -4991,7 +5020,7 @@ function bind() {
                 },
                 confirmUpdate: function () {
                     return dlgConfirm('Änderungen im LIVE‑Tenant wirklich speichern?', {
-                        title: 'Tenant-Update',
+                        title: 'Änderungen speichern',
                         okText: 'Speichern'
                     });
                 },
@@ -4999,7 +5028,13 @@ function bind() {
                     mergeTenantCacheFromLive(g);
                     const row = rowsTenant.find((r) => String(r.id) === String(selectedId));
                     const art = getEl('slgLiveArt');
-                    if (art && row) art.value = String(row.typ || '');
+                    if (art && row) {
+                        const liveApi = window.ms365SlgLiveDetails;
+                        if (liveApi && typeof liveApi.setFieldText === 'function') {
+                            liveApi.setFieldText(art, String(row.typ || ''), '–');
+                        } else if (art.tagName === 'INPUT') art.value = String(row.typ || '');
+                        else art.textContent = String(row.typ || '') || '–';
+                    }
                     if (row) fillTenantAdSyncPanels(row);
                     await synchronizeTenantTeamArchiveFlag();
                 },

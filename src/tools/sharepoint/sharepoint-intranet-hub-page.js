@@ -41,7 +41,9 @@ export function showWizardStep(n) {
     document.querySelectorAll('#ihWizardGlance [data-ih-wizard-step]').forEach(function (btn) {
         const sn = parseInt(btn.getAttribute('data-ih-wizard-step'), 10);
         const on = sn === step;
+        const done = sn < step;
         btn.classList.toggle('is-active', on);
+        btn.classList.toggle('is-done', done);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
         btn.setAttribute('tabindex', on ? '0' : '-1');
     });
@@ -55,7 +57,7 @@ export function showWizardStep(n) {
         next.innerHTML = isLast
             ? '<i class="bi bi-check2-circle"></i>Fertig'
             : 'Weiter<i class="bi bi-arrow-right" style="margin-left:6px;"></i>';
-        next.classList.toggle('btn-success', isLast);
+        next.classList.toggle('btn-success', true);
     }
     try {
         const u = new URL(window.location.href);

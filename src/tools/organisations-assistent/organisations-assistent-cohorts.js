@@ -164,7 +164,7 @@ function renderLeftList() {
             (list.length === 1 ? '' : 'e') +
             ' · ' +
             String(matchedN) +
-            ' mit Microsoft-365-Gruppe';
+            ' verknüpft';
     }
     const hasRows = list.length > 0;
     if (empty) empty.style.display = hasRows ? 'none' : '';
@@ -198,10 +198,18 @@ function renderLeftList() {
         const pl = phaseLabel(row.phase);
         if (pl) bits.push(pl);
         if (row.classCount) bits.push(String(row.classCount) + ' Klasse(n)');
-        bits.push(row.graphGroupId ? 'Gruppe verknüpft' : 'noch keine Gruppe');
-        meta.textContent = bits.join(' · ');
+        if (bits.length) meta.appendChild(document.createTextNode(bits.join(' · ') + ' · '));
+        const badge = document.createElement('span');
+        badge.className =
+            'jg-match-badge gd-sync-badge ' +
+            (row.graphGroupId ? 'is-ok gd-sync-badge--ok' : 'is-warn gd-sync-badge--warn');
+        badge.innerHTML = row.graphGroupId
+            ? '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Verknüpft'
+            : '<i class="bi bi-exclamation-circle" aria-hidden="true"></i>Nicht verknüpft';
+        meta.appendChild(badge);
         main.appendChild(t);
         main.appendChild(meta);
+        btn.classList.add(row.graphGroupId ? 'is-matched' : 'is-unmatched');
         if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.createThumb === 'function') {
             btn.insertBefore(
                 window.ms365GroupPhotoThumb.createThumb({
@@ -254,7 +262,7 @@ function renderMemberPreview() {
         p.textContent =
             'Klassen dieses Abschlussjahrs: ' +
             row.classLabels.join(', ') +
-            '. Mitglieder nach dem Match in Microsoft 365 pflegen (kein automatischer Listen-Sync).';
+            '. Mitglieder nach der Verknüpfung in Microsoft 365 pflegen (kein automatischer Listen-Sync).';
     } else {
         p.textContent =
             'Keine Klassen mit diesem Abschlussjahr in der aktuellen Liste. Die Gruppe kann trotzdem angelegt oder verknüpft werden.';
@@ -360,17 +368,23 @@ function persistUnmatch() {
 function mountDetail() {
     gd().mount('#oaCohortDetailHost', {
         title: 'Abschlussjahrgang',
+        subtitle: 'Microsoft 365-Gruppe',
         searchPlaceholder: 'z. B. maturajg2026 oder Abschlussjahrgang',
         unmatchedCreateHint:
             'Legt eine Microsoft-365-Gruppe für alle Klassen dieses Abschlussjahrs an. Das ist nicht die Klassengruppe – der Klassen-Alias bleibt unberührt.',
         membersUnmatchedHint:
-            'Klassen dieses Jahres stehen in den Stammdaten. Mitglieder nach dem Match in Graph pflegen.',
+            'Klassen dieses Jahres stehen in den Stammdaten. Mitglieder nach der Verknüpfung in Microsoft 365 pflegen.',
         membersUnmatchedTitle: 'Klassen dieses Abschlussjahrs',
         membersMatchedHint:
-            'Live aus Microsoft Graph. Es gibt keinen automatischen Abgleich mit der Klassenliste.',
+            'Live aus Microsoft Graph. Es gibt keinen automatischen Abgleich mit der Klassenliste – Mitglieder hier suchen und hinzufügen.',
+        matchedHintHtml:
+            'Verknüpfte Microsoft 365‑Gruppe. Hervorgehobene Felder speichert <strong>Änderungen speichern</strong>. Seltene Aktionen liegen unter ···.',
+        updateHintHtml:
+            '<strong>Änderungen speichern</strong> schreibt Anzeigename, Beschreibung und Sichtbarkeit.',
         emptyHintHtml:
             'Keine Abschlussjahre gefunden. Tragen Sie in den <a href="../tenant.html">Stammdaten</a> bei den Klassen ein Abschlussjahr ein.',
         features: {
+            header: true,
             syncMembers: false,
             emptyHint: true
         },

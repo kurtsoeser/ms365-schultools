@@ -316,14 +316,15 @@ function mountGroupDetail() {
     if (!document.getElementById('groupDetailHost')) return;
     G.mount('#groupDetailHost', {
         title: 'Sicherheitsgruppe',
-        subtitle: 'Gruppe für die Gruppenerstellungsrichtlinie',
+        subtitle: 'Sicherheitsgruppe · Richtlinie',
         matchedHintHtml:
-            'Reine Sicherheitsgruppe für <strong>Group.Unified</strong>. Hervorgehobene Felder speichert <strong>Update</strong> (Anzeigename, Beschreibung). Besitzer und Mitglieder können Sie in den Tabs live pflegen oder in Entra öffnen.',
+            'Reine Sicherheitsgruppe für <strong>Group.Unified</strong>. Hervorgehobene Felder speichert <strong>Änderungen speichern</strong> (Anzeigename, Beschreibung). Besitzer und Mitglieder in den Tabs pflegen oder in Entra öffnen.',
         updateHintHtml:
-            'Update speichert <strong>Anzeigename</strong> und <strong>Beschreibung</strong>. Sichtbarkeit gilt nicht für Sicherheitsgruppen. Mitglieder dieser Gruppe dürfen nach dem Anwenden der Richtlinie M365‑Gruppen/Teams anlegen.',
+            '<strong>Änderungen speichern</strong> schreibt <strong>Anzeigename</strong> und <strong>Beschreibung</strong>. Sichtbarkeit gilt nicht für Sicherheitsgruppen. Mitglieder dieser Gruppe dürfen nach dem Anwenden der Richtlinie M365‑Gruppen/Teams anlegen.',
         membersMatchedHint:
             'Live aus Microsoft Graph. Hier pflegen Sie, wer Gruppen erstellen darf (Mitglieder der Sicherheitsgruppe).',
         features: {
+            header: true,
             matchUi: false,
             openEntra: true,
             syncMembers: false,

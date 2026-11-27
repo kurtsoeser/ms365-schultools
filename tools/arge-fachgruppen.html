@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,17 +9,76 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – ARGE &amp; Fachgruppen</title>
-    <link rel="stylesheet" href="../app.css?v=14">
-    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=3">
+    <link rel="stylesheet" href="../src/shared/membership-groups-fluent.css?v=3">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .afg-kind-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-        .afg-kind-switch .btn { margin: 0; padding: 8px 12px; }
+/* ===== Welle 3 UI chrome ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+        .afg-kind-switch {
+            display: inline-flex;
+            gap: 0;
+            flex-wrap: nowrap;
+            margin: 0 0 12px;
+            padding: 3px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--heading) 3%, var(--card));
+            width: fit-content;
+            max-width: 100%;
+        }
+        .afg-kind-switch .btn {
+            margin: 0;
+            padding: 7px 12px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--muted);
+            box-shadow: none;
+            font-weight: 550;
+        }
+        .afg-kind-switch .btn:hover {
+            background: color-mix(in srgb, var(--heading) 5%, transparent);
+            color: var(--heading);
+        }
         .afg-kind-switch .btn[aria-pressed="true"] {
-            background: color-mix(in srgb, var(--brand1) 14%, transparent);
-            border-color: color-mix(in srgb, var(--brand1) 45%, transparent);
-            font-weight: 900;
+            background: var(--card);
+            color: var(--heading);
+            font-weight: 650;
+            box-shadow: 0 0 0 1px var(--border);
+        }
+        .afg-kind-switch .btn[aria-pressed="true"] .bi {
+            color: var(--brand1);
+        }
+        .gd-master-head__actions .btn.alt {
+            background: transparent;
+            border-color: var(--border);
+            color: var(--heading);
+        }
+        .gd-master-head__actions .btn.alt[aria-pressed="true"] {
+            background: color-mix(in srgb, var(--heading) 6%, var(--card));
+            border-color: color-mix(in srgb, var(--heading) 22%, var(--border));
         }
         .afg-mail-prefix-row {
             display: flex;
@@ -48,40 +107,32 @@
         #afgCatalogModal .field { margin: 0 0 12px; }
         #afgCatalogModal .field label { display: block; margin-bottom: 4px; font-weight: 600; }
         #afgCatalogModal .field input[type="text"] { width: 100%; box-sizing: border-box; }
-        .afg-subject-pick {
-            max-height: 160px;
-            overflow: auto;
-            border: 1px solid #e3e8ef;
-            border-radius: 8px;
-            padding: 8px 10px;
-            background: #fafbfc;
+        /* .afg-subject-pick: siehe membership-groups-fluent.css */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
-        .afg-subject-pick label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 500;
-            margin: 0;
-            padding: 4px 0;
-            cursor: pointer;
-        }
-        .afg-subject-pick label + label { border-top: 1px solid #eef1f4; }
-        .afg-catalog-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .afg-catalog-actions .btn { margin: 0; }
         .tree li {
             display: flex;
             align-items: stretch;
         }
+        .tree:not(.tree--selecting) li .afg-pick { display: none; }
         .tree li .afg-pick {
             display: flex;
             align-items: center;
             padding: 0 0 0 10px;
             flex: 0 0 auto;
+        }
+        #afgBtnSelectionMode[aria-pressed="true"] {
+            border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+            background: color-mix(in srgb, var(--brand1) 10%, var(--card));
         }
         .tree li .afg-pick input {
             width: 16px;
@@ -98,112 +149,6 @@
             flex: 1;
             min-width: 0;
         }
-        .afg-bulk {
-            margin-top: 14px;
-            padding: 14px;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            background: var(--soft);
-        }
-        .afg-bulk-head {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 6px;
-        }
-        .afg-bulk-head-title {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-        }
-        .afg-bulk-head-title > .bi {
-            color: var(--brand1);
-            font-size: 1.15em;
-        }
-        .afg-bulk-head-title .slg-section-title { margin: 0; }
-        .afg-bulk-count {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: var(--radius-pill);
-            border: 1px solid var(--border);
-            background: var(--card);
-            font-size: 0.82em;
-            font-weight: 700;
-            color: var(--muted);
-            white-space: nowrap;
-        }
-        .afg-bulk-count .bi { margin: 0; }
-        .afg-bulk-count.is-active {
-            color: var(--brand1);
-            border-color: color-mix(in srgb, var(--brand1) 35%, var(--border));
-            background: color-mix(in srgb, var(--brand1) 12%, var(--card));
-        }
-        .afg-bulk-hint {
-            margin: 0 0 12px;
-            font-size: 0.86em;
-            line-height: 1.4;
-        }
-        .afg-bulk-group { margin: 0 0 12px; }
-        .afg-bulk-group:last-child { margin-bottom: 0; }
-        .afg-bulk-group-label {
-            margin: 0 0 8px;
-            font-size: 0.72em;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        .afg-bulk-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-            margin: 0;
-        }
-        .afg-bulk-toolbar .btn {
-            margin: 0;
-            padding: 7px 12px;
-            font-size: 0.88em;
-        }
-        .afg-bulk-actions {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-        }
-        .afg-bulk-tile {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            width: 100%;
-            box-sizing: border-box;
-            margin: 0;
-            min-height: 84px;
-            padding: 12px 8px;
-            font-size: 0.86em;
-            line-height: 1.25;
-            text-align: center;
-            white-space: normal;
-        }
-        .afg-bulk-tile .bi {
-            margin: 0 !important;
-            font-size: 1.35em;
-            line-height: 1;
-        }
-        .afg-bulk-tile-label { font-weight: 750; }
-        .afg-bulk-tile small {
-            display: block;
-            font-size: 0.76em;
-            font-weight: 600;
-            opacity: 0.88;
-        }
-        .afg-bulk-tile.btn-danger { box-shadow: none; }
         .afg-bulk-owner {
             margin-top: 12px;
             padding: 12px;
@@ -233,144 +178,122 @@
             line-height: 1.4;
             white-space: pre-wrap;
         }
-        @media (max-width: 560px) {
-            .afg-bulk-actions { grid-template-columns: 1fr; }
-            .afg-bulk-tile {
-                flex-direction: row;
-                justify-content: flex-start;
-                min-height: 0;
-                text-align: left;
-                gap: 10px;
-                padding: 10px 12px;
-            }
-            .afg-bulk-tile-label small { display: inline; margin-left: 4px; }
+        #afgSelectionBar .gd-overflow > summary {
+            font-size: 0.88rem;
+            font-weight: 650;
+            letter-spacing: 0;
+            padding: 0 12px;
+            min-width: 0;
         }
     </style>
 </head>
-<body>
-    <div class="container page-card">
+<body class="app-shell-chrome">
+    <div class="container page-card mg-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</span>
             </div>
-            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Stammdaten mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Stammdaten zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in den Stammdaten.</p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Fachgruppen und ARGE aus den Stammdaten mit Microsoft&nbsp;365 verknüpfen oder anlegen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
-                    </div>
-                </div>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html"><i class="bi bi-database"></i>Stammdaten</a>
+                <a class="btn" href="jahrgangsgruppen.html"><i class="bi bi-diagram-3"></i>Klassengruppen</a>
             </div>
         </div>
 
         <div class="content">
+            <section class="mg-hero" aria-label="Stand">
+                <h1 class="fb-greet">ARGE &amp; Fachgruppen</h1>
+                <p class="fb-sub">Katalog links · Live-Details rechts · fehlende Gruppen können Sie gebündelt anlegen.</p>
+            </section>
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Fächer oder ARGEs in den Stammdaten. Pflegen Sie den Katalog unter Stammdaten – oder starten Sie die Demo."></div>
             <div class="gd-layout">
                 <section class="panel" aria-label="Gruppen auswählen">
-                    <div class="panel-head">
-                        <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Katalog</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Links Fach oder ARGE wählen bzw. neu anlegen, rechts mit Microsoft&nbsp;365 matchen oder eine Gruppe erstellen.</p>
-                    </div>
                     <div class="panel-body">
+                        <div class="gd-master-head">
+                            <div class="gd-master-head__titles">
+                                <h2 id="afgMasterTitle">Fachgruppen</h2>
+                                <p class="gd-master-head__count" id="afgListSummary">–</p>
+                            </div>
+                            <div class="gd-master-head__actions">
+                                <button type="button" class="btn alt" id="afgBtnSelectionMode" aria-pressed="false" title="Mehrfachauswahl ein- oder ausschalten"><i class="bi bi-check2-square"></i>Auswählen</button>
+                                <button type="button" class="btn btn-success" id="afgBtnAddCatalog" title="Neuen Katalogeintrag anlegen und in die Stammdaten schreiben"><i class="bi bi-plus-lg"></i>Neue Gruppe</button>
+                                <details class="gd-overflow" id="afgMasterOverflow">
+                                    <summary aria-label="Weitere Katalogaktionen" title="Weitere Aktionen">···</summary>
+                                    <div class="gd-overflow__menu" role="menu">
+                                        <button type="button" id="afgBtnEditCatalog" role="menuitem" disabled><i class="bi bi-pencil" aria-hidden="true"></i>Bearbeiten</button>
+                                        <button type="button" class="gd-overflow__danger" id="afgBtnDeleteCatalog" role="menuitem" disabled><i class="bi bi-trash" aria-hidden="true"></i>Löschen</button>
+                                        <button type="button" id="slgBtnReloadLists" role="menuitem" title="Katalog aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Aktualisieren</button>
+                                        <button type="button" id="afgBtnSelectUnmatched" role="menuitem"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Nicht verknüpfte ankreuzen</button>
+                                        <button type="button" id="afgBtnSelectMatched" role="menuitem"><i class="bi bi-check2-all" aria-hidden="true"></i>Verknüpfte ankreuzen</button>
+                                        <button type="button" id="afgBtnAliasSettings" role="menuitem"><i class="bi bi-at" aria-hidden="true"></i>Alias-Präfix …</button>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
                         <div class="afg-kind-switch" role="group" aria-label="Katalogart">
                             <button type="button" class="btn" id="afgKindSubject" data-afg-kind="subject" aria-pressed="true"><i class="bi bi-journal-text"></i>Fachgruppen</button>
                             <button type="button" class="btn" id="afgKindArge" data-afg-kind="arge" aria-pressed="false"><i class="bi bi-people"></i>ARGE</button>
                         </div>
-                        <div class="field afg-mail-prefix" style="margin:0 0 12px;">
-                            <label for="afgMailPrefix">Mail‑Alias‑Präfix (Unique ID)</label>
-                            <div class="afg-mail-prefix-row">
-                                <input type="text" id="afgMailPrefix" maxlength="24" autocomplete="off" spellcheck="false" placeholder="leer = nur Kürzel" title="Optional vor dem Kürzel. Leer lassen = Alias ist nur das Kürzel (z. B. FSGS_DAF). a–z, 0–9, . - _ erlaubt.">
-                                <code class="afg-mail-prefix-preview" id="afgMailPrefixPreview" title="Vorschau für den Alias beim Anlegen einer M365-Gruppe">…</code>
-                            </div>
-                            <small class="muted" style="display:block;margin-top:6px;line-height:1.4;">Optional vor dem Kürzel, z. B. <code>arge-</code> → <code>arge-fvv</code>. <strong>Leer lassen</strong> = Alias ist nur das Kürzel (Unterstriche bleiben, z. B. <code>fsgs_daf</code>). Gilt für neue Gruppen.</small>
-                        </div>
                         <div class="field" style="margin:0 0 10px;">
-                            <label for="afgListFilter">Liste filtern</label>
-                            <input type="search" id="afgListFilter" placeholder="Kürzel oder Name …" autocomplete="off" style="width:100%; box-sizing:border-box;">
-                            <div class="afg-catalog-actions" role="group" aria-label="Katalogaktionen">
-                                <button type="button" class="btn btn-success" id="afgBtnAddCatalog" title="Neuen Katalogeintrag anlegen und in die Stammdaten schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
-                                <button type="button" class="btn" id="afgBtnEditCatalog" title="Ausgewählten Katalogeintrag bearbeiten" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
-                                <button type="button" class="btn" id="afgBtnDeleteCatalog" title="Ausgewählten Katalogeintrag löschen" disabled><i class="bi bi-trash"></i>Löschen</button>
-                                <button type="button" class="btn" id="slgBtnReloadLists" title="Katalog aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                            <label class="visually-hidden" for="afgListFilter">Gruppen suchen</label>
+                            <input type="search" id="afgListFilter" placeholder="Gruppen suchen" autocomplete="off" style="width:100%; box-sizing:border-box;">
+                        </div>
+                        <details class="afg-mail-prefix-details" id="afgMailPrefixPanel" hidden>
+                            <summary class="muted" style="cursor:pointer;font-size:0.86em;">Alias-Präfix für neue Gruppen</summary>
+                            <div class="field afg-mail-prefix" style="margin:8px 0 0;">
+                                <label for="afgMailPrefix">Mail‑Alias‑Präfix</label>
+                                <div class="afg-mail-prefix-row">
+                                    <input type="text" id="afgMailPrefix" maxlength="24" autocomplete="off" spellcheck="false" placeholder="leer = nur Kürzel" title="Optional vor dem Kürzel. Leer lassen = Alias ist nur das Kürzel (z. B. FSGS_DAF). a–z, 0–9, . - _ erlaubt.">
+                                    <code class="afg-mail-prefix-preview" id="afgMailPrefixPreview" title="Vorschau für den Alias beim Anlegen einer M365-Gruppe">…</code>
+                                </div>
+                                <small class="muted" style="display:block;margin-top:6px;line-height:1.4;">Optional vor dem Kürzel, z. B. <code>arge-</code> → <code>arge-fvv</code>. <strong>Leer lassen</strong> = Alias ist nur das Kürzel (Unterstriche bleiben, z. B. <code>fsgs_daf</code>).</small>
+                            </div>
+                        </details>
+                        <div class="gd-selection-bar" id="afgSelectionBar" aria-label="Auswahlaktionen">
+                            <span class="gd-selection-bar__count" id="afgBulkCount">0 ausgewählt</span>
+                            <div class="gd-selection-bar__actions">
+                                <button type="button" class="btn" id="afgBtnBulkMatchExisting" title="Mit vorhandenen M365-Gruppen per Alias verknüpfen">Mit vorhandenen verknüpfen</button>
+                                <button type="button" class="btn" id="afgBtnBulkCreate" title="Fehlende Gruppen in Microsoft 365 anlegen">Fehlende anlegen</button>
+                                <button type="button" class="btn" id="afgBtnBulkOwner" title="Besitzer setzen">Besitzer setzen</button>
+                                <details class="gd-overflow" id="afgBulkOverflow">
+                                    <summary aria-label="Weitere Aktionen">Weitere Aktionen</summary>
+                                    <div class="gd-overflow__menu" role="menu">
+                                        <button type="button" id="afgBtnBulkRename" role="menuitem">Gruppennamen vereinheitlichen</button>
+                                        <label class="checkbox-label" style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;margin:0;font-weight:600;">
+                                            <input type="checkbox" id="afgBulkCreateTeam">
+                                            <span>Beim Anlegen auch Team bereitstellen</span>
+                                        </label>
+                                        <button type="button" class="gd-overflow__danger" id="afgBtnBulkDelete" role="menuitem">Löschen</button>
+                                    </div>
+                                </details>
+                                <button type="button" class="btn btn-ghost" id="afgBtnSelectNone">Auswahl aufheben</button>
                             </div>
                         </div>
-                        <p class="muted" id="afgListSummary" style="margin:0 0 8px;">–</p>
                         <ul class="tree tree--scroll" id="afgListItems" aria-label="Fach- und ARGE-Gruppen"></ul>
-                        <div class="afg-bulk" aria-label="Sammelaktionen">
-                            <div class="afg-bulk-head">
-                                <div class="afg-bulk-head-title">
-                                    <i class="bi bi-layers" aria-hidden="true"></i>
-                                    <div class="slg-section-title">Sammelaktionen</div>
-                                </div>
-                                <span class="afg-bulk-count" id="afgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
-                            </div>
-                            <p class="afg-bulk-hint muted">Einträge links ankreuzen oder unten gesammelt auswählen. <strong>Bestehende matchen</strong> verknüpft ungematchte Katalogeinträge mit schon vorhandenen M365‑Gruppen (exakter Alias). <strong>Anlegen &amp; matchen</strong> legt fehlende Gruppen neu an. <strong>Namen bereinigen</strong> entfernt „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen. <strong>Besitzer setzen</strong> und <strong>Löschen</strong> gelten nur für bereits gematchte Gruppen.</p>
-                            <div class="afg-bulk-group" role="group" aria-label="Microsoft Teams">
-                                <div class="afg-bulk-group-label">Microsoft Teams</div>
-                                <label class="checkbox-label" style="margin:0;">
-                                    <input type="checkbox" id="afgBulkCreateTeam">
-                                    <span>Beim Anlegen auch Microsoft Team bereitstellen</span>
-                                </label>
-                                <p class="muted" style="margin:6px 0 0; font-size:0.82em;">Gilt für <strong>Anlegen &amp; matchen</strong> (Sammelaktion). Rechts im Detail bleibt die Einzel-Option „Auch als Team anlegen“ unabhängig.</p>
-                            </div>
-                            <div class="afg-bulk-group" role="group" aria-label="Auswahl">
-                                <div class="afg-bulk-group-label">Auswahl</div>
-                                <div class="afg-bulk-toolbar">
-                                    <button type="button" class="btn btn-ghost" id="afgBtnSelectUnmatched" title="Alle ungematchten Einträge (rote Badges) in der aktuellen Liste ankreuzen"><i class="bi bi-exclamation-circle"></i>Ungematchte ankreuzen</button>
-                                    <button type="button" class="btn btn-ghost" id="afgBtnSelectMatched" title="Alle gematchten Einträge in der aktuellen Liste ankreuzen"><i class="bi bi-check2-all"></i>Gematchte ankreuzen</button>
-                                    <button type="button" class="btn btn-ghost" id="afgBtnSelectNone" title="Alle Häkchen in der Katalogliste entfernen"><i class="bi bi-x-square"></i>Auswahl aufheben</button>
+                        <div class="afg-bulk-owner" id="afgBulkOwnerPanel" hidden>
+                            <div class="field">
+                                <label for="afgBulkOwnerSearch">Benutzer suchen (wird Besitzer aller ausgewählten Gruppen)</label>
+                                <div class="afg-bulk-owner-row">
+                                    <input type="text" id="afgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
+                                    <button type="button" class="btn" id="afgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
                                 </div>
                             </div>
-                            <div class="afg-bulk-group" role="group" aria-label="Aktionen">
-                                <div class="afg-bulk-group-label">Aktionen</div>
-                                <div class="afg-bulk-actions">
-                                    <button type="button" class="btn btn-success afg-bulk-tile" id="afgBtnBulkMatchExisting" title="Angekreuzte ungematchte Einträge mit bestehenden M365-Gruppen per Alias (mailNickname/SMTP) verknüpfen – ohne neu anzulegen">
-                                        <i class="bi bi-link-45deg" aria-hidden="true"></i>
-                                        <span class="afg-bulk-tile-label">Bestehende matchen<small>Alias-Abgleich</small></span>
-                                    </button>
-                                    <button type="button" class="btn btn-success afg-bulk-tile" id="afgBtnBulkCreate" title="Für angekreuzte ungematchte Einträge je eine Microsoft‑365‑Gruppe anlegen und direkt matchen (Vorschau: Kürzel → Alias)">
-                                        <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
-                                        <span class="afg-bulk-tile-label">Anlegen &amp; matchen<small>ungematchte Einträge</small></span>
-                                    </button>
-                                    <button type="button" class="btn afg-bulk-tile" id="afgBtnBulkRename" title="Bei angekreuzten gematchten Gruppen „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen entfernen">
-                                        <i class="bi bi-input-cursor-text" aria-hidden="true"></i>
-                                        <span class="afg-bulk-tile-label">Namen bereinigen<small>Arbeitsgruppe entfernen</small></span>
-                                    </button>
-                                    <button type="button" class="btn afg-bulk-tile" id="afgBtnBulkOwner" title="Eine Person als Besitzer zu den angekreuzten Gruppen hinzufügen">
-                                        <i class="bi bi-person-plus" aria-hidden="true"></i>
-                                        <span class="afg-bulk-tile-label">Besitzer setzen<small>Person hinzufügen</small></span>
-                                    </button>
-                                    <button type="button" class="btn btn-danger afg-bulk-tile" id="afgBtnBulkDelete" title="Angekreuzte Microsoft-365-Gruppen löschen">
-                                        <i class="bi bi-trash" aria-hidden="true"></i>
-                                        <span class="afg-bulk-tile-label">Löschen<small>ausgewählte Gruppen</small></span>
-                                    </button>
+                            <div class="field">
+                                <label for="afgBulkOwnerResults">Treffer</label>
+                                <div class="afg-bulk-owner-row">
+                                    <select id="afgBulkOwnerResults"></select>
+                                    <button type="button" class="btn btn-success" id="afgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
                                 </div>
                             </div>
-                            <div class="afg-bulk-owner" id="afgBulkOwnerPanel" hidden>
-                                <div class="field">
-                                    <label for="afgBulkOwnerSearch">Benutzer suchen (wird Besitzer aller ausgewählten Gruppen)</label>
-                                    <div class="afg-bulk-owner-row">
-                                        <input type="text" id="afgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                        <button type="button" class="btn" id="afgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
-                                    </div>
-                                </div>
-                                <div class="field">
-                                    <label for="afgBulkOwnerResults">Treffer</label>
-                                    <div class="afg-bulk-owner-row">
-                                        <select id="afgBulkOwnerResults"></select>
-                                        <button type="button" class="btn btn-success" id="afgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <p class="afg-bulk-status muted" id="afgBulkStatus" hidden></p>
                         </div>
+                        <p class="afg-bulk-status muted" id="afgBulkStatus" hidden></p>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
                             <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung öffnen</a>
-                            · <a href="archiv/arge.html" style="text-decoration:none; color:inherit;" title="Nur falls der Listenweg nicht reicht">Legacy‑ARGE‑Assistent (selten)</a>
                         </p>
                     </div>
                 </section>
@@ -387,11 +310,9 @@
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Der <strong>Mail‑Alias‑Präfix</strong> steuert die Unique ID neuer M365‑Gruppen (Standard ARGE: <code>arge-</code>; leer = nur Kürzel, z. B. <code>fsgs_daf</code>).
                         Besitzer beim Anlegen: ARGE‑Leitung (falls E‑Mail gesetzt) sowie Direktion aus der Verwaltungsliste.
-                        <strong>Bestehende matchen</strong> sucht je Alias (Präfix + Kürzel) eine vorhandene Unified‑Gruppe und verknüpft sie.
-                        <strong>Anlegen &amp; matchen</strong> legt fehlende Gruppen neu an (Vorschau Kürzel → Alias).
-                        <strong>Namen bereinigen</strong> entfernt das Präfix „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen gematchter Gruppen.
-                        Besitzer setzen und Gruppen löschen gelten nur für angekreuzte, bereits gematchte Gruppen.
-                        Neue Gruppen bekommen den Katalognamen ohne „Arbeitsgruppe “-Präfix.
+                        <strong>Mit vorhandenen verknüpfen</strong> sucht je Alias eine vorhandene Unified‑Gruppe.
+                        <strong>Fehlende anlegen</strong> legt fehlende Microsoft‑365‑Gruppen neu an.
+                        Weitere Aktionen (Namen vereinheitlichen, Besitzer, Löschen) erscheinen erst bei Mehrfachauswahl und gelten nur für verknüpfte Gruppen.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
@@ -420,7 +341,7 @@
                 <div class="afg-subject-pick" id="afgNewSubjectsList" role="group" aria-label="Fächer für diese ARGE"></div>
                 <p class="muted" id="afgNewSubjectsEmpty" style="margin:6px 0 0; display:none;">Noch keine Fächer in den Stammdaten – Sie können die ARGE trotzdem anlegen.</p>
             </div>
-            <p class="muted" id="afgCatalogModalError" style="margin:0; color:#c0392b; display:none;" role="alert"></p>
+            <p class="muted" id="afgCatalogModalError" style="margin:0; color:color-mix(in srgb, var(--danger1,#c50f1f) 80%, var(--heading)); display:none;" role="alert"></p>
             <div class="modal-actions">
                 <button type="button" class="btn" id="afgCatalogModalCancel">Abbrechen</button>
                 <button type="button" class="btn btn-success" id="afgCatalogModalSave"><i class="bi bi-check-lg"></i>Speichern</button>
@@ -431,6 +352,7 @@
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
@@ -440,6 +362,6 @@
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <script type="module" src="../src/tools/arge-fachgruppen/arge-fachgruppen.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

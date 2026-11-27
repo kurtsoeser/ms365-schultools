@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -12,20 +12,15 @@
     <link rel="stylesheet" href="../app.css?v=28">
     <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
     <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
-    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
-    <link rel="stylesheet" href="../src/tools/klassenchats/klassenchats.css">
+    <link rel="stylesheet" href="../src/tools/klassenchats/klassenchats.css?v=4">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
 .page-card.tm-page,
-.container.page-card {
-    --brand: var(--brand1);
-    --primary: var(--brand1);
-}
-.btn-success,
-.btn.btn-success,
-button.btn-success {
+.container.page-card { --brand: var(--brand1); --primary: var(--brand1); }
+.btn-success, .btn.btn-success, button.btn-success {
     background: var(--brand1) !important;
     border-color: var(--brand1) !important;
     color: var(--on-accent, #04211d) !important;
@@ -35,267 +30,359 @@ button.btn-success {
     border-color: var(--brand1);
     color: var(--on-accent, #04211d);
 }
-
     </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page kc-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
-            <div class="header-tool-indicator">
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-chat-dots"></i>KlassenChats</span>
             </div>
-            <p>
-                Lehrkräfte einer Klasse vernetzen – als Teams-<strong>Gruppenchat</strong> oder als
-                <strong>privater Kanal</strong> im Lehrerteam. Quelle: Unterrichtsbelegung oder manuell;
-                Namen mit Schuljahr-Bausteinen; KV wird ergänzt.
-            </p>
+            <p>Kommunikationsräume für Lehrkräfte einer Klasse automatisch erstellen.</p>
+            <p class="muted" style="margin:4px 0 0;font-size:0.9rem;">Als Teams-Gruppenchat oder privater Kanal.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-klassenchats" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="kursteams.html"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
-                <a class="btn" href="klassenvorstaende.html"><i class="bi bi-person-vcard"></i>Klassenvorstände</a>
             </div>
         </div>
 
         <div class="content">
-            <nav class="kc-steps" aria-label="Wizard-Schritte">
-                <button type="button" class="is-active" data-kc-goto="1">1 · Quelle</button>
-                <button type="button" data-kc-goto="2">2 · Namen</button>
-                <button type="button" data-kc-goto="3">3 · Vorschau</button>
-                <button type="button" data-kc-goto="4">4 · Anlegen</button>
+            <section class="kc-hero" aria-label="Stand">
+                <h1 class="fb-greet" id="kcHeroTitle">KlassenChats anlegen</h1>
+                <p class="fb-sub" id="kcHeroSub">Quelle und Ziel wählen – danach Namen, Vorschau und Anlegen in Teams.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="kursteams.html">Unterrichtsteams ↗</a>
+                <a href="klassenvorstaende.html">Klassenvorstände ↗</a>
             </nav>
 
-            <section class="tm-panel kc-step is-active" data-kc-step="1">
-                <div class="tm-panel__head">
-                    <i class="bi bi-database" aria-hidden="true"></i>
+            <nav class="pw-steps kc-steps" aria-label="Wizard-Schritte">
+                <button type="button" class="is-active" data-kc-goto="1" aria-current="step">1 · Quelle</button>
+                <button type="button" data-kc-goto="2" disabled>2 · Namen</button>
+                <button type="button" data-kc-goto="3" disabled>3 · Vorschau</button>
+                <button type="button" data-kc-goto="4" disabled>4 · Anlegen</button>
+            </nav>
+
+            <!-- STEP 1 -->
+            <section class="kc-step is-active pw-form" data-kc-step="1">
+                <div class="kc-step__head">
+                    <div class="kc-step__badge" aria-hidden="true"><i class="bi bi-database"></i></div>
                     <div>
-                        <h3>Quelle wählen</h3>
-                        <p>Automatisch aus der Unterrichtsbelegung oder einen Chat manuell zusammenstellen.</p>
+                        <h3 tabindex="-1" id="kcStep1Heading">Quelle wählen</h3>
+                        <p>Woher kommen die Klassen – und was soll in Teams entstehen?</p>
                     </div>
                 </div>
 
-                <div class="kc-mode-grid" role="group" aria-label="Anlege-Modus">
-                    <button type="button" class="kc-mode-card is-selected" data-kc-mode="belegung" id="kcModeBelegung">
-                        <h4><i class="bi bi-magic"></i> Aus Belegung</h4>
-                        <p>Alle Klassen aus der bereinigten Kursteam-Liste – KV wird ergänzt.</p>
+                <div id="kcSourceBanner" class="pw-msg" role="status">
+                    <p class="pw-msg__title" id="kcSourceStatus">–</p>
+                    <ul class="pw-msg__list" id="kcSourceChecks" hidden></ul>
+                    <p class="pw-msg__meta" id="kcSourceHint"></p>
+                    <div style="margin-top:10px;">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnReloadSource"><i class="bi bi-arrow-clockwise"></i>Daten aktualisieren</button>
+                    </div>
+                </div>
+
+                <p class="pw-sec">Klassenquelle</p>
+                <div class="pw-choice-grid" role="radiogroup" aria-label="Klassenquelle">
+                    <button type="button" class="pw-choice is-selected" role="radio" aria-checked="true" data-kc-mode="belegung" id="kcModeBelegung">
+                        <span class="pw-choice__radio" aria-hidden="true"></span>
+                        <span>
+                            <span class="pw-choice__title">Aus Unterrichtsbelegung</span>
+                            <span class="pw-choice__text">Klassen und Lehrkräfte werden automatisch übernommen. Der Klassenvorstand wird ergänzt.</span>
+                        </span>
                     </button>
-                    <button type="button" class="kc-mode-card" data-kc-mode="manual" id="kcModeManual">
-                        <h4><i class="bi bi-pencil-square"></i> Manuell</h4>
-                        <p>Eine Klasse und die Mitglieder selbst wählen – auch ohne Belegung möglich.</p>
+                    <button type="button" class="pw-choice" role="radio" aria-checked="false" data-kc-mode="manual" id="kcModeManual">
+                        <span class="pw-choice__radio" aria-hidden="true"></span>
+                        <span>
+                            <span class="pw-choice__title">Manuell auswählen</span>
+                            <span class="pw-choice__text">Klasse und Lehrkräfte selbst festlegen – auch ohne Belegung möglich.</span>
+                        </span>
                     </button>
                 </div>
 
-                <div class="tm-field" style="margin-top:8px;">
-                    <label>Ziel in Teams</label>
-                </div>
-                <div class="kc-mode-grid" role="group" aria-label="Zieltyp">
-                    <button type="button" class="kc-mode-card is-selected" data-kc-target="groupChat" id="kcTargetChat">
-                        <h4><i class="bi bi-chat-dots"></i> Gruppenchat</h4>
-                        <p>Klassischer Teams-Chat in der Chat-Liste – leicht und schnell.</p>
+                <p class="pw-sec">Kommunikation in Teams</p>
+                <div class="pw-choice-grid" role="radiogroup" aria-label="Ziel in Teams">
+                    <button type="button" class="pw-choice is-selected" role="radio" aria-checked="true" data-kc-target="groupChat" id="kcTargetChat">
+                        <span class="pw-choice__radio" aria-hidden="true"></span>
+                        <span>
+                            <span class="pw-choice__title">Gruppenchat</span>
+                            <span class="pw-choice__text">Alle ausgewählten Lehrkräfte werden dem Chat hinzugefügt. Der Chat erscheint in der Chat-Liste.</span>
+                        </span>
                     </button>
-                    <button type="button" class="kc-mode-card" data-kc-target="privateChannel" id="kcTargetChannel">
-                        <h4><i class="bi bi-lock"></i> Privater Kanal</h4>
-                        <p>Im Lehrerteam – mit Dateien und festem Ort pro Klasse.</p>
+                    <button type="button" class="pw-choice" role="radio" aria-checked="false" data-kc-target="privateChannel" id="kcTargetChannel">
+                        <span class="pw-choice__radio" aria-hidden="true"></span>
+                        <span>
+                            <span class="pw-choice__title">Privater Kanal</span>
+                            <span class="pw-choice__text">Der Kanal wird im Lehrerteam erstellt. Klassenvorstand als Besitzer, weitere Lehrkräfte als Mitglieder.</span>
+                        </span>
                     </button>
                 </div>
 
                 <div id="kcPanelLehrerTeam" class="kc-source-panel kc-team-panel" hidden>
-                    <div class="tm-field">
+                    <div class="kc-field">
                         <label for="kcTeamSearch">Lehrerteam suchen</label>
                         <div class="kc-search-row">
                             <input type="search" id="kcTeamSearch" placeholder="Name oder Gruppen-Mail …" autocomplete="off">
-                            <button type="button" class="btn" id="kcBtnTeamSearch"><i class="bi bi-search"></i>Suchen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnTeamSearch"><i class="bi bi-search"></i>Suchen</button>
                         </div>
                     </div>
                     <div id="kcTeamSearchResults" class="kc-user-checklist" role="listbox" aria-label="Team-Treffer" hidden></div>
                     <p id="kcTeamPicked" class="kc-team-picked muted">Noch kein Lehrerteam gewählt.</p>
                     <p class="muted" style="line-height:1.45;margin:8px 0 0;">
-                        Alle Klassenchat-Mitglieder müssen im Lehrerteam sein – fehlende werden beim Anlegen ergänzt.
-                        Kanalnamen: max. 50 Zeichen; <code>|</code> wird zu <code>·</code>.
+                        Fehlende Personen werden beim Anlegen ins Lehrerteam aufgenommen. Kanalnamen: max. 50 Zeichen; <code>|</code> wird zu <code>·</code>.
                     </p>
-                </div>
-
-                <div id="kcPanelExtraMembers" class="kc-source-panel kc-extra-panel">
-                    <div class="tm-field">
-                        <label for="kcExtraEmails">Zusätzlich in allen Klassen (z. B. Direktion)</label>
-                        <textarea id="kcExtraEmails" rows="2" placeholder="eine E-Mail pro Zeile, oder mit Komma – gilt für Gruppenchat und privaten Kanal"></textarea>
-                    </div>
-                    <div class="tm-field" style="margin-top:10px;">
-                        <label for="kcExtraSearch">Im Microsoft&nbsp;365-Tenant suchen</label>
-                        <div class="kc-search-row">
-                            <input type="search" id="kcExtraSearch" placeholder="Name oder E-Mail …" autocomplete="off">
-                            <button type="button" class="btn" id="kcBtnExtraSearch"><i class="bi bi-search"></i>Suchen</button>
-                        </div>
-                    </div>
-                    <div id="kcExtraSearchResults" class="kc-user-checklist" role="group" aria-label="Zusatzpersonen-Treffer" hidden></div>
-                    <div class="kc-nav" style="margin-top:8px;" id="kcExtraApplyRow" hidden>
-                        <button type="button" class="btn btn-small" id="kcBtnExtraApply"><i class="bi bi-check2-square"></i>Zur Zusatzliste übernehmen</button>
-                    </div>
-                    <div id="kcExtraPickedWrap" class="kc-picked-wrap" hidden>
-                        <p class="muted" style="margin:10px 0 6px;">Zusätzlich übernommen:</p>
-                        <div id="kcExtraPicked" class="kc-picked-chips" aria-live="polite"></div>
-                    </div>
-                    <p class="muted" style="line-height:1.45;margin:10px 0 0;">
-                        Diese Personen kommen in <strong>jeden</strong> Klassenchat bzw. privaten Kanal dazu – als Mitglieder (nicht als Owner). Beim privaten Kanal werden sie ggf. ins Lehrerteam aufgenommen.
-                    </p>
-                </div>
-
-                <div id="kcPanelBelegung" class="kc-source-panel">
-                    <p id="kcSourceStatus">–</p>
-                    <p id="kcSourceHint" class="muted" style="line-height:1.45;"></p>
-                    <button type="button" class="btn" id="kcBtnReloadSource"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
                 </div>
 
                 <div id="kcPanelManual" class="kc-source-panel" hidden>
-                    <div class="tm-field">
+                    <div class="kc-field">
                         <label for="kcManualKlasse">Klasse</label>
                         <input type="text" id="kcManualKlasse" list="kcClassList" placeholder="z. B. 1A" autocomplete="off">
                         <datalist id="kcClassList"></datalist>
                     </div>
                     <p id="kcManualKvHint" class="muted" style="margin:0 0 10px;line-height:1.4;"></p>
-                    <label class="checkbox-label" style="display:flex;gap:8px;margin:0 0 12px;align-items:flex-start;">
+                    <label class="kc-checkbox">
                         <input type="checkbox" id="kcManualIncludeKv" checked>
                         <span>Klassenvorstand aus Stammdaten immer mitnehmen</span>
                     </label>
-                    <div class="tm-field">
+                    <div class="kc-field">
                         <label for="kcTeacherFilter">Lehrkräfte aus Stammdaten</label>
                         <input type="search" id="kcTeacherFilter" placeholder="Filtern …" autocomplete="off">
                     </div>
                     <div class="kc-teacher-list" id="kcTeacherList" role="group" aria-label="Lehrkräfte auswählen"></div>
-
-                    <div class="tm-field" style="margin-top:14px;">
+                    <div class="kc-field" style="margin-top:14px;">
                         <label for="kcTenantSearch">Weitere Personen im Microsoft&nbsp;365-Tenant suchen</label>
                         <div class="kc-search-row">
                             <input type="search" id="kcTenantSearch" placeholder="Name oder E-Mail …" autocomplete="off">
-                            <button type="button" class="btn" id="kcBtnTenantSearch"><i class="bi bi-search"></i>Suchen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnTenantSearch"><i class="bi bi-search"></i>Suchen</button>
                         </div>
                     </div>
                     <div id="kcTenantSearchResults" class="kc-user-checklist" role="group" aria-label="Suchtreffer" hidden></div>
-                    <div class="kc-nav" style="margin-top:8px;" id="kcTenantApplyRow" hidden>
-                        <button type="button" class="btn btn-small" id="kcBtnTenantApply"><i class="bi bi-check2-square"></i>Auswahl übernehmen</button>
+                    <div class="kc-nav" style="margin-top:8px;border-top:0;padding-top:0;" id="kcTenantApplyRow" hidden>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnTenantApply"><i class="bi bi-check2-square"></i>Auswahl übernehmen</button>
                     </div>
                     <div id="kcTenantPickedWrap" class="kc-picked-wrap" hidden>
                         <p class="muted" style="margin:10px 0 6px;">Übernommen aus dem Tenant:</p>
                         <div id="kcTenantPicked" class="kc-picked-chips" aria-live="polite"></div>
                     </div>
-
                     <details class="kc-email-details" style="margin-top:12px;">
                         <summary>Oder E-Mails manuell eintippen</summary>
-                        <div class="tm-field" style="margin-top:8px;">
+                        <div class="kc-field" style="margin-top:8px;">
                             <label for="kcManualEmails">Weitere E-Mails</label>
                             <textarea id="kcManualEmails" rows="2" placeholder="eine Adresse pro Zeile, oder mit Komma"></textarea>
                         </div>
                     </details>
-
-                    <div class="kc-nav" style="margin-top:8px;">
-                        <button type="button" class="btn" id="kcBtnAddManual"><i class="bi bi-plus-lg"></i>Zur Liste hinzufügen</button>
-                        <button type="button" class="btn" id="kcBtnClearManualQueue" hidden><i class="bi bi-trash"></i>Manuelle Liste leeren</button>
+                    <div class="kc-nav" style="margin-top:8px;border-top:0;padding-top:0;">
+                        <button type="button" class="fb-btn" id="kcBtnAddManual"><i class="bi bi-plus-lg"></i>Zur Liste hinzufügen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnClearManualQueue" hidden><i class="bi bi-trash"></i>Manuelle Liste leeren</button>
                     </div>
                     <p id="kcManualQueueHint" class="muted" style="margin-top:10px;"></p>
                 </div>
 
+                <details class="kc-extra" id="kcExtraDisclosure">
+                    <summary>Weitere Personen hinzufügen</summary>
+                    <div id="kcPanelExtraMembers" class="kc-source-panel kc-extra-panel">
+                        <p class="muted" style="margin:0 0 10px;line-height:1.45;">Diese Personen werden <strong>allen</strong> ausgewählten KlassenChats hinzugefügt.</p>
+                        <div class="kc-field">
+                            <label for="kcExtraEmails">E-Mail-Adressen (z. B. Direktion)</label>
+                            <textarea id="kcExtraEmails" rows="2" placeholder="eine E-Mail pro Zeile, oder mit Komma"></textarea>
+                        </div>
+                        <div class="kc-field" style="margin-top:10px;">
+                            <label for="kcExtraSearch">Im Microsoft&nbsp;365-Tenant suchen</label>
+                            <div class="kc-search-row">
+                                <input type="search" id="kcExtraSearch" placeholder="Name oder E-Mail …" autocomplete="off">
+                                <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnExtraSearch"><i class="bi bi-search"></i>Suchen</button>
+                            </div>
+                        </div>
+                        <div id="kcExtraSearchResults" class="kc-user-checklist" role="group" aria-label="Zusatzpersonen-Treffer" hidden></div>
+                        <div class="kc-nav" style="margin-top:8px;border-top:0;padding-top:0;" id="kcExtraApplyRow" hidden>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnExtraApply"><i class="bi bi-check2-square"></i>Zur Zusatzliste übernehmen</button>
+                        </div>
+                        <div id="kcExtraPickedWrap" class="kc-picked-wrap" hidden>
+                            <p class="muted" style="margin:10px 0 6px;">Zusätzlich übernommen:</p>
+                            <div id="kcExtraPicked" class="kc-picked-chips" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </details>
+
                 <div class="kc-nav">
-                    <button type="button" class="btn btn-success" data-kc-next="2"><i class="bi bi-arrow-right"></i>Weiter: Namen</button>
+                    <button type="button" class="fb-btn" data-kc-next="2"><i class="bi bi-arrow-right"></i>Weiter: Namen</button>
                 </div>
             </section>
 
-            <section class="tm-panel kc-step" data-kc-step="2">
-                <div class="tm-panel__head">
-                    <i class="bi bi-fonts" aria-hidden="true"></i>
+            <!-- STEP 2 -->
+            <section class="kc-step pw-form" data-kc-step="2">
+                <div class="kc-step__head">
+                    <div class="kc-step__badge" aria-hidden="true"><i class="bi bi-fonts"></i></div>
                     <div>
-                        <h3>Namen</h3>
-                        <p>Schuljahr und Klasse als Bausteine – Standard: <code>SJ26 | 1A | Lehrer</code> (bei Kanälen wird <code>|</code> zu <code>·</code>).</p>
+                        <h3 tabindex="-1" id="kcStep2Heading">Namen festlegen</h3>
+                        <p>Lege das Namensschema für die KlassenChats fest.</p>
                     </div>
                 </div>
-                <div class="tm-field">
-                    <label for="kcYearPrefix">Schuljahr-Präfix</label>
-                    <input type="text" id="kcYearPrefix" placeholder="z. B. SJ26" autocomplete="off">
+                <p class="pw-sec">Vorschau</p>
+                <div class="kc-name-preview">
+                    <p id="kcNameLine" class="pw-preview-title">–</p>
+                    <p id="kcNameHint" class="muted">Die weiteren Klassen folgen demselben Schema.</p>
+                    <ul class="pw-examples" id="kcNameExamples" hidden></ul>
                 </div>
-                <div class="filter-group" style="margin-top:12px;">
-                    <label>Chat-Name zusammenbauen (Drag &amp; Drop)</label>
-                    <div class="name-builder">
-                        <div id="kcNameBuilder" class="name-builder-dropzone" aria-label="Chat-Name Bausteine"></div>
-                        <div class="name-builder-actions">
-                            <button type="button" class="btn btn-small" id="kcNameResetDefault">Standard</button>
+                <details class="kc-name-adjust" id="kcNameAdjust">
+                    <summary>Namensschema anpassen</summary>
+                    <div class="kc-field" style="margin-top:12px;">
+                        <label for="kcYearPrefix">Schuljahr-Präfix</label>
+                        <input type="text" id="kcYearPrefix" placeholder="z. B. SJ26" autocomplete="off">
+                    </div>
+                    <div class="filter-group" style="margin-top:12px;">
+                        <label>Bausteine</label>
+                        <div class="name-builder">
+                            <div id="kcNameBuilder" class="name-builder-dropzone" aria-label="Chat-Name Bausteine"></div>
+                            <div class="name-builder-actions">
+                                <button type="button" class="fb-btn fb-btn--ghost" id="kcNameResetDefault">Standard</button>
+                            </div>
+                        </div>
+                        <div class="name-builder-palette" aria-label="Bausteine">
+                            <button type="button" class="fb-btn fb-btn--ghost" data-kc-token="yearPrefix">+ Schuljahr</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" data-kc-token="klasse">+ Klasse</button>
+                        </div>
+                        <div class="name-builder-inputs" aria-label="Eigene Texte">
+                            <div class="filter-group">
+                                <label for="kcNameSepValue">Trennzeichen</label>
+                                <input type="text" id="kcNameSepValue" value=" | " placeholder="z. B.  |  oder -">
+                            </div>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="kcNameAddSep">Trenner hinzufügen</button>
+                            <div class="filter-group">
+                                <label for="kcNameTextValue">Eigener Text / Suffix</label>
+                                <input type="text" id="kcNameTextValue" value="Lehrer" placeholder="z. B. Lehrer, Klassenteam">
+                            </div>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="kcNameAddText">Text hinzufügen</button>
                         </div>
                     </div>
-                    <div class="name-builder-palette" aria-label="Bausteine">
-                        <button type="button" class="btn btn-small" data-kc-token="yearPrefix">+ Schuljahr</button>
-                        <button type="button" class="btn btn-small" data-kc-token="klasse">+ Klasse</button>
-                    </div>
-                    <div class="name-builder-inputs" aria-label="Eigene Texte">
-                        <div class="filter-group">
-                            <label for="kcNameSepValue">Trenner</label>
-                            <input type="text" id="kcNameSepValue" value=" | " placeholder="z. B.  |  oder -">
-                        </div>
-                        <button type="button" class="btn btn-small" id="kcNameAddSep">Trenner hinzufügen</button>
-                        <div class="filter-group">
-                            <label for="kcNameTextValue">Eigener Text</label>
-                            <input type="text" id="kcNameTextValue" value="Lehrer" placeholder="z. B. Lehrer, Klassenteam">
-                        </div>
-                        <button type="button" class="btn btn-small" id="kcNameAddText">Text hinzufügen</button>
-                    </div>
-                    <div id="kcNamePreview" class="name-preview"></div>
-                </div>
+                </details>
                 <div class="kc-nav">
-                    <button type="button" class="btn" data-kc-prev="1"><i class="bi bi-arrow-left"></i>Zurück</button>
-                    <button type="button" class="btn btn-success" data-kc-next="3"><i class="bi bi-arrow-right"></i>Weiter: Vorschau</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" data-kc-prev="1"><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="fb-btn" data-kc-next="3"><i class="bi bi-arrow-right"></i>Weiter: Vorschau</button>
                 </div>
             </section>
 
-            <section class="tm-panel kc-step" data-kc-step="3">
-                <div class="tm-panel__head">
-                    <i class="bi bi-table" aria-hidden="true"></i>
+            <!-- STEP 3 -->
+            <section class="kc-step pw-wide" data-kc-step="3">
+                <div class="kc-step__head">
+                    <div class="kc-step__badge" aria-hidden="true"><i class="bi bi-table"></i></div>
                     <div>
-                        <h3>Vorschau</h3>
-                        <p id="kcPreviewLead">Pro Klasse ein Ziel. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.</p>
+                        <h3 tabindex="-1" id="kcStep3Heading">Vorschau prüfen</h3>
+                        <p id="kcPreviewLead">Angehakte Klassen werden angelegt. Nicht anlegbare Zeilen bleiben deaktiviert.</p>
                     </div>
                 </div>
-                <p id="kcPreviewSummary" class="muted"></p>
-                <div class="kc-table-wrap">
+                <div id="kcPreviewSummaryBox" class="pw-msg pw-msg--ok" role="status">
+                    <p class="pw-msg__title" id="kcPreviewSummaryTitle">Bereit zum Anlegen</p>
+                    <ul class="pw-msg__list" id="kcPreviewSummary"></ul>
+                </div>
+                <div class="kc-table-wrap pw-table-desktop">
                     <table class="kc-table">
                         <thead>
                             <tr>
+                                <th>
+                                    <label class="visually-hidden" for="kcSelectAllPreview">Alle auswählen</label>
+                                    <input type="checkbox" id="kcSelectAllPreview" title="Alle anlegbaren auswählen">
+                                </th>
                                 <th>Klasse</th>
-                                <th id="kcColName">Name</th>
+                                <th data-kc-col-name>Chat-Name</th>
                                 <th>Mitglieder</th>
                                 <th>Status</th>
-                                <th id="kcColId">ID</th>
+                                <th>Teams</th>
                             </tr>
                         </thead>
                         <tbody id="kcPreviewBody"></tbody>
                     </table>
                 </div>
+                <div class="pw-cards" id="kcPreviewCards" aria-label="Vorschau Karten"></div>
                 <div class="kc-nav">
-                    <button type="button" class="btn" data-kc-prev="2"><i class="bi bi-arrow-left"></i>Zurück</button>
-                    <button type="button" class="btn btn-success" data-kc-next="4"><i class="bi bi-arrow-right"></i>Weiter: Anlegen</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" data-kc-prev="2"><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="fb-btn" data-kc-next="4"><i class="bi bi-arrow-right"></i>Weiter: Anlegen</button>
                 </div>
             </section>
 
-            <section class="tm-panel kc-step" data-kc-step="4">
-                <div class="tm-panel__head">
-                    <i class="bi bi-cloud-upload" aria-hidden="true"></i>
+            <!-- STEP 4 -->
+            <section class="kc-step pw-form" data-kc-step="4">
+                <div class="kc-step__head">
+                    <div class="kc-step__badge" aria-hidden="true"><i class="bi bi-cloud-upload"></i></div>
                     <div>
-                        <h3>In Teams anlegen</h3>
-                        <p id="kcRunHint">
-                            Legt Ressourcen per Microsoft Graph an bzw. syncronisiert Mitglieder und Namen.
-                        </p>
+                        <h3 tabindex="-1" id="kcStep4Heading">In Teams anlegen</h3>
+                        <p id="kcRunHint">Kontrolliert ausführen und live sehen, was passiert.</p>
                     </div>
                 </div>
-                <div class="kc-nav">
-                    <button type="button" class="btn" data-kc-prev="3"><i class="bi bi-arrow-left"></i>Zurück</button>
-                    <button type="button" class="btn btn-brand" id="kcBtnRun"><i class="bi bi-cloud-upload"></i>Anlegen / syncen</button>
+
+                <div id="kcConfirmPanel">
+                    <div class="pw-confirm" aria-label="Bestätigung">
+                        <p class="pw-msg__title" id="kcConfirmHeadline">KlassenChats werden erstellt</p>
+                        <dl>
+                            <div>
+                                <dt>Ziel</dt>
+                                <dd id="kcConfirmTarget">Microsoft Teams · Gruppenchat</dd>
+                            </div>
+                            <div>
+                                <dt>Klassen</dt>
+                                <dd id="kcConfirmClasses">–</dd>
+                            </div>
+                            <div>
+                                <dt>Mitglieder</dt>
+                                <dd id="kcConfirmMembers">aus Unterrichtsbelegung + Klassenvorstand</dd>
+                            </div>
+                            <div>
+                                <dt>Namensschema</dt>
+                                <dd id="kcConfirmNaming">–</dd>
+                            </div>
+                        </dl>
+                        <p class="muted" style="margin:12px 0 0;line-height:1.45;" id="kcConfirmNote">
+                            Bestehende Objekte werden nicht dupliziert.
+                        </p>
+                    </div>
+                    <div class="kc-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" data-kc-prev="3" id="kcBtnBackFromConfirm"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn" id="kcBtnRun"><i class="bi bi-cloud-upload"></i>Keine Chats anlegen</button>
+                    </div>
                 </div>
-                <pre class="kc-log" id="kcLog" aria-live="polite"></pre>
+
+                <div id="kcExecPanel" hidden>
+                    <div class="pw-exec" aria-live="polite">
+                        <div class="pw-exec__head">
+                            <p class="pw-exec__title">KlassenChats werden angelegt</p>
+                            <p class="pw-exec__meta" id="kcExecMeta">0 von 0 abgeschlossen</p>
+                        </div>
+                        <ul class="pw-exec-list" id="kcExecList"></ul>
+                    </div>
+                    <details class="kc-tech-details">
+                        <summary>Technische Details</summary>
+                        <pre class="kc-log" id="kcLog"></pre>
+                    </details>
+                </div>
+
+                <div id="kcResultPanel" hidden>
+                    <div class="pw-result" role="status">
+                        <p class="pw-result__title" id="kcResultTitle">Fertig</p>
+                        <p class="muted" id="kcResultSub"></p>
+                        <ul class="pw-result__list" id="kcResultList"></ul>
+                    </div>
+                    <div class="kc-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnRetryFailed" hidden><i class="bi bi-arrow-repeat"></i>Fehlgeschlagene erneut versuchen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="kcBtnRestart"><i class="bi bi-plus-lg"></i>Weitere KlassenChats anlegen</button>
+                        <button type="button" class="fb-btn" id="kcBtnShowPreview"><i class="bi bi-list-ul"></i>Ergebnisse in Vorschau</button>
+                    </div>
+                </div>
             </section>
         </div>
     </div>
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script type="module">
+        import { mountSchoolItAccessGate } from '../src/shared/school-it-access-gate.js';
+        mountSchoolItAccessGate({ redirectTo: '../index.html' });
+    </script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>

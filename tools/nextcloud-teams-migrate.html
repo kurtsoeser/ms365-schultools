@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,21 +9,45 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Nextcloud → Teams</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="../src/tools/nextcloud-teams-migrate/nextcloud-teams-migrate.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+    <style>
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+    </style>
 </head>
-<body>
+<body class="app-shell-chrome">
     <div class="container page-card tm-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
-            <div class="header-tool-indicator">
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-cloud-arrow-down"></i>Nextcloud → Teams</span>
             </div>
             <p>Nextcloud-Ordner live browsen (lokaler Helfer), Dry-Run, optional Kanäle – und ins Fachschafts-Team übertragen.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-nextcloud-teams-migrate" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
                 <a class="btn" href="datei-migration.html"><i class="bi bi-files"></i>Datei-Migration</a>
@@ -31,15 +55,23 @@
             </div>
         </div>
         <div class="content">
+            <section class="nc-hero" aria-label="Stand">
+                <h1 class="fb-greet">Nextcloud → Teams</h1>
+                <p class="fb-sub">Helfer verbinden, Ordner auswählen, Dry-Run – dann ins Ziel-Team übertragen.</p>
+            </section>
+
             <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
                 <span class="tm-perm"><i class="bi bi-cloud"></i><span id="ncHint">…</span></span>
             </div>
 
-            <ol class="nc-callout nc-steps">
-                <li>Im Projektordner <code>scripts\nextcloud-teams-migrate\Start-Helfer.cmd</code> <strong>doppelklicken</strong> (Fenster offen lassen).</li>
-                <li>Hier <strong>Lokaler Helfer → Verbinden</strong> – dann Nextcloud-Struktur browsen und anhaken.</li>
-                <li>Ziel-Team suchen → Dry-Run → Übertragen.</li>
-            </ol>
+            <div class="pw-msg" role="note">
+                <p class="pw-msg__title">Ablauf</p>
+                <ol class="nc-steps pw-msg__list">
+                    <li>Im Projektordner <code>scripts\nextcloud-teams-migrate\Start-Helfer.cmd</code> <strong>doppelklicken</strong> (Fenster offen lassen).</li>
+                    <li>Hier <strong>Lokaler Helfer → Verbinden</strong> – dann Nextcloud-Struktur browsen und anhaken.</li>
+                    <li>Ziel-Team suchen → Dry-Run → Übertragen.</li>
+                </ol>
+            </div>
 
             <section class="tm-panel">
                 <div class="nc-grid">
@@ -59,7 +91,7 @@
                             </p>
                             <div class="nc-conn-row">
                                 <input id="ncHelperUrl" type="url" value="http://127.0.0.1:3791" style="flex:1;min-width:160px;">
-                                <button type="button" class="btn" id="ncBtnHelperConnect"><i class="bi bi-plug"></i>Verbinden</button>
+                                <button type="button" class="fb-btn" id="ncBtnHelperConnect"><i class="bi bi-plug"></i>Verbinden</button>
                             </div>
                             <p id="ncHelperStatus" class="muted" style="margin:8px 0 0;font-size:0.88em;">Helfer noch nicht geprüft.</p>
                         </div>
@@ -67,7 +99,7 @@
                             <p class="muted" style="margin:0 0 8px;font-size:0.9em;">ZIP aus Nextcloud-Download hier öffnen (Dateiauswahl ist in der App standardmäßig versteckt – bitte den Button nutzen).</p>
                             <input type="file" id="ncZipFile" accept=".zip,application/zip">
                             <div class="nc-conn-row">
-                                <label class="btn" for="ncZipFile"><i class="bi bi-file-earmark-zip"></i>ZIP-Datei auswählen…</label>
+                                <label class="fb-btn fb-btn--ghost" for="ncZipFile"><i class="bi bi-file-earmark-zip"></i>ZIP-Datei auswählen…</label>
                                 <span id="ncZipName" class="muted" style="font-size:0.9em;">Noch keine Datei gewählt.</span>
                             </div>
                         </div>
@@ -75,7 +107,7 @@
                             <p class="muted" style="margin:0 0 8px;font-size:0.9em;">Falls der Ordner schon auf dem PC liegt.</p>
                             <input type="file" id="ncFolderInput" webkitdirectory multiple>
                             <div class="nc-conn-row">
-                                <label class="btn" for="ncFolderInput"><i class="bi bi-folder2-open"></i>Ordner auswählen…</label>
+                                <label class="fb-btn fb-btn--ghost" for="ncFolderInput"><i class="bi bi-folder2-open"></i>Ordner auswählen…</label>
                                 <span id="ncFolderName" class="muted" style="font-size:0.9em;">Noch kein Ordner gewählt.</span>
                             </div>
                         </div>
@@ -88,8 +120,8 @@
 
                         <div class="nc-crumb" id="ncCrumb"></div>
                         <div class="nc-actions" style="margin:0 0 8px;">
-                            <button type="button" class="btn btn-ghost" id="ncBtnSelectVisible"><i class="bi bi-check2-square"></i>Sichtbare auswählen</button>
-                            <button type="button" class="btn btn-ghost" id="ncBtnClearSel"><i class="bi bi-x-lg"></i>Auswahl leeren</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="ncBtnSelectVisible"><i class="bi bi-check2-square"></i>Sichtbare auswählen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="ncBtnClearSel"><i class="bi bi-x-lg"></i>Auswahl leeren</button>
                         </div>
                         <div class="nc-browser">
                             <table class="dash-hygiene-table">
@@ -116,7 +148,7 @@
                         <h3><i class="bi bi-people"></i> Ziel-Team</h3>
                         <div class="nc-conn-row" style="margin-bottom:8px;">
                             <input type="search" id="ncDestQuery" placeholder="z. B. Physik …" autocomplete="off">
-                            <button type="button" class="btn" id="ncBtnSearchDest"><i class="bi bi-search"></i>Suchen</button>
+                            <button type="button" class="fb-btn" id="ncBtnSearchDest"><i class="bi bi-search"></i>Suchen</button>
                         </div>
                         <ul class="nc-hits" id="ncDestHits" hidden></ul>
                         <p id="ncDestPicked" class="muted">Noch kein Ziel-Team gewählt.</p>
@@ -133,7 +165,7 @@
                             Deren Unterordner (<code>21_22</code> …) bleiben <strong>Ordner im Kanal</strong>, keine eigenen Kanäle.
                         </p>
                         <div class="nc-actions" style="margin:0 0 8px;">
-                            <button type="button" class="btn btn-ghost" id="ncBtnRefreshMaps"><i class="bi bi-arrow-repeat"></i>Vorschläge aktualisieren</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="ncBtnRefreshMaps"><i class="bi bi-arrow-repeat"></i>Vorschläge aktualisieren</button>
                         </div>
                         <div style="max-height:220px;overflow:auto;border:1px solid var(--input-border);border-radius:8px;">
                             <table class="nc-map-table">
@@ -162,9 +194,9 @@
                         Test: nur so viele Dateien
                         <input id="ncLimit" type="number" min="0" step="1" placeholder="leer = alle" style="width:5.5rem;">
                     </label>
-                    <button type="button" class="btn" id="ncBtnDryRun"><i class="bi bi-list-check"></i>Dry-Run</button>
-                    <button type="button" class="btn btn-success" id="ncBtnMigrate"><i class="bi bi-cloud-upload"></i>Übertragen</button>
-                    <button type="button" class="btn btn-ghost" id="ncBtnAbort"><i class="bi bi-stop-circle"></i>Abbruch</button>
+                    <button type="button" class="fb-btn" id="ncBtnDryRun"><i class="bi bi-list-check"></i>Dry-Run</button>
+                    <button type="button" class="fb-btn" id="ncBtnMigrate"><i class="bi bi-cloud-upload"></i>Übertragen</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="ncBtnAbort"><i class="bi bi-stop-circle"></i>Abbruch</button>
                 </div>
                 <details class="tm-tech" style="margin-top:12px;"><summary>Protokoll</summary><pre id="ncLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
             </section>
@@ -172,7 +204,7 @@
     </div>
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/tools/nextcloud-teams-migrate/nextcloud-teams-migrate.js"></script>

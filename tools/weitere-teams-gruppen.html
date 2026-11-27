@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,65 +9,98 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Weitere Teams &amp; Gruppen</title>
-    <link rel="stylesheet" href="../app.css?v=14">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/weitere-teams-gruppen/wtg.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+    <style>
+.page-card.tm-page,
+.container.page-card { --brand: var(--brand1); --primary: var(--brand1); }
+.btn-success, .btn.btn-success, button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+    </style>
 </head>
-<body>
-    <div class="container">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page wtg-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-magic"></i>Weitere Teams &amp; Gruppen (Wizard)</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-magic"></i>Weitere Teams &amp; Gruppen</span>
             </div>
-            <p>Wizard der <strong>MS&nbsp;365 Gruppenverwaltung</strong> für zusätzliche Gruppen/Teams außerhalb der Schul‑Kataloge (z. B. Elternverein, Projektteam): Liste, Besitzer, Mitglieder, Einstellungen – Ausführung über Microsoft Graph.</p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-wtg" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Zusätzliche Gruppen und Teams außerhalb der Schulkataloge anlegen – Liste, Besitzer, Mitglieder, Einstellungen, Ausführen.</p>
+            <p class="muted" style="margin:4px 0 0;font-size:0.9rem;">z. B. Elternverein, Projektteam · Ausführung über Microsoft Graph.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-wtg" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <a class="btn" href="schulstruktur-sync.html"><i class="bi bi-arrow-left"></i>Gruppenverwaltung</a>
-                <a class="btn" href="../index.html" style="margin-left:8px;"><i class="bi bi-house"></i>Dashboard</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div id="panelWtg">
-            <div class="steps wtg-steps">
-                <div class="step active" data-wtg-step="1"><i class="bi bi-list-ul"></i>1. Liste</div>
-                <div class="step" data-wtg-step="2"><i class="bi bi-person-badge"></i>2. Besitzer</div>
-                <div class="step" data-wtg-step="3"><i class="bi bi-people"></i>3. Mitglieder</div>
-                <div class="step" data-wtg-step="4"><i class="bi bi-sliders2"></i>4. Einstellungen</div>
-                <div class="step" data-wtg-step="5"><i class="bi bi-play-circle"></i>5. Ausführen</div>
+            <section class="wtg-hero" aria-label="Stand">
+                <h1 class="fb-greet">Weitere Teams &amp; Gruppen</h1>
+                <p class="fb-sub">Geführter Wizard – von der Liste bis zur Graph-Anlage.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="schulstruktur-sync.html">Gruppenverwaltung ↗</a>
+                <a href="teams-kanaele-bulk.html">Kanäle bulk ↗</a>
+                <a href="gruppenerstellung.html">Wer darf Teams anlegen ↗</a>
+            </nav>
+
+            <div class="steps wtg-steps pw-steps" role="navigation" aria-label="Wizard-Schritte">
+                <div class="step active" data-wtg-step="1">1 · Liste</div>
+                <div class="step" data-wtg-step="2">2 · Besitzer</div>
+                <div class="step" data-wtg-step="3">3 · Mitglieder</div>
+                <div class="step" data-wtg-step="4">4 · Einstellungen</div>
+                <div class="step" data-wtg-step="5">5 · Ausführen</div>
             </div>
 
             <div class="content">
-            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten in diesem Browser. Einrichtung oder Demo starten, bevor Sie weitere Teams anlegen."></div>
+                <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten in diesem Browser. Einrichtung oder Demo starten, bevor Sie weitere Teams anlegen."></div>
 
-                <div class="wtg-step-content active" data-wtg-step="1">
-                    <h2>Liste: Weitere Teams &amp; Gruppen</h2>
-                    <div class="alert alert-info">
-                        <strong>Einfach:</strong> eine Zeile pro Gruppe/Team (Anzeigename). Optional <code>Anzeigename;MailNickname</code> oder <code>Anzeigename;MailNickname;Team</code>.
+                <div class="wtg-step-content active pw-form" data-wtg-step="1">
+                    <div class="wtg-pane-head">
+                        <h2>Liste festlegen</h2>
+                        <p>Eine Zeile pro Gruppe/Team. Optional <code>Anzeigename;MailNickname</code> oder <code>Anzeigename;MailNickname;Team</code>.</p>
                     </div>
-                    <div class="filter-section">
-                        <div class="filter-group">
-                            <label for="wtgDefaultPrefix">Präfix für Mail-Nickname (optional)</label>
-                            <input type="text" id="wtgDefaultPrefix" placeholder="z. B. ext, sonst leer" value="" maxlength="20" autocomplete="off">
-                        </div>
-                        <div class="filter-group" style="margin-top:4px;">
-                            <label class="checkbox-label" for="wtgUpperNick">
-                                <input type="checkbox" id="wtgUpperNick">
-                                <span>Mail-Nickname groß schreiben</span>
-                            </label>
-                        </div>
-                        <div class="filter-group" style="margin-top:10px;">
-                            <label for="wtgLines">Gruppen/Teams (eine Zeile pro Eintrag)</label>
-                            <textarea id="wtgLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="Elternverein&#10;Projektteam Nachhaltigkeit&#10;SG;schulgemeinschaft;Gruppe&#10;Schulsprecher;schulsprecher;Team"></textarea>
-                        </div>
+                    <div class="pw-msg" role="note">
+                        <p class="pw-msg__title">Eingabe</p>
+                        <p class="pw-msg__meta" style="margin:0;">Einfach Anzeigenamen eintragen – Nickname und Typ können in der Vorschau nachgezogen werden.</p>
+                    </div>
+                    <div class="wtg-field">
+                        <label for="wtgDefaultPrefix">Präfix für Mail-Nickname (optional)</label>
+                        <input type="text" id="wtgDefaultPrefix" placeholder="z. B. ext, sonst leer" value="" maxlength="20" autocomplete="off">
+                    </div>
+                    <label class="wtg-checkbox" for="wtgUpperNick">
+                        <input type="checkbox" id="wtgUpperNick">
+                        <span>Mail-Nickname groß schreiben</span>
+                    </label>
+                    <div class="wtg-field">
+                        <label for="wtgLines">Gruppen/Teams (eine Zeile pro Eintrag)</label>
+                        <textarea id="wtgLines" rows="8" placeholder="Elternverein&#10;Projektteam Nachhaltigkeit&#10;SG;schulgemeinschaft;Gruppe&#10;Schulsprecher;schulsprecher;Team"></textarea>
                     </div>
 
-                    <h3 style="margin-top:16px;font-size:1rem;">Vorschau (editierbar)</h3>
+                    <p class="pw-sec">Vorschau (editierbar)</p>
                     <p style="margin:0 0 10px 0;">
-                        <button type="button" class="btn btn-small" id="wtgPreviewAddRow"><i class="bi bi-plus-circle"></i>Zeile hinzufügen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="wtgPreviewAddRow"><i class="bi bi-plus-circle"></i>Zeile hinzufügen</button>
                     </p>
-                    <div class="table-container" style="max-height:320px;margin-bottom:12px;">
-                        <table>
+                    <div class="wtg-table-wrap">
+                        <table class="wtg-table">
                             <thead>
                                 <tr>
                                     <th>Anzeigename</th>
@@ -77,23 +110,23 @@
                                 </tr>
                             </thead>
                             <tbody id="wtgPreviewBody">
-                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben einfügen oder „+ Zeile hinzufügen“.</td></tr>
+                                <tr><td colspan="4" class="muted">Noch keine Zeilen – oben einfügen oder „+ Zeile hinzufügen“.</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <p id="wtgParseError" class="alert alert-warning" style="display:none;"></p>
-                    <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" id="wtgParseAndGo2"><i class="bi bi-arrow-right-circle"></i>Weiter zu Besitzern</button>
+                    <p id="wtgParseError" class="pw-msg pw-msg--warn" style="display:none;"></p>
+                    <div class="wtg-nav wtg-nav--forward">
+                        <button type="button" class="fb-btn" id="wtgParseAndGo2"><i class="bi bi-arrow-right"></i>Weiter: Besitzer</button>
                     </div>
                 </div>
 
-                <div class="wtg-step-content" data-wtg-step="2">
-                    <h2>Besitzer</h2>
-                    <div class="alert alert-info">
-                        <strong>Microsoft Graph:</strong> Besitzer müssen als Benutzer im Mandanten existieren (UPN).
+                <div class="wtg-step-content pw-wide" data-wtg-step="2">
+                    <div class="wtg-pane-head">
+                        <h2>Besitzer</h2>
+                        <p>Besitzer müssen als Benutzer im Mandanten existieren (UPN).</p>
                     </div>
-                    <div class="table-container" style="max-height:520px;">
-                        <table>
+                    <div class="wtg-table-wrap wtg-table-wrap--tall">
+                        <table class="wtg-table">
                             <thead>
                                 <tr>
                                     <th>Anzeigename</th>
@@ -103,87 +136,97 @@
                                 </tr>
                             </thead>
                             <tbody id="wtgOwnerBody">
-                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Daten – bitte zuerst Schritt 1 ausfüllen.</td></tr>
+                                <tr><td colspan="4" class="muted">Noch keine Daten – bitte zuerst Schritt 1 ausfüllen.</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <div class="step-nav-row">
-                        <button type="button" class="btn" id="wtgOwnerBack">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="wtgGoTo3" style="margin-left:auto;">Weiter zu Mitglieder →</button>
+                    <div class="wtg-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="wtgOwnerBack"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn" id="wtgGoTo3"><i class="bi bi-arrow-right"></i>Weiter: Mitglieder</button>
                     </div>
                 </div>
 
-                <div class="wtg-step-content" data-wtg-step="3">
-                    <h2>Mitglieder (optional, pro Gruppe/Team)</h2>
-                    <div class="alert alert-info">
-                        <strong>Optional:</strong> Pro Eintrag eine Liste: <strong>UPN/E-Mail, eine pro Zeile</strong>.
+                <div class="wtg-step-content pw-wide" data-wtg-step="3">
+                    <div class="wtg-pane-head">
+                        <h2>Mitglieder</h2>
+                        <p>Optional – pro Eintrag eine Liste: UPN/E-Mail, eine pro Zeile.</p>
                     </div>
-                    <div class="table-container" style="max-height:560px;">
-                        <table>
+                    <div class="wtg-table-wrap wtg-table-wrap--tall">
+                        <table class="wtg-table">
                             <thead>
                                 <tr>
-                                    <th style="min-width:160px;">Anzeigename</th>
-                                    <th style="min-width:86px;">Typ</th>
-                                    <th style="min-width:200px;">Gruppen-E-Mail (Vorschau)</th>
+                                    <th>Anzeigename</th>
+                                    <th>Typ</th>
+                                    <th>Gruppen-E-Mail (Vorschau)</th>
                                     <th>Mitglieder (eine Zeile pro UPN)</th>
                                 </tr>
                             </thead>
                             <tbody id="wtgMembersBody">
-                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Daten – bitte zuerst Schritt 1 ausfüllen.</td></tr>
+                                <tr><td colspan="4" class="muted">Noch keine Daten – bitte zuerst Schritt 1 ausfüllen.</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
-                    <div class="step-nav-row">
-                        <button type="button" class="btn" id="wtgMemberBack">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="wtgMemberNext" style="margin-left:auto;">Weiter zu Einstellungen →</button>
+                    <p class="muted" style="margin:10px 0 0;font-size:0.86rem;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</p>
+                    <div class="wtg-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="wtgMemberBack"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn" id="wtgMemberNext"><i class="bi bi-arrow-right"></i>Weiter: Einstellungen</button>
                     </div>
                 </div>
 
-                <div class="wtg-step-content" data-wtg-step="4">
-                    <h2>Einstellungen</h2>
-                    <div class="filter-section" style="padding-top:4px;">
-                        <div style="display:flex;flex-direction:column;gap:16px;">
-                            <label class="checkbox-label" for="wtgAdminAsOwner" style="align-items:flex-start;">
-                                <input type="checkbox" id="wtgAdminAsOwner" checked>
-                                <span style="flex:1;">Ausführender Administrator als Besitzer (zusätzlich)</span>
-                            </label>
-                            <label class="checkbox-label" for="wtgDefaultVisibilityPrivate" style="align-items:flex-start;">
-                                <input type="checkbox" id="wtgDefaultVisibilityPrivate" checked>
-                                <span style="flex:1;">Standard: Sichtbarkeit <strong>Privat</strong> (ansonsten „Öffentlich“)</span>
-                            </label>
+                <div class="wtg-step-content pw-form" data-wtg-step="4">
+                    <div class="wtg-pane-head">
+                        <h2>Einstellungen</h2>
+                        <p>Standardverhalten für die Anlage festlegen.</p>
+                    </div>
+                    <label class="wtg-checkbox" for="wtgAdminAsOwner">
+                        <input type="checkbox" id="wtgAdminAsOwner" checked>
+                        <span>Ausführender Administrator als Besitzer (zusätzlich)</span>
+                    </label>
+                    <label class="wtg-checkbox" for="wtgDefaultVisibilityPrivate">
+                        <input type="checkbox" id="wtgDefaultVisibilityPrivate" checked>
+                        <span>Standard: Sichtbarkeit <strong>Privat</strong> (ansonsten „Öffentlich“)</span>
+                    </label>
+                    <div class="wtg-nav">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="wtgSettingsBack"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn" id="wtgGoTo5"><i class="bi bi-arrow-right"></i>Weiter: Ausführen</button>
+                    </div>
+                </div>
+
+                <div class="wtg-step-content pw-form" data-wtg-step="5">
+                    <div class="wtg-pane-head">
+                        <h2>In Microsoft 365 anlegen</h2>
+                        <p>Kontrolliert ausführen – Gruppen und Teams werden über Microsoft Graph angelegt.</p>
+                    </div>
+                    <div class="pw-msg pw-msg--warn" role="note">
+                        <p class="pw-msg__title">Berechtigungen</p>
+                        <p class="pw-msg__meta" style="margin:0;">Delegiert <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Admin-Zustimmung kann nötig sein.</p>
+                    </div>
+                    <div class="pw-confirm">
+                        <p class="pw-msg__title">Online ausführen</p>
+                        <div class="wtg-nav" style="margin-top:12px;border:0;padding:0;">
+                            <button type="button" class="fb-btn fb-btn--ghost" id="wtgOnlineLogin" data-ms365-call="ms365WtgGraphLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                            <button type="button" class="fb-btn" id="wtgOnlineRun" data-ms365-call="ms365WtgGraphRun"><i class="bi bi-play-fill"></i>Jetzt anlegen</button>
                         </div>
+                        <details class="wtg-tech" open>
+                            <summary>Protokoll</summary>
+                            <div id="wtgOnlineLog" class="wtg-log"></div>
+                        </details>
                     </div>
-                    <div class="step-nav-row">
-                        <button type="button" class="btn" id="wtgSettingsBack">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="wtgGoTo5" style="margin-left:auto;">Weiter zu Ausführen →</button>
-                    </div>
-                </div>
-
-                <div class="wtg-step-content" data-wtg-step="5">
-                    <h2>Ausführen (Online)</h2>
-                    <div class="alert alert-warning">
-                        <strong>Berechtigungen (Entra App):</strong> Delegiert <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong>. Administratorzustimmung erteilen.
-                    </div>
-                    <div class="filter-section" style="margin-bottom:20px;border:1px solid var(--border);border-radius:8px;padding:16px;background:var(--soft);">
-                        <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
-                        <button type="button" class="btn" id="wtgOnlineLogin" data-ms365-call="ms365WtgGraphLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="wtgOnlineRun" data-ms365-call="ms365WtgGraphRun" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Jetzt anlegen</button>
-                        <div id="wtgOnlineLog" style="margin-top:14px;max-height:320px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
-                    </div>
-                    <div class="step-nav-row step-nav-row--back-only">
-                        <button type="button" class="btn" id="wtgRunBack"><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <div class="wtg-nav wtg-nav--back">
+                        <button type="button" class="fb-btn fb-btn--ghost" id="wtgRunBack"><i class="bi bi-arrow-left"></i>Zurück</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
-            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
-            <button type="button" class="btn" id="btnExportWtgJson">⬇️ Export JSON</button>
-            <button type="button" class="btn" id="btnImportWtgJson">⬆️ Import JSON</button>
-            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+        <div class="toolbar bottom-toolbar tool-state-bar" aria-label="Zwischenstand">
+            <div class="tool-state-bar__actions">
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnSaveState"><i class="bi bi-floppy"></i>Zwischenstand speichern</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnLoadState"><i class="bi bi-folder2-open"></i>Stand laden</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnExportWtgJson"><i class="bi bi-download"></i>Export JSON</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnImportWtgJson"><i class="bi bi-upload"></i>Import JSON</button>
+                <button type="button" class="fb-btn fb-btn--ghost fb-btn--danger" id="btnClearStorage"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
+            </div>
         </div>
         <input type="file" id="wtgImportJsonFile" accept="application/json,.json" style="display:none;">
     </div>
@@ -191,14 +234,14 @@
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/step-progress.js" defer></script>
     <script type="module" src="../src/tools/weitere-teams-gruppen/wtg.js"></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/declarative-actions.js" defer></script>
 </body>
 </html>
-

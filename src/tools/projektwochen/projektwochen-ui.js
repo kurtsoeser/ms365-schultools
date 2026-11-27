@@ -19,8 +19,9 @@ import {
 } from './projektwochen-entra-role.js';
 import {
     validateAngebot,
-    computeDashboardKpis,
     computePwAttention,
+    dashboardHomeModel,
+    studentBookingsUrl,
     buildWeekPlan,
     buildWeekPlanDisplayRows,
     buildMonthCells,
@@ -28,13 +29,16 @@ import {
     isBookingOpen,
     toDatetimeLocalValue,
     weekdayLabelDeFromIso,
+    weekdayNameDe,
+    toIsoDateOnly,
+    statusLabel,
     STATUS_ANGEBOT,
     SLOTS,
     PLAN_SLOTS,
     TAGE,
     KATEGORIEN
 } from './projektwochen-logic.js';
-import { countPendingBookingsSync } from './projektwochen-bookings-logic.js';
+import { attendeesForEmail, countPendingBookingsSync } from './projektwochen-bookings-logic.js';
 import { formatPwSpoSyncLine } from './projektwochen-sync.js';
 import { renderSystemAdminPage } from '../../shared/system-admin-shell.js';
 
@@ -43,6 +47,24 @@ function occupancyLabel(state, angebot) {
     if (!sid || !state.occupancy || !state.occupancy[sid]) return '';
     const o = state.occupancy[sid];
     return String(o.filled || 0) + '/' + String(o.max || angebot.kapazitaet || '?');
+}
+
+function mineIds(state) {
+    if (!state || state.role !== 'schueler') return new Set();
+    const ids = new Set();
+    attendeesForEmail(state.attendeeRows, state.accountEmail).forEach((r) => {
+        if (r.angebotId) ids.add(String(r.angebotId));
+    });
+    return ids;
+}
+
+function isMine(state, angebot) {
+    if (!angebot) return false;
+    return mineIds(state).has(String(angebot.angebotId || ''));
+}
+
+function mineMark() {
+    return '<span class="fb-pill pw-mine">Du</span>';
 }
 
 function esc(s) {
@@ -71,9 +93,33 @@ function optionList(items, valueKey, labelKey, selected) {
         .join('');
 }
 
+function pillTone(kind) {
+    const s = String(kind || '').toLowerCase();
+    if (s === 'freigegeben' || s === 'offen' || s === 'ok') return 'ok';
+    if (s === 'beantragt') return 'warn';
+    if (s === 'abgelehnt' || s === 'abgesagt' || s === 'fehler') return 'bad';
+    return '';
+}
+
 function statusBadge(status) {
     const s = String(status || '');
-    return '<span class="pw-badge pw-badge--' + esc(s) + '">' + esc(s || '–') + '</span>';
+    const tone = pillTone(s);
+    return '<span class="fb-pill' + (tone ? ' fb-pill--' + tone : '') + '">' + esc(statusLabel(s)) + '</span>';
+}
+
+function teacherLabel(state, item) {
+    const labels = labelMaps(state && state.stammdaten);
+    const code = String((item && item.lehrerCode) || '').trim();
+    const name = code ? labels.teachers[code] : '';
+    if (name && name !== code) return name;
+    return code || String((item && item.lehrerEmail) || '').trim() || '–';
+}
+
+function syncPill(status) {
+    const s = String(status || '').trim();
+    if (!s || s === '–') return '<span class="fb-pill">–</span>';
+    const tone = pillTone(s);
+    return '<span class="fb-pill' + (tone ? ' fb-pill--' + tone : '') + '">' + esc(s) + '</span>';
 }
 
 function scopedItems(state) {
@@ -84,15 +130,9 @@ function filterBar(state) {
     const f = state.filters || {};
     const teachers = (state.stammdaten && state.stammdaten.teachers) || [];
     const classes = (state.stammdaten && state.stammdaten.classes) || [];
-    const activeCount = [
-        f.status,
-        f.kategorie,
-        f.tag,
-        f.lehrer,
-        f.klasse,
-        f.buchung,
-        f.q
-    ].filter(Boolean).length;
+    const moreCount = [f.kategorie, f.tag, f.lehrer, f.klasse, f.buchung].filter(Boolean).length;
+    const activeCount = moreCount + [f.status, f.q].filter(Boolean).length;
+    const moreOpen = !!state.filtersMore;
 
     function filterSelect(id, label, icon, optionsHtml) {
         return (
@@ -115,24 +155,7 @@ function filterBar(state) {
         );
     }
 
-    return (
-        '<div class="pw-filters" role="search" aria-label="Angebote filtern">' +
-        '<div class="pw-filters__head">' +
-        '<span class="pw-filters__title"><i class="bi bi-funnel" aria-hidden="true"></i>Filter &amp; Suche</span>' +
-        (activeCount
-            ? '<button type="button" class="pw-filters__reset" id="pwFilterReset" title="Filter zurücksetzen">' +
-              '<i class="bi bi-x-circle" aria-hidden="true"></i>' +
-              activeCount +
-              ' aktiv · zurücksetzen</button>'
-            : '<span class="pw-filters__hint">Alle Angebote</span>') +
-        '</div>' +
-        '<div class="pw-filters__row">' +
-        filterSelect(
-            'pwFilterStatus',
-            'Status',
-            'bi-flag',
-            '<option value="">alle</option>' + optionList(STATUS_ANGEBOT, null, null, f.status)
-        ) +
+    const moreFields =
         filterSelect(
             'pwFilterKat',
             'Kategorie',
@@ -164,10 +187,32 @@ function filterBar(state) {
             '<option value="">alle</option>' +
                 '<option value="offen"' +
                 (f.buchung === 'offen' ? ' selected' : '') +
-                '>bereits möglich</option>' +
+                '>buchbar</option>' +
                 '<option value="gesperrt"' +
                 (f.buchung === 'gesperrt' ? ' selected' : '') +
-                '>noch gesperrt</option>'
+                '>noch nicht buchbar</option>'
+        );
+    return (
+        '<div class="pw-filters' +
+        (moreOpen ? ' is-open' : ' is-quiet') +
+        '" role="search" aria-label="Angebote filtern">' +
+        '<div class="pw-filters__row pw-filters__row--main">' +
+        filterSelect(
+            'pwFilterStatus',
+            'Status',
+            'bi-flag',
+            '<option value="">alle</option>' +
+            STATUS_ANGEBOT.map((s) => {
+                return (
+                    '<option value="' +
+                    esc(s) +
+                    '"' +
+                    (f.status === s ? ' selected' : '') +
+                    '>' +
+                    esc(statusLabel(s)) +
+                    '</option>'
+                );
+            }).join('')
         ) +
         '<div class="pw-filters__field pw-filters__field--search">' +
         '<label class="pw-filters__label" for="pwFilterQ"><i class="bi bi-search" aria-hidden="true"></i>Suche</label>' +
@@ -177,7 +222,19 @@ function filterBar(state) {
         esc(f.q || '') +
         '" placeholder="Titel, Ort, Beschreibung …" autocomplete="off" spellcheck="false">' +
         '</div></div>' +
-        '</div></div>'
+        '<div class="pw-filters__tools">' +
+        '<button type="button" class="fb-btn fb-btn--ghost" id="pwFilterMore" aria-expanded="' +
+        (moreOpen ? 'true' : 'false') +
+        '">' +
+        (moreOpen ? 'Weniger Filter' : 'Mehr Filter') +
+        (moreCount ? ' · ' + moreCount : '') +
+        '</button>' +
+        (activeCount
+            ? '<button type="button" class="pw-filters__reset" id="pwFilterReset">Zurücksetzen</button>'
+            : '') +
+        '</div></div>' +
+        (moreOpen ? '<div class="pw-filters__more"><div class="pw-filters__row">' + moreFields + '</div></div>' : '') +
+        '</div>'
     );
 }
 
@@ -197,7 +254,9 @@ function calmBanner(eyebrow, bodyHtml, opts) {
     const o = opts || {};
     const tone = o.tone === 'ops' ? 'ops' : 'action';
     const jump = o.jumpView
-        ? '<button type="button" class="btn btn-sm" data-pw-view="' +
+        ? '<button type="button" class="fb-btn' +
+          (o.primary ? '' : ' fb-btn--ghost') +
+          '" data-pw-view="' +
           esc(o.jumpView) +
           '">' +
           esc(o.jumpLabel || 'Öffnen') +
@@ -244,9 +303,15 @@ function renderNav(state) {
                     } else if (v.id === 'bookings' && pendingSync) {
                         badge = '<span class="pw-nav__badge">' + pendingSync + '</span>';
                     }
+                    const onCatalog =
+                        v.id === 'plan' &&
+                        (state.view === 'plan' ||
+                            state.view === 'kalender' ||
+                            state.view === 'liste' ||
+                            state.view === 'neu');
                     return (
                         '<button type="button" class="pw-nav__btn' +
-                        (state.view === v.id ? ' is-active' : '') +
+                        (state.view === v.id || onCatalog ? ' is-active' : '') +
                         (v.id === 'neu' ? ' pw-nav__btn--cta' : '') +
                         '" data-pw-view="' +
                         esc(v.id) +
@@ -312,67 +377,71 @@ function renderNav(state) {
     );
 }
 
+function deDate(iso) {
+    const s = String(iso || '').slice(0, 10);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return s;
+    return m[3] + '.' + m[2] + '.' + m[1];
+}
+
+function aktionRange(aktion) {
+    if (!aktion) return '';
+    const start = deDate(aktion.startdatum);
+    const end = deDate(aktion.enddatum);
+    if (start && end) return start + ' – ' + end;
+    return start || end || '';
+}
+
 function renderTop(state) {
     const aktion = state.aktion;
     const aktionen = Array.isArray(state.aktionen) ? state.aktionen : [];
-    const aktionLabel = aktion
-        ? esc(aktion.title) +
-          ' · ' +
-          esc(aktion.startdatum || '?') +
-          ' – ' +
-          esc(aktion.enddatum || '?') +
-          ' · ' +
-          statusBadge(aktion.status)
-        : '<span class="muted">Keine Aktion geladen</span>';
-    const aktionSwitch =
-        state.role === 'admin' && aktionen.length > 1
-            ? '<label class="pw-top__aktion-select">Aktion<select id="pwAktionSelect">' +
+    const range = aktionRange(aktion);
+    const weekCore = aktion
+        ? aktionen.length > 1
+            ? '<label class="pw-weekline__select"><span class="pw-weekline__sr">Projektwoche</span><select id="pwAktionSelect">' +
               aktionen
                   .map((a) => {
                       const id = String((a && a.aktionId) || '');
                       const sel = aktion && aktion.aktionId === id ? ' selected' : '';
                       const label =
-                          (a.title || id || 'Aktion') +
-                          (a.startdatum ? ' (' + a.startdatum + ')' : '') +
-                          (a.status ? ' · ' + a.status : '');
+                          (a.title || id || 'Projektwoche') +
+                          (aktionRange(a) ? ' · ' + aktionRange(a) : '');
                       return '<option value="' + esc(id) + '"' + sel + '>' + esc(label) + '</option>';
                   })
                   .join('') +
               '</select></label>'
-            : '';
+            : '<strong class="pw-weekline__title">' + esc(aktion.title || 'Projektwoche') + '</strong>'
+        : '<span class="muted">Keine Projektwoche geladen</span>';
+    const aktionLabel =
+        '<div class="pw-weekline">' +
+        weekCore +
+        (range && aktionen.length < 2 ? '<span class="pw-weekline__range">' + esc(range) + '</span>' : '') +
+        (aktion ? statusBadge(aktion.status) : '') +
+        '</div>';
     const syncSrc = state.spoSync && state.spoSync.source;
     const conn =
         state.localDemoOnly || syncSrc === 'demo'
-            ? '<span class="pw-conn pw-conn--demo">Demo lokal</span>'
+            ? '<span class="fb-pill">Demo lokal</span>'
             : state.ctx || syncSrc === 'live'
-              ? '<span class="pw-conn pw-conn--ok">SPO live</span>'
+              ? '<span class="fb-pill fb-pill--ok">SPO live</span>'
               : state.siteUrl
-                ? '<span class="pw-conn pw-conn--wait">Site hinterlegt</span>'
-                : '<span class="pw-conn">Nicht verbunden</span>';
+                ? '<span class="fb-pill fb-pill--warn">Site hinterlegt</span>'
+                : '<span class="fb-pill">Nicht verbunden</span>';
     const adminHint =
         state.role === 'admin' && !state.bootstrapped
-            ? '<button type="button" class="btn btn-sm" data-pw-view="einstellungen"><i class="bi bi-gear"></i>Systemadministration</button>'
+            ? '<button type="button" class="fb-btn fb-btn--ghost" data-pw-view="einstellungen"><i class="bi bi-gear" aria-hidden="true"></i>Systemadministration</button>'
             : state.role === 'admin'
-              ? '<button type="button" class="btn btn-sm" id="pwBtnReload" title="Daten neu laden"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>'
+              ? '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnReload" title="Daten neu laden"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Aktualisieren</button>'
               : '';
     return (
         '<div class="pw-top">' +
         '<div class="pw-top__aktion">' +
-        '<span class="pw-top__aktion-label">Aktive Projektwoche</span>' +
         '<div class="pw-top__aktion-row">' +
-        '<div>' +
-        (aktionSwitch || aktionLabel) +
-        '</div>' +
+        aktionLabel +
         '<div class="pw-top__actions">' +
         conn +
         adminHint +
         '</div></div>' +
-        (state.accountName || state.accountEmail
-            ? '<div class="muted" style="margin-top:4px;font-size:0.85em">' +
-              esc(state.accountName || '') +
-              (state.accountEmail ? ' · ' + esc(state.accountEmail) : '') +
-              '</div>'
-            : '') +
         (state.roleHint && state.view === 'einstellungen'
             ? '<div class="pw-alert pw-alert--warn">' + esc(state.roleHint) + '</div>'
             : '') +
@@ -387,35 +456,18 @@ function renderTop(state) {
 function renderDashboardAttention(state) {
     const att = computePwAttention(state);
     const parts = [];
-    if (state.role === 'admin' && att.beantragt > 0) {
-        parts.push(
-            calmBanner(
-                'Was braucht Aufmerksamkeit?',
-                '<p><strong>' +
-                    att.beantragt +
-                    '</strong> Angebot/Angebote warten auf Freigabe.</p>',
-                { jumpView: 'admin', jumpLabel: 'Zur Freigabe', icon: 'bi-hourglass-split' }
-            )
-        );
-    }
     if (state.role === 'admin' && att.pendingSync > 0) {
+        const n = att.pendingSync;
+        const sentence =
+            n === 1
+                ? '<p><strong>1</strong> freies Angebot ist noch nicht in Microsoft Bookings.</p>'
+                : '<p><strong>' + n + '</strong> freie Angebote sind noch nicht in Microsoft Bookings.</p>';
         parts.push(
-            calmBanner(
-                'Bookings-Sync',
-                '<p><strong>' +
-                    att.pendingSync +
-                    '</strong> freigegebene Angebot/Angebote noch nicht in Microsoft Bookings.</p>',
-                { tone: 'ops', jumpView: 'bookings', jumpLabel: 'Sync öffnen', icon: 'bi-cloud-upload' }
-            )
-        );
-    }
-    if (state.role === 'lehrer' && !att.myCount && state.bootstrapped) {
-        parts.push(
-            calmBanner(
-                'Loslegen',
-                '<p>Noch kein eigenes Angebot – reichen Sie eines für die Projektwoche ein.</p>',
-                { jumpView: 'neu', jumpLabel: 'Neues Angebot', icon: 'bi-plus-circle' }
-            )
+            calmBanner('Bookings-Sync', sentence, {
+                tone: 'ops',
+                jumpView: 'bookings',
+                jumpLabel: 'Sync öffnen'
+            })
         );
     }
     if (state.role === 'schueler') {
@@ -423,7 +475,7 @@ function renderDashboardAttention(state) {
             calmBanner(
                 'Buchung',
                 '<p>Angebote hier lesen; buchen Sie in der <strong>Microsoft Bookings</strong>-App (Link nach Freigabe/Sync).</p>',
-                { icon: 'bi-info-circle' }
+                {}
             )
         );
     }
@@ -433,7 +485,7 @@ function renderDashboardAttention(state) {
                 calmBanner(
                     'Setup',
                     '<p>SharePoint verbinden oder Demo laden – unter System.</p>',
-                    { jumpView: 'einstellungen', jumpLabel: 'System', icon: 'bi-gear' }
+                    { jumpView: 'einstellungen', jumpLabel: 'System' }
                 )
             );
         } else {
@@ -448,73 +500,94 @@ function renderDashboardAttention(state) {
     return parts.join('');
 }
 
+function homeAction(model) {
+    const btn = model && (model.primary || model.ghost);
+    if (!btn) return '';
+    return (
+        '<div class="pw-view__home-actions"><button type="button" class="fb-btn' +
+        (model.primary ? '' : ' fb-btn--ghost') +
+        '" data-pw-view="' +
+        esc(btn.view) +
+        '">' +
+        esc(btn.label) +
+        '</button></div>'
+    );
+}
+
+function bookingsAnchor(url, label) {
+    return (
+        '<a class="fb-btn fb-btn--ghost" href="' +
+        esc(url) +
+        '" target="_blank" rel="noopener">' +
+        esc(label) +
+        '</a>'
+    );
+}
+
 function renderDashboard(state) {
-    const items = scopedItems(state);
-    const kpis = computeDashboardKpis(items, state.aktion);
-    const emptyBody =
-        state.bootstrapped && !items.length
-            ? quietEmpty(
-                  'Keine Angebote in dieser Sicht',
-                  state.role === 'lehrer'
-                      ? 'Filter zurücksetzen oder neues Angebot anlegen.'
-                      : 'Filter zurücksetzen oder warten, bis Angebote freigegeben sind.',
-                  state.role === 'lehrer'
-                      ? '<button type="button" class="btn btn-sm" data-pw-view="neu"><i class="bi bi-plus-circle"></i>Neues Angebot</button>'
-                      : ''
-              )
-            : '';
-    const greetNum = kpis.beantragt;
-    const greetText = greetNum === 1 ? 'Antrag wartet' : 'Anträge warten';
+    const home = dashboardHomeModel(state);
+    const num = home.num == null ? '' : '<span class="fb-num">' + esc(String(home.num)) + '</span> ';
     return (
         '<section class="pw-view">' +
-        '<header class="pw-view__head">' +
-        '<div>' +
-        '<h1 class="fb-greet"><span class="fb-num">' +
-        greetNum +
-        '</span> ' +
-        greetText +
+        '<header class="pw-view__head"><div>' +
+        '<h1 class="fb-greet">' +
+        num +
+        esc(home.title) +
         '</h1>' +
-        '<p class="fb-sub pw-view__sub">Projektwoche: ' +
-        kpis.total +
-        (kpis.total === 1 ? ' Angebot' : ' Angebote') +
-        ', ' +
-        kpis.freigegeben +
-        ' freigegeben – filtern, dann Plan oder Liste öffnen.</p></div>' +
-        '</header>' +
+        '<p class="fb-sub pw-view__sub">' +
+        esc(home.sub) +
+        '</p>' +
+        homeAction(home) +
+        '</div></header>' +
         renderDashboardAttention(state) +
-        filterBar(state) +
-        '<div class="pw-kpi-grid pw-kpi-grid--quiet">' +
-        kpiCard('Angebote', kpis.total, 'bi-collection', '') +
-        kpiCard('Beantragt', kpis.beantragt, 'bi-hourglass-split', 'warn') +
-        kpiCard('Freigegeben', kpis.freigegeben, 'bi-check2-circle', 'ok') +
-        kpiCard('Abgelehnt', kpis.abgelehnt, 'bi-x-circle', 'bad') +
-        kpiCard('Plätze (Summe)', kpis.kapTotal, 'bi-people', '') +
-        kpiCard('Buchung offen', kpis.buchungOffen, 'bi-unlock', 'ok') +
-        kpiCard('Buchung gesperrt', kpis.buchungGesperrt, 'bi-lock', '') +
-        '</div>' +
-        emptyBody +
-        (state.bootstrapped && items.length
-            ? '<p class="pw-view__meta"><i class="bi bi-funnel" aria-hidden="true"></i> Gefilterte Sicht: <strong>' +
-              items.length +
-              '</strong> Angebot/Angebote</p>'
-            : '') +
         '</section>'
     );
 }
 
-function kpiCard(label, value, icon, tone) {
+function catalogHead(state, title, sub) {
+    const modes = [
+        ['plan', 'Plan'],
+        ['liste', 'Liste'],
+        ['kalender', 'Kalender']
+    ];
+    const seg = modes
+        .map((pair) => {
+            const on = state.view === pair[0];
+            return (
+                '<button type="button" class="pw-seg__btn' +
+                (on ? ' is-active' : '') +
+                '" data-pw-view="' +
+                pair[0] +
+                '" aria-pressed="' +
+                (on ? 'true' : 'false') +
+                '">' +
+                esc(pair[1]) +
+                '</button>'
+            );
+        })
+        .join('');
+    const staff = state.role !== 'schueler';
+    const menuItems = staff
+        ? '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnExportAngebote">Angebote als CSV</button>' +
+          '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnExportIcs">Kalenderdatei</button>' +
+          '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnPrintPlan">Wochenplan drucken</button>' +
+          '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnExportTn">Teilnehmer als CSV</button>' +
+          '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnPrintTn">Teilnehmer drucken</button>'
+        : '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnPrintMine">Meine Termine drucken</button>';
     return (
-        '<div class="pw-kpi' +
-        (tone ? ' pw-kpi--' + tone : '') +
-        '">' +
-        '<div class="pw-kpi__top">' +
-        (icon ? '<i class="bi ' + esc(icon) + '" aria-hidden="true"></i>' : '') +
-        '<span class="pw-kpi__value">' +
-        esc(String(value)) +
-        '</span></div>' +
-        '<div class="pw-kpi__label">' +
-        esc(label) +
-        '</div></div>'
+        '<header class="pw-view__head"><div><h2>' +
+        esc(title) +
+        '</h2><p class="pw-view__sub">' +
+        esc(sub) +
+        '</p></div><div class="pw-catalog-tools">' +
+        (staff
+            ? '<button type="button" class="fb-btn fb-btn--ghost" data-pw-view="neu">Neues Angebot</button>'
+            : '') +
+        '<div class="pw-seg" role="group" aria-label="Ansicht">' +
+        seg +
+        '</div><details class="pw-menu"><summary class="fb-btn fb-btn--ghost">Export</summary><div class="pw-menu__list">' +
+        menuItems +
+        '</div></details></div></header>'
     );
 }
 
@@ -528,19 +601,24 @@ function renderPlan(state) {
         return (list || [])
             .map((a) => {
                 const occ = occupancyLabel(state, a);
+                const bookUrl = studentBookingsUrl(state.role, a, isMine(state, a));
                 return (
-                    '<button type="button" class="pw-plan-card" data-pw-detail="' +
+                    '<div class="pw-plan-card">' +
+                    '<button type="button" class="pw-plan-card__open" data-pw-detail="' +
                     esc(a.itemId || a.angebotId) +
                     '"><strong>' +
                     esc(a.title) +
-                    '</strong><span>' +
+                    '</strong><span class="pw-plan-card__meta">' +
                     statusBadge(a.status) +
-                    ' · ' +
-                    (occ ? esc(occ) + ' TN · ' : '') +
+                    (isMine(state, a) ? mineMark() : '') +
+                    (occ ? '<span>' + esc(occ) + ' TN</span>' : '') +
+                    '<span>' +
                     esc(String(a.kapazitaet || '')) +
-                    ' Plätze' +
-                    (a.syncStatus ? ' · sync:' + esc(a.syncStatus) : '') +
-                    '</span></button>'
+                    ' Plätze</span>' +
+                    (a.syncStatus ? syncPill(a.syncStatus) : '') +
+                    '</span></button>' +
+                    (bookUrl ? bookingsAnchor(bookUrl, 'In Bookings buchen') : '') +
+                    '</div>'
                 );
             })
             .join('');
@@ -583,8 +661,7 @@ function renderPlan(state) {
 
     return (
         '<section class="pw-view">' +
-        '<header class="pw-view__head"><div><h2>Wochenplan</h2>' +
-        '<p class="pw-view__sub">Angebote nach Tag und Slot – ganztägige spannen Vormittag bis Abend.</p></div></header>' +
+        catalogHead(state, 'Wochenplan', 'Angebote nach Tag und Tageszeit. Ganztägige spannen Vormittag bis Abend.') +
         filterBar(state) +
         '<div class="pw-plan-wrap"><table class="pw-plan"><thead><tr><th>Tag</th>' +
         slotHeads +
@@ -604,6 +681,13 @@ function renderKalender(state) {
         year: 'numeric'
     });
     const head = TAGE.map((t) => '<th>' + esc(t) + '</th>').join('');
+    const now = new Date();
+    const todayIso =
+        now.getFullYear() +
+        '-' +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(now.getDate()).padStart(2, '0');
     let body = '';
     for (let i = 0; i < cells.length; i += 7) {
         body += '<tr>';
@@ -615,37 +699,61 @@ function renderKalender(state) {
             }
             const bits = (c.items || [])
                 .slice(0, 4)
-                .map(
-                    (a) =>
-                        '<button type="button" class="pw-cal__item" data-pw-detail="' +
+                .map((a) => {
+                    const tone = pillTone(a.status);
+                    const mine = isMine(state, a);
+                    return (
+                        '<button type="button" class="pw-cal__item' +
+                        (tone ? ' pw-cal__item--' + tone : '') +
+                        (mine ? ' pw-cal__item--mine' : '') +
+                        '" data-pw-detail="' +
                         esc(a.itemId || a.angebotId) +
+                        '" title="' +
+                        esc(a.title + (mine ? ' · Du' : '')) +
                         '">' +
                         esc(a.title) +
+                        (mine ? ' · Du' : '') +
                         '</button>'
-                )
+                    );
+                })
                 .join('');
             body +=
-                '<td class="pw-cal__day"><div class="pw-cal__num">' +
+                '<td class="pw-cal__day' +
+                (c.iso === todayIso ? ' is-today' : '') +
+                '"><div class="pw-cal__num">' +
                 c.day +
                 '</div>' +
                 bits +
-                (c.items.length > 4 ? '<div class="muted">+' + (c.items.length - 4) + '</div>' : '') +
+                (c.items.length > 4 ? '<div class="pw-cal__more">+' + (c.items.length - 4) + '</div>' : '') +
                 '</td>';
         }
         body += '</tr>';
     }
     return (
         '<section class="pw-view">' +
-        '<header class="pw-view__head"><div><h2>Kalender</h2>' +
-        '<p class="pw-view__sub">Monatsübersicht der gefilterten Angebote.</p></div></header>' +
+        catalogHead(state, 'Kalender', 'Monatsübersicht der gefilterten Angebote.') +
         filterBar(state) +
         '<div class="pw-cal-nav">' +
-        '<button type="button" class="btn" id="pwCalPrev"><i class="bi bi-chevron-left"></i></button>' +
+        '<button type="button" class="fb-btn fb-btn--ghost pw-cal-nav__btn" id="pwCalPrev" aria-label="Voriger Monat"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>' +
         '<strong>' +
         esc(monthLabel) +
         '</strong>' +
-        '<button type="button" class="btn" id="pwCalNext"><i class="bi bi-chevron-right"></i></button>' +
+        '<button type="button" class="fb-btn fb-btn--ghost pw-cal-nav__btn" id="pwCalNext" aria-label="Nächster Monat"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>' +
         '</div>' +
+        '<p class="pw-cal-legend">' +
+        '<span class="pw-cal__item pw-cal__item--ok">' +
+        esc(statusLabel('freigegeben')) +
+        '</span>' +
+        '<span class="pw-cal__item pw-cal__item--warn">' +
+        esc(statusLabel('beantragt')) +
+        '</span>' +
+        '<span class="pw-cal__item pw-cal__item--bad">' +
+        esc(statusLabel('abgelehnt')) +
+        '</span>' +
+        '<span class="pw-cal__item">' +
+        esc(statusLabel('entwurf')) +
+        '</span>' +
+        '</p>' +
         '<table class="pw-cal"><thead><tr>' +
         head +
         '</tr></thead><tbody>' +
@@ -656,7 +764,6 @@ function renderKalender(state) {
 
 function renderListe(state) {
     const items = scopedItems(state);
-    const labels = labelMaps(state.stammdaten);
     const scope = scopeFromState(state);
     const rows = items
         .slice()
@@ -666,13 +773,18 @@ function renderListe(state) {
             const open = a.status === 'freigegeben' && isBookingOpen(buchung);
             const edit = canEditAngebot(a, scope);
             const occ = occupancyLabel(state, a);
+            const bookUrl = studentBookingsUrl(state.role, a, isMine(state, a));
+            const staffUrl =
+                state.role !== 'schueler' ? String(a.bookingsBookingUrl || '').trim() : '';
             return (
                 '<tr>' +
                 '<td><button type="button" class="pw-link" data-pw-detail="' +
                 esc(a.itemId || a.angebotId) +
                 '">' +
                 esc(a.title) +
-                '</button></td>' +
+                '</button>' +
+                (isMine(state, a) ? ' ' + mineMark() : '') +
+                '</td>' +
                 '<td>' +
                 esc(a.datum) +
                 ' ' +
@@ -682,7 +794,7 @@ function renderListe(state) {
                 esc(a.slot) +
                 '</td>' +
                 '<td>' +
-                esc(labels.teachers[a.lehrerCode] || a.lehrerCode || a.lehrerEmail) +
+                esc(teacherLabel(state, a)) +
                 '</td>' +
                 '<td>' +
                 statusBadge(a.status) +
@@ -693,32 +805,33 @@ function renderListe(state) {
                 '<td>' +
                 (buchung
                     ? esc(toDatetimeLocalValue(buchung).replace('T', ' ')) +
-                      (open ? ' <span class="pw-badge pw-badge--freigegeben">offen</span>' : ' <span class="pw-badge">gesperrt</span>')
+                      ' ' +
+                      (open
+                          ? '<span class="fb-pill fb-pill--ok">' + esc(statusLabel('offen')) + '</span>'
+                          : '<span class="fb-pill">' + esc(statusLabel('gesperrt')) + '</span>')
                     : '–') +
                 '</td>' +
                 '<td>' +
-                esc(a.syncStatus || '–') +
+                syncPill(a.syncStatus) +
                 '</td>' +
                 '<td class="pw-table__actions">' +
                 (edit
-                    ? '<button type="button" class="btn" data-pw-edit="' + esc(a.itemId) + '">Bearbeiten</button>'
+                    ? '<button type="button" class="fb-btn fb-btn--ghost" data-pw-edit="' +
+                      esc(a.itemId) +
+                      '">Bearbeiten</button>'
                     : '') +
-                (a.bookingsBookingUrl
-                    ? ' <a class="btn" href="' +
-                      esc(a.bookingsBookingUrl) +
-                      '" target="_blank" rel="noopener">Bookings</a>'
-                    : '') +
+                (bookUrl ? bookingsAnchor(bookUrl, 'In Bookings buchen') : '') +
+                (staffUrl ? bookingsAnchor(staffUrl, 'Bookings') : '') +
                 '</td></tr>'
             );
         })
         .join('');
     return (
         '<section class="pw-view">' +
-        '<header class="pw-view__head"><div><h2>Liste</h2>' +
-        '<p class="pw-view__sub">Tabellarische Übersicht – Details per Klick auf den Titel.</p></div></header>' +
+        catalogHead(state, 'Liste', 'Tabellarische Übersicht. Details per Klick auf den Titel.') +
         filterBar(state) +
         '<div class="pw-table-wrap"><table class="pw-table"><thead><tr>' +
-        '<th>Titel</th><th>Datum</th><th>Slot</th><th>Lehrer</th><th>Status</th><th>Belegung</th><th>Buchung ab</th><th>Sync</th><th></th>' +
+        '<th>Titel</th><th>Datum</th><th>Tageszeit</th><th>Lehrkraft</th><th>Status</th><th>Belegung</th><th>Buchung ab</th><th>Sync</th><th></th>' +
         '</tr></thead><tbody>' +
         (rows || '<tr><td colspan="9" class="muted">Keine Angebote</td></tr>') +
         '</tbody></table></div></section>'
@@ -727,16 +840,6 @@ function renderListe(state) {
 
 function renderNeu(state) {
     const editing = !!state.editingItemId;
-    const isAdmin = state.role === 'admin';
-    const steps =
-        '<div class="pw-form-steps" aria-hidden="true">' +
-        formStep('bi-card-heading', 'Inhalt') +
-        formStep('bi-people', 'Betreuung') +
-        formStep('bi-calendar3', 'Termin & Ort') +
-        formStep('bi-cash-coin', 'Kosten') +
-        (isAdmin ? formStep('bi-shield-lock', 'Verwaltung') : '') +
-        '</div>';
-
     return (
         '<section class="pw-view pw-neu">' +
         '<header class="pw-detail__hero pw-neu__hero">' +
@@ -748,10 +851,9 @@ function renderNeu(state) {
         '</h2>' +
         '<p class="pw-neu__lead">' +
         (editing
-            ? 'Alle Felder sind nach Themen gruppiert – speichern, wenn alles passt.'
-            : 'Fülle die Gruppen aus: Inhalt, Termin, Betreuung und Kosten. Danach kannst du den Antrag absenden.') +
+            ? 'Titel, Termin, Ort, Plätze und Lehrkraft. Weitere Angaben liegen darunter.'
+            : 'Titel, Termin, Ort, Plätze und Lehrkraft reichen für den Antrag.') +
         '</p>' +
-        steps +
         '</header>' +
         '<div class="pw-neu__form">' +
         renderAngebotForm(state, {
@@ -759,16 +861,6 @@ function renderNeu(state) {
             submitLabel: editing ? 'Speichern' : 'Antrag stellen'
         }) +
         '</div></section>'
-    );
-}
-
-function formStep(icon, label) {
-    return (
-        '<span class="pw-form-step"><i class="bi ' +
-        esc(icon) +
-        '" aria-hidden="true"></i>' +
-        esc(label) +
-        '</span>'
     );
 }
 
@@ -793,157 +885,196 @@ function renderAngebotForm(state, opts) {
     });
     const isAdmin = state.role === 'admin';
     const editing = !!o.editing || !!state.editingItemId;
-    const showVal = editing || String(form.title || '').trim() || String(form.datum || '').trim();
     const showCancel = o.showCancel !== false && editing && state.view !== 'detail';
     const deleteId = state.editingItemId || state.detailId || '';
     const showDelete = state.view === 'detail' && editing && !!deleteId;
 
-    function selControl(id, optionsHtml) {
+    function selControl(id, optionsHtml, attrs) {
         return (
             '<div class="pw-select"><select id="' +
             id +
-            '" class="pw-select__control">' +
+            '" class="pw-select__control"' +
+            (attrs || '') +
+            '>' +
             optionsHtml +
             '</select><i class="bi bi-chevron-down pw-select__caret" aria-hidden="true"></i></div>'
         );
     }
+    function teacherOptions(selected) {
+        return (
+            '<option value="">–</option>' +
+            teachers
+                .map((t) => {
+                    const code = String((t && t.code) || '');
+                    const name = String((t && t.name) || code);
+                    const mail = String((t && t.email) || '').trim();
+                    return (
+                        '<option value="' +
+                        esc(code) +
+                        '" data-email="' +
+                        esc(mail) +
+                        '"' +
+                        (String(selected) === code ? ' selected' : '') +
+                        '>' +
+                        esc(name) +
+                        '</option>'
+                    );
+                })
+                .join('')
+        );
+    }
+    function labeledOptions(values, labels, selected) {
+        return (values || [])
+            .map((value) => {
+                return (
+                    '<option value="' +
+                    esc(value) +
+                    '"' +
+                    (String(selected) === String(value) ? ' selected' : '') +
+                    '>' +
+                    esc(labels[value] || value) +
+                    '</option>'
+                );
+            })
+            .join('');
+    }
+    const katLabel = {
+        exkursion: 'Exkursion',
+        workshop: 'Workshop',
+        kultur: 'Kultur',
+        sport: 'Sport',
+        sonstiges: 'Sonstiges'
+    };
+    const slotLabel = {
+        ganztags: 'Ganztags',
+        vormittag: 'Vormittag',
+        nachmittag: 'Nachmittag',
+        abend: 'Abend'
+    };
+    const tag = form.tag || weekdayLabelDeFromIso(form.datum) || '';
+    const tagLine = weekdayNameDe(tag) || 'Der Wochentag folgt aus dem Datum.';
+    const weekStart = toIsoDateOnly(state.aktion && state.aktion.startdatum);
+    const weekEnd = toIsoDateOnly(state.aktion && state.aktion.enddatum);
+    const klassen = String(form.zielklassen || '').trim();
+    const mailKnown = String(form.lehrerEmail || '').trim();
+    const moreOpen =
+        [form.hinweisEltern, form.treffpunkt, form.begleitung, form.kostenHinweis].some((s) =>
+            String(s || '').trim()
+        ) ||
+        Number(form.preisEuro) > 0 ||
+        (klassen && klassen.toLowerCase() !== 'alle');
 
     return (
         '<form class="pw-form pw-form--grouped" id="pwForm">' +
         '<div class="pw-form__layout">' +
-        '<div class="pw-form__main">' +
         formSection(
-            'bi-card-heading',
-            'Inhalt',
-            'Titel, Kategorie und Texte für Lehrkräfte und Eltern',
-            field('Titel', 'bi-type', '<input id="pwFTitle" required value="' + esc(form.title) + '">', 'full') +
-                field(
-                    'Kategorie',
-                    'bi-tags',
-                    selControl('pwFKat', optionList(KATEGORIEN, null, null, form.kategorie)),
-                    'half'
-                ) +
+            '',
+            'Angebot',
+            'Was die Schülerinnen und Schüler lesen',
+            field('Titel', '', '<input id="pwFTitle" required value="' + esc(form.title) + '" placeholder="z. B. Zoo Schönbrunn">', 'full') +
+                field('Kategorie', '', selControl('pwFKat', labeledOptions(KATEGORIEN, katLabel, form.kategorie))) +
                 field(
                     'Beschreibung',
-                    'bi-text-left',
+                    '',
                     '<textarea id="pwFDesc" rows="3" placeholder="Was erwartet die Schüler:innen?">' +
                         esc(form.beschreibung) +
                         '</textarea>',
                     'full'
-                ) +
-                field(
-                    'Hinweis Eltern',
-                    'bi-info-circle',
-                    '<textarea id="pwFEltern" rows="2" placeholder="z. B. Einverständnis / Kosten empfohlen">' +
-                        esc(form.hinweisEltern) +
-                        '</textarea>',
-                    'full'
                 )
         ) +
         formSection(
-            'bi-people',
-            'Teilnehmer & Betreuung',
-            'Kapazität, Zielgruppen und verantwortliche Lehrkräfte',
-            field(
-                'Kapazität',
-                'bi-person-bounding-box',
-                '<input type="number" id="pwFKap" min="1" value="' + esc(String(form.kapazitaet)) + '">'
-            ) +
+            '',
+            'Termin und Ort',
+            'Datum legt den Wochentag fest',
+            '<div class="pw-field"><label>Datum</label><input type="date" id="pwFDatum" required value="' +
+                esc(form.datum) +
+                '"' +
+                (weekStart ? ' min="' + esc(weekStart) + '"' : '') +
+                (weekEnd ? ' max="' + esc(weekEnd) + '"' : '') +
+                '><p class="pw-form__when" id="pwFTagLine">' +
+                esc(tagLine) +
+                '</p><input type="hidden" id="pwFTag" value="' +
+                esc(tag) +
+                '"></div>' +
                 field(
-                    'Zielklassen',
-                    'bi-mortarboard',
-                    '<input id="pwFKlassen" list="pwKlassenList" value="' +
-                        esc(form.zielklassen) +
-                        '" placeholder="alle oder 1AK;1BK">' +
-                        '<datalist id="pwKlassenList">' +
-                        classes.map((c) => '<option value="' + esc(c.code) + '">').join('') +
-                        '</datalist>',
-                    'half'
-                ) +
-                field(
-                    'Lehrer',
-                    'bi-person-badge',
+                    'Tageszeit',
+                    '',
                     selControl(
-                        'pwFLehrer',
-                        '<option value="">–</option>' + optionList(teachers, 'code', 'name', form.lehrerCode)
-                    ),
-                    'half'
-                ) +
-                field(
-                    'Lehrer-E-Mail',
-                    'bi-envelope',
-                    '<input id="pwFLehrerMail" type="email" value="' + esc(form.lehrerEmail) + '">',
-                    'half'
-                ) +
-                field(
-                    'Begleitung',
-                    'bi-person-plus',
-                    '<input id="pwFBegleitung" value="' +
-                        esc(form.begleitung) +
-                        '" placeholder="Code oder Name">',
-                    'half'
-                )
-        ) +
-        '</div>' +
-        '<aside class="pw-form__aside">' +
-        formSection(
-            'bi-calendar3',
-            'Termin & Ort',
-            'Wann und wo findet das Angebot statt?',
-            field('Datum', 'bi-calendar-event', '<input type="date" id="pwFDatum" value="' + esc(form.datum) + '">', 'full') +
-                field(
-                    'Wochentag',
-                    'bi-calendar-week',
-                    selControl(
-                        'pwFTag',
-                        '<option value="">auto</option>' + optionList(TAGE, null, null, form.tag)
+                        'pwFSlot',
+                        labeledOptions(SLOTS, slotLabel, form.slot),
+                        ' data-pw-slot="' + esc(form.slot || 'vormittag') + '"'
                     )
                 ) +
-                field('Slot', 'bi-grid-3x2', selControl('pwFSlot', optionList(SLOTS, null, null, form.slot))) +
-                field('Start', 'bi-clock', '<input type="time" id="pwFStart" value="' + esc(form.startzeit) + '">') +
-                field('Ende', 'bi-clock-history', '<input type="time" id="pwFEnd" value="' + esc(form.endzeit) + '">') +
+                field('Beginn', '', '<input type="time" id="pwFStart" value="' + esc(form.startzeit) + '">') +
+                field('Ende', '', '<input type="time" id="pwFEnd" value="' + esc(form.endzeit) + '">') +
                 field(
                     'Ort',
-                    'bi-geo-alt',
-                    '<input id="pwFOrt" value="' + esc(form.ort) + '" placeholder="Ort / Adresse">',
+                    '',
+                    '<input id="pwFOrt" required value="' + esc(form.ort) + '" placeholder="z. B. Tiergarten Schönbrunn">',
                     'full'
-                ) +
-                field(
-                    'Treffpunkt',
-                    'bi-signpost',
-                    '<input id="pwFTreff" value="' + esc(form.treffpunkt) + '" placeholder="z. B. Schulhof">',
-                    'full'
-                ),
-            'pw-form-section__body--aside'
+                )
         ) +
         formSection(
-            'bi-cash-coin',
-            'Kosten',
-            'Preis und Hinweis für Buchung / Eltern',
+            '',
+            'Plätze und Lehrkraft',
+            'Wie viele Plätze, und wer das Angebot verantwortet',
             field(
-                'Preis (€)',
-                'bi-currency-euro',
-                '<input type="number" id="pwFPreis" min="0" step="0.5" value="' + esc(String(form.preisEuro)) + '">',
+                'Plätze',
+                '',
+                '<input type="number" id="pwFKap" min="1" required value="' + esc(String(form.kapazitaet)) + '">',
                 'full'
             ) +
-                field(
-                    'Kostenhinweis',
-                    'bi-receipt',
-                    '<input id="pwFKosten" value="' +
-                        esc(form.kostenHinweis) +
-                        '" placeholder="z. B. inkl. Eintritt">',
-                    'full'
-                ),
-            'pw-form-section__body--aside'
+                field('Lehrkraft', '', selControl('pwFLehrer', teacherOptions(form.lehrerCode)), 'full') +
+                '<div class="pw-field pw-field--full' +
+                (mailKnown ? ' is-quiet' : '') +
+                '" id="pwFLehrerMailWrap"><label>E-Mail</label><input id="pwFLehrerMail" type="email" value="' +
+                esc(form.lehrerEmail) +
+                '" placeholder="für die Zuordnung des Angebots"></div>'
         ) +
+        '<details class="pw-form-more"' +
+        (moreOpen ? ' open' : '') +
+        '><summary>Weitere Angaben</summary><div class="pw-form-section__body">' +
+        field(
+            'Zielklassen',
+            '',
+            '<input id="pwFKlassen" list="pwKlassenList" value="' +
+                esc(form.zielklassen || 'alle') +
+                '" placeholder="alle, oder z. B. 1AK;1BK">' +
+                '<datalist id="pwKlassenList">' +
+                classes.map((c) => '<option value="' + esc(c.code) + '">').join('') +
+                '</datalist>',
+            'full'
+        ) +
+        field(
+            'Hinweis für Eltern',
+            '',
+            '<textarea id="pwFEltern" rows="2" placeholder="z. B. Einverständnis nötig">' +
+                esc(form.hinweisEltern) +
+                '</textarea>',
+            'full'
+        ) +
+        field('Treffpunkt', '', '<input id="pwFTreff" value="' + esc(form.treffpunkt) + '" placeholder="z. B. Schulhof">') +
+        field('Begleitung', '', '<input id="pwFBegleitung" value="' + esc(form.begleitung) + '" placeholder="Name">') +
+        field(
+            'Preis (€)',
+            '',
+            '<input type="number" id="pwFPreis" min="0" step="0.5" value="' + esc(String(form.preisEuro)) + '">'
+        ) +
+        field(
+            'Kostenhinweis',
+            '',
+            '<input id="pwFKosten" value="' + esc(form.kostenHinweis) + '" placeholder="z. B. inkl. Eintritt">',
+            'full'
+        ) +
+        '</div></details>' +
         (isAdmin
             ? formSection(
-                  'bi-shield-lock',
+                  '',
                   'Verwaltung',
-                  'Nur für Admin – Buchungsfenster und interne Notizen',
+                  'Buchungsfenster und interne Notiz',
                   field(
                       'Buchung möglich ab',
-                      'bi-unlock',
+                      '',
                       '<input type="datetime-local" id="pwFBuchungAb" value="' +
                           esc(
                               toDatetimeLocalValue(
@@ -955,43 +1086,37 @@ function renderAngebotForm(state, opts) {
                   ) +
                       field(
                           'Interne Notiz',
-                          'bi-journal-text',
-                          '<textarea id="pwFNotiz" rows="2" placeholder="Nur intern sichtbar">' +
-                              esc(form.notizIntern) +
-                              '</textarea>',
+                          '',
+                          '<textarea id="pwFNotiz" rows="2">' + esc(form.notizIntern) + '</textarea>',
                           'full'
-                      ),
-                  'pw-form-section__body--aside'
+                      )
               )
             : '') +
-        '</aside></div>' +
-        validationBlock(showVal ? v : { errors: [], warnings: [] }) +
-        '<div class="pw-form__actions pw-form__actions--sticky">' +
-        '<button type="button" class="btn btn-success" id="pwBtnSave"><i class="bi bi-check2-circle"></i>' +
+        '</div>' +
+        validationBlock(state.formTried ? v : { errors: [], warnings: [] }) +
+        '<div class="pw-form__actions">' +
+        '<button type="button" class="fb-btn" id="pwBtnSave"><i class="bi bi-check2" aria-hidden="true"></i>' +
         esc(o.submitLabel || (editing ? 'Speichern' : 'Beantragen')) +
         '</button>' +
-        (showCancel ? '<button type="button" class="btn" id="pwBtnCancelEdit">Abbrechen</button>' : '') +
+        (showCancel ? '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnCancelEdit">Abbrechen</button>' : '') +
         (showDelete
-            ? '<button type="button" class="btn pw-form__danger" data-pw-del="' +
+            ? '<button type="button" class="fb-btn fb-btn--ghost pw-form__danger" data-pw-del="' +
               esc(deleteId) +
-              '"><i class="bi bi-trash"></i>Löschen</button>'
+              '">Löschen</button>'
             : '') +
         '</div></form>'
     );
 }
 
-function formSection(icon, title, hint, bodyHtml, bodyMod) {
+function formSection(_icon, title, hint, bodyHtml, bodyMod) {
     return (
         '<section class="pw-form-section">' +
         '<header class="pw-form-section__head">' +
-        '<span class="pw-form-section__icon" aria-hidden="true"><i class="bi ' +
-        esc(icon) +
-        '"></i></span>' +
-        '<div><h3 class="pw-form-section__title">' +
+        '<h3 class="pw-form-section__title">' +
         esc(title) +
         '</h3>' +
         (hint ? '<p class="pw-form-section__hint">' + esc(hint) + '</p>' : '') +
-        '</div></header>' +
+        '</header>' +
         '<div class="pw-form-section__body' +
         (bodyMod ? ' ' + esc(bodyMod) : '') +
         '">' +
@@ -1006,14 +1131,13 @@ function formSection(icon, title, hint, bodyHtml, bodyMod) {
  * @param {string} control
  * @param {'full'|'half'|string} [span]
  */
-function field(label, icon, control, span) {
+function field(label, _icon, control, span) {
     const spanClass =
         span === 'full' ? ' pw-field--full' : span === 'half' ? ' pw-field--half' : '';
     return (
         '<div class="pw-field' +
         spanClass +
         '"><label>' +
-        (icon ? '<i class="bi ' + esc(icon) + '" aria-hidden="true"></i>' : '') +
         esc(label) +
         '</label>' +
         control +
@@ -1044,22 +1168,25 @@ function renderMeine(state) {
     state._meineCount = items.length;
     const rows = items
         .map((a) => {
+            const id = a.itemId || a.angebotId;
+            const editable = canEditAngebot(a, scope);
             return (
-                '<tr><td>' +
+                '<tr><td><button type="button" class="pw-link" data-pw-detail="' +
+                esc(id) +
+                '">' +
                 esc(a.title) +
-                '</td><td>' +
+                '</button></td><td>' +
                 esc(a.datum) +
                 '</td><td>' +
                 statusBadge(a.status) +
-                '</td><td>' +
-                '<button type="button" class="btn" data-pw-detail="' +
-                esc(a.itemId) +
-                '">Details</button> ' +
-                (canEditAngebot(a, scope)
-                    ? '<button type="button" class="btn" data-pw-edit="' + esc(a.itemId) + '">Bearbeiten</button> '
-                    : '') +
-                (canEditAngebot(a, scope)
-                    ? '<button type="button" class="btn" data-pw-del="' + esc(a.itemId) + '">Löschen</button>'
+                '</td><td class="pw-table__actions">' +
+                (editable
+                    ? '<button type="button" class="fb-btn fb-btn--ghost" data-pw-edit="' +
+                      esc(a.itemId) +
+                      '">Bearbeiten</button>' +
+                      '<button type="button" class="fb-btn fb-btn--ghost" data-pw-del="' +
+                      esc(a.itemId) +
+                      '">Löschen</button>'
                     : '') +
                 '</td></tr>'
             );
@@ -1074,7 +1201,7 @@ function renderMeine(state) {
             : quietEmpty(
                   'Noch keine eigenen Angebote',
                   'Legen Sie ein Angebot an – bis zur Freigabe können Sie es bearbeiten.',
-                  '<button type="button" class="btn btn-sm" data-pw-view="neu"><i class="bi bi-plus-circle"></i>Neues Angebot</button>'
+                  '<button type="button" class="fb-btn" data-pw-view="neu"><i class="bi bi-plus-circle" aria-hidden="true"></i>Neues Angebot</button>'
               )) +
         '</section>'
     );
@@ -1098,19 +1225,19 @@ function renderAdmin(state) {
                 ' · ' +
                 esc(a.slot) +
                 '</td><td>' +
-                esc(a.lehrerCode || a.lehrerEmail) +
+                esc(teacherLabel(state, a)) +
                 '</td><td>' +
                 esc(String(a.kapazitaet)) +
                 ' / ' +
                 esc(String(a.preisEuro)) +
                 ' €</td><td class="pw-table__actions">' +
-                '<button type="button" class="btn btn-success" data-pw-approve="' +
+                '<button type="button" class="fb-btn" data-pw-approve="' +
                 esc(a.itemId) +
-                '">Freigeben</button> ' +
-                '<button type="button" class="btn" data-pw-reject="' +
+                '">Freigeben</button>' +
+                '<button type="button" class="fb-btn fb-btn--ghost" data-pw-reject="' +
                 esc(a.itemId) +
-                '">Ablehnen</button> ' +
-                '<button type="button" class="btn" data-pw-detail="' +
+                '">Ablehnen</button>' +
+                '<button type="button" class="fb-btn fb-btn--ghost" data-pw-detail="' +
                 esc(a.itemId) +
                 '">Details</button>' +
                 '</td></tr>'
@@ -1127,13 +1254,13 @@ function renderAdmin(state) {
                 '</td><td>' +
                 esc(a.datum) +
                 '</td><td>' +
-                '<input type="datetime-local" data-pw-buchung-id="' +
+                '<input type="datetime-local" class="pw-table__input" data-pw-buchung-id="' +
                 esc(a.itemId) +
                 '" value="' +
                 esc(val) +
                 '">' +
-                '</td><td>' +
-                '<button type="button" class="btn" data-pw-buchung-save="' +
+                '</td><td class="pw-table__actions">' +
+                '<button type="button" class="fb-btn fb-btn--ghost" data-pw-buchung-save="' +
                 esc(a.itemId) +
                 '">Speichern</button>' +
                 '</td></tr>'
@@ -1141,30 +1268,40 @@ function renderAdmin(state) {
         })
         .join('');
 
+    const home = dashboardHomeModel(state);
+    const greetNum = home.num == null ? '' : '<span class="fb-num">' + esc(String(home.num)) + '</span> ';
     return (
-        '<section class="pw-view"><h2>Administration</h2>' +
-        '<h3>Freigabe-Queue (' +
-        queue.length +
-        ')</h3>' +
+        '<section class="pw-view">' +
+        '<header class="pw-view__head"><div>' +
+        '<h1 class="fb-greet">' +
+        greetNum +
+        esc(home.title) +
+        '</h1>' +
+        '<p class="fb-sub pw-view__sub">' +
+        esc(home.sub) +
+        '</p></div></header>' +
+        renderDashboardAttention(state) +
+        '<h2>Freigabe</h2>' +
         '<div class="pw-table-wrap"><table class="pw-table"><thead><tr><th>Titel</th><th>Wann</th><th>Lehrer</th><th>Kap./Preis</th><th></th></tr></thead><tbody>' +
         (queueRows || '<tr><td colspan="5" class="muted">Keine offenen Anträge</td></tr>') +
         '</tbody></table></div>' +
-        '<h3 style="margin-top:1.5rem">Buchungsstart (freigegebene Angebote)</h3>' +
+        '<h3 style="margin-top:1.5rem">Buchungsstart (freie Angebote)</h3>' +
         '<p class="muted">Ab diesem Zeitpunkt dürfen Schüler in Bookings buchen (Phase 3). Leer = Standard der Aktion.</p>' +
         '<div class="pw-table-wrap"><table class="pw-table"><thead><tr><th>Angebot</th><th>Datum</th><th>Buchung ab</th><th></th></tr></thead><tbody>' +
-        (buchungRows || '<tr><td colspan="4" class="muted">Noch keine freigegebenen Angebote</td></tr>') +
+        (buchungRows || '<tr><td colspan="4" class="muted">Noch keine freien Angebote</td></tr>') +
         '</tbody></table></div>' +
         (aktion
             ? '<h3 style="margin-top:1.5rem">Aktions-Standard</h3>' +
               '<div class="pw-form__grid">' +
               field(
                   'Standard-Buchungsstart',
+                  'bi-unlock',
                   '<input type="datetime-local" id="pwAktionBuchungDefault" value="' +
                       esc(toDatetimeLocalValue(aktion.buchungAbDefault || '')) +
                       '">'
               ) +
               '</div>' +
-              '<button type="button" class="btn" id="pwBtnAktionSave"><i class="bi bi-save"></i>Aktion speichern</button>'
+              '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnAktionSave"><i class="bi bi-save" aria-hidden="true"></i>Aktion speichern</button>'
             : '') +
         '<p class="muted" style="margin-top:1rem">Bookings: siehe Ansicht <strong>Bookings</strong> (Sync-Button). Teilnehmer: Ansicht <strong>Teilnehmer</strong>.</p>' +
         '</section>'
@@ -1296,18 +1433,20 @@ function renderBookings(state) {
                 esc(a.datum) +
                 '</td>' +
                 '<td>' +
-                esc(a.syncStatus || '–') +
+                syncPill(a.syncStatus) +
                 '</td>' +
                 '<td>' +
                 (a.bookingsServiceId ? esc(a.bookingsServiceId.slice(0, 12)) + '…' : '–') +
                 '</td>' +
                 '<td>' +
                 (a.bookingsBookingUrl
-                    ? '<a href="' + esc(a.bookingsBookingUrl) + '" target="_blank" rel="noopener">Link</a>'
+                    ? '<a class="pw-link" href="' +
+                      esc(a.bookingsBookingUrl) +
+                      '" target="_blank" rel="noopener">Link</a>'
                     : '–') +
                 '</td>' +
                 '<td class="pw-table__actions">' +
-                '<button type="button" class="btn" data-pw-sync-one="' +
+                '<button type="button" class="fb-btn fb-btn--ghost" data-pw-sync-one="' +
                 esc(a.itemId) +
                 '">Sync</button>' +
                 '</td></tr>'
@@ -1336,7 +1475,11 @@ function renderBookings(state) {
                     'Nächster Schritt',
                     '<p><strong>' +
                         pending +
-                        '</strong> freigegebene Angebot/Angebote brauchen einen Sync nach Microsoft Bookings.</p>',
+                        '</strong> ' +
+                        (pending === 1
+                            ? 'freies Angebot braucht einen Sync nach Microsoft Bookings.'
+                            : 'freie Angebote brauchen einen Sync nach Microsoft Bookings.') +
+                        '</p>',
                     { tone: 'ops', icon: 'bi-cloud-upload' }
                 )
               : '';
@@ -1354,7 +1497,7 @@ function renderBookings(state) {
         .join('');
     return (
         '<section class="pw-view"><h2>Microsoft Bookings</h2>' +
-        '<p class="pw-view__sub">Klarer Export-Schritt: 1 Projektwoche = 1 Business, freigegebene Angebote = Dienste. Sync nur per Button.</p>' +
+        '<p class="pw-view__sub">Eine Projektwoche ist ein Bookings-Business. Freie Angebote sind die Dienste. Der Sync läuft nur über den Knopf.</p>' +
         summaryBanner +
         (aktion
             ? '<div class="pw-alert pw-alert--info">Aktion: <strong>' +
@@ -1363,23 +1506,23 @@ function renderBookings(state) {
               esc(aktion.bookingsBusinessName || aktion.bookingsBusinessId || '(noch nicht angelegt)') +
               '</div>'
             : '<div class="pw-alert pw-alert--warn">Keine aktive Aktion.</div>') +
-        '<div class="pw-form__actions" style="margin-bottom:12px">' +
-        '<button type="button" class="btn btn-success" id="pwBtnEnsureBiz"' +
+        '<div class="fb-actions-row">' +
+        '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnEnsureBiz"' +
         (state.bookingsBusy ? ' disabled' : '') +
-        '><i class="bi bi-building"></i>Business anlegen/binden</button> ' +
-        '<button type="button" class="btn btn-success" id="pwBtnSyncSelected"' +
+        '><i class="bi bi-building" aria-hidden="true"></i>Business anlegen/binden</button>' +
+        '<button type="button" class="fb-btn" id="pwBtnSyncSelected"' +
         (state.bookingsBusy ? ' disabled' : '') +
-        '><i class="bi bi-arrow-repeat"></i>Ausgewählte syncen</button> ' +
-        '<button type="button" class="btn" id="pwBtnSyncAll"' +
+        '><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Ausgewählte syncen</button>' +
+        '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnSyncAll"' +
         (state.bookingsBusy ? ' disabled' : '') +
-        '><i class="bi bi-cloud-upload"></i>Alle freigegebenen syncen (' +
+        '><i class="bi bi-cloud-upload" aria-hidden="true"></i>Alle freien syncen (' +
         freigegeben.length +
-        ')</button> ' +
-        '<button type="button" class="btn" id="pwBtnLoadTn"' +
+        ')</button>' +
+        '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnLoadTn"' +
         (state.bookingsBusy ? ' disabled' : '') +
-        '><i class="bi bi-people"></i>Teilnehmer laden</button>' +
+        '><i class="bi bi-people" aria-hidden="true"></i>Teilnehmer laden</button>' +
         '</div>' +
-        '<p class="muted">Freigegeben: ' +
+        '<p class="muted">Frei: ' +
         freigegeben.length +
         ' · mit Service: ' +
         synced.length +
@@ -1399,9 +1542,9 @@ function renderBookings(state) {
               rows +
               '</tbody></table></div>'
             : quietEmpty(
-                  'Keine freigegebenen Angebote',
-                  'Zuerst unter Freigabe Angebote freigeben, dann hier nach Bookings syncen.',
-                  '<button type="button" class="btn btn-sm" data-pw-view="admin">Zur Freigabe</button>'
+                  'Keine freien Angebote',
+                  'Zuerst in der Freigabe entscheiden, dann hier nach Bookings syncen.',
+                  '<button type="button" class="fb-btn" data-pw-view="admin">Zur Freigabe</button>'
               )) +
         '<details class="pw-tech" style="margin-top:12px"><summary>Technisches Protokoll</summary>' +
         '<pre class="pw-log" id="pwBookingsLog">' +
@@ -1454,17 +1597,19 @@ function renderTeilnehmer(state) {
 
     return (
         '<section class="pw-view">' +
-        '<header class="pw-view__head"><div><h2>Teilnehmer (aus Bookings)</h2>' +
-        '<p class="pw-view__sub">Live aus Microsoft Bookings. ' +
-        (state.attendeeLoadedAt
-            ? 'Zuletzt geladen: ' + esc(state.attendeeLoadedAt)
-            : 'Noch nicht geladen.') +
+        '<header class="pw-view__head"><div><h2>Teilnehmer</h2>' +
+        '<p class="pw-view__sub">' +
+        (state.bookingsBusy
+            ? 'Buchungen werden geladen.'
+            : state.attendeeLoadedAt
+              ? 'Zuletzt geladen: ' + esc(state.attendeeLoadedAt)
+              : 'Die Buchungen werden beim Öffnen geladen.') +
         '</p></div></header>' +
-        '<div class="pw-form__actions" style="margin-bottom:12px">' +
-        '<button type="button" class="btn" id="pwBtnLoadTn2"' +
+        '<div class="fb-actions-row">' +
+        '<button type="button" class="fb-btn" id="pwBtnLoadTn2"' +
         (state.bookingsBusy ? ' disabled' : '') +
-        '><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button> ' +
-        '<button type="button" class="btn" id="pwBtnTnCsv"><i class="bi bi-download"></i>CSV exportieren</button>' +
+        '><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Aktualisieren</button>' +
+        '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnTnCsv"><i class="bi bi-download" aria-hidden="true"></i>CSV exportieren</button>' +
         '</div>' +
         '<div class="pw-filters" role="search" aria-label="Teilnehmer filtern">' +
         '<div class="pw-filters__head">' +
@@ -1499,55 +1644,18 @@ function renderTeilnehmer(state) {
         esc(f.q || '') +
         '" placeholder="Name, E-Mail …" autocomplete="off"></div></div>' +
         '</div></div>' +
-        '<div class="pw-table-wrap"><table class="pw-table"><thead><tr>' +
-        '<th>Name</th><th>E-Mail</th><th>Klasse</th><th>Angebot</th><th>Datum</th>' +
-        '</tr></thead><tbody>' +
-        (body || '<tr><td colspan="5" class="muted">Keine Teilnehmer – zuerst unter Bookings laden.</td></tr>') +
-        '</tbody></table></div></section>'
-    );
-}
-
-function renderExport(state) {
-    const items = scopedItems(state);
-    const freigegeben = items.filter((a) => a.status === 'freigegeben');
-    const tn = Array.isArray(state.attendeeRows) ? state.attendeeRows.length : 0;
-    return (
-        '<section class="pw-view"><h2>Export &amp; Druck</h2>' +
-        '<p class="muted">Exporte nutzen die aktuelle Filter-/Rollensicht (' +
-        items.length +
-        ' Angebote' +
-        (state.aktion ? ' · ' + esc(state.aktion.title) : '') +
-        ').</p>' +
-        '<div class="pw-export-grid">' +
-        '<div class="pw-export-card">' +
-        '<h3><i class="bi bi-filetype-csv"></i> Angebote CSV</h3>' +
-        '<p>Alle sichtbaren Angebote inkl. Sync- und Buchungsfelder.</p>' +
-        '<button type="button" class="btn" id="pwBtnExportAngebote"><i class="bi bi-download"></i>CSV herunterladen</button>' +
-        '</div>' +
-        '<div class="pw-export-card">' +
-        '<h3><i class="bi bi-calendar-event"></i> iCal (.ics)</h3>' +
-        '<p>Freigegebene Angebote als Kalenderdatei (' +
-        freigegeben.length +
-        ').</p>' +
-        '<button type="button" class="btn" id="pwBtnExportIcs"><i class="bi bi-download"></i>ICS herunterladen</button>' +
-        '</div>' +
-        '<div class="pw-export-card">' +
-        '<h3><i class="bi bi-printer"></i> Wochenplan drucken</h3>' +
-        '<p>Öffnet ein druckfreundliches Raster Mo–Fr × Slots.</p>' +
-        '<button type="button" class="btn" id="pwBtnPrintPlan"><i class="bi bi-printer"></i>Druckansicht</button>' +
-        '</div>' +
-        '<div class="pw-export-card">' +
-        '<h3><i class="bi bi-people"></i> Teilnehmer</h3>' +
-        '<p>CSV und Druck der geladenen Bookings-Teilnehmer (' +
-        tn +
-        ' Zeilen). Zuerst unter „Teilnehmer“ aktualisieren.</p>' +
-        '<div class="pw-form__actions">' +
-        '<button type="button" class="btn" id="pwBtnExportTn"><i class="bi bi-download"></i>CSV</button> ' +
-        '<button type="button" class="btn" id="pwBtnPrintTn"><i class="bi bi-printer"></i>Druck</button>' +
-        '</div></div>' +
-        '</div>' +
-        '<p class="muted" style="margin-top:1rem">Status-Mail bei Freigabe/Ablehnung: ' +
-        '<a href="pa-projektwochen-mail.html">Power-Automate-Rezept</a>.</p>' +
+        (Array.isArray(state.attendeeRows) && state.attendeeRows.length
+            ? '<div class="pw-table-wrap"><table class="pw-table"><thead><tr>' +
+              '<th>Name</th><th>E-Mail</th><th>Klasse</th><th>Angebot</th><th>Datum</th>' +
+              '</tr></thead><tbody>' +
+              (body || '<tr><td colspan="5" class="muted">Keine Treffer für diesen Filter.</td></tr>') +
+              '</tbody></table></div>'
+            : quietEmpty(
+                  state.bookingsBusy ? 'Teilnehmer werden geladen' : 'Keine Buchungen',
+                  state.bookingsBusy
+                      ? 'Die Buchungen kommen aus Microsoft Bookings.'
+                      : 'In Microsoft Bookings steht für diese Projektwoche noch niemand.'
+              )) +
         '</section>'
     );
 }
@@ -1558,7 +1666,7 @@ function renderDetail(state) {
     if (!item) {
         return (
             '<section class="pw-view pw-detail">' +
-            '<button type="button" class="btn" id="pwDetailBack"><i class="bi bi-arrow-left"></i>Zurück</button>' +
+            '<button type="button" class="fb-btn fb-btn--ghost" id="pwDetailBack"><i class="bi bi-arrow-left" aria-hidden="true"></i>Zurück</button>' +
             '<p class="pw-alert pw-alert--warn" style="margin-top:12px">Angebot nicht gefunden.</p></section>'
         );
     }
@@ -1575,11 +1683,12 @@ function renderDetail(state) {
     const metaChips =
         '<div class="pw-detail__chips">' +
         statusBadge(item.status) +
-        '<span class="pw-tag">' +
+        '<span class="fb-pill">' +
         esc(item.kategorie || 'sonstiges') +
         '</span>' +
-        (occ ? '<span class="pw-tag pw-tag--accent">' + esc(occ) + ' TN</span>' : '') +
-        (item.syncStatus ? '<span class="pw-tag">Sync: ' + esc(item.syncStatus) + '</span>' : '') +
+        (occ ? '<span class="fb-pill">' + esc(occ) + ' TN</span>' : '') +
+        (isMine(state, item) ? mineMark() : '') +
+        (item.syncStatus ? syncPill(item.syncStatus) : '') +
         '</div>';
 
     const weekday = item.tag || weekdayLabelDeFromIso(item.datum) || '';
@@ -1615,9 +1724,9 @@ function renderDetail(state) {
                 detailCard('Kapazität', 'bi-person-bounding-box', esc(String(item.kapazitaet ?? '–'))) +
                 detailCard('Zielklassen', 'bi-mortarboard', esc(item.zielklassen || 'alle')) +
                 detailCard(
-                    'Lehrer',
+                    'Lehrkraft',
                     'bi-person-badge',
-                    esc(item.lehrerCode || '–') +
+                    esc(teacherLabel(state, item)) +
                         (item.lehrerEmail ? '<br><span class="muted">' + esc(item.lehrerEmail) + '</span>' : '')
                 ) +
                 detailCard('Begleitung', 'bi-person-plus', esc(item.begleitung || '–')) +
@@ -1636,7 +1745,7 @@ function renderDetail(state) {
                     'bi-calendar-event',
                     esc(item.datum) + (weekday ? ' · ' + esc(weekday) : '')
                 ) +
-                detailCard('Slot', 'bi-grid-3x2', esc(item.slot || '–')) +
+                detailCard('Tageszeit', 'bi-grid-3x2', esc(item.slot || '–')) +
                 detailCard(
                     'Zeit',
                     'bi-clock',
@@ -1680,19 +1789,22 @@ function renderDetail(state) {
     const adminBar =
         isAdmin && item.status === 'beantragt'
             ? '<div class="pw-detail__actions">' +
-              '<button type="button" class="btn btn-success" data-pw-approve="' +
+              '<button type="button" class="fb-btn' +
+              (editable ? ' fb-btn--ghost' : '') +
+              '" data-pw-approve="' +
               esc(item.itemId) +
-              '"><i class="bi bi-check2"></i>Freigeben</button> ' +
-              '<button type="button" class="btn" data-pw-reject="' +
+              '">Freigeben</button>' +
+              '<button type="button" class="fb-btn fb-btn--ghost" data-pw-reject="' +
               esc(item.itemId) +
-              '"><i class="bi bi-x-lg"></i>Ablehnen</button></div>'
+              '">Ablehnen</button></div>'
             : '';
 
-    const bookingsLink = item.bookingsBookingUrl
+    const rawBookUrl = String(item.bookingsBookingUrl || '').trim();
+    const studentBookUrl = studentBookingsUrl(state.role, item, isMine(state, item));
+    const bookingsLink = rawBookUrl
         ? '<div class="pw-detail__actions">' +
-          '<a class="btn" href="' +
-          esc(item.bookingsBookingUrl) +
-          '" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>In Bookings öffnen</a></div>'
+          bookingsAnchor(rawBookUrl, studentBookUrl ? 'In Bookings buchen' : 'In Bookings öffnen') +
+          '</div>'
         : '';
 
     const tnBody = tnRows
@@ -1709,31 +1821,31 @@ function renderDetail(state) {
         })
         .join('');
 
-    const tnSection =
-        '<div class="pw-detail__tn tm-panel">' +
-        '<div class="tm-panel__head"><i class="bi bi-people"></i><div><h3>Angemeldete Schüler (Bookings)</h3>' +
-        '<p>' +
-        (occ ? 'Belegung ' + esc(occ) + '. ' : '') +
+    const tnHint =
+        (occ ? 'Belegung ' + occ + '. ' : '') +
         (state.attendeeLoadedAt
-            ? 'Zuletzt geladen: ' + esc(state.attendeeLoadedAt)
-            : 'Noch nicht aus Bookings geladen.') +
-        '</p></div></div>' +
-        '<div class="pw-form__actions" style="margin-bottom:10px">' +
-        '<button type="button" class="btn" id="pwBtnDetailLoadTn"' +
-        (state.bookingsBusy ? ' disabled' : '') +
-        '><i class="bi bi-arrow-clockwise"></i>Teilnehmer laden</button></div>' +
-        (showTnNames
-            ? '<div class="pw-table-wrap"><table class="pw-table"><thead><tr><th>Name</th><th>E-Mail</th><th>Klasse</th></tr></thead><tbody>' +
-              (tnBody ||
-                  '<tr><td colspan="3" class="muted">Keine Teilnehmer für dieses Angebot – Button oben nutzen (Demo oder Bookings).</td></tr>') +
-              '</tbody></table></div>'
-            : '<p class="muted">Als Schüler siehst du die Belegung, aber keine Namensliste.</p>') +
-        '</div>';
+            ? 'Zuletzt geladen: ' + state.attendeeLoadedAt
+            : 'Noch nicht aus Bookings geladen.');
+    const tnSection = formSection(
+        '',
+        'Angemeldete Schüler',
+        tnHint,
+        '<div class="fb-actions-row">' +
+            '<button type="button" class="fb-btn fb-btn--ghost" id="pwBtnDetailLoadTn"' +
+            (state.bookingsBusy ? ' disabled' : '') +
+            '>Teilnehmer laden</button></div>' +
+            (showTnNames
+                ? '<div class="pw-table-wrap"><table class="pw-table"><thead><tr><th>Name</th><th>E-Mail</th><th>Klasse</th></tr></thead><tbody>' +
+                  (tnBody ||
+                      '<tr><td colspan="3" class="muted">Keine Teilnehmer für dieses Angebot.</td></tr>') +
+                  '</tbody></table></div>'
+                : '<p class="muted">Als Schüler siehst du die Belegung, aber keine Namensliste.</p>')
+    );
 
     return (
         '<section class="pw-view pw-detail">' +
         '<div class="pw-detail__toolbar">' +
-        '<button type="button" class="btn" id="pwDetailBack"><i class="bi bi-arrow-left"></i>Zurück</button>' +
+        '<button type="button" class="fb-btn fb-btn--ghost" id="pwDetailBack"><i class="bi bi-arrow-left" aria-hidden="true"></i>Zurück</button>' +
         '</div>' +
         '<header class="pw-detail__hero">' +
         '<p class="pw-detail__kicker">Angebot</p>' +
@@ -1764,16 +1876,80 @@ function renderDetail(state) {
  * @param {string} valueHtml
  * @param {boolean} [wide]
  */
-function detailCard(label, icon, valueHtml, wide) {
+function detailCard(label, _icon, valueHtml, wide) {
     return (
         '<div class="pw-detail__card' +
         (wide ? ' pw-detail__card--wide' : '') +
         '"><span class="pw-detail__card-label">' +
-        (icon ? '<i class="bi ' + esc(icon) + '" aria-hidden="true"></i>' : '') +
         esc(label) +
         '</span><div class="pw-detail__card-value">' +
         valueHtml +
         '</div></div>'
+    );
+}
+
+function angebotById(state, id) {
+    return (state.items || []).find((a) => a && (a.angebotId === id || a.itemId === id)) || null;
+}
+
+function renderBuchung(state) {
+    const mine = attendeesForEmail(state.attendeeRows, state.accountEmail).slice().sort((a, b) => {
+        return String(a.datum || '').localeCompare(String(b.datum || '')) || String(a.angebotTitle || '').localeCompare(String(b.angebotTitle || ''));
+    });
+    const n = mine.length;
+    const greet = n === 1 ? 'Termin gebucht' : 'Termine gebucht';
+    const week = state.aktion ? esc(state.aktion.title || '') + (aktionRange(state.aktion) ? ' · ' + esc(aktionRange(state.aktion)) : '') : '';
+    const cards = mine
+        .map((r) => {
+            const item = angebotById(state, r.angebotId);
+            const when = [r.datum ? deDate(r.datum) : '', item && item.tag, item && item.slot, item && item.startzeit && item.endzeit ? item.startzeit + '–' + item.endzeit : '']
+                .filter(Boolean)
+                .join(' · ');
+            const place = item && (item.ort || item.treffpunkt) ? item.ort || item.treffpunkt : '';
+            const url = item && item.bookingsBookingUrl ? String(item.bookingsBookingUrl) : '';
+            return (
+                '<article class="pw-buchung">' +
+                '<div class="pw-buchung__main">' +
+                '<button type="button" class="pw-link" data-pw-detail="' +
+                esc((item && (item.itemId || item.angebotId)) || r.angebotId) +
+                '">' +
+                esc(r.angebotTitle || (item && item.title) || 'Angebot') +
+                '</button>' +
+                '<p class="pw-buchung__meta">' +
+                esc(when) +
+                (place ? ' · ' + esc(place) : '') +
+                '</p></div>' +
+                '<span class="fb-pill fb-pill--ok">gebucht</span>' +
+                (url
+                    ? '<a class="fb-btn fb-btn--ghost" href="' +
+                      esc(url) +
+                      '" target="_blank" rel="noopener">In Bookings öffnen</a>'
+                    : '') +
+                '</article>'
+            );
+        })
+        .join('');
+    const empty = quietEmpty(
+        'Noch nichts gebucht',
+        'Buchen Sie in Microsoft Bookings. Hier erscheinen danach die Termine, in denen Sie selbst stehen.'
+    );
+    return (
+        '<section class="pw-view">' +
+        '<header class="pw-view__head"><div>' +
+        '<h1 class="fb-greet"><span class="fb-num">' +
+        n +
+        '</span> ' +
+        greet +
+        '</h1>' +
+        (week ? '<p class="fb-sub pw-view__sub">' + week + '</p>' : '') +
+        '</div></header>' +
+        (n ? '<div class="pw-buchung-list">' + cards + '</div>' : empty) +
+        (state.role === 'schueler' && !state.localDemoOnly
+            ? '<div class="fb-actions-row"><button type="button" class="fb-btn fb-btn--ghost" id="pwBtnLoadMine"' +
+              (state.bookingsBusy ? ' disabled' : '') +
+              '>Buchungen laden</button></div>'
+            : '') +
+        '</section>'
     );
 }
 
@@ -1798,12 +1974,15 @@ function renderView(state) {
         case 'teilnehmer':
             return renderTeilnehmer(state);
         case 'export':
-            return renderExport(state);
+            return renderPlan(Object.assign({}, state, { view: 'plan' }));
         case 'detail':
             return renderDetail(state);
+        case 'buchung':
+            return renderBuchung(state);
         case 'dashboard':
+            return state.role === 'schueler' ? renderBuchung(state) : renderDashboard(state);
         default:
-            return renderDashboard(state);
+            return state.role === 'schueler' ? renderBuchung(state) : renderDashboard(state);
     }
 }
 
@@ -1835,15 +2014,20 @@ export function renderApp(state, root) {
         '</div></div></div>';
 }
 
-export function readFiltersFromDom() {
+export function readFiltersFromDom(prev) {
+    const p = prev || {};
+    function keep(id, key) {
+        const el = document.getElementById(id);
+        return el ? String(el.value || '') : String(p[key] || '');
+    }
     return {
-        status: val('pwFilterStatus'),
-        kategorie: val('pwFilterKat'),
-        tag: val('pwFilterTag'),
-        lehrer: val('pwFilterLehrer'),
-        klasse: val('pwFilterKlasse'),
-        buchung: val('pwFilterBuchung'),
-        q: val('pwFilterQ')
+        status: keep('pwFilterStatus', 'status'),
+        kategorie: keep('pwFilterKat', 'kategorie'),
+        tag: keep('pwFilterTag', 'tag'),
+        lehrer: keep('pwFilterLehrer', 'lehrer'),
+        klasse: keep('pwFilterKlasse', 'klasse'),
+        buchung: keep('pwFilterBuchung', 'buchung'),
+        q: keep('pwFilterQ', 'q')
     };
 }
 

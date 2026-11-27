@@ -14,13 +14,13 @@ import {
     buildKvByKlasse,
     buildClassChatPlans,
     buildManualClassChatPlan,
-    summarizePlans,
     existingByKlasseFromState,
     upsertClassChatItem,
     normalizeClassChatsState,
     normalizeExtraMemberEmails,
     normalizeTargetKind,
     parseMemberEmailsText,
+    teamsHrefForPlan,
     targetKindLabel
 } from './klassenchats-logic.js';
 import {
@@ -84,6 +84,10 @@ let targetKind = 'groupChat';
 let lehrerTeam = null;
 /** @type {ReturnType<typeof buildClassChatPlans>} */
 let plans = [];
+/** Klassen, die die IT in dieser Sitzung nicht anlegen will. Schlüssel = Klasse in Großbuchstaben. */
+const omittedKlassen = new Set();
+/** Höchster Schritt, den „Weiter“ schon freigegeben hat. */
+let maxReached = 1;
 /** Manuelle Warteschlange (mehrere Chats vor dem Anlegen). */
 /** @type {Array<{ klasse: string, memberEmails: string[], includeKv: boolean }>} */
 let manualQueue = [];
@@ -97,6 +101,10 @@ let extraPicked = new Map();
 let belegung = null;
 let yearPrefix = calcYearPrefix();
 let busy = false;
+/** @type {'confirm'|'exec'|'result'} */
+let runPhase = 'confirm';
+/** @type {Array<{ klasse: string, topic: string, ok: boolean, created?: boolean, updated?: boolean, error?: string, detail?: string }>} */
+let lastRunResults = [];
 
 function guidLike(s) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -324,30 +332,37 @@ function persistPatternMeta(state) {
 }
 
 function setMode(next) {
+    const prev = mode;
     mode = next === 'manual' ? 'manual' : 'belegung';
     document.querySelectorAll('[data-kc-mode]').forEach((btn) => {
-        btn.classList.toggle('is-selected', btn.getAttribute('data-kc-mode') === mode);
+        const on = btn.getAttribute('data-kc-mode') === mode;
+        btn.classList.toggle('is-selected', on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
     });
-    const belegungPanel = $('kcPanelBelegung');
     const manualPanel = $('kcPanelManual');
-    if (belegungPanel) belegungPanel.hidden = mode !== 'belegung';
     if (manualPanel) manualPanel.hidden = mode !== 'manual';
+    const reload = $('kcBtnReloadSource');
+    if (reload) reload.hidden = mode !== 'belegung';
     updateManualQueueHint();
-    if (mode === 'manual') {
-        updateManualKvHint();
-        updateNamePreview();
+    if (prev !== mode) {
+        lockAhead();
+        if (step >= 3) toast('Durch die geänderte Quelle wird die Vorschau neu berechnet.');
     }
+    renderLists();
+    if (mode === 'manual') updateManualKvHint();
 }
 
 function setTargetKind(next) {
     targetKind = normalizeTargetKind(next);
     document.querySelectorAll('[data-kc-target]').forEach((btn) => {
-        btn.classList.toggle('is-selected', btn.getAttribute('data-kc-target') === targetKind);
+        const on = btn.getAttribute('data-kc-target') === targetKind;
+        btn.classList.toggle('is-selected', on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
     });
     const teamPanel = $('kcPanelLehrerTeam');
     if (teamPanel) teamPanel.hidden = targetKind !== 'privateChannel';
-    updateTargetUiCopy();
-    updateNamePreview();
+    lockAhead();
+    renderLists();
     renderLehrerTeamPicked();
 }
 
@@ -356,25 +371,18 @@ function updateTargetUiCopy() {
     const lead = $('kcPreviewLead');
     if (lead) {
         lead.textContent = isChannel
-            ? 'Pro Klasse ein privater Kanal im Lehrerteam. Klassenvorstand = Kanal-Owner, übrige Lehrkräfte = Mitglieder. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.'
-            : 'Pro Klasse ein Gruppenchat (KV zuerst). Hinweis: Bei Gruppenchats markiert Microsoft alle Teilnehmer technisch als Owner. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.';
+            ? 'Angehakte Klassen werden als private Kanäle angelegt. Nicht anlegbare Zeilen bleiben deaktiviert.'
+            : 'Angehakte Klassen werden als Gruppenchats angelegt. Nicht anlegbare Zeilen bleiben deaktiviert.';
     }
-    const colName = $('kcColName');
-    if (colName) colName.textContent = isChannel ? 'Kanalname' : 'Chat-Name';
-    const colId = $('kcColId');
-    if (colId) colId.textContent = isChannel ? 'Kanal-ID' : 'Chat-ID';
+    document.querySelectorAll('[data-kc-col-name]').forEach((el) => {
+        el.textContent = isChannel ? 'Kanalname' : 'Chat-Name';
+    });
     const runHint = $('kcRunHint');
     if (runHint) {
-        runHint.innerHTML = isChannel
-            ? 'Legt private Kanäle an bzw. syncronisiert sie: <strong>Klassenvorstand = Owner</strong>, andere = Mitglieder. Fehlende Lehrkräfte kommen zuerst ins Team. Der angemeldete IT-Admin erscheint in Teams-Benachrichtigungen als Ausführender und wird danach aus dem Kanal entfernt (außer selbst KV). Braucht u. a. <code>Channel.Create</code>, <code>ChannelMember.ReadWrite.All</code>, <code>Group.ReadWrite.All</code>.'
-            : 'Legt Gruppenchats an bzw. syncronisiert sie. Der IT-Admin wird nach dem Anlegen entfernt, sofern nicht Klassenmitglied. Bei Gruppenchats erlaubt Microsoft nur Owner/Guest-Rollen (alle Lehrkräfte = Owner). Benötigt <code>Chat.Create</code> (Admin-Zustimmung).';
+        runHint.textContent = 'Kontrolliert ausführen und live sehen, was passiert.';
     }
-    const btnRun = $('kcBtnRun');
-    if (btnRun) {
-        const icon = isChannel ? 'bi-lock' : 'bi-chat-dots';
-        const label = isChannel ? 'Kanäle anlegen / syncen' : 'Chats anlegen / syncen';
-        btnRun.innerHTML = '<i class="bi ' + icon + '"></i>' + label;
-    }
+    updateRunButton();
+    paintConfirmPanel();
 }
 
 function renderLehrerTeamPicked() {
@@ -397,6 +405,7 @@ function renderLehrerTeamPicked() {
     if (btn) {
         btn.addEventListener('click', () => {
             lehrerTeam = null;
+            lockAhead();
             renderLehrerTeamPicked();
             persistPatternMeta(loadClassChatsState());
         });
@@ -479,15 +488,120 @@ function fillTeamSearchResults(groups) {
     });
 }
 
+function lockAhead() {
+    maxReached = 1;
+    updateStepPills();
+}
+
+function updateStepPills() {
+    document.querySelectorAll('.pw-steps [data-kc-goto], .kc-steps [data-kc-goto]').forEach((btn) => {
+        const n = Number(btn.getAttribute('data-kc-goto'));
+        const locked = n > maxReached;
+        btn.disabled = locked;
+        btn.classList.toggle('is-locked', locked);
+        btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
+        const active = n === step;
+        btn.classList.toggle('is-active', active);
+        btn.classList.toggle('is-done', n < step && n <= maxReached);
+        if (active) btn.setAttribute('aria-current', 'step');
+        else btn.removeAttribute('aria-current');
+    });
+}
+
+const HERO_BY_STEP = {
+    1: {
+        title: 'KlassenChats anlegen',
+        sub: 'Quelle und Ziel wählen – danach Namen, Vorschau und Anlegen in Teams.'
+    },
+    2: {
+        title: 'Namen festlegen',
+        sub: 'Lege das Namensschema für die KlassenChats fest.'
+    },
+    3: {
+        title: 'Vorschau prüfen',
+        sub: 'Was würde passieren? Angehakte Klassen werden angelegt.'
+    },
+    4: {
+        title: 'In Teams anlegen',
+        sub: 'Kontrolliert ausführen und live sehen, was tatsächlich passiert.'
+    }
+};
+
+function updateHero() {
+    const conf = HERO_BY_STEP[step] || HERO_BY_STEP[1];
+    const title = $('kcHeroTitle');
+    const sub = $('kcHeroSub');
+    if (title) title.textContent = conf.title;
+    if (sub) sub.textContent = conf.sub;
+}
+
+function focusStepHeading() {
+    const el = $('kcStep' + step + 'Heading');
+    if (el && typeof el.focus === 'function') {
+        try {
+            el.focus({ preventScroll: false });
+        } catch {
+            el.focus();
+        }
+    }
+}
+
+function isTooFew(p) {
+    return String((p && p.skipReason) || '').indexOf('Weniger als 2') === 0;
+}
+
+function actionablePlans() {
+    return plans.filter((p) => p && p.eligible && !p.omitted && !isTooFew(p));
+}
+
+function blockReason(targetStep) {
+    if (targetStep <= step) return '';
+    if (targetStep > maxReached + 1) return 'Bitte der Reihe nach weitergehen.';
+    if (targetStep > 1 && targetKind === 'privateChannel' && !(lehrerTeam && lehrerTeam.id)) {
+        return 'Für private Kanäle bitte zuerst ein Lehrerteam wählen.';
+    }
+    if (targetStep >= 3 && mode === 'manual') {
+        currentPlans();
+        if (!actionablePlans().length) {
+            return 'Manuell: Klasse und mind. 2 E-Mails nötig (oder zur Liste hinzufügen).';
+        }
+    }
+    return '';
+}
+
+function goToStep(n) {
+    const target = Math.max(1, Math.min(4, Number(n) || 1));
+    if (target > step) {
+        const reason = blockReason(target);
+        if (reason) {
+            toast(reason);
+            return;
+        }
+        maxReached = Math.max(maxReached, target);
+    }
+    setStep(target);
+}
+
 function setStep(n) {
     step = Math.max(1, Math.min(4, Number(n) || 1));
-    document.querySelectorAll('[data-kc-goto]').forEach((btn) => {
-        btn.classList.toggle('is-active', Number(btn.getAttribute('data-kc-goto')) === step);
-    });
+    updateStepPills();
     document.querySelectorAll('[data-kc-step]').forEach((el) => {
         el.classList.toggle('is-active', Number(el.getAttribute('data-kc-step')) === step);
     });
-    if (step === 3) renderPreview();
+    if (step === 2) updateNamePreview();
+    else if (step === 4) {
+        renderLists();
+        if (runPhase !== 'exec' && runPhase !== 'result') showStep4Phase('confirm');
+        paintConfirmPanel();
+    } else {
+        if (step < 4 && runPhase !== 'exec') {
+            runPhase = 'confirm';
+            showStep4Phase('confirm');
+        }
+        renderLists();
+    }
+    updateHero();
+    focusStepHeading();
 }
 
 function refreshClassDatalist() {
@@ -784,6 +898,7 @@ function addCurrentManualToQueue() {
     if (idx >= 0) manualQueue[idx] = entry;
     else manualQueue.push(entry);
     updateManualQueueHint();
+    renderLists();
     toast('„' + plan.klasse + '“ zur Liste hinzugefügt (' + plan.memberEmails.length + ' Mitglieder).');
 }
 
@@ -837,48 +952,145 @@ function buildPlansFromManualFormOrQueue() {
     ];
 }
 
-function refreshSourcePanel() {
-    belegung = loadBelegung();
+function applyOmissions() {
+    plans = plans.map((p) => {
+        const key = String((p && p.klasse) || '').toUpperCase();
+        if (!key || !omittedKlassen.has(key)) return p;
+        return Object.assign({}, p, { omitted: true });
+    });
+}
+
+function currentPlans() {
+    rebuildPlans();
+    applyOmissions();
+    return plans;
+}
+
+function deCount(n, one, many) {
+    return String(n) + ' ' + (Number(n) === 1 ? one : many);
+}
+
+function formatStand(iso) {
+    if (!iso) return '–';
+    try {
+        return new Date(iso).toLocaleString('de-AT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch {
+        return String(iso);
+    }
+}
+
+function paintCheckList(host, items) {
+    if (!host) return;
+    if (!items || !items.length) {
+        host.hidden = true;
+        host.innerHTML = '';
+        return;
+    }
+    host.hidden = false;
+    host.innerHTML = items
+        .map((it) => {
+            const mark = it.ok ? '✓' : '⚠';
+            return '<li>' + mark + ' ' + escapeHtml(it.text) + '</li>';
+        })
+        .join('');
+}
+
+function paintSourceBanner() {
     const status = $('kcSourceStatus');
     const hint = $('kcSourceHint');
+    const checks = $('kcSourceChecks');
+    const banner = $('kcSourceBanner');
+    const reload = $('kcBtnReloadSource');
+    if (reload) reload.hidden = mode !== 'belegung';
     if (!status) return;
+
+    if (mode === 'manual') {
+        const ready = actionablePlans().length;
+        if (banner) banner.className = 'pw-msg ' + (ready ? 'pw-msg--ok' : 'pw-msg--warn');
+        status.textContent = ready
+            ? deCount(ready, 'Klasse', 'Klassen') + ' manuell bereit'
+            : 'Noch keine Klasse gewählt';
+        paintCheckList(
+            checks,
+            ready
+                ? [{ ok: true, text: deCount(ready, 'Klasse kann', 'Klassen können') + ' angelegt werden' }]
+                : [{ ok: false, text: 'Klasse und mindestens zwei Lehrkräfte mit E-Mail festlegen' }]
+        );
+        if (hint) hint.textContent = 'Manuelle Auswahl · Quelle jederzeit änderbar.';
+        return;
+    }
+
+    belegung = loadBelegung();
     if (!belegung || !Array.isArray(belegung.rows) || !belegung.rows.length) {
-        status.innerHTML =
-            '<span class="kc-status kc-status--warn">Keine Unterrichtsbelegung gefunden.</span>';
+        if (banner) banner.className = 'pw-msg pw-msg--warn';
+        status.textContent = 'Keine Unterrichtsbelegung gefunden';
+        paintCheckList(checks, [
+            {
+                ok: false,
+                text: 'Bitte zuerst unter Unterrichtsteams die Belegung laden – oder Manuell wählen'
+            }
+        ]);
         if (hint) {
             hint.innerHTML =
-                'Bitte zuerst unter <a href="kursteams.html">Unterrichtsteams</a> die Team-Namen generieren – oder den Modus <strong>Manuell</strong> nutzen.';
+                'Verwandtes Tool: <a href="kursteams.html">Unterrichtsteams ↗</a>';
         }
         return;
     }
-    const when = belegung.updatedAt
-        ? (() => {
-              try {
-                  return new Date(belegung.updatedAt).toLocaleString('de-AT');
-              } catch {
-                  return belegung.updatedAt;
-              }
-          })()
-        : '–';
-    status.innerHTML =
-        '<span class="kc-status kc-status--ok">' +
-        escapeHtml(String(belegung.rows.length)) +
-        ' Einträge · ' +
-        escapeHtml(String(belegung.classCount || '–')) +
-        ' Klassen · ' +
-        escapeHtml(String(belegung.teacherCount || '–')) +
-        ' Lehrkräfte' +
-        (belegung.yearPrefix ? ' · ' + escapeHtml(belegung.yearPrefix) : '') +
-        '</span>';
+
+    const vorhanden = plans.filter((p) => p.status === 'ok').length;
+    const abweichung = plans.filter((p) => p.status === 'sync').length;
+    const neu = plans.filter((p) => p.status === 'neu').length;
+    const zuWenig = plans.filter((p) => isTooFew(p)).length;
+    const warn = zuWenig > 0 || abweichung > 0;
+    if (banner) banner.className = 'pw-msg ' + (warn ? 'pw-msg--warn' : 'pw-msg--ok');
+    status.textContent = deCount(plans.length, 'Klasse erkannt', 'Klassen erkannt');
+
+    const items = [];
+    if (neu) items.push({ ok: true, text: deCount(neu, 'kann neu angelegt werden', 'können neu angelegt werden') });
+    if (vorhanden) {
+        items.push({
+            ok: true,
+            text:
+                vorhanden === 1
+                    ? '1 bestehender KlassenChat gefunden'
+                    : vorhanden + ' bestehende KlassenChats gefunden'
+        });
+    } else {
+        items.push({ ok: true, text: 'Keine bestehenden KlassenChats gefunden' });
+    }
+    if (abweichung) {
+        items.push({
+            ok: false,
+            text:
+                abweichung === 1
+                    ? '1 Name weicht vom Schema ab'
+                    : abweichung + ' Namen weichen vom Schema ab'
+        });
+    }
+    if (zuWenig) {
+        items.push({
+            ok: false,
+            text:
+                deCount(zuWenig, 'Klasse kann', 'Klassen können') +
+                ' noch nicht angelegt werden – zu wenige Lehrkräfte'
+        });
+    } else if (plans.length) {
+        items.push({ ok: true, text: 'Alle Klassen haben ausreichend Lehrkräfte' });
+    }
+    paintCheckList(checks, items);
     if (hint) {
-        hint.textContent =
-            'Stand: ' + when + ' · KV aus den Stammdaten wird immer ergänzt · mind. 2 Lehrkräfte pro Chat.';
+        hint.textContent = 'Stand: ' + formatStand(belegung.updatedAt) + ' · Klassenvorstand wird ergänzt.';
     }
-    if (belegung.yearPrefix && $('kcYearPrefix') && !$('kcYearPrefix').dataset.userEdited) {
-        $('kcYearPrefix').value = belegung.yearPrefix;
-        yearPrefix = belegung.yearPrefix;
-        updateNamePreview();
-    }
+}
+
+function refreshSourcePanel() {
+    renderLists();
 }
 
 function rebuildPlans() {
@@ -899,84 +1111,361 @@ function rebuildPlans() {
 }
 
 function statusLabel(p) {
-    if (p.status === 'skip') return 'Überspringen';
-    if (p.status === 'neu') return 'Neu';
-    if (p.status === 'sync') return 'Sync (Name)';
-    if (p.status === 'ok') return 'Vorhanden';
-    return p.status;
+    if (p && p._runStatus === 'created') return 'Erstellt';
+    if (p && p._runStatus === 'updated') return 'Aktualisiert';
+    if (p && p._runStatus === 'failed') return 'Fehlgeschlagen';
+    if (isTooFew(p) || (p && !p.eligible) || p.status === 'skip') return 'Nicht anlegbar';
+    if (p.status === 'neu') return 'Bereit';
+    if (p.status === 'sync') return 'Prüfen';
+    if (p.status === 'ok') return 'Bereits vorhanden';
+    return p.status || 'Prüfen';
 }
 
-function renderPreview() {
-    rebuildPlans();
-    updateTargetUiCopy();
-    const sum = summarizePlans(plans);
-    const sumEl = $('kcPreviewSummary');
-    const noun = targetKind === 'privateChannel' ? 'Kanäle' : 'Chats';
-    if (sumEl) {
-        sumEl.textContent =
-            sum.eligible +
-            ' ' +
-            noun +
-            ' anlegbar · ' +
-            sum.neu +
-            ' neu · ' +
-            sum.sync +
-            ' mit vorhandener ID · ' +
-            sum.skip +
-            ' übersprungen' +
-            (targetKind === 'privateChannel'
-                ? ' · Ziel: ' + targetKindLabel(targetKind)
-                : '');
+function statusPillHtml(p) {
+    const label = statusLabel(p);
+    let tone = '';
+    if (isTooFew(p) || (p && !p.eligible) || p.status === 'skip' || p._runStatus === 'failed') {
+        tone = 'fb-pill--bad';
+    } else if (p.status === 'sync') tone = 'fb-pill--warn';
+    else if (p.status === 'ok' || p._runStatus === 'updated') tone = 'fb-pill--info';
+    else if (p.status === 'neu' || p._runStatus === 'created') tone = 'fb-pill--ok';
+    return '<span class="fb-pill ' + tone + '">' + escapeHtml(label) + '</span>';
+}
+
+function shortPersonLabel(m) {
+    if (!m) return '';
+    const name = String(m.name || '').trim();
+    if (name) {
+        const parts = name.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            return parts[0] + ' ' + parts[parts.length - 1].charAt(0) + '.';
+        }
+        return name;
     }
-    const tbody = $('kcPreviewBody');
+    if (m.code) return String(m.code);
+    const em = String(m.email || '');
+    return em ? em.split('@')[0] : '';
+}
+
+function membersCellHtml(p) {
+    const members = Array.isArray(p.members) ? p.members : [];
+    const n = p.memberEmails ? p.memberEmails.length : members.length;
+    const kv = members.find((m) => m && m.role === 'kv');
+    const others = members.filter((m) => m && m.role !== 'kv');
+    const show = others.slice(0, 2).map(shortPersonLabel).filter(Boolean);
+    const rest = Math.max(0, others.length - show.length);
+    const title = members
+        .map((m) => {
+            const tag = m.role === 'kv' ? ' (KV)' : m.role === 'extra' ? ' (zusätzlich)' : '';
+            return (m.name || m.code || m.email) + tag;
+        })
+        .join(', ');
+    let line = show.join(' · ');
+    if (rest > 0) line += (line ? ' · ' : '') + '+' + rest;
+    return (
+        '<div class="pw-members" title="' +
+        escapeHtml(title) +
+        '">' +
+        '<strong>' +
+        n +
+        ' Lehrkräfte</strong>' +
+        (kv
+            ? '<div>KV: ' + escapeHtml(shortPersonLabel(kv) || kv.email || '–') + '</div>'
+            : '') +
+        (line ? '<div>' + escapeHtml(line) + '</div>' : '') +
+        '</div>'
+    );
+}
+
+function planIsProblem(p) {
+    return !!(p && (isTooFew(p) || !p.eligible || p.status === 'sync' || p.status === 'skip'));
+}
+
+function planRowHtml(p) {
+    const tooFew = isTooFew(p);
+    const key = String(p.klasse || '');
+    const included = !tooFew && !!key && !p.omitted && p.eligible;
+    const href = teamsHrefForPlan(p);
+    const teamsCell = href
+        ? '<a href="' +
+          escapeHtml(href) +
+          '" target="_blank" rel="noopener noreferrer">In Teams öffnen</a>'
+        : '<span class="muted">–</span>';
+    const rowClass = [
+        tooFew || !p.eligible ? 'kc-row-skip' : '',
+        planIsProblem(p) ? 'pw-row-problem' : ''
+    ]
+        .filter(Boolean)
+        .join(' ');
+    const disabledReason = tooFew
+        ? p.skipReason || 'Zu wenige Lehrkräfte'
+        : !p.eligible
+          ? p.skipReason || 'Nicht anlegbar'
+          : '';
+    return (
+        '<tr' +
+        (rowClass ? ' class="' + rowClass + '"' : '') +
+        '>' +
+        '<td><input type="checkbox" data-kc-include="' +
+        escapeHtml(key) +
+        '"' +
+        (included ? ' checked' : '') +
+        (tooFew || !key || !p.eligible ? ' disabled' : '') +
+        (disabledReason ? ' title="' + escapeHtml(disabledReason) + '"' : '') +
+        ' aria-label="Klasse ' +
+        escapeHtml(key || 'ohne Namen') +
+        ' mit anlegen"></td>' +
+        '<td><strong>' +
+        escapeHtml(key || '–') +
+        '</strong></td>' +
+        '<td>' +
+        escapeHtml(p.topic || '') +
+        '</td>' +
+        '<td>' +
+        membersCellHtml(p) +
+        '</td>' +
+        '<td>' +
+        statusPillHtml(p) +
+        (p.omitted ? '<div class="muted">wird nicht angelegt</div>' : '') +
+        (disabledReason ? '<div class="muted">' + escapeHtml(disabledReason) + '</div>' : '') +
+        '</td>' +
+        '<td>' +
+        teamsCell +
+        '</td>' +
+        '</tr>'
+    );
+}
+
+function planCardHtml(p) {
+    const tooFew = isTooFew(p);
+    const key = String(p.klasse || '');
+    const included = !tooFew && !!key && !p.omitted && p.eligible;
+    return (
+        '<article class="pw-card' +
+        (planIsProblem(p) ? ' pw-row-problem' : '') +
+        '">' +
+        '<label class="kc-checkbox" style="margin:0 0 8px;">' +
+        '<input type="checkbox" data-kc-include="' +
+        escapeHtml(key) +
+        '"' +
+        (included ? ' checked' : '') +
+        (tooFew || !key || !p.eligible ? ' disabled' : '') +
+        '>' +
+        '<span><strong>' +
+        escapeHtml(key || '–') +
+        '</strong></span></label>' +
+        '<div>' +
+        escapeHtml(p.topic || '') +
+        '</div>' +
+        membersCellHtml(p) +
+        '<div style="margin-top:8px;">' +
+        statusPillHtml(p) +
+        '</div></article>'
+    );
+}
+
+function paintPlanTable(tbody) {
     if (!tbody) return;
     if (!plans.length) {
         tbody.innerHTML =
-            '<tr><td colspan="5" class="muted">' +
+            '<tr><td colspan="6" class="kc-empty-cell">' +
             (mode === 'manual'
                 ? 'Kein manueller Eintrag – Klasse und mindestens 2 Mitglieder angeben.'
                 : 'Keine Klassen aus der Belegung – bitte Quelle prüfen oder Manuell wählen.') +
             '</td></tr>';
         return;
     }
-    tbody.innerHTML = plans
-        .map((p) => {
-            const members = p.members
-                .map((m) => {
-                    const tag =
-                        m.role === 'kv' ? ' (KV)' : m.role === 'extra' ? ' (zusätzlich)' : '';
-                    return escapeHtml((m.code || m.name || m.email) + tag);
-                })
-                .join(', ');
-            const cls = p.eligible ? '' : ' class="kc-row-skip"';
-            const resourceId =
-                p.kind === 'privateChannel' ? p.channelId || '' : p.chatId || '';
-            return (
-                '<tr' +
-                cls +
-                '>' +
-                '<td><strong>' +
-                escapeHtml(p.klasse) +
-                '</strong></td>' +
-                '<td>' +
-                escapeHtml(p.topic) +
-                '</td>' +
-                '<td>' +
-                p.memberEmails.length +
-                '<div class="kc-member-list muted">' +
-                members +
-                '</div></td>' +
-                '<td>' +
-                escapeHtml(statusLabel(p)) +
-                (p.skipReason ? '<div class="muted">' + escapeHtml(p.skipReason) + '</div>' : '') +
-                '</td>' +
-                '<td class="muted" style="font-size:0.8em;">' +
-                (resourceId ? escapeHtml(resourceId.slice(0, 8)) + '…' : '–') +
-                '</td>' +
-                '</tr>'
-            );
-        })
-        .join('');
+    tbody.innerHTML = plans.map((p) => planRowHtml(p)).join('');
+}
+
+function paintPreviewCards() {
+    const host = $('kcPreviewCards');
+    if (!host) return;
+    if (!plans.length) {
+        host.innerHTML =
+            '<p class="muted">' +
+            (mode === 'manual'
+                ? 'Kein manueller Eintrag.'
+                : 'Keine Klassen aus der Belegung.') +
+            '</p>';
+        return;
+    }
+    host.innerHTML = plans.map((p) => planCardHtml(p)).join('');
+}
+
+function syncSelectAll() {
+    const box = $('kcSelectAllPreview');
+    if (!box) return;
+    const boxes = Array.from(document.querySelectorAll('#kcPreviewBody [data-kc-include]:not(:disabled)'));
+    if (!boxes.length) {
+        box.checked = false;
+        box.indeterminate = false;
+        box.disabled = true;
+        return;
+    }
+    box.disabled = false;
+    const on = boxes.filter((b) => b.checked).length;
+    box.checked = on === boxes.length;
+    box.indeterminate = on > 0 && on < boxes.length;
+}
+
+function paintSummaries() {
+    const ready = actionablePlans().length;
+    const total = plans.length;
+    const vorhanden = plans.filter((p) => p.status === 'ok').length;
+    const abweichung = plans.filter((p) => p.status === 'sync').length;
+    const zuWenig = plans.filter((p) => isTooFew(p)).length;
+    const notReady = total - ready;
+    const box = $('kcPreviewSummaryBox');
+    const title = $('kcPreviewSummaryTitle');
+    const list = $('kcPreviewSummary');
+    const channel = targetKind === 'privateChannel';
+    const noun = channel ? 'KlassenChats (Kanäle)' : 'KlassenChats';
+    const hasWarn = zuWenig > 0 || abweichung > 0 || (notReady > 0 && ready < total);
+
+    if (box) box.className = 'pw-msg ' + (hasWarn && ready < total ? 'pw-msg--warn' : 'pw-msg--ok');
+    if (title) {
+        title.textContent =
+            ready === total && total > 0
+                ? 'Bereit zum Anlegen'
+                : ready > 0
+                  ? ready + ' von ' + total + ' können angelegt werden'
+                  : total
+                    ? 'Noch nicht anlegbar'
+                    : 'Keine Klassen in der Vorschau';
+    }
+    const items = [];
+    if (ready) {
+        items.push({
+            ok: true,
+            text:
+                ready +
+                ' ' +
+                noun +
+                (ready === 1 ? ' wird' : ' werden') +
+                (vorhanden && ready === vorhanden ? ' abgeglichen' : ' neu angelegt')
+        });
+    }
+    if (!abweichung) items.push({ ok: true, text: 'Keine Namenskonflikte' });
+    else {
+        items.push({
+            ok: false,
+            text: abweichung === 1 ? '1 Name weicht ab' : abweichung + ' Namen weichen ab'
+        });
+    }
+    if (!zuWenig) items.push({ ok: true, text: 'Alle Klassen haben ausreichend Lehrkräfte' });
+    else {
+        items.push({
+            ok: false,
+            text:
+                zuWenig === 1
+                    ? '1 Klasse hat zu wenige Lehrkräfte'
+                    : zuWenig + ' Klassen haben zu wenige Lehrkräfte'
+        });
+    }
+    if (vorhanden) {
+        items.push({
+            ok: true,
+            text:
+                vorhanden === 1
+                    ? '1 Chat existiert bereits'
+                    : vorhanden + ' Chats existieren bereits'
+        });
+    }
+    paintCheckList(list, items);
+}
+
+function namingSchemaLabel() {
+    const yp = ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || yearPrefix || calcYearPrefix();
+    const sample = displayNameForTarget(
+        buildChatTopicFromPattern(getPatternFromBuilder(), { yearPrefix: yp, klasse: '{Klasse}' }),
+        targetKind
+    );
+    return sample || (yp + ' | {Klasse} | Lehrer');
+}
+
+function paintConfirmPanel() {
+    const ready = actionablePlans();
+    const n = ready.length;
+    const channel = targetKind === 'privateChannel';
+    const headline = $('kcConfirmHeadline');
+    if (headline) {
+        headline.textContent = n
+            ? n + ' KlassenChats werden erstellt'
+            : 'Keine KlassenChats ausgewählt';
+    }
+    const target = $('kcConfirmTarget');
+    if (target) {
+        target.textContent =
+            'Microsoft Teams · ' + (channel ? 'Privater Kanal' : 'Gruppenchat');
+    }
+    const classes = $('kcConfirmClasses');
+    if (classes) {
+        classes.textContent = n
+            ? ready.map((p) => p.klasse).filter(Boolean).join(', ')
+            : '–';
+    }
+    const members = $('kcConfirmMembers');
+    if (members) {
+        const extras = getExtraMemberEmails().length;
+        members.textContent =
+            (mode === 'manual' ? 'manuelle Auswahl' : 'aus Unterrichtsbelegung + Klassenvorstand') +
+            (extras ? ' + ' + extras + ' zusätzliche Person(en)' : '');
+    }
+    const naming = $('kcConfirmNaming');
+    if (naming) naming.textContent = namingSchemaLabel();
+    const note = $('kcConfirmNote');
+    if (note) {
+        note.textContent = channel
+            ? 'Es werden private Kanäle im Lehrerteam angelegt. Bestehende Kanäle werden nicht dupliziert.'
+            : 'Es werden Gruppenchats in Microsoft Teams angelegt. Bestehende Chats werden nicht dupliziert.';
+    }
+}
+
+function updateRunButton() {
+    const btn = $('kcBtnRun');
+    if (!btn) return;
+    const n = actionablePlans().length;
+    const channel = targetKind === 'privateChannel';
+    const noun = n === 1 ? 'KlassenChat' : 'KlassenChats';
+    const icon = channel ? 'bi-lock' : 'bi-chat-dots';
+    const label = n ? n + ' ' + noun + ' anlegen' : 'Keine KlassenChats anlegen';
+    btn.disabled = !n || busy || runPhase === 'exec';
+    btn.className = 'fb-btn';
+    btn.innerHTML = '<i class="bi ' + icon + '"></i>' + label;
+}
+
+function showStep4Phase(phase) {
+    runPhase = phase;
+    const confirm = $('kcConfirmPanel');
+    const exec = $('kcExecPanel');
+    const result = $('kcResultPanel');
+    if (confirm) confirm.hidden = phase !== 'confirm';
+    if (exec) exec.hidden = phase !== 'exec';
+    if (result) result.hidden = phase !== 'result';
+}
+
+function renderLists() {
+    belegung = loadBelegung();
+    if (belegung && belegung.yearPrefix && $('kcYearPrefix') && !$('kcYearPrefix').dataset.userEdited) {
+        $('kcYearPrefix').value = belegung.yearPrefix;
+        yearPrefix = belegung.yearPrefix;
+    }
+    currentPlans();
+    updateTargetUiCopy();
+    paintSourceBanner();
+    paintPlanTable($('kcPreviewBody'));
+    paintPreviewCards();
+    paintSummaries();
+    syncSelectAll();
+    updateNamePreview();
+    updateRunButton();
+    paintConfirmPanel();
+    updateHero();
+}
+
+function renderPreview() {
+    renderLists();
 }
 
 /* ── Name builder (wie Kursteams / Spielwiesen) ── */
@@ -995,20 +1484,55 @@ function getPatternFromBuilder() {
 }
 
 function updateNamePreview() {
-    const el = $('kcNamePreview');
-    if (!el) return;
-    const yp = ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || yearPrefix || 'SJ26';
-    const klassePreview =
-        (mode === 'manual' && $('kcManualKlasse') && $('kcManualKlasse').value.trim()) || '1A';
-    const raw = buildChatTopicFromPattern(getPatternFromBuilder(), {
-        yearPrefix: yp,
-        klasse: klassePreview
-    });
-    const preview = displayNameForTarget(raw, targetKind);
-    el.textContent =
-        'Vorschau: ' +
-        preview +
-        (targetKind === 'privateChannel' ? ' (Kanal, max. 50 Zeichen)' : '');
+    const line = $('kcNameLine');
+    const hint = $('kcNameHint');
+    const examples = $('kcNameExamples');
+    if (!line) return;
+    const classList = plans
+        .map((p) => String(p.klasse || '').trim())
+        .filter(Boolean);
+    const klasse =
+        classList[0] ||
+        (($('kcManualKlasse') && $('kcManualKlasse').value.trim()) || '');
+    if (!klasse) {
+        line.textContent = 'Noch keine Klasse';
+        if (hint) hint.textContent = 'Der Name erscheint, sobald eine Belegung oder eine Klasse da ist.';
+        if (examples) {
+            examples.hidden = true;
+            examples.innerHTML = '';
+        }
+        return;
+    }
+    const yp = ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || yearPrefix || calcYearPrefix();
+    const pattern = getPatternFromBuilder();
+    const preview = displayNameForTarget(
+        buildChatTopicFromPattern(pattern, { yearPrefix: yp, klasse }),
+        targetKind
+    );
+    line.textContent = preview || '–';
+    if (hint) {
+        hint.textContent =
+            'Die weiteren Klassen folgen demselben Schema.' +
+            (targetKind === 'privateChannel' ? ' Im Kanal wird | zu ·.' : '');
+    }
+    if (examples) {
+        const more = classList.filter((c) => c !== klasse).slice(0, 2);
+        if (!more.length) {
+            examples.hidden = true;
+            examples.innerHTML = '';
+        } else {
+            examples.hidden = false;
+            examples.innerHTML = more
+                .map((c) => {
+                    const name = displayNameForTarget(
+                        buildChatTopicFromPattern(pattern, { yearPrefix: yp, klasse: c }),
+                        targetKind
+                    );
+                    return '<li>' + escapeHtml(name || c) + '</li>';
+                })
+                .join('');
+        }
+    }
 }
 
 function addChip(zone, token) {
@@ -1118,14 +1642,133 @@ function log(msg) {
     el.scrollTop = el.scrollHeight;
 }
 
-async function runProvision() {
+function paintExecList(rows) {
+    const list = $('kcExecList');
+    const meta = $('kcExecMeta');
+    if (!list) return;
+    list.innerHTML = rows
+        .map((r) => {
+            let cls = 'is-wait';
+            let mark = '○ Wartet';
+            if (r.state === 'run') {
+                cls = 'is-run';
+                mark = '● Wird erstellt …';
+            } else if (r.state === 'ok') {
+                cls = 'is-ok';
+                mark = '✓ ' + (r.created ? 'Erstellt' : 'Aktualisiert');
+            } else if (r.state === 'fail') {
+                cls = 'is-fail';
+                mark = '✕ Fehlgeschlagen';
+            }
+            return (
+                '<li class="' +
+                cls +
+                '"><span><strong>' +
+                escapeHtml(r.klasse) +
+                '</strong>' +
+                (r.message
+                    ? '<div class="muted">' + escapeHtml(r.message) + '</div>'
+                    : '') +
+                '</span><span>' +
+                mark +
+                '</span></li>'
+            );
+        })
+        .join('');
+    if (meta) {
+        const done = rows.filter((r) => r.state === 'ok' || r.state === 'fail').length;
+        meta.textContent = done + ' von ' + rows.length + ' abgeschlossen';
+    }
+}
+
+function paintResultPanel(results) {
+    const ok = results.filter((r) => r.ok).length;
+    const fail = results.filter((r) => !r.ok).length;
+    const title = $('kcResultTitle');
+    const sub = $('kcResultSub');
+    const list = $('kcResultList');
+    const retry = $('kcBtnRetryFailed');
+    if (title) {
+        title.textContent =
+            fail === 0
+                ? 'Fertig ✓'
+                : ok === 0
+                  ? 'Nicht angelegt'
+                  : ok + ' von ' + results.length + ' KlassenChats erstellt';
+    }
+    if (sub) {
+        if (fail === 0) {
+            sub.textContent =
+                results.length === 1
+                    ? '1 KlassenChat wurde erfolgreich angelegt.'
+                    : results.length + ' KlassenChats wurden erfolgreich angelegt.';
+        } else if (ok === 0) {
+            sub.textContent = 'Keine KlassenChats konnten erstellt werden.';
+        } else {
+            sub.textContent =
+                fail === 1
+                    ? '1 KlassenChat konnte nicht erstellt werden.'
+                    : fail + ' KlassenChats konnten nicht erstellt werden.';
+        }
+    }
+    if (list) {
+        list.innerHTML = results
+            .map((r) => {
+                return (
+                    '<li><span><strong>' +
+                    escapeHtml(r.klasse) +
+                    '</strong><div class="muted">' +
+                    escapeHtml(r.topic || '') +
+                    (r.error ? ' · ' + escapeHtml(r.error) : '') +
+                    '</div>' +
+                    (r.detail
+                        ? '<details class="kc-tech-details"><summary>Technische Details</summary><pre class="kc-log">' +
+                          escapeHtml(r.detail) +
+                          '</pre></details>'
+                        : '') +
+                    '</span><span>' +
+                    (r.ok ? (r.created ? '✓ Erstellt' : '✓ Aktualisiert') : '✕ Fehlgeschlagen') +
+                    '</span></li>'
+                );
+            })
+            .join('');
+    }
+    if (retry) retry.hidden = fail === 0;
+}
+
+function userFacingProvisionError(e, klasse) {
+    const detail = formatKlassenchatsGraphError(e);
+    const lower = String(detail || '').toLowerCase();
+    let reason = '';
+    if (lower.indexOf('permission') !== -1 || lower.indexOf('403') !== -1 || lower.indexOf('denied') !== -1) {
+        reason = 'Die Berechtigung für die Zielressource fehlt.';
+    } else if (lower.indexOf('not found') !== -1 || lower.indexOf('404') !== -1) {
+        reason = 'Die Zielressource wurde nicht gefunden.';
+    } else if (lower.indexOf('throttl') !== -1 || lower.indexOf('429') !== -1) {
+        reason = 'Microsoft Teams ist gerade überlastet. Bitte kurz warten und erneut versuchen.';
+    }
+    return {
+        error: 'Der KlassenChat für ' + klasse + ' konnte nicht erstellt werden.' + (reason ? ' ' + reason : ''),
+        detail
+    };
+}
+
+async function runProvision(opts) {
+    const onlyFailed = !!(opts && opts.onlyFailed);
     if (busy) return;
     rebuildPlans();
+    applyOmissions();
     if (targetKind === 'privateChannel' && !(lehrerTeam && lehrerTeam.id)) {
         toast('Bitte zuerst ein Lehrerteam wählen (Schritt 1).');
         return;
     }
-    const eligible = plans.filter((p) => p.eligible);
+    let eligible = actionablePlans();
+    if (onlyFailed) {
+        const failedKeys = new Set(
+            lastRunResults.filter((r) => !r.ok).map((r) => String(r.klasse || '').toUpperCase())
+        );
+        eligible = eligible.filter((p) => failedKeys.has(String(p.klasse || '').toUpperCase()));
+    }
     if (!eligible.length) {
         toast(
             targetKind === 'privateChannel'
@@ -1136,34 +1779,38 @@ async function runProvision() {
     }
 
     busy = true;
-    const btn = $('kcBtnRun');
-    if (btn) btn.disabled = true;
+    showStep4Phase('exec');
+    updateRunButton();
+    const back = $('kcBtnBackFromConfirm');
+    if (back) back.disabled = true;
     const logEl = $('kcLog');
     if (logEl) logEl.textContent = '';
+
+    /** @type {Array<{ klasse: string, topic: string, state: string, created?: boolean, message?: string }>} */
+    const execRows = eligible.map((p) => ({
+        klasse: p.klasse,
+        topic: p.topic,
+        state: 'wait'
+    }));
+    paintExecList(execRows);
+    lastRunResults = [];
 
     try {
         log('Anmeldung bei Microsoft …');
         const token = await getToken();
         const me = await sharedGraphJson('GET', '/me?$select=id,mail,userPrincipalName', token, undefined);
         const meId = me && me.id ? String(me.id) : '';
-        const noun = targetKind === 'privateChannel' ? 'Kanal/Kanäle' : 'Chat(s)';
         log(
             'Angemeldet · Ziel: ' +
                 targetKindLabel(targetKind) +
                 (lehrerTeam ? ' · Team: ' + lehrerTeam.displayName : '') +
                 '. ' +
                 eligible.length +
-                ' ' +
-                noun +
-                ' werden bearbeitet …'
+                ' KlassenChat(s) werden bearbeitet …'
         );
 
         let state = loadClassChatsState();
-        let ok = 0;
-        let fail = 0;
 
-        // Private Kanäle: alle Lehrkräfte einmal ins Lehrerteam, dann kurz warten
-        // (Teams-Roster hinkt der M365-Gruppe hinterher → sonst „parent roster“-Fehler).
         if (targetKind === 'privateChannel' && lehrerTeam && lehrerTeam.id) {
             const allEmails = [];
             eligible.forEach((p) => {
@@ -1204,6 +1851,8 @@ async function runProvision() {
 
         for (let i = 0; i < eligible.length; i++) {
             const plan = eligible[i];
+            execRows[i].state = 'run';
+            paintExecList(execRows);
             log('[' + (i + 1) + '/' + eligible.length + '] ' + plan.klasse + ' → ' + plan.topic);
             try {
                 const res = await provisionClassResource(G(), token, plan, meId);
@@ -1223,37 +1872,62 @@ async function runProvision() {
                     lehrerTeamDisplayName: lehrerTeam ? lehrerTeam.displayName : ''
                 });
                 saveClassChatsState(state);
-                ok += 1;
+                execRows[i].state = 'ok';
+                execRows[i].created = !!res.created;
+                paintExecList(execRows);
+                lastRunResults.push({
+                    klasse: plan.klasse,
+                    topic: res.topic || plan.topic,
+                    ok: true,
+                    created: !!res.created,
+                    updated: !res.created
+                });
                 const bits = [];
                 if (res.created) bits.push('angelegt');
                 else bits.push('aktualisiert');
                 if (res.topicUpdated) bits.push('Name geändert');
                 if (res.added) bits.push('+' + res.added + ' Mitglied(er)');
                 if (res.teamMembersAdded) bits.push('+' + res.teamMembersAdded + ' ins Team');
-                if (res.kvOwnerOk && res.kvEmail) bits.push('Owner=KV (' + res.kvEmail + ')');
-                else if (res.ownersAligned) bits.push('KV als Owner');
-                if (res.demoted) bits.push(res.demoted + ' auf Mitglied');
-                if (res.adminRemoved) bits.push('Admin entfernt');
                 if (res.missingEmails && res.missingEmails.length) {
                     bits.push('ohne Graph: ' + res.missingEmails.join(', '));
                 }
                 log('  OK – ' + bits.join(', '));
             } catch (e) {
-                fail += 1;
-                log('  Fehler: ' + formatKlassenchatsGraphError(e));
+                const faced = userFacingProvisionError(e, plan.klasse);
+                execRows[i].state = 'fail';
+                execRows[i].message = faced.error;
+                paintExecList(execRows);
+                lastRunResults.push({
+                    klasse: plan.klasse,
+                    topic: plan.topic,
+                    ok: false,
+                    error: faced.error,
+                    detail: faced.detail
+                });
+                log('  Fehler: ' + faced.detail);
             }
         }
 
         persistPatternMeta(loadClassChatsState());
+        const ok = lastRunResults.filter((r) => r.ok).length;
+        const fail = lastRunResults.filter((r) => !r.ok).length;
         log('Fertig: ' + ok + ' ok, ' + fail + ' Fehler.');
-        toast('KlassenChats: ' + ok + ' ok' + (fail ? ', ' + fail + ' Fehler' : '') + '.');
+        paintResultPanel(lastRunResults);
+        showStep4Phase('result');
+        toast(
+            fail === 0
+                ? ok + ' KlassenChats erfolgreich angelegt.'
+                : ok + ' von ' + lastRunResults.length + ' KlassenChats erstellt.'
+        );
         renderPreview();
     } catch (e) {
         log('Abbruch: ' + (e && e.message ? e.message : String(e)));
         toast('Anmeldung oder Graph fehlgeschlagen.');
+        showStep4Phase('confirm');
     } finally {
         busy = false;
-        if (btn) btn.disabled = false;
+        if (back) back.disabled = false;
+        updateRunButton();
     }
 }
 
@@ -1286,6 +1960,13 @@ function boot() {
 
     wireNameBuilder();
     renderNameBuilder();
+    const nameAdjust = $('kcNameAdjust');
+    if (nameAdjust) {
+        const same =
+            JSON.stringify(normalizeChatNamePattern(namePattern)) ===
+            JSON.stringify(defaultChatNamePattern());
+        if (!same) nameAdjust.open = true;
+    }
     refreshClassDatalist();
     renderTeacherList();
     refreshSourcePanel();
@@ -1353,6 +2034,7 @@ function boot() {
         btnClear.addEventListener('click', () => {
             manualQueue = [];
             updateManualQueueHint();
+            renderLists();
             toast('Manuelle Liste geleert.');
         });
     }
@@ -1395,30 +2077,51 @@ function boot() {
     renderExtraPicked();
 
     document.querySelectorAll('[data-kc-goto]').forEach((btn) => {
-        btn.addEventListener('click', () => setStep(btn.getAttribute('data-kc-goto')));
+        btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            goToStep(btn.getAttribute('data-kc-goto'));
+        });
     });
     document.querySelectorAll('[data-kc-next]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const n = Number(btn.getAttribute('data-kc-next'));
-            if (n === 3 || n === 4) rebuildPlans();
-            if (mode === 'manual' && n === 3) {
-                const eligible = plans.filter((p) => p.eligible);
-                if (!eligible.length) {
-                    toast('Manuell: Klasse und mind. 2 E-Mails nötig (oder zur Liste hinzufügen).');
-                    return;
-                }
-            }
-            if (targetKind === 'privateChannel' && (n === 3 || n === 4) && !(lehrerTeam && lehrerTeam.id)) {
-                toast('Für private Kanäle bitte zuerst ein Lehrerteam wählen.');
-                return;
-            }
             if (n >= 2) persistPatternMeta(loadClassChatsState());
-            setStep(n);
+            goToStep(n);
         });
     });
     document.querySelectorAll('[data-kc-prev]').forEach((btn) => {
-        btn.addEventListener('click', () => setStep(btn.getAttribute('data-kc-prev')));
+        btn.addEventListener('click', () => goToStep(btn.getAttribute('data-kc-prev')));
     });
+
+    function onIncludeChange(ev) {
+        const box = ev.target && ev.target.closest ? ev.target.closest('[data-kc-include]') : null;
+        if (!box) return;
+        const key = String(box.getAttribute('data-kc-include') || '').toUpperCase();
+        if (!key) return;
+        if (box.checked) omittedKlassen.delete(key);
+        else omittedKlassen.add(key);
+        renderLists();
+    }
+    const previewBody = $('kcPreviewBody');
+    if (previewBody) previewBody.addEventListener('change', onIncludeChange);
+    const previewCards = $('kcPreviewCards');
+    if (previewCards) previewCards.addEventListener('change', onIncludeChange);
+
+    const selectAll = $('kcSelectAllPreview');
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            const boxes = Array.from(
+                document.querySelectorAll('#kcPreviewBody [data-kc-include]:not(:disabled)')
+            );
+            boxes.forEach((box) => {
+                const key = String(box.getAttribute('data-kc-include') || '').toUpperCase();
+                if (!key) return;
+                if (selectAll.checked) omittedKlassen.delete(key);
+                else omittedKlassen.add(key);
+            });
+            renderLists();
+        });
+    }
 
     const btnReload = $('kcBtnReloadSource');
     if (btnReload) {
@@ -1432,6 +2135,31 @@ function boot() {
     const btnRun = $('kcBtnRun');
     if (btnRun) btnRun.addEventListener('click', () => runProvision());
 
+    const btnRetry = $('kcBtnRetryFailed');
+    if (btnRetry) {
+        btnRetry.addEventListener('click', () => {
+            showStep4Phase('confirm');
+            runProvision({ onlyFailed: true });
+        });
+    }
+    const btnRestart = $('kcBtnRestart');
+    if (btnRestart) {
+        btnRestart.addEventListener('click', () => {
+            lastRunResults = [];
+            runPhase = 'confirm';
+            showStep4Phase('confirm');
+            goToStep(1);
+        });
+    }
+    const btnShowPreview = $('kcBtnShowPreview');
+    if (btnShowPreview) {
+        btnShowPreview.addEventListener('click', () => {
+            maxReached = Math.max(maxReached, 3);
+            goToStep(3);
+        });
+    }
+
+    showStep4Phase('confirm');
     setStep(1);
 }
 

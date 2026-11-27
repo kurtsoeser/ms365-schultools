@@ -6,6 +6,7 @@ import {
     normalizeAppointments,
     enrichAttendeesWithKlasse,
     attendeesToCsv,
+    attendeesForEmail,
     bookingOpenDateFromBuchungAb,
     defaultBusinessName,
     friendlyBookingsError,
@@ -82,6 +83,8 @@ describe('projektwochen-bookings-logic', () => {
         const csv = attendeesToCsv(enriched);
         expect(csv).toContain('Anna');
         expect(csv).toContain('1AK');
+        expect(attendeesForEmail(enriched, 'Anna@schule.at').map((r) => r.name)).toEqual(['Anna']);
+        expect(attendeesForEmail(enriched, '')).toEqual([]);
     });
 
     it('defaultBusinessName', () => {

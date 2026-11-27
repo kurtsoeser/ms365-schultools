@@ -60,6 +60,11 @@ const SCOPES = [
 /** @type {'teacher'|'single'} */
 let mode = 'teacher';
 let step = 1;
+let busy = false;
+/** @type {'confirm'|'exec'|'result'} */
+let runPhase = 'confirm';
+/** @type {Array<{ label: string, ok: boolean, created?: boolean, skipped?: boolean, error?: string }>} */
+let lastRunResults = [];
 /** @type {Array<{ id: string, displayName: string, userPrincipalName: string, mailNickname?: string, assignedLicenses?: any[], selected: boolean }>} */
 let demoPool = [];
 /** @type {Array<{ code: string, name: string, email: string, selected: boolean }>} */
@@ -335,25 +340,82 @@ function onNamingChanged() {
     refreshRunSummary();
 }
 
+const HERO_BY_STEP = {
+    1: {
+        title: 'Spielwiesen anlegen',
+        sub: 'Zweck und Namen wählen – danach Demo-Schüler, Empfänger und Anlegen.'
+    },
+    2: {
+        title: 'Demo-Schüler vorbereiten',
+        sub: 'Gemeinsamer Pool für alle Spielwiesen-Teams (max. 10 Konten).'
+    },
+    3: {
+        title: 'Empfänger wählen',
+        sub: 'Lehrkräfte oder ein Einzel-Team – Namen folgen dem Muster aus Schritt 1.'
+    },
+    4: {
+        title: 'In Teams anlegen',
+        sub: 'Kursteams (EDU_Class) erzeugen; bestehende Alias werden übersprungen.'
+    }
+};
+
+function updateHero() {
+    const conf = HERO_BY_STEP[step] || HERO_BY_STEP[1];
+    const title = $('spHeroTitle');
+    const sub = $('spHeroSub');
+    if (title) title.textContent = conf.title;
+    if (sub) sub.textContent = conf.sub;
+}
+
+function showStep4Phase(phase) {
+    runPhase = phase;
+    const confirm = $('spConfirmPanel');
+    const exec = $('spExecPanel');
+    const result = $('spResultPanel');
+    if (confirm) confirm.hidden = phase !== 'confirm';
+    if (exec) exec.hidden = phase !== 'exec';
+    if (result) result.hidden = phase !== 'result';
+}
+
 function setStep(n) {
     step = Math.max(1, Math.min(4, Number(n) || 1));
     document.querySelectorAll('[data-sp-step]').forEach(function (el) {
         el.classList.toggle('is-active', Number(el.getAttribute('data-sp-step')) === step);
     });
-    document.querySelectorAll('[data-sp-goto]').forEach(function (el) {
-        el.classList.toggle('is-active', Number(el.getAttribute('data-sp-goto')) === step);
+    document.querySelectorAll('.pw-steps [data-sp-goto], .sp-steps [data-sp-goto]').forEach(function (el) {
+        const num = Number(el.getAttribute('data-sp-goto'));
+        const active = num === step;
+        el.classList.toggle('is-active', active);
+        el.classList.toggle('is-done', num < step);
+        if (active) el.setAttribute('aria-current', 'step');
+        else el.removeAttribute('aria-current');
     });
+    updateHero();
     if (step === 3) refreshRecvUi();
-    if (step === 4) refreshRunSummary();
+    if (step === 4) {
+        if (runPhase !== 'result' && runPhase !== 'exec') showStep4Phase('confirm');
+        refreshRunSummary();
+    }
+    const heading = $('spStep' + step + 'Heading');
+    if (heading && typeof heading.focus === 'function') {
+        try {
+            heading.focus({ preventScroll: false });
+        } catch {
+            heading.focus();
+        }
+    }
 }
 
 function setMode(m) {
     mode = m === 'single' ? 'single' : 'teacher';
     document.querySelectorAll('[data-sp-mode]').forEach(function (el) {
-        el.classList.toggle('is-selected', el.getAttribute('data-sp-mode') === mode);
+        const on = el.getAttribute('data-sp-mode') === mode;
+        el.classList.toggle('is-selected', on);
+        el.setAttribute('aria-checked', on ? 'true' : 'false');
     });
     refreshRecvUi();
     refreshSinglePreview();
+    refreshRunSummary();
 }
 
 function refreshRecvUi() {
@@ -830,21 +892,29 @@ function renderTeachers() {
 }
 
 function refreshRunSummary() {
-    const el = $('spRunSummary');
-    if (!el) return;
     const demos = selectedDemo();
+    const headline = $('spConfirmHeadline');
+    const teams = $('spConfirmTeams');
+    const demosEl = $('spConfirmDemos');
+    const naming = $('spConfirmNaming');
+    const btn = $('spBtnRun');
+
     if (mode === 'single') {
         const plan = buildSpielwiesenPlan(planOpts());
-        el.innerHTML =
-            '<p><strong>Einzel-Team:</strong> ' +
-            escapeHtml(plan.displayName) +
-            '</p><p><code>' +
-            escapeHtml(plan.mailNickname) +
-            '</code></p><p>Demo-Schüler: ' +
-            demos.length +
-            '</p>';
+        if (headline) headline.textContent = '1 Spielwiesen-Team wird erstellt';
+        if (teams) teams.textContent = plan.displayName || '–';
+        if (demosEl) {
+            demosEl.textContent =
+                demos.length + ' Demo-Schüler (Klasse ' + DEMO_CLASS_CODE + ')';
+        }
+        if (naming) naming.textContent = plan.displayName || '–';
+        if (btn) {
+            btn.disabled = busy || !plan.ok;
+            btn.innerHTML = '<i class="bi bi-play-fill"></i>1 Spielwiese anlegen';
+        }
         return;
     }
+
     const selected = teachers.filter(function (t) {
         return t.selected && t.email;
     });
@@ -856,29 +926,133 @@ function refreshRunSummary() {
             })
         })
     );
+    const n = bulk.plans.length;
     const sample = bulk.plans[0];
-    el.innerHTML =
-        '<p><strong>Lehrer-Spielwiesen:</strong> ' +
-        bulk.plans.length +
-        ' Team(s), Jahr ' +
-        escapeHtml(getYear()) +
-        (getLabel() ? ', Thema „' + escapeHtml(getLabel()) + '“' : '') +
-        '</p>' +
-        (sample
-            ? '<p>Beispiel: <strong>' +
-              escapeHtml(sample.displayName) +
-              '</strong> · <code>' +
-              escapeHtml(sample.mailNickname) +
-              '</code></p>'
-            : '') +
-        '<p>Demo-Schüler im Pool: ' +
-        demos.length +
-        ' (Klasse ' +
-        DEMO_CLASS_CODE +
-        ')</p>' +
-        (bulk.ok
-            ? ''
-            : '<p class="muted">' + escapeHtml(bulk.issues.join('; ')) + '</p>');
+    if (headline) {
+        headline.textContent = n
+            ? n + ' Spielwiesen-Teams werden erstellt'
+            : 'Keine Lehrkräfte ausgewählt';
+    }
+    if (teams) {
+        teams.textContent = n
+            ? selected
+                  .slice(0, 8)
+                  .map(function (t) {
+                      return t.code || t.name;
+                  })
+                  .join(', ') + (selected.length > 8 ? ' …' : '')
+            : '–';
+    }
+    if (demosEl) {
+        demosEl.textContent =
+            demos.length + ' Demo-Schüler (Klasse ' + DEMO_CLASS_CODE + ')';
+    }
+    if (naming) {
+        naming.textContent = sample
+            ? sample.displayName.replace(String(sample.code || ''), '{Kürzel}')
+            : 'DEMO | {Thema} | {Kürzel}';
+    }
+    if (btn) {
+        btn.disabled = busy || !n || !bulk.ok;
+        btn.innerHTML =
+            '<i class="bi bi-play-fill"></i>' +
+            (n ? n + ' Spielwiesen anlegen' : 'Keine Spielwiesen anlegen');
+    }
+}
+
+function paintExecList(rows) {
+    const list = $('spExecList');
+    const meta = $('spExecMeta');
+    if (!list) return;
+    list.innerHTML = rows
+        .map(function (r) {
+            let cls = 'is-wait';
+            let mark = '○ Wartet';
+            if (r.state === 'run') {
+                cls = 'is-run';
+                mark = '● Wird erstellt …';
+            } else if (r.state === 'ok') {
+                cls = 'is-ok';
+                mark = r.skipped ? '✓ Bereits vorhanden' : '✓ Erstellt';
+            } else if (r.state === 'fail') {
+                cls = 'is-fail';
+                mark = '✕ Fehlgeschlagen';
+            }
+            return (
+                '<li class="' +
+                cls +
+                '"><span><strong>' +
+                escapeHtml(r.label) +
+                '</strong>' +
+                (r.message
+                    ? '<div class="muted">' + escapeHtml(r.message) + '</div>'
+                    : '') +
+                '</span><span>' +
+                mark +
+                '</span></li>'
+            );
+        })
+        .join('');
+    if (meta) {
+        const done = rows.filter(function (r) {
+            return r.state === 'ok' || r.state === 'fail';
+        }).length;
+        meta.textContent = done + ' von ' + rows.length + ' abgeschlossen';
+    }
+}
+
+function paintResultPanel(results) {
+    const ok = results.filter(function (r) {
+        return r.ok;
+    }).length;
+    const fail = results.filter(function (r) {
+        return !r.ok;
+    }).length;
+    const title = $('spResultTitle');
+    const sub = $('spResultSub');
+    const list = $('spResultList');
+    const retry = $('spBtnRetryFailed');
+    if (title) {
+        title.textContent =
+            fail === 0 ? 'Fertig ✓' : ok === 0 ? 'Nicht angelegt' : ok + ' von ' + results.length + ' Teams erstellt';
+    }
+    if (sub) {
+        if (fail === 0) {
+            sub.textContent =
+                results.length === 1
+                    ? '1 Spielwiese wurde erfolgreich angelegt.'
+                    : results.length + ' Spielwiesen wurden erfolgreich angelegt.';
+        } else if (ok === 0) {
+            sub.textContent = 'Keine Spielwiesen konnten erstellt werden.';
+        } else {
+            sub.textContent =
+                fail === 1
+                    ? '1 Team konnte nicht erstellt werden.'
+                    : fail + ' Teams konnten nicht erstellt werden.';
+        }
+    }
+    if (list) {
+        list.innerHTML = results
+            .map(function (r) {
+                return (
+                    '<li><span><strong>' +
+                    escapeHtml(r.label) +
+                    '</strong>' +
+                    (r.error
+                        ? '<div class="muted">' + escapeHtml(r.error) + '</div>'
+                        : '') +
+                    '</span><span>' +
+                    (r.ok
+                        ? r.skipped
+                            ? '✓ Bereits vorhanden'
+                            : '✓ Erstellt'
+                        : '✕ Fehlgeschlagen') +
+                    '</span></li>'
+                );
+            })
+            .join('');
+    }
+    if (retry) retry.hidden = fail === 0;
 }
 
 async function findGroupByNickname(token, nick) {
@@ -950,8 +1124,10 @@ async function addDemoMembers(token, groupId) {
     log('  Demo-Schüler: ' + demos.length + ' Mitgliedschaft(en) versucht.');
 }
 
-async function runCreate() {
-    const token = await getToken();
+async function runCreate(opts) {
+    const onlyFailed = !!(opts && opts.onlyFailed);
+    if (busy) return;
+
     const demos = selectedDemo();
     const addMembers = !!($('spAddDemoMembers') && $('spAddDemoMembers').checked);
     if (addMembers) {
@@ -959,71 +1135,140 @@ async function runCreate() {
         if (!v.ok) throw new Error(v.issues.join(', '));
     }
 
+    /** @type {Array<{ label: string, plan: any, email?: string }>} */
+    let jobs = [];
     if (mode === 'single') {
         const plan = buildSpielwiesenPlan(planOpts());
         if (!plan.ok) throw new Error(plan.issues.join(', '));
-        if (!window.confirm('Kursteam (EDU_Class) anlegen?\n\n' + plan.displayName)) return;
-        const res = await createSpielTeam(token, plan, null);
-        if (res.group && res.group.id) await addDemoMembers(token, res.group.id);
-        toast(res.created ? 'Team angelegt.' : 'Team existierte bereits.');
-        return;
-    }
-
-    const selected = teachers.filter(function (t) {
-        return t.selected && t.email;
-    });
-    const bulk = buildBulkTeacherPlans(
-        planOpts({
-            teachers: selected,
-            selectedCodes: selected.map(function (t) {
-                return t.code;
+        jobs = [{ label: plan.displayName, plan: plan, email: null }];
+    } else {
+        const selected = teachers.filter(function (t) {
+            return t.selected && t.email;
+        });
+        const bulk = buildBulkTeacherPlans(
+            planOpts({
+                teachers: selected,
+                selectedCodes: selected.map(function (t) {
+                    return t.code;
+                })
             })
-        })
-    );
-    if (!bulk.ok) throw new Error(bulk.issues.join('; '));
-    const example = bulk.plans[0] ? bulk.plans[0].displayName : '';
-    if (
-        !window.confirm(
-            bulk.plans.length +
-                ' Lehrer-Kursteams (EDU_Class) anlegen?\nBeispiel: ' +
-                example +
-                '\nDemo-Schüler: ' +
-                demos.length +
-                '\n\nBestehende Alias werden übersprungen.'
-        )
-    ) {
-        return;
+        );
+        if (!bulk.ok) throw new Error(bulk.issues.join('; '));
+        jobs = bulk.plans.map(function (plan) {
+            return {
+                label: plan.displayName || plan.code,
+                plan: plan,
+                email: plan.email
+            };
+        });
     }
 
-    let ok = 0;
-    let skip = 0;
-    let fail = 0;
-    for (let i = 0; i < bulk.plans.length; i++) {
-        const plan = bulk.plans[i];
-        try {
-            let ownerId = null;
-            try {
-                const owner = await G().resolveUserByEmail(token, plan.email);
-                ownerId = owner && owner.id ? owner.id : null;
-            } catch (e) {
-                log(plan.code + ': Besitzer nicht gefunden (' + plan.email + ') – ' + (e.message || e));
-            }
-            if (!ownerId) {
-                fail++;
-                continue;
-            }
-            const res = await createSpielTeam(token, plan, ownerId);
-            if (!res.created) skip++;
-            else ok++;
-            if (res.group && res.group.id) await addDemoMembers(token, res.group.id);
-        } catch (e) {
-            fail++;
-            log(plan.code + ' FEHLER: ' + (e.message || e));
-        }
-        await G().sleep(400);
+    if (onlyFailed) {
+        const failed = new Set(
+            lastRunResults
+                .filter(function (r) {
+                    return !r.ok;
+                })
+                .map(function (r) {
+                    return String(r.label || '');
+                })
+        );
+        jobs = jobs.filter(function (j) {
+            return failed.has(j.label);
+        });
     }
-    log('Fertig: ' + ok + ' neu, ' + skip + ' übersprungen, ' + fail + ' Fehler.');
-    toast('Fertig: ' + ok + ' neu, ' + skip + ' übersprungen, ' + fail + ' Fehler');
+    if (!jobs.length) throw new Error('Keine Spielwiesen zum Anlegen ausgewählt.');
+
+    busy = true;
+    showStep4Phase('exec');
+    refreshRunSummary();
+    const back = $('spBtnBackFromConfirm');
+    if (back) back.disabled = true;
+    const logEl = $('spLog');
+    if (logEl) logEl.textContent = '';
+
+    const execRows = jobs.map(function (j) {
+        return { label: j.label, state: 'wait' };
+    });
+    paintExecList(execRows);
+    lastRunResults = [];
+
+    try {
+        const token = await getToken();
+        for (let i = 0; i < jobs.length; i++) {
+            const job = jobs[i];
+            execRows[i].state = 'run';
+            paintExecList(execRows);
+            try {
+                let ownerId = null;
+                if (job.email) {
+                    try {
+                        const owner = await G().resolveUserByEmail(token, job.email);
+                        ownerId = owner && owner.id ? owner.id : null;
+                    } catch (e) {
+                        log(
+                            job.plan.code +
+                                ': Besitzer nicht gefunden (' +
+                                job.email +
+                                ') – ' +
+                                (e.message || e)
+                        );
+                    }
+                    if (!ownerId) {
+                        throw new Error('Besitzer nicht gefunden: ' + job.email);
+                    }
+                }
+                const res = await createSpielTeam(token, job.plan, ownerId);
+                if (res.group && res.group.id) await addDemoMembers(token, res.group.id);
+                execRows[i].state = 'ok';
+                execRows[i].skipped = !res.created;
+                paintExecList(execRows);
+                lastRunResults.push({
+                    label: job.label,
+                    ok: true,
+                    created: !!res.created,
+                    skipped: !res.created
+                });
+            } catch (e) {
+                const msg = e && e.message ? e.message : String(e);
+                execRows[i].state = 'fail';
+                execRows[i].message = 'Das Team konnte nicht erstellt werden.';
+                paintExecList(execRows);
+                lastRunResults.push({
+                    label: job.label,
+                    ok: false,
+                    error: msg
+                });
+                log(job.label + ' FEHLER: ' + msg);
+            }
+            await G().sleep(400);
+        }
+
+        const ok = lastRunResults.filter(function (r) {
+            return r.ok;
+        }).length;
+        const fail = lastRunResults.filter(function (r) {
+            return !r.ok;
+        }).length;
+        const skip = lastRunResults.filter(function (r) {
+            return r.ok && r.skipped;
+        }).length;
+        log('Fertig: ' + ok + ' ok (' + skip + ' übersprungen), ' + fail + ' Fehler.');
+        paintResultPanel(lastRunResults);
+        showStep4Phase('result');
+        toast(
+            fail === 0
+                ? ok + ' Spielwiesen erfolgreich.'
+                : ok + ' von ' + lastRunResults.length + ' Spielwiesen erstellt.'
+        );
+    } catch (e) {
+        showStep4Phase('confirm');
+        throw e;
+    } finally {
+        busy = false;
+        if (back) back.disabled = false;
+        refreshRunSummary();
+    }
 }
 
 function fillDefaults() {
@@ -1043,6 +1288,7 @@ function boot() {
     wireNameBuilder();
     renderNameBuilder();
     setMode('teacher');
+    showStep4Phase('confirm');
     setStep(1);
     refreshSinglePreview();
 
@@ -1050,15 +1296,10 @@ function boot() {
         el.addEventListener('click', function () {
             setMode(el.getAttribute('data-sp-mode'));
         });
-        el.addEventListener('keydown', function (ev) {
-            if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                setMode(el.getAttribute('data-sp-mode'));
-            }
-        });
     });
     document.querySelectorAll('[data-sp-goto]').forEach(function (el) {
         el.addEventListener('click', function () {
+            if (el.id === 'spBtnBackFromConfirm' && busy) return;
             setStep(el.getAttribute('data-sp-goto'));
         });
     });
@@ -1067,6 +1308,24 @@ function boot() {
             setStep(el.getAttribute('data-sp-next'));
         });
     });
+
+    const btnRetry = $('spBtnRetryFailed');
+    if (btnRetry) {
+        btnRetry.addEventListener('click', function () {
+            Promise.resolve(runCreate({ onlyFailed: true })).catch(function (e) {
+                log('FEHLER: ' + (e.message || e));
+                toast(e.message || String(e));
+            });
+        });
+    }
+    const btnRestart = $('spBtnRestart');
+    if (btnRestart) {
+        btnRestart.addEventListener('click', function () {
+            lastRunResults = [];
+            showStep4Phase('confirm');
+            setStep(1);
+        });
+    }
 
     ['spLabel', 'spYear', 'spAsDemo'].forEach(function (id) {
         const el = $(id);

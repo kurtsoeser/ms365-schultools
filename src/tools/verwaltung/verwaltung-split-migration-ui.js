@@ -75,7 +75,7 @@ export function mountVerwaltungSplitMigration(deps) {
         let body = '';
         if (phase === 'need_schulleitung_group') {
             body =
-                '<p><strong>Schritt 1:</strong> Links <em>Schulleitung</em> wählen und eine Microsoft-365-Gruppe matchen oder anlegen. ' +
+                '<p><strong>Schritt 1:</strong> Links <em>Schulleitung</em> wählen und eine Microsoft-365-Gruppe verknüpfen oder anlegen. ' +
                 'Danach können Sie die bisherige gemischte Verwaltungsgruppe aufteilen.</p>' +
                 '<p class="muted">Stammdaten: ' +
                 String(assessment.schulleitungCount) +
@@ -105,12 +105,12 @@ export function mountVerwaltungSplitMigration(deps) {
             '</div>' +
             '<div class="vw-split-banner__actions">' +
             (phase === 'need_schulleitung_group'
-                ? '<button type="button" class="btn btn-primary" id="vwSplitGoSchulleitung">Schulleitung-Gruppe einrichten</button>'
-                : '<button type="button" class="btn" id="vwSplitPreview">Vorschau laden</button>' +
-                  '<button type="button" class="btn btn-primary" id="vwSplitRun"' +
+                ? '<button type="button" class="fb-btn" id="vwSplitGoSchulleitung">Schulleitung-Gruppe einrichten</button>'
+                : '<button type="button" class="fb-btn fb-btn--ghost" id="vwSplitPreview">Vorschau laden</button>' +
+                  '<button type="button" class="fb-btn" id="vwSplitRun"' +
                   (graphVw ? '' : ' disabled') +
                   '>Aufteilen &amp; synchronisieren</button>') +
-            '<button type="button" class="btn" id="vwSplitSkip">Später</button>' +
+            '<button type="button" class="fb-btn fb-btn--ghost" id="vwSplitSkip">Später</button>' +
             '</div></div>';
 
         const goSl = document.getElementById('vwSplitGoSchulleitung');
@@ -143,7 +143,7 @@ export function mountVerwaltungSplitMigration(deps) {
     async function preview() {
         const ids = deps.getMatchedGroupIds();
         if (!ids.verwaltung) {
-            deps.toast('Keine Verwaltungsgruppe gematcht.');
+            deps.toast('Keine Verwaltungsgruppe verknüpft.');
             return;
         }
         busy = true;

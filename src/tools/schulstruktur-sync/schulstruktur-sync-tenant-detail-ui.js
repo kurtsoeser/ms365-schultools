@@ -164,15 +164,29 @@ export function showTenantDetail(group) {
     }
     applyTenantArchiveUi(group);
     fillTenantAdSyncPanels(group);
+    const title = getEl('slgDetailTitle');
+    if (title) title.textContent = String(group.bezeichnung || group.displayName || 'Gruppe');
     if (!L) return;
     const idEl = getEl('slgLiveId');
-    const already = idEl && String(idEl.value || '') === String(group.id || '');
+    const idText =
+        L && typeof L.getFieldText === 'function'
+            ? L.getFieldText(idEl)
+            : idEl
+              ? String(idEl.value || idEl.textContent || '').trim()
+              : '';
+    const already = idEl && idText === String(group.id || '');
     if (!already) {
         L.fillForm(tenantRowToLiveGroup(group));
         L.setMatchedMode(true);
+    } else {
+        L.setMatchedMode(true);
     }
     const art = getEl('slgLiveArt');
-    if (art) art.value = String(group.typ || '');
+    if (art) {
+        if (L && typeof L.setFieldText === 'function') L.setFieldText(art, String(group.typ || ''), '–');
+        else if (art.tagName === 'INPUT') art.value = String(group.typ || '');
+        else art.textContent = String(group.typ || '') || '–';
+    }
     const entra = getEl('slgBtnOpenEntra');
     if (entra) entra.disabled = !group.id;
 }

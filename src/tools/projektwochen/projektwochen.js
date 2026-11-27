@@ -11,7 +11,7 @@ import {
     emptyForm,
     formFromItem,
     pickActiveAktion,
-    viewsForRole,
+    resolvePwView,
     canEditAngebot,
     scopeFromState,
     filterAngebote
@@ -27,6 +27,8 @@ import {
 import {
     validateAngebot,
     weekdayLabelDeFromIso,
+    weekdayNameDe,
+    nextSlotTimes,
     resolvePwOwnership,
     assertPwOwnership,
     isPwAccessDeniedError,
@@ -38,7 +40,7 @@ import {
     shouldSkipPwSpoPush
 } from './projektwochen-sync.js';
 import { renderApp, readFormFromDom, readFiltersFromDom } from './projektwochen-ui.js';
-import { buildLocalDemoState, getDemoSeedPackage, DEMO_SITE_DEFAULT } from './projektwochen-demo-data.js';
+import { buildDemoAttendees, buildLocalDemoState, getDemoSeedPackage, DEMO_SITE_DEFAULT } from './projektwochen-demo-data.js';
 import {
     parseDemoImportJson,
     applyDemoStammdatenLocal,
@@ -55,7 +57,8 @@ import {
 } from './projektwochen-bookings.js';
 import {
     friendlyBookingsError,
-    summarizePwSyncBatch
+    summarizePwSyncBatch,
+    attendeesForEmail
 } from './projektwochen-bookings-logic.js';
 import {
     downloadAttendeesCsv,
@@ -64,6 +67,7 @@ import {
     downloadIcs,
     buildWeekPlanPrintHtml,
     buildAttendeesPrintHtml,
+    buildMinePrintHtml,
     openPrintWindow
 } from './projektwochen-export.js';
 import { newEntityId } from './projektwochen-schema.js';
@@ -126,8 +130,11 @@ function bindStatic() {
     root.querySelectorAll('[data-pw-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-pw-view') || 'dashboard';
+            if (state.role === 'schueler' && state.view === 'dashboard') state.view = 'buchung';
             state.detailId = null;
             paint();
+            maybeLoadMine();
+            maybeLoadTeilnehmer();
         });
     });
 
@@ -144,9 +151,10 @@ function bindStatic() {
             if (demoUi) state.demoRoleOverride = true;
             persistRole(role);
             state.roleHint = '';
-            const allowed = viewsForRole(role).map((v) => v.id);
-            if (!allowed.includes(state.view)) state.view = 'dashboard';
+            state.view = resolvePwView(role, state.view);
             paint();
+            maybeLoadMine();
+            maybeLoadTeilnehmer();
         });
     });
 
@@ -165,6 +173,13 @@ function bindStatic() {
         });
     }
 
+    const mineBtn = document.getElementById('pwBtnLoadMine');
+    if (mineBtn) {
+        mineBtn.addEventListener('click', () => {
+            runLoadAttendees({ keepView: true }).catch((e) => toast(String((e && e.message) || e)));
+        });
+    }
+
     const reloadBtn = document.getElementById('pwBtnReload');
     if (reloadBtn) {
         reloadBtn.addEventListener('click', () => {
@@ -180,6 +195,46 @@ function bindStatic() {
                 paint();
                 toast(state.error);
             });
+        });
+    }
+
+    const datumEl = document.getElementById('pwFDatum');
+    if (datumEl) {
+        datumEl.addEventListener('change', () => {
+            const tag = weekdayLabelDeFromIso(datumEl.value);
+            const hidden = document.getElementById('pwFTag');
+            const line = document.getElementById('pwFTagLine');
+            if (hidden) hidden.value = tag || '';
+            if (line) line.textContent = weekdayNameDe(tag) || 'Der Wochentag folgt aus dem Datum.';
+        });
+    }
+    const slotEl = document.getElementById('pwFSlot');
+    if (slotEl) {
+        slotEl.addEventListener('change', () => {
+            const previous = slotEl.getAttribute('data-pw-slot') || '';
+            const start = document.getElementById('pwFStart');
+            const end = document.getElementById('pwFEnd');
+            const next = nextSlotTimes(
+                previous,
+                slotEl.value,
+                start ? start.value : '',
+                end ? end.value : ''
+            );
+            slotEl.setAttribute('data-pw-slot', slotEl.value);
+            if (!next || !start || !end) return;
+            start.value = next.startzeit;
+            end.value = next.endzeit;
+        });
+    }
+    const lehrerEl = document.getElementById('pwFLehrer');
+    if (lehrerEl) {
+        lehrerEl.addEventListener('change', () => {
+            const opt = lehrerEl.selectedOptions && lehrerEl.selectedOptions[0];
+            const mail = opt ? String(opt.getAttribute('data-email') || '').trim() : '';
+            const mailEl = document.getElementById('pwFLehrerMail');
+            const wrap = document.getElementById('pwFLehrerMailWrap');
+            if (mailEl) mailEl.value = mail;
+            if (wrap) wrap.classList.toggle('is-quiet', !!mail);
         });
     }
 
@@ -237,7 +292,7 @@ function bindStatic() {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', () => {
-                    state.filters = readFiltersFromDom();
+                    state.filters = readFiltersFromDom(state.filters);
                     paint();
                 });
             }
@@ -246,7 +301,20 @@ function bindStatic() {
     const q = document.getElementById('pwFilterQ');
     if (q) {
         q.addEventListener('input', () => {
-            state.filters = readFiltersFromDom();
+            const pos = q.selectionStart;
+            state.filters = readFiltersFromDom(state.filters);
+            paint();
+            const next = document.getElementById('pwFilterQ');
+            if (next) {
+                next.focus();
+                if (pos != null) next.setSelectionRange(pos, pos);
+            }
+        });
+    }
+    const filterMore = document.getElementById('pwFilterMore');
+    if (filterMore) {
+        filterMore.addEventListener('click', () => {
+            state.filtersMore = !state.filtersMore;
             paint();
         });
     }
@@ -254,6 +322,7 @@ function bindStatic() {
     if (filterReset) {
         filterReset.addEventListener('click', () => {
             state.filters = { status: '', kategorie: '', tag: '', lehrer: '', klasse: '', q: '', buchung: '' };
+            state.filtersMore = false;
             paint();
         });
     }
@@ -366,7 +435,7 @@ function bindStatic() {
                 return;
             }
             state.editingItemId = null;
-            state.form = emptyForm(prefillTeacher());
+            setForm(emptyForm(prefillTeacher()));
             state.view = 'meine';
             paint();
         });
@@ -495,10 +564,44 @@ function bindStatic() {
             }
         });
     }
+    const printMine = document.getElementById('pwBtnPrintMine');
+    if (printMine) {
+        printMine.addEventListener('click', () => {
+            const mine = attendeesForEmail(state.attendeeRows, state.accountEmail);
+            const rows = mine.map((r) => {
+                const item = (state.items || []).find(
+                    (a) => a && (a.angebotId === r.angebotId || a.title === r.angebotTitle)
+                );
+                const when = [
+                    r.datum,
+                    item && item.tag,
+                    item && item.slot,
+                    item && item.startzeit && item.endzeit ? item.startzeit + '–' + item.endzeit : ''
+                ]
+                    .filter(Boolean)
+                    .join(' · ');
+                return {
+                    title: r.angebotTitle || (item && item.title) || 'Angebot',
+                    when,
+                    ort: (item && (item.ort || item.treffpunkt)) || ''
+                };
+            });
+            try {
+                openPrintWindow(buildMinePrintHtml(rows, state.aktion));
+            } catch (e) {
+                toast(e && e.message ? e.message : String(e));
+            }
+        });
+    }
 }
 
 function appendBookingsLog(msg) {
     state.bookingsLog = (state.bookingsLog ? state.bookingsLog + '\n' : '') + String(msg || '');
+}
+
+function setForm(next) {
+    state.form = next;
+    state.formTried = false;
 }
 
 function prefillTeacher() {
@@ -522,7 +625,7 @@ function openDetail(rawId) {
     state.view = 'detail';
     if (canEditAngebot(item, scopeFromState(state))) {
         state.editingItemId = item.itemId;
-        state.form = formFromItem(item);
+        setForm(formFromItem(item));
     } else {
         state.editingItemId = null;
     }
@@ -530,10 +633,15 @@ function openDetail(rawId) {
 }
 
 function closeDetail() {
-    const back = state.detailReturnView && state.detailReturnView !== 'detail' ? state.detailReturnView : 'dashboard';
+    const back =
+        state.detailReturnView && state.detailReturnView !== 'detail'
+            ? state.detailReturnView
+            : state.role === 'schueler'
+              ? 'buchung'
+              : 'dashboard';
     state.detailId = null;
     state.editingItemId = null;
-    state.form = emptyForm(prefillTeacher());
+    setForm(emptyForm(prefillTeacher()));
     state.view = back;
     paint();
 }
@@ -564,8 +672,46 @@ function applyLocalDemo(pack) {
             state.calMonth = d.getMonth();
         }
     }
-    state.form = emptyForm(prefillTeacher());
+    setForm(emptyForm(prefillTeacher()));
+    applyDemoAttendees();
     paint();
+    watchAccountForDemo();
+}
+
+function watchAccountForDemo() {
+    if (!state.localDemoOnly || state._demoAccountWatch) return;
+    state._demoAccountWatch = true;
+    let n = 0;
+    const timer = window.setInterval(() => {
+        n += 1;
+        const before = state.accountEmail;
+        if (!before && typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            if (info) {
+                state.accountEmail = String(info.username || info.upn || '')
+                    .trim()
+                    .toLowerCase();
+                state.accountName = String(info.name || state.accountName || '').trim();
+            }
+        }
+        const email = state.accountEmail;
+        const has = email && (state.attendeeRows || []).some((r) => r && r.email === email);
+        if ((email && !has) || n > 24) {
+            window.clearInterval(timer);
+            if (email && !has) {
+                applyDemoAttendees();
+                paint();
+            }
+        }
+    }, 250);
+}
+
+function applyDemoAttendees() {
+    if (!state.localDemoOnly) return;
+    const snap = buildDemoAttendees(state.items, state.accountEmail);
+    state.attendeeRows = snap.rows;
+    state.occupancy = snap.occupancy;
+    state.attendeeLoadedAt = 'Demo';
 }
 
 function markPwPullLive(ctx) {
@@ -827,12 +973,15 @@ async function hydrateLiveStammdaten(siteId) {
 
 async function syncAccount() {
     try {
-        if (typeof window.ms365AuthGetAccount === 'function') {
-            const acc = window.ms365AuthGetAccount();
-            if (acc) {
-                state.accountEmail = String(acc.username || acc.mail || '').trim().toLowerCase();
-                state.accountName = String(acc.name || '').trim();
-            }
+        const acc =
+            (typeof window.ms365AuthGetAccount === 'function' && window.ms365AuthGetAccount()) ||
+            (typeof window.ms365AuthGetAccountInfo === 'function' && window.ms365AuthGetAccountInfo()) ||
+            null;
+        if (acc) {
+            state.accountEmail = String(acc.username || acc.upn || acc.mail || '')
+                .trim()
+                .toLowerCase();
+            state.accountName = String(acc.name || '').trim();
         }
     } catch {
         /* ignore */
@@ -841,12 +990,12 @@ async function syncAccount() {
         state.stammdaten = loadStammdaten();
     }
     state.teacherMatch = matchTeacherByEmail(state.accountEmail, state.stammdaten.teachers);
+    if (state.localDemoOnly) applyDemoAttendees();
     await applyPwRoleFromEntra(state, {
         demoRoleOverride: state.demoRoleOverride,
         preferredActiveRole: state.role
     });
-    const allowed = viewsForRole(state.role).map((v) => v.id);
-    if (!allowed.includes(state.view)) state.view = 'dashboard';
+    state.view = resolvePwView(state.role, state.view);
 }
 
 /**
@@ -946,7 +1095,7 @@ async function refreshData() {
         if (!state.aktion) {
             state.roleHint = 'Keine PW-Aktion gefunden – bitte System/Setup prüfen.';
         }
-        state.form = emptyForm(prefillTeacher());
+        setForm(emptyForm(prefillTeacher()));
         paint();
         toast('Projektwochen geladen (' + state.items.length + ' Angebote).');
     } catch (e) {
@@ -991,6 +1140,7 @@ async function saveForm() {
         classCodes
     });
     if (!v.canSubmit) {
+        state.formTried = true;
         paint();
         toast(v.errors[0] || 'Bitte Fehler prüfen.');
         return;
@@ -1038,15 +1188,15 @@ async function saveForm() {
             state.items = state.items.concat([{ ...payload, itemId: 'local-' + payload.angebotId }]);
         }
         if (stayDetail) {
-            state.form = formFromItem(
-                state.items.find((i) => i.itemId === state.editingItemId) || payload
+            setForm(
+                formFromItem(state.items.find((i) => i.itemId === state.editingItemId) || payload)
             );
             paint();
             toast('Lokal gespeichert (Demo).');
             return;
         }
         state.editingItemId = null;
-        state.form = emptyForm(prefillTeacher());
+        setForm(emptyForm(prefillTeacher()));
         state.view = 'meine';
         paint();
         toast('Lokal gespeichert (Demo).');
@@ -1081,7 +1231,7 @@ async function saveForm() {
         state.detailId = again ? again.itemId : keepId;
         if (again && canEditAngebot(again, scopeFromState(state))) {
             state.editingItemId = again.itemId;
-            state.form = formFromItem(again);
+            setForm(formFromItem(again));
         }
         paint();
         toast('Angebot gespeichert.');
@@ -1132,7 +1282,7 @@ async function decide(itemId, status, reason) {
             state.detailId = itemId;
             if (canEditAngebot(patch, scopeFromState(state))) {
                 state.editingItemId = itemId;
-                state.form = formFromItem(patch);
+                setForm(formFromItem(patch));
             } else {
                 state.editingItemId = null;
             }
@@ -1150,7 +1300,7 @@ async function decide(itemId, status, reason) {
         state.detailId = itemId;
         if (again && canEditAngebot(again, scopeFromState(state))) {
             state.editingItemId = again.itemId;
-            state.form = formFromItem(again);
+            setForm(formFromItem(again));
         } else {
             state.editingItemId = null;
         }
@@ -1356,6 +1506,18 @@ async function runSyncAngebote(itemIds) {
     }
 }
 
+function maybeLoadMine() {
+    if (state.role !== 'schueler' || state.localDemoOnly || state.bookingsBusy || state.attendeeLoadedAt) return;
+    if (!['buchung', 'plan', 'kalender', 'liste', 'detail'].includes(state.view)) return;
+    runLoadAttendees({ keepView: true, quiet: true }).catch((e) => toast(String((e && e.message) || e)));
+}
+
+function maybeLoadTeilnehmer() {
+    if (state.role === 'schueler' || state.view !== 'teilnehmer') return;
+    if (state.bookingsBusy || state.attendeeLoadedAt) return;
+    runLoadAttendees({ keepView: true, quiet: true }).catch((e) => toast(String((e && e.message) || e)));
+}
+
 async function runLoadAttendees(opts) {
     const stayOnDetail = !!(opts && opts.stayOnDetail) && state.view === 'detail';
     if (!state.aktion) {
@@ -1368,39 +1530,10 @@ async function runLoadAttendees(opts) {
     const log = (m) => appendBookingsLog(m);
     try {
         if (state.localDemoOnly || !businessId || businessId.indexOf('demo-') === 0) {
-            // Demo-TN aus freigegebenen Angeboten simulieren
-            const rows = [];
-            const occupancy = {};
-            state.items
-                .filter((a) => a.status === 'freigegeben')
-                .forEach((a, idx) => {
-                    const sid = a.bookingsServiceId || 'demo-svc-' + a.angebotId;
-                    occupancy[sid] = {
-                        filled: Math.min(a.kapazitaet, 3 + (idx % 5)),
-                        max: a.kapazitaet,
-                        angebotId: a.angebotId,
-                        title: a.title
-                    };
-                    for (let n = 0; n < occupancy[sid].filled; n++) {
-                        rows.push({
-                            appointmentId: 'demo-ap-' + idx + '-' + n,
-                            serviceId: sid,
-                            angebotId: a.angebotId,
-                            angebotTitle: a.title,
-                            datum: a.datum,
-                            name: 'Schüler ' + (idx + 1) + '-' + (n + 1),
-                            email: 'schueler.' + idx + n + '@kurtrocks.onmicrosoft.com',
-                            phone: '',
-                            klasse: ['1AK', '2AK', '3AK'][n % 3]
-                        });
-                    }
-                });
-            state.attendeeRows = rows;
-            state.occupancy = occupancy;
-            state.attendeeLoadedAt = new Date().toLocaleString('de-AT');
-            log('Demo: ' + rows.length + ' Teilnehmerzeilen simuliert.');
-            toast('Demo-Teilnehmer geladen.');
-            if (!stayOnDetail) state.view = 'teilnehmer';
+            applyDemoAttendees();
+            log('Demo: ' + (state.attendeeRows || []).length + ' Teilnehmerzeilen simuliert.');
+            if (!opts || !opts.quiet) toast('Demo-Teilnehmer geladen.');
+            if (!stayOnDetail && !(opts && opts.keepView)) state.view = 'teilnehmer';
             return;
         }
         const data = await loadBookingsAttendees(
@@ -1413,8 +1546,8 @@ async function runLoadAttendees(opts) {
         state.attendeeRows = data.rows;
         state.occupancy = data.occupancy;
         state.attendeeLoadedAt = new Date().toLocaleString('de-AT');
-        toast(data.rows.length + ' Teilnehmer geladen.');
-        if (!stayOnDetail) state.view = 'teilnehmer';
+        if (!opts || !opts.quiet) toast(data.rows.length + ' Teilnehmer geladen.');
+        if (!stayOnDetail && !(opts && opts.keepView)) state.view = 'teilnehmer';
     } finally {
         state.bookingsBusy = false;
         paint();
@@ -1435,8 +1568,7 @@ function bootFromQuery() {
             state.role = role;
             persistRole(role);
         }
-        const allowed = viewsForRole(state.role).map((v) => v.id);
-        if (view && allowed.includes(view)) state.view = view;
+        if (view) state.view = resolvePwView(state.role, view);
         // Demo-Daten nur per ?demo=1 (Opt-in)
         if (q.get('demo') === '1') {
             state._bootDemo = true;
@@ -1452,7 +1584,7 @@ async function init() {
     bootFromQuery();
     state.siteUrl = loadSavedSiteUrl();
     await syncAccount();
-    state.form = emptyForm(prefillTeacher());
+    setForm(emptyForm(prefillTeacher()));
     if (state._bootDemo) {
         delete state._bootDemo;
         applyLocalDemo(getDemoSeedPackage());
@@ -1464,6 +1596,8 @@ async function init() {
     if (url && !state.localDemoOnly) {
         await refreshData();
     }
+    maybeLoadMine();
+    maybeLoadTeilnehmer();
 }
 
 if (document.readyState === 'loading') {

@@ -17,6 +17,7 @@ import {
     normalizeState,
     STORAGE_KEY
 } from './wahlfach-zuteilung-model.js';
+import { matchAnmeldungIndex } from './wahlfach-zuteilung-state.js';
 
 function storage() {
     if (typeof localStorage === 'undefined') return null;
@@ -97,9 +98,15 @@ export function upsertAnmeldung(draft) {
     const v = validateAnmeldung(draft, state.angebote);
     if (!v.ok) return { ok: false, errors: v.errors, anmeldung: null, state };
     const item = normalizeAnmeldung(draft);
-    const idx = state.anmeldungen.findIndex((a) => a.id === item.id);
-    if (idx >= 0) state.anmeldungen[idx] = item;
-    else state.anmeldungen.push(item);
+    const idx = matchAnmeldungIndex(state.anmeldungen, item);
+    if (idx >= 0) {
+        const prev = state.anmeldungen[idx];
+        item.id = prev.id;
+        if (!item.spoItemId && prev.spoItemId) item.spoItemId = prev.spoItemId;
+        if (prev.seedTag) item.seedTag = prev.seedTag;
+        if (prev.eingereichtAm) item.eingereichtAm = prev.eingereichtAm;
+        state.anmeldungen[idx] = item;
+    } else state.anmeldungen.push(item);
     return { ok: true, errors: [], anmeldung: item, state: saveState(state) };
 }
 

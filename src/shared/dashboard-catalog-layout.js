@@ -22,7 +22,7 @@ export const DASHBOARD_CATALOG_TAB_IDS = [
 
 /** @type {Record<string, string>} */
 export const TAB_LABEL_BY_PANEL = {
-    gruppen: 'Mitgliedschaften',
+    gruppen: 'MS365 Mitgliedschaft',
     unterricht: 'Klassen & Unterricht',
     personen: 'Personen & Gäste',
     schuljahr: 'Schuljahresstart',
@@ -57,6 +57,7 @@ export function normalizeDashboardCatalogTab(tab) {
     const t = String(tab || '').trim();
     if (t === 'regeln' || t === 'uebersicht') return 'kommunikation';
     if (t === 'website') return 'intranet';
+    if (t === 'sonstiges') return 'schulapps';
     if (DASHBOARD_CATALOG_TAB_IDS.includes(t)) return t;
     return 'gruppen';
 }
@@ -116,7 +117,6 @@ function gridForTool(catalog, toolId, clusterId) {
             einsammler: 'schulapps-eltern',
             elternbrief: 'schulapps-eltern',
             krankmeldung: 'schulapps-eltern',
-            schulsprecherwahl: 'schulapps-organisation',
             'schueler-stammdaten-portal': 'schulapps-organisation',
             'wahlfach-zuteilung': 'schulapps-organisation',
             'kollegium-umfragen': 'schulapps-organisation',

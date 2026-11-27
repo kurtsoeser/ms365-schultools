@@ -250,6 +250,19 @@ export function enrichAttendeesWithKlasse(rows, students) {
  * @param {object[]} rows
  * @returns {string} CSV
  */
+/**
+ * Termine einer Person. Vergleich über die E-Mail, die Bookings als Kunde speichert.
+ * @param {object[]} rows
+ * @param {string} email
+ */
+export function attendeesForEmail(rows, email) {
+    const em = String(email || '')
+        .trim()
+        .toLowerCase();
+    if (!em) return [];
+    return (rows || []).filter((r) => r && String(r.email || '').toLowerCase() === em);
+}
+
 export function attendeesToCsv(rows) {
     const header = ['Name', 'E-Mail', 'Klasse', 'Angebot', 'Datum', 'ServiceId'];
     const lines = [header.join(';')];
@@ -303,7 +316,10 @@ export function summarizePwSyncBatch(result) {
         headline = 'Sync: ' + ok + ' ok' + (fail ? ', ' + fail + ' Fehler' : '');
         if (skipped) headline += ', ' + skipped + ' übersprungen';
     } else if (skipped) {
-        headline = skipped + ' Angebot/Angebote übersprungen (nicht freigegeben).';
+        headline =
+            skipped === 1
+                ? '1 Angebot übersprungen (noch nicht frei).'
+                : skipped + ' Angebote übersprungen (noch nicht frei).';
     }
     const detail = fail
         ? friendlyBookingsError(errors[0] || '')

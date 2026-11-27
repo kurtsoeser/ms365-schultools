@@ -17,6 +17,69 @@
     font-size: 0.88rem;
 }
 
+/* Hero übernimmt die Zahl – Store schreibt weiter in #cpProgress */
+.pb-progress--sync {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.pb-panel {
+    position: relative;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 8px 4px 28px;
+}
+
+.pb-related {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 4px;
+    max-width: 52rem;
+}
+
+.pb-related__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 550;
+}
+
+.pb-related__link:hover {
+    color: var(--brand1);
+    text-decoration: underline;
+}
+
+.pb-related__link .bi {
+    font-size: 0.95em;
+}
+
+.pb-step__actions .fb-btn,
+.pb-step > .fb-btn,
+.cp-step > .fb-btn {
+    white-space: nowrap;
+}
+
+.pb-page .toolbar .fb-btn {
+    gap: 6px;
+}
+
+/* In der IT-Arbeitsfläche steckt die Navigation links – Toolbar-Pillen sind redundant. */
+body.it-workspace-shell .pb-page > .header .toolbar {
+    display: none;
+}
+
 .pb-phases {
     display: grid;
     gap: 22px;
@@ -253,7 +316,9 @@ html[data-theme='dark'] .cp-step:hover {
     .pb-step > .btn,
     .cp-step > .btn,
     .pb-step > a.btn,
-    .cp-step > a.btn {
+    .cp-step > a.btn,
+    .pb-step > .fb-btn,
+    .cp-step > .fb-btn {
         grid-column: 1 / -1;
         justify-self: start;
     }

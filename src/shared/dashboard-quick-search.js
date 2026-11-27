@@ -82,14 +82,14 @@ function collectStaticEntries() {
 
     const areaMap = {
         dashTaskImportVerknuepfen: { title: 'Stammdaten', keywords: 'import blaupause stammdaten' },
-        dashTaskGruppen: { title: 'Mitgliedschaften', keywords: 'sammelgruppe slg mitgliedschaft' },
+        dashTaskGruppen: { title: 'MS365 Mitgliedschaft', keywords: 'sammelgruppe slg mitgliedschaft ms365' },
         dashTaskUnterricht: { title: 'Klassen & Unterricht', keywords: 'klasse kursteam unterricht' },
         dashTaskPersonen: { title: 'Personen', keywords: 'person gast lifecycle' },
         dashTaskSchuljahr: { title: 'Schuljahresstart', keywords: 'schuljahr wechsel playbook' },
         dashTaskIntranet: { title: 'Intranet', keywords: 'intranet sharepoint hub' },
         dashTaskSchulApps: {
             title: 'Schul-Apps',
-            keywords: 'planer freistellung schularbeiten portal vorbereiten'
+            keywords: 'planer freistellung schularbeiten portal vorbereiten schulwahlen schulsprecherwahl wahl auswertung'
         },
         dashTaskOrdnung: { title: 'Aufräumen', keywords: 'cleanup hygiene audit' }
     };

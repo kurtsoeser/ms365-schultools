@@ -7,6 +7,40 @@
   // Wichtig: Diese Seite ist die Redirect-URI. Bevor wir weiterleiten,
   // muss MSAL die Redirect-Antwort verarbeiten (handleRedirectPromise),
   // sonst „verliert“ die App die Anmeldung und startet erneut.
+  //
+  // Herkunft und gemerkte URL sofort lesen. Ein späteres Skript darf sie
+  // nicht mehr mit der Redirect-Seite selbst überschreiben.
+
+  function snapshotOrigins() {
+    var out = [];
+    try {
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var key = sessionStorage.key(i);
+        if (!key || !/\.request\.origin$/i.test(key)) continue;
+        var val = sessionStorage.getItem(key);
+        if (val) out.push(String(val));
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    return out;
+  }
+
+  var requestOrigins = snapshotOrigins();
+  var storedReturn = '';
+  try {
+    storedReturn = String(sessionStorage.getItem('ms365-post-login-url') || '');
+  } catch (e) {
+    storedReturn = '';
+  }
+
+  function isAuthPopup() {
+    try {
+      return !!(window.opener && !window.opener.closed && window.opener !== window);
+    } catch (e) {
+      return true;
+    }
+  }
 
   function resolveClientId() {
     let cfg = window.MS365_MSAL_CONFIG || {};
@@ -44,7 +78,8 @@
         auth: {
           clientId: clientId,
           authority: cfg.authority || 'https://login.microsoftonline.com/organizations',
-          redirectUri: window.location.href.split('#')[0]
+          redirectUri: window.location.href.split('#')[0],
+          navigateToLoginRequestUrl: false
         },
         // Muss zu msal-auth-ui.js passen, damit der Token nach dem Redirect
         // auf den Tool-Seiten (anderer Tab/Reload möglich) wiedergefunden wird.
@@ -59,16 +94,40 @@
 
   await tryHandleMsalRedirect();
 
-  // Nach MSAL Redirect wieder zur ursprünglich gewünschten Tool-Seite zurück.
+  // Seite, die diese Anmeldung gestartet hat. Nicht die ältere Session-URL
+  // (die hat Besitzer-hinzufügen auf das zuletzt geöffnete Werkzeug geschickt).
+  var back = '';
   try {
-    const back = sessionStorage.getItem('ms365-post-login-url');
-    if (back && typeof back === 'string' && back.trim()) {
+    const pickMod = await import('../shared/auth-return-url.js');
+    back = pickMod.pickAuthReturnUrl({
+      pageHref: window.location.href,
+      storedHref: storedReturn,
+      requestOrigins: requestOrigins
+    });
+  } catch (e) {
+    back = '';
+  }
+
+  if (back) {
+    try {
       sessionStorage.removeItem('ms365-post-login-url');
-      window.location.replace(back);
+    } catch (e) {
+      /* ignore */
+    }
+    if (isAuthPopup()) {
+      // Anmeldefenster schließt sich. Es darf nicht das ganze andere Werkzeug öffnen.
+      setTimeout(function () {
+        try {
+          window.close();
+        } catch (e) {
+          /* ignore */
+        }
+        if (!window.closed) window.location.replace(back);
+      }, 80);
       return;
     }
-  } catch {
-    // ignore
+    window.location.replace(back);
+    return;
   }
 
   const params = new URLSearchParams(window.location.search);

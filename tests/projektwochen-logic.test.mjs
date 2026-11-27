@@ -3,11 +3,17 @@ import {
     validateAngebot,
     computeDashboardKpis,
     computePwAttention,
+    statusLabel,
+    dashboardHomeModel,
+    teacherOfferLine,
+    studentBookingsUrl,
     buildWeekPlan,
     buildWeekPlanDisplayRows,
     effectiveBuchungAb,
     isBookingOpen,
     weekdayLabelDeFromIso,
+    weekdayNameDe,
+    nextSlotTimes,
     toIsoDateOnly,
     resolvePwOwnership,
     assertPwOwnership,
@@ -18,20 +24,25 @@ import {
     filterAngebote,
     pickActiveAktion,
     navSectionsForRole,
-    viewsForRole
+    viewsForRole,
+    resolvePwView
 } from '../src/tools/projektwochen/projektwochen-state.js';
 import { buildLocalDemoState } from '../src/tools/projektwochen/projektwochen-demo-data.js';
 
 describe('projektwochen-logic', () => {
-    it('validateAngebot verlangt Titel, Datum, Kapazität, Lehrer', () => {
+    it('validateAngebot verlangt Titel, Datum, Ort, Plätze, Lehrkraft', () => {
         const empty = validateAngebot({ draft: {} });
         expect(empty.canSubmit).toBe(false);
-        expect(empty.errors.length).toBeGreaterThan(1);
+        expect(empty.errors).toContain('Ort fehlt.');
+        expect(empty.errors).toContain('Plätze müssen mindestens 1 sein.');
+        expect(empty.errors).toContain('Lehrkraft fehlt.');
+        expect(empty.errors.some((e) => /Kapazität|Kürzel/.test(e))).toBe(false);
 
         const ok = validateAngebot({
             draft: {
                 title: 'Zoo',
                 datum: '2026-10-05',
+                ort: 'Schönbrunn',
                 kapazitaet: 20,
                 lehrerCode: 'MU',
                 startzeit: '08:00',
@@ -41,6 +52,18 @@ describe('projektwochen-logic', () => {
             aktion: { startdatum: '2026-10-05', enddatum: '2026-10-09' }
         });
         expect(ok.canSubmit).toBe(true);
+    });
+
+    it('Tageszeit setzt die Uhrzeit nur, solange sie noch zum vorigen Standard gehört', () => {
+        expect(nextSlotTimes('vormittag', 'nachmittag', '08:00', '12:00')).toEqual({
+            startzeit: '13:00',
+            endzeit: '17:00'
+        });
+        expect(nextSlotTimes('vormittag', 'nachmittag', '09:15', '12:00')).toBe(null);
+        expect(nextSlotTimes('vormittag', 'ganztags', '', '')).toEqual({
+            startzeit: '08:00',
+            endzeit: '16:00'
+        });
     });
 
     it('Datum außerhalb Aktion → Fehler', () => {
@@ -72,6 +95,7 @@ describe('projektwochen-logic', () => {
         ]);
         expect(grid.Mo.vormittag).toHaveLength(1);
         expect(weekdayLabelDeFromIso('2026-09-28')).toBe('Mo');
+        expect(weekdayNameDe('Mo')).toBe('Montag');
         expect(grid.Mo.nachmittag.length + grid.Di.nachmittag.length).toBeGreaterThanOrEqual(0);
         expect(toIsoDateOnly('2026-09-28T00:00:00Z')).toBe('2026-09-28');
     });
@@ -152,6 +176,69 @@ describe('projektwochen ownership & soft errors', () => {
         });
         expect(att.beantragt).toBe(1);
         expect(att.pendingSync).toBe(1);
+        expect(att.myCount).toBe(0);
+    });
+
+    it('dashboardHomeModel spricht die Rolle an', () => {
+        const items = [
+            { status: 'beantragt', lehrerEmail: 'anna@schule.at', lehrerCode: 'AN' },
+            { status: 'freigegeben', lehrerEmail: 'anna@schule.at', lehrerCode: 'AN' },
+            { status: 'freigegeben', lehrerEmail: 'anna@schule.at', lehrerCode: 'AN' },
+            { status: 'beantragt', lehrerEmail: 'bert@schule.at', lehrerCode: 'BE' }
+        ];
+        const teacher = dashboardHomeModel({
+            role: 'lehrer',
+            bootstrapped: true,
+            accountEmail: 'kurt@schule.at',
+            items
+        });
+        expect(teacher.title).toBe('Noch kein eigenes Angebot');
+        expect(teacher.primary.label).toBe('Neues Angebot');
+        expect(teacher.num).toBeNull();
+
+        const anna = dashboardHomeModel({
+            role: 'lehrer',
+            bootstrapped: true,
+            accountEmail: 'anna@schule.at',
+            items
+        });
+        expect(anna.num).toBe(3);
+        expect(anna.title).toBe('eigene Angebote');
+        expect(anna.sub).toBe('1 wartet, 2 frei.');
+        expect(anna.primary).toBeNull();
+        expect(anna.ghost.label).toBe('Neues Angebot');
+        expect(teacherOfferLine({ myBeantragt: 1, myFreigegeben: 0 })).toBe('1 wartet.');
+
+        const admin = dashboardHomeModel({ role: 'admin', bootstrapped: true, items });
+        expect(admin.num).toBe(2);
+        expect(admin.title).toBe('Anträge warten');
+        expect(admin.sub).toBe('2 Angebote sind frei.');
+        expect(admin.primary.label).toBe('Zur Freigabe');
+
+        const quiet = dashboardHomeModel({
+            role: 'admin',
+            bootstrapped: true,
+            items: [{ status: 'freigegeben' }]
+        });
+        expect(quiet.num).toBe(0);
+        expect(quiet.title).toBe('Anträge warten');
+        expect(quiet.primary).toBeNull();
+    });
+
+    it('statusLabel spricht die Schule', () => {
+        expect(statusLabel('beantragt')).toBe('wartet');
+        expect(statusLabel('freigegeben')).toBe('frei');
+        expect(statusLabel('offen')).toBe('buchbar');
+        expect(statusLabel('gesperrt')).toBe('noch nicht buchbar');
+    });
+
+    it('studentBookingsUrl nur für freie Schüler-Angebote mit Adresse', () => {
+        const offer = { status: 'freigegeben', bookingsBookingUrl: 'https://book.example/zoo' };
+        expect(studentBookingsUrl('schueler', offer, false)).toBe('https://book.example/zoo');
+        expect(studentBookingsUrl('schueler', offer, true)).toBe('');
+        expect(studentBookingsUrl('lehrer', offer, false)).toBe('');
+        expect(studentBookingsUrl('schueler', { status: 'beantragt', bookingsBookingUrl: 'https://book.example/zoo' }, false)).toBe('');
+        expect(studentBookingsUrl('schueler', { status: 'freigegeben', bookingsBookingUrl: '  ' }, false)).toBe('');
     });
 });
 
@@ -170,12 +257,31 @@ describe('projektwochen-state filter', () => {
         const lehrerIds = viewsForRole('lehrer').map((v) => v.id);
         expect(lehrerIds).not.toContain('einstellungen');
         expect(lehrerIds).not.toContain('bookings');
-        expect(lehrerIds).toContain('neu');
+        expect(lehrerIds).not.toContain('neu');
+        expect(lehrerIds).toContain('dashboard');
+        expect(lehrerIds).toContain('meine');
+        expect(lehrerIds).not.toContain('buchung');
         const schuelerIds = viewsForRole('schueler').map((v) => v.id);
-        expect(schuelerIds).not.toContain('neu');
+        expect(schuelerIds).toEqual(['buchung', 'plan']);
+        expect(lehrerIds).not.toContain('kalender');
+        expect(lehrerIds).not.toContain('liste');
+        expect(lehrerIds).not.toContain('export');
+        expect(resolvePwView('schueler', 'kalender')).toBe('kalender');
+        expect(resolvePwView('schueler', 'export')).toBe('plan');
+        expect(resolvePwView('lehrer', 'liste')).toBe('liste');
+        expect(resolvePwView('lehrer', 'neu')).toBe('neu');
+        expect(resolvePwView('schueler', 'teilnehmer')).toBe('buchung');
+        expect(resolvePwView('admin', 'dashboard')).toBe('admin');
+        expect(resolvePwView('admin', 'neu')).toBe('neu');
         const adminSecs = navSectionsForRole('admin');
         expect(adminSecs.map((s) => s.id)).toEqual(['arbeit', 'bookings', 'system']);
+        expect(adminSecs.find((s) => s.id === 'arbeit').items.map((v) => v.id)).toEqual([
+            'admin',
+            'plan',
+            'teilnehmer'
+        ]);
         expect(adminSecs.find((s) => s.id === 'bookings').items[0].id).toBe('bookings');
+        expect(adminSecs.find((s) => s.id === 'system').items[0].id).toBe('einstellungen');
     });
 
     it('pickActiveAktion bevorzugt offen mit den meisten Angeboten', () => {

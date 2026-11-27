@@ -2609,6 +2609,15 @@ body.ts-admin-page .ts-register-shell.ts-admin-shell {
     overflow: visible;
     background: var(--card);
 }
+/* IT-iframe: Navigation nur in der linken IT-Leiste – interne Stammdaten-Rail aus */
+html[data-ms365-it-embed] body.ts-admin-page .ts-admin-rail,
+html[data-ms365-it-embed] .ts-admin-rail {
+    display: none !important;
+}
+html[data-ms365-it-embed] body.ts-admin-page .ts-register-shell.ts-admin-shell,
+html[data-ms365-it-embed] .ts-register-shell.ts-admin-shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
 body.ts-admin-page .ts-admin-rail {
     position: sticky;
     top: 56px;
@@ -2776,8 +2785,26 @@ body.ts-admin-page .ts-admin-dock.ts-register-dock {
     background: color-mix(in srgb, var(--card) 92%, transparent);
     backdrop-filter: blur(10px);
     box-shadow: 0 -8px 24px rgba(12, 18, 34, 0.06);
-    padding: 12px 24px;
+    /* Platz für fixes Benutzermenü (links) und Hilfe-FAB (rechts) */
+    padding: 12px 64px 12px 12px;
+    margin-left: 0;
+    max-width: 100%;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+body.app-shell-chrome.ts-admin-page .ts-admin-dock.ts-register-dock {
+    /* Dock bleibt in der Hauptspalte; Auth sitzt fixed über der Rail */
+    padding-left: 16px;
+}
+body.ts-admin-page .ts-admin-dock .ts-register-actions-card__status:not(:empty),
+body.ts-admin-page #browserBackupStatus:not(:empty):not([hidden]) {
+    max-height: 2.8em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    line-clamp: 2;
 }
 body.ts-admin-page .ts-admin-dock.ts-register-dock:not(.is-dirty) {
     box-shadow: none;

@@ -7,9 +7,14 @@ import { resolveWorkspaceHrefForPage } from './it-workspace-nav.js';
 import { shouldMountItWorkspaceShell } from './it-workspace-shell.js';
 import {
     buildDefaultPortalTree,
+    filterPortalTreeToVisible,
+    reconcilePortalTreeWithCatalog,
     loadPortalWorkspaceNav,
+    portalToolHref,
     rememberPortalSection,
     resolvePortalLocation,
+    sanitizePortalNavHref,
+    portalShellViewOrder,
     resolvePortalWorkspaceView
 } from './portal-workspace-nav.js';
 
@@ -52,6 +57,16 @@ function readCachedPersonas() {
 }
 
 function isItFullMode() {
+    try {
+        if (window.self !== window.top) return true;
+        if (document.documentElement.hasAttribute('data-ms365-it-embed')) return true;
+        if (document.documentElement.hasAttribute('data-ms365-it-fouc')) return true;
+        if (document.documentElement.hasAttribute('data-dash-it-shell')) {
+            if (sessionStorage.getItem('ms365-it-workspace-v1') === '1') return true;
+        }
+    } catch {
+        return true;
+    }
     const personas = readCachedPersonas();
     if (personas && personas.loggedIn && personas.isIt && readItShellChoice() === 'full') return true;
     if (document.getElementById('itWorkspaceShell')) return true;
@@ -72,20 +87,20 @@ function pickTreeAndLocation(current) {
     const stored = loadPortalWorkspaceNav();
     /** @type {string[]} */
     const views = [];
-    if (personaView) views.push(personaView);
-    else {
-        if (stored && (stored.view === 'lehrer' || stored.view === 'schueler')) views.push(stored.view);
-        views.push('lehrer', 'schueler');
+    if (!personaView && stored && (stored.view === 'lehrer' || stored.view === 'schueler')) {
+        views.push(stored.view);
     }
+    for (const view of portalShellViewOrder(personaView)) views.push(view);
     const seen = new Set();
     for (let i = 0; i < views.length; i++) {
         const view = views[i];
         if (seen.has(view)) continue;
         seen.add(view);
-        const tree =
+        const raw =
             stored && stored.view === view && stored.tree && stored.tree.length
-                ? stored.tree
+                ? reconcilePortalTreeWithCatalog(stored.tree, view)
                 : buildDefaultPortalTree(view);
+        const tree = filterPortalTreeToVisible(raw, view);
         const loc = resolvePortalLocation(tree, current);
         if (loc) return { view: view, tree: tree, loc: loc };
     }
@@ -107,13 +122,25 @@ function safeIconClass(icon) {
 }
 
 function safeToolHref(href, inTools) {
-    const raw = String(href || '').trim();
-    if (!/^(?:tools\/)?[a-z0-9-]+\.html(?:\?[^#]*)?$/i.test(raw)) return '';
+    const raw = sanitizePortalNavHref(href);
+    if (!raw) return '';
+    if (/^https:\/\//i.test(raw)) return raw;
     return resolveWorkspaceHrefForPage(raw, inTools);
 }
 
 function indexHref(inTools) {
     return resolveWorkspaceHrefForPage('index.html', inTools);
+}
+
+function intranetLinkNeedsRebuild(rail) {
+    const url = portalToolHref('sharepoint-intranet-hub');
+    const link = rail.querySelector('[data-tool-id="sharepoint-intranet-hub"]');
+    if (!url) {
+        const href = link ? String(link.getAttribute('href') || '') : '';
+        return /sharepoint-intranet-hub\.html/i.test(href);
+    }
+    if (!link) return true;
+    return link.getAttribute('href') !== url;
 }
 
 function hideDashboardBackLinks() {
@@ -222,11 +249,19 @@ function appendGroup(nav, node, isActive, inTools, loc) {
 
     if (sub) {
         tools.forEach(function (tool) {
-            const href = safeToolHref(tool.href, inTools);
+            const href = safeToolHref(
+                portalToolHref(tool.id, { fallbackHref: tool.href }),
+                inTools
+            );
             if (!href) return;
             const a = document.createElement('a');
             a.className = 'portal-workspace-shell__subitem';
+            a.setAttribute('data-tool-id', tool.id);
             a.href = href;
+            if (/^https:\/\//i.test(href)) {
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+            }
             if (isActive && loc.tool && tool.id === loc.tool.id) {
                 a.setAttribute('aria-current', 'page');
             }
@@ -308,8 +343,11 @@ export function mountPortalWorkspaceShell() {
 
     const existing = document.getElementById('portalWorkspaceRail');
     if (existing && existing.getAttribute('data-portal-view') === picked.view) {
-        hideDashboardBackLinks();
-        return true;
+        if (!intranetLinkNeedsRebuild(existing)) {
+            hideDashboardBackLinks();
+            return true;
+        }
+        unmountPortalWorkspaceShell();
     }
     if (existing) unmountPortalWorkspaceShell();
 

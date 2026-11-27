@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="src/shared/theme-boot.js?v=4"></script>
+    <script src="src/shared/theme-boot.js?v=6"></script>
     <script src="src/pages/index-boot.js"></script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
@@ -12,13 +12,13 @@
     <link rel="stylesheet" href="app.css?v=33">
     <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=16">
     <link rel="stylesheet" href="src/shared/dashboard-quick-search.css?v=3">
-    <link rel="stylesheet" href="src/shared/shell-fluent.css?v=17">
+    <link rel="stylesheet" href="src/shared/shell-fluent.css?v=25">
     <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=19">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=6">
     <link rel="stylesheet" href="src/shared/tenant-register-ui.css">
-    <link rel="stylesheet" href="src/shared/dashboard-tasks-split.css?v=26">
+    <link rel="stylesheet" href="src/shared/dashboard-tasks-split.css?v=27">
     <link rel="stylesheet" href="src/shared/fluent-blocks.css?v=9">
     <link rel="stylesheet" href="src/shared/dashboard-playbooks-split.css?v=3">
     <style>
@@ -1334,6 +1334,11 @@
             --accent-soft: color-mix(in srgb, var(--brand1) 12%, transparent);
             --accent-glow: color-mix(in srgb, var(--brand1) 16%, transparent);
         }
+        .dash-task[data-accent="sonstiges"] {
+            --accent: color-mix(in srgb, var(--brand2) 48%, var(--heading, #32325d));
+            --accent-soft: color-mix(in srgb, var(--brand2) 12%, transparent);
+            --accent-glow: color-mix(in srgb, var(--brand2) 18%, transparent);
+        }
         .dash-task:not(.dash-tasks-split__panel):hover,
         .dash-task:not(.dash-tasks-split__panel):focus-within {
             transform: translateY(-4px);
@@ -2562,7 +2567,7 @@
         </div>
         <div id="dashAccessDeniedBanner" class="dash-access-denied" hidden role="alert"></div>
         <div class="content">
-            <aside class="dash-news-strip" id="dashNewsStrip">
+            <aside class="dash-news-strip" id="dashNewsStrip" hidden>
                 <p class="dash-news-strip__kicker">Neuigkeiten</p>
                 <p class="dash-news-strip__text" id="dashNewsStripText">Hinweise zum Schulalltag und zur Einrichtung.</p>
                 <a class="dash-news-strip__link" href="neuigkeiten.html">Lesen</a>
@@ -2633,7 +2638,7 @@
                             <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-people"></i></div>
                             <span class="dash-task-index">01</span>
                         </div>
-                        <h3>Mitgliedschaften &amp; Sammelgruppen</h3>
+                        <h3>MS365 Mitgliedschaft &amp; Sammelgruppen</h3>
                         <p>Schüler-, Lehrkräfte-, Schulleitungs- und Verwaltungs-Sammelgruppen (Personal getrennt) mit Microsoft&nbsp;365 abgleichen.</p>
                         <div class="dash-task-progress-row" id="dashProgGruppenRow" data-context-tip="prog-gruppen" hidden>
                             <p class="dash-task-progress" id="dashProgGruppen"></p>
@@ -2645,11 +2650,11 @@
                             <p class="muted dash-task-scan-meta" id="dashGruppenScanMeta"></p>
                         </div>
                         <div class="dash-task-links dash-task-links--stack">
-                            <a class="dash-task-row dash-task-row--primary" href="tools/schueler-sammelgruppe.html" data-dash-hygiene-id="slg-schueler">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/schueler-lehrer-gruppen.html?kind=schueler" data-dash-hygiene-id="slg-schueler">
                                 <span class="dash-task-row__label"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i>Schüler:innen-Sammelgruppe</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
-                            <a class="dash-task-row dash-task-row--primary" href="tools/lehrer-sammelgruppe.html" data-dash-hygiene-id="slg-lehrer">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/schueler-lehrer-gruppen.html?kind=lehrer" data-dash-hygiene-id="slg-lehrer">
                                 <span class="dash-task-row__label"><i class="bi bi-person-workspace" aria-hidden="true"></i>Lehrer:innen-Sammelgruppe</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
@@ -2840,13 +2845,13 @@
                             </details>
                         </div>
                     </section>
-                    <section class="dash-task" data-accent="schulapps" id="dashTaskSchulApps" data-context-tip="task-schulapps" data-dash-task-search="planer schularbeiten freistellung projektwochen schulaktivitäten lehrer portal vorbereiten">
+                    <section class="dash-task" data-accent="schulapps" id="dashTaskSchulApps" data-context-tip="task-schulapps" data-dash-task-search="planer schularbeiten freistellung projektwochen schulaktivitäten lehrer portal vorbereiten schulwahlen schulsprecherwahl wahl">
                         <div class="dash-task-top">
                             <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-window-stack"></i></div>
                             <span class="dash-task-index">06</span>
                         </div>
                         <h3>Schul-Apps</h3>
-                        <p>Lehrer-Portal gestalten und freigeben; Planer für Schularbeiten, Freistellungen und Aktivitäten.</p>
+                        <p>Lehrer-Portal gestalten und freigeben; Planer für Schularbeiten, Freistellungen, Aktivitäten und Schulwahlen.</p>
                         <div class="dash-task-links dash-task-links--stack">
                             <a class="dash-task-row dash-task-row--primary" href="dashboard-werkzeug-zugriff.html">
                                 <span class="dash-task-row__label"><i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Portal vorbereiten</span>
@@ -2868,37 +2873,38 @@
                                 <span class="dash-task-row__label"><i class="bi bi-ui-checks-grid" aria-hidden="true"></i>Schulwahlen</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
-                            <details class="dash-task-expert">
-                                <summary><i class="bi bi-three-dots" aria-hidden="true"></i>Mehr …</summary>
-                                <a class="dash-task-row" href="tools/projektwochen.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-calendar-week" aria-hidden="true"></i>Projektwochen</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/schulaktivitaeten-planer.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Schulaktivitäten</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/sharepoint-liste-schularbeiten.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-list-ul" aria-hidden="true"></i>Schularbeiten-Listen (IT)</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/playbook-freistellungen.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook Freistellungen</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/playbook-schularbeiten-planer.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook Schularbeiten</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/playbook-eltern.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-chat-heart" aria-hidden="true"></i>Playbook Elternkommunikation</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/playbook-elternsprechtag.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-calendar2-heart" aria-hidden="true"></i>Playbook Elternsprechtag</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                            </details>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/projektwochen.html">
+                                <span class="dash-task-row__label"><i class="bi bi-calendar-week" aria-hidden="true"></i>Projektwochen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/schulaktivitaeten-planer.html">
+                                <span class="dash-task-row__label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Schulaktivitäten</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/sharepoint-liste-schularbeiten.html">
+                                <span class="dash-task-row__label"><i class="bi bi-list-ul" aria-hidden="true"></i>Schularbeiten-Listen (IT)</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/playbook-freistellungen.html">
+                                <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook Freistellungen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/playbook-schularbeiten-planer.html">
+                                <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook Schularbeiten</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/playbook-eltern.html">
+                                <span class="dash-task-row__label"><i class="bi bi-chat-heart" aria-hidden="true"></i>Playbook Elternkommunikation</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/elternsprechtag-bookings.html">
+                                <span class="dash-task-row__label"><i class="bi bi-calendar2-heart" aria-hidden="true"></i>Elternsprechtag (Bookings)</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/playbook-elternsprechtag.html">
+                                <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook Elternsprechtag</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </section>
                     <section class="dash-task" data-accent="ordnung" id="dashTaskOrdnung" data-context-tip="task-ordnung" data-dash-task-search="cleanup hygiene aufräumen gruppen audit landkarte">
@@ -2977,12 +2983,12 @@
                             <section class="choice" role="listitem" aria-label="Schüler:innen-Sammelgruppe" data-tool-id="slg-schueler" data-cluster="gruppen" data-search="sammelgruppe alle schüler schülerinnen schueler slg" draggable="true">
                                 <h2><i class="bi bi-mortarboard"></i>Schüler:innen-Sammelgruppe</h2>
                                 <p>Sammelgruppe für alle Schüler:innen matchen, anlegen und Mitglieder mit der Stammliste abgleichen.</p>
-                                <a class="btn" href="tools/schueler-sammelgruppe.html"><i class="bi bi-mortarboard-fill"></i>Öffnen</a>
+                                <a class="btn" href="tools/schueler-lehrer-gruppen.html?kind=schueler"><i class="bi bi-mortarboard-fill"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Lehrer:innen-Sammelgruppe" data-tool-id="slg-lehrer" data-cluster="gruppen" data-search="sammelgruppe alle lehrer lehrkräfte lehrerinnen slg" draggable="true">
                                 <h2><i class="bi bi-person-workspace"></i>Lehrer:innen-Sammelgruppe</h2>
                                 <p>Sammelgruppe für alle Lehrkräfte matchen, anlegen und Mitglieder mit der Stammliste abgleichen.</p>
-                                <a class="btn" href="tools/lehrer-sammelgruppe.html"><i class="bi bi-person-workspace"></i>Öffnen</a>
+                                <a class="btn" href="tools/schueler-lehrer-gruppen.html?kind=lehrer"><i class="bi bi-person-workspace"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Schulleitung und Verwaltung" data-tool-id="verwaltung" data-cluster="gruppen" data-search="sekretariat direktion schularzt verwaltung schulleitung sammelgruppe zielgruppe" draggable="true">
                                 <h2><i class="bi bi-building-gear"></i>Schulleitung &amp; Verwaltung</h2>
@@ -3215,7 +3221,7 @@
                             </section>
                             <section class="choice" role="listitem" aria-label="Elternsprechtag Bookings" data-tool-id="elternsprechtag-bookings" data-cluster="kommunikation" data-search="elternsprechtag bookings microsoft buchung lehrer dienst mitarbeiter 10 minuten sprechtag" draggable="true">
                                 <h2><i class="bi bi-calendar2-heart"></i>Elternsprechtag (Bookings)</h2>
-                                <p>Bookings-Grundanlage: eine Umgebung, ein 10‑Min-Dienst, alle Lehrkräfte als Mitarbeiter – Feinschliff im Bookings-Portal.</p>
+                                <p>IT-Grundanlage: eine Umgebung, ein 10‑Min-Dienst, Lehrkräfte als Mitarbeiter – Feinschliff im Bookings-Portal.</p>
                                 <a class="btn" href="tools/elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Playbook Elternkommunikation" data-tool-id="playbook-eltern" data-cluster="kommunikation" data-search="playbook eltern kommunikation verteiler bookings kanal" draggable="true">
@@ -3413,13 +3419,8 @@
                             </section>
                         </div>
                         <h4 class="dashboard-cluster-subhead"><i class="bi bi-building" aria-hidden="true"></i>Organisation</h4>
-                        <p class="dashboard-cluster-sublead">Wahlen, Stammdaten, Wahlfächer, Kollegium und Ausgaben.</p>
+                        <p class="dashboard-cluster-sublead">Stammdaten, Wahlfächer, Kollegium und Ausgaben.</p>
                         <div class="grid" data-cluster-grid="schulapps-organisation" role="list" aria-label="Organisation">
-                            <section class="choice" role="listitem" aria-label="Schulwahlen" data-tool-id="schulsprecherwahl" data-cluster="schulapps" data-search="schulsprecher schulsprecherwahl sga lehrervertretung stichwahl wahl stimme schülervertretung stv qr anonym wahlpunkte schulwahl" draggable="true">
-                                <h2><i class="bi bi-ui-checks-grid"></i>Schulwahlen</h2>
-                                <p>Schulsprecher:innenwahl und SGA-Lehrervertretung – anonym, QR-Abstimmung und Auswertung.</p>
-                                <a class="btn" href="tools/schulsprecherwahl.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
                             <section class="choice" role="listitem" aria-label="Schüler-Stammdaten-Portal" data-tool-id="schueler-stammdaten-portal" data-cluster="schulapps" data-search="stammdaten einschreibung anmeldung eltern sokrates svnr pin guid sharepoint" draggable="true">
                                 <h2><i class="bi bi-person-vcard"></i>Schüler-Stammdaten-Portal</h2>
                                 <p>Eltern-Formular mit GUID+PIN, Sekretariats-Admin und Sokrates-Einschreiber-Export.</p>
@@ -3459,6 +3460,11 @@
                                 <h2><i class="bi bi-map"></i>Raumplan</h2>
                                 <p>Raumliste importieren, Plan ansehen, Deep-Link zur Technik-Meldung.</p>
                                 <a class="btn" href="tools/raumplan.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schulwahlen" data-tool-id="schulsprecherwahl" data-cluster="schulapps" data-search="schulsprecher schulsprecherwahl sga lehrervertretung stichwahl wahl stimme schülervertretung stv qr anonym wahlpunkte schulwahl auswertung" draggable="true">
+                                <h2><i class="bi bi-ui-checks-grid"></i>Schulwahlen</h2>
+                                <p>Schulsprecher:innenwahl und SGA-Lehrervertretung – anonym, QR-Abstimmung und Auswertung. Nur Schul-IT.</p>
+                                <a class="btn" href="tools/schulsprecherwahl.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -3623,7 +3629,7 @@
     <script src="ms365-config.js"></script>
     <script src="src/shared/graph-unified-groups.js" defer></script>
     <script type="module" src="src/shared/msal-auth-ui.js?v=20261122e"></script>
-    <script src="src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="src/shared/theme-toggle.js?v=5" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>

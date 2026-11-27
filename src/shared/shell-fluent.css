@@ -44,15 +44,32 @@ body.app-shell-chrome > .page-card {
     min-height: 100vh;
 }
 
-body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell) {
+body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell, .wz-shell) {
     padding-bottom: 0;
 }
 
-body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell) > .header:not(.dash-compact-header) {
+body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell, .wz-shell) > .header:not(.dash-compact-header) {
     display: none !important;
 }
 
-body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell) > .content {
+body.app-shell-chrome > .container:has(.sa-shell, .pw-shell, .akt-shell, .fr-shell, .lfr-shell, .ku-shell, .eb-shell, .km-shell, .ein-shell, .ag-shell, .srdp-shell, .wz-shell) > .content {
+    padding: 0 !important;
+}
+
+/* IT-Arbeitsfläche hängt den Seitencontainer unter die Leiste, nicht direkt an body. */
+body.app-shell-chrome .it-workspace-shell__main > .container:has(.wz-shell) {
+    padding-bottom: 0;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+body.app-shell-chrome .it-workspace-shell__main > .container:has(.wz-shell) > .header:not(.dash-compact-header) {
+    display: none !important;
+}
+
+body.app-shell-chrome .it-workspace-shell__main > .container:has(.wz-shell) > .content {
     padding: 0 !important;
 }
 
@@ -66,7 +83,8 @@ body.app-shell-chrome .eb-shell,
 body.app-shell-chrome .km-shell,
 body.app-shell-chrome .ein-shell,
 body.app-shell-chrome .ag-shell,
-body.app-shell-chrome .srdp-shell {
+body.app-shell-chrome .srdp-shell,
+body.app-shell-chrome .wz-shell {
     grid-template-columns: 256px minmax(0, 1fr) !important;
     border: 0;
     border-radius: 0;
@@ -85,7 +103,8 @@ body.app-shell-chrome .eb-main,
 body.app-shell-chrome .km-main,
 body.app-shell-chrome .ein-main,
 body.app-shell-chrome .ag-main,
-body.app-shell-chrome .srdp-main {
+body.app-shell-chrome .srdp-main,
+body.app-shell-chrome .wz-main {
     background: var(--card) !important;
     color: var(--heading);
     padding: 32px 44px 56px;
@@ -247,6 +266,446 @@ body.page-dashboard .dash-portal-rows {
     border-top: 1px solid var(--border);
 }
 
+body.page-dashboard .dash-portal-briefing {
+    margin: 22px 0 28px;
+    min-width: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+body.page-dashboard .dash-portal-briefing__bar .dash-portal-section__title {
+    margin: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__hint {
+    margin: -4px 0 12px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+body.page-dashboard .dash-portal-briefing__grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: 72px;
+    gap: 16px;
+    align-items: stretch;
+}
+
+body.page-dashboard .dash-portal-briefing__grid.is-arranging {
+    background-image: radial-gradient(circle, color-mix(in srgb, var(--heading) 18%, transparent) 1px, transparent 1.4px);
+    background-size: 18px 18px;
+    border-radius: var(--radius-lg, 14px);
+}
+
+body.page-dashboard .dash-portal-briefing__card {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--card);
+    overflow: hidden;
+}
+
+body.page-dashboard .dash-portal-briefing__grid.is-arranging .dash-portal-briefing__card {
+    outline: 1px dashed color-mix(in srgb, var(--brand1) 55%, var(--border));
+    outline-offset: -1px;
+}
+
+body.page-dashboard button.dash-portal-briefing__head {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+body.page-dashboard .dash-portal-briefing__card.is-dragging {
+    z-index: 3;
+    cursor: grabbing;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--heading) 16%, transparent);
+}
+
+body.page-dashboard .dash-portal-briefing__card[data-attention='true'] {
+    box-shadow: inset 3px 0 0 var(--brand1);
+}
+
+body.page-dashboard .dash-portal-briefing__head {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+body.page-dashboard .dash-portal-briefing__head:hover,
+body.page-dashboard .dash-portal-briefing__head:focus-visible {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+    outline: none;
+}
+
+body.page-dashboard .dash-portal-briefing__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+    color: var(--brand1);
+    font-size: 1.05rem;
+}
+
+body.page-dashboard .dash-portal-briefing__heading {
+    min-width: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__heading strong {
+    display: block;
+    overflow: hidden;
+    color: var(--heading);
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.page-dashboard .dash-portal-briefing__heading small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 450;
+    line-height: 1.35;
+}
+
+body.page-dashboard .dash-portal-briefing__card[data-attention='true'] .dash-portal-briefing__heading small {
+    color: var(--brand1);
+    font-weight: 650;
+}
+
+body.page-dashboard .dash-portal-briefing__lines {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    border-top: 1px solid var(--border);
+}
+
+body.page-dashboard .dash-portal-briefing__resize {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+    cursor: nwse-resize;
+    touch-action: none;
+}
+
+body.page-dashboard .dash-portal-briefing__resize::before {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--brand1);
+    border-bottom: 2px solid var(--brand1);
+}
+
+body.page-dashboard .dash-portal-briefing__line {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 16px;
+    border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    color: inherit;
+    text-decoration: none;
+}
+
+body.page-dashboard .dash-portal-briefing__line:first-child {
+    border-top: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__line:hover,
+body.page-dashboard .dash-portal-briefing__line:focus-visible {
+    background: color-mix(in srgb, var(--heading) 5%, transparent);
+    outline: none;
+}
+
+body.page-dashboard .dash-portal-briefing__copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--heading);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.page-dashboard .dash-portal-briefing__meta,
+body.page-dashboard .dash-portal-briefing__empty {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 450;
+    line-height: 1.35;
+}
+
+body.page-dashboard .dash-portal-briefing__empty {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    margin: 0;
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--border);
+}
+
+body.page-dashboard .dash-portal-briefing__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+body.page-dashboard .dash-portal-briefing__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--heading);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1;
+    cursor: pointer;
+}
+
+body.page-dashboard .dash-portal-briefing__action:hover,
+body.page-dashboard .dash-portal-briefing__action:focus-visible {
+    border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+    outline: none;
+}
+
+body.page-dashboard .dash-portal-briefing__action--primary {
+    border-color: var(--brand1);
+    background: var(--brand1);
+    color: #fff;
+}
+
+body.page-dashboard .dash-portal-briefing__picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--card);
+}
+
+body.page-dashboard .dash-portal-briefing__pick-group {
+    grid-column: 1 / -1;
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+body.page-dashboard .dash-portal-briefing__pick-group:first-child {
+    margin-top: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__pick {
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+body.page-dashboard .dash-portal-briefing__pick strong,
+body.page-dashboard .dash-portal-briefing__pick small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.page-dashboard .dash-portal-briefing__pick strong {
+    color: var(--heading);
+    font-size: 13px;
+}
+
+body.page-dashboard .dash-portal-briefing__pick small {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+body.page-dashboard .dash-portal-briefing__pick:disabled {
+    opacity: 0.48;
+    cursor: default;
+}
+
+body.page-dashboard .dash-portal-briefing__remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--heading);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+body.page-dashboard .dash-portal-briefing__grid.is-arranging .dash-portal-briefing__head {
+    padding-right: 40px;
+}
+
+body.page-dashboard .dash-portal-briefing__line--split {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+
+body.page-dashboard .dash-portal-briefing__kicker {
+    color: var(--brand1);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+body.page-dashboard .dash-portal-briefing__week {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    flex: 1 1 auto;
+    min-height: 0;
+    border-top: 1px solid var(--border);
+}
+
+body.page-dashboard .dash-portal-briefing__day {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-left: 1px solid var(--border);
+}
+
+body.page-dashboard .dash-portal-briefing__day:first-child {
+    border-left: 0;
+}
+
+body.page-dashboard .dash-portal-briefing__day.is-today {
+    background: color-mix(in srgb, var(--brand1) 8%, transparent);
+}
+
+body.page-dashboard .dash-portal-briefing__day-label {
+    color: var(--heading);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+body.page-dashboard .dash-portal-briefing__day-item {
+    overflow: hidden;
+    color: var(--heading);
+    font-size: 12px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.page-dashboard .dash-portal-briefing__day-item.is-empty {
+    color: var(--muted);
+}
+
+body.page-dashboard .dash-portal-briefing__stat {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 0;
+    padding: 0 16px 14px;
+}
+
+body.page-dashboard .dash-portal-briefing__stat strong {
+    color: var(--heading);
+    font-size: 32px;
+    font-weight: 650;
+    line-height: 1;
+}
+
+body.page-dashboard .dash-portal-briefing__stat span {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+@media (max-width: 800px) {
+    body.page-dashboard .dash-portal-briefing__grid {
+        display: flex;
+        flex-direction: column;
+        background-image: none;
+    }
+
+    body.page-dashboard .dash-portal-briefing__card {
+        min-height: 180px;
+    }
+
+    body.page-dashboard .dash-portal-briefing__resize {
+        display: none;
+    }
+}
+
 body.page-dashboard button.dash-portal-row {
     width: 100%;
     border: 0;
@@ -272,6 +731,17 @@ body.page-dashboard .dash-portal-row {
 body.page-dashboard .dash-portal-row:hover,
 body.page-dashboard .dash-portal-row:focus-visible {
     background: color-mix(in srgb, var(--heading) 5%, transparent);
+}
+
+body.page-dashboard .dash-portal-row[aria-disabled='true'],
+body.page-dashboard .dash-portal-shell__subitem[aria-disabled='true'] {
+    cursor: default;
+}
+
+body.page-dashboard .dash-portal-row[aria-disabled='true']:hover,
+body.page-dashboard .dash-portal-row[aria-disabled='true']:focus-visible,
+body.page-dashboard .dash-portal-shell__subitem[aria-disabled='true']:hover {
+    background: transparent;
 }
 
 body.page-dashboard .dash-portal-row__icon {
@@ -450,6 +920,7 @@ body.app-shell-chrome .eb-nav,
 body.app-shell-chrome .km-nav,
 body.app-shell-chrome .ein-nav,
 body.app-shell-chrome .srdp-nav,
+body.app-shell-chrome .wz-nav,
 body.app-shell-chrome .lfr-nav {
     background: var(--rail-bg, var(--soft)) !important;
     color: var(--heading) !important;
@@ -491,6 +962,7 @@ body.app-shell-chrome .eb-nav__btn,
 body.app-shell-chrome .km-nav__btn,
 body.app-shell-chrome .ein-nav__btn,
 body.app-shell-chrome .srdp-nav__btn,
+body.app-shell-chrome .wz-nav__btn,
 body.app-shell-chrome .lfr-nav__btn {
     border-radius: 10px;
     font-size: 14px;
@@ -510,6 +982,7 @@ body.app-shell-chrome .eb-nav__btn i,
 body.app-shell-chrome .km-nav__btn i,
 body.app-shell-chrome .ein-nav__btn i,
 body.app-shell-chrome .srdp-nav__btn i,
+body.app-shell-chrome .wz-nav__btn i,
 body.app-shell-chrome .lfr-nav__btn i {
     color: var(--heading) !important;
 }
@@ -524,12 +997,16 @@ body.app-shell-chrome .eb-nav__btn.is-active,
 body.app-shell-chrome .km-nav__btn.is-active,
 body.app-shell-chrome .ein-nav__btn.is-active,
 body.app-shell-chrome .srdp-nav__btn.is-active,
+body.app-shell-chrome .wz-nav__btn.is-active,
 body.app-shell-chrome .lfr-nav__btn.is-active {
     background: var(--rail-active, #eceeee) !important;
     color: var(--heading) !important;
     font-weight: 600 !important;
 }
 
+body.app-shell-chrome #ms365AuthWidget {
+    z-index: 95;
+}
 body.app-shell-chrome #ms365AuthMenu,
 body.app-shell-chrome .ms365-auth-menu:not([hidden]) {
     position: fixed !important;
@@ -537,15 +1014,17 @@ body.app-shell-chrome .ms365-auth-menu:not([hidden]) {
     bottom: 12px !important;
     top: auto !important;
     right: auto !important;
-    z-index: 80;
-    width: min(268px, calc(100vw - 24px));
+    z-index: 95;
+    width: max-content;
+    max-width: min(320px, calc(100vw - 78px));
 }
-
 body.app-shell-chrome .ms365-auth-menu__trigger {
-    max-width: 268px;
+    position: relative;
+    isolation: isolate;
+    max-width: 320px;
     border-radius: 12px;
     border: 1px solid var(--border);
-    background: var(--card);
+    background: var(--card) !important;
     color: var(--heading);
     box-shadow: 0 8px 24px rgba(12, 18, 34, 0.1);
 }
@@ -557,13 +1036,13 @@ body.app-shell-chrome .ms365-auth-menu__panel {
     bottom: calc(100% + 8px) !important;
     left: 0 !important;
     right: auto !important;
-    width: min(268px, calc(100vw - 24px)) !important;
-    min-width: min(248px, calc(100vw - 24px));
-    max-width: min(268px, calc(100vw - 24px)) !important;
-    max-height: min(calc(100vh - 56px), 520px) !important;
+    width: min(320px, calc(100vw - 24px)) !important;
+    min-width: min(280px, calc(100vw - 24px));
+    max-width: min(320px, calc(100vw - 24px)) !important;
+    max-height: min(calc(100vh - 56px), 560px) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
-    padding: 6px 6px 4px;
+    padding: 10px 10px 8px;
     background: var(--card);
     color: var(--heading);
     border: 1px solid var(--border);
@@ -573,8 +1052,8 @@ body.app-shell-chrome .ms365-auth-menu__panel {
     gap: 0;
     columns: 1;
     column-count: 1;
-    font-size: 12px;
-    line-height: 1.25;
+    font-size: 14px;
+    line-height: 1.35;
 }
 
 body.app-shell-chrome .ms365-auth-menu.is-open #ms365AuthDropdown:not([hidden]),
@@ -610,8 +1089,14 @@ body.app-shell-chrome .ms365-auth-menu__section {
     width: 100%;
     float: none !important;
     break-inside: avoid;
-    padding: 4px 1px 3px;
+    padding: 8px 2px 6px;
     border-bottom: 1px solid var(--border);
+}
+
+/* display:block !important darf [hidden] nicht schlagen – sonst sieht jede Rolle den Bereichswechsel. */
+body.app-shell-chrome .ms365-auth-menu__section[hidden],
+body.app-shell-chrome .ms365-auth-menu [hidden] {
+    display: none !important;
 }
 
 body.app-shell-chrome .ms365-auth-menu__section:last-child {
@@ -633,9 +1118,9 @@ body.app-shell-chrome .ms365-auth-menu__item {
     width: 100%;
     min-width: 0;
     white-space: nowrap;
-    padding: 4px 6px;
-    font-size: 11.5px;
-    font-weight: 500;
+    padding: 8px 8px;
+    font-size: 14px;
+    font-weight: 550;
 }
 
 body.app-shell-chrome .ms365-auth-menu__item span {
@@ -653,8 +1138,8 @@ body.app-shell-chrome .ms365-auth-menu__year-select {
     min-width: 8.5rem;
     width: 100%;
     flex: 1 1 auto;
-    font-size: 12px;
-    padding: 6px 8px;
+    font-size: 14px;
+    padding: 7px 10px;
 }
 
 body.app-shell-chrome .ms365-auth-menu__year-wrap {
@@ -684,16 +1169,16 @@ body.app-shell-chrome .ms365-auth-menu__dash-seg {
 
 body.app-shell-chrome .ms365-auth-menu__dash-seg-btn {
     flex-direction: row;
-    gap: 3px;
-    padding: 4px 3px;
-    font-size: 10.5px;
+    gap: 4px;
+    padding: 7px 6px;
+    font-size: 13px;
     background: var(--soft);
     border-color: transparent;
     min-width: 0;
 }
 
 body.app-shell-chrome .ms365-auth-menu__dash-seg-btn .bi {
-    font-size: 0.8rem;
+    font-size: 1rem;
 }
 
 body.app-shell-chrome .ms365-auth-menu__dash-seg-k {
@@ -709,30 +1194,37 @@ body.app-shell-chrome .ms365-auth-menu__design-actions {
 }
 
 body.app-shell-chrome .ms365-auth-menu__theme-label {
-    font-size: 10.5px;
+    font-size: 14px;
     font-weight: 600;
-    color: var(--muted);
+    color: var(--heading);
 }
 
 body.app-shell-chrome .ms365-auth-menu__section-label {
-    padding: 0 4px 2px;
-    font-size: 9.5px;
+    padding: 0 4px 4px;
+    font-size: 11px;
 }
 
 body.app-shell-chrome .ms365-auth-menu__meta-name {
-    font-size: 12px;
+    font-size: 15px;
 }
 
 body.app-shell-chrome .ms365-auth-menu__meta-mail {
-    font-size: 10.5px;
+    font-size: 13px;
+}
+
+body.app-shell-chrome .ms365-auth-menu__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 4px 10px;
 }
 
 @media (max-width: 520px) {
     body.app-shell-chrome #ms365AuthDropdown,
     body.app-shell-chrome .ms365-auth-menu__panel {
-        width: min(260px, calc(100vw - 20px)) !important;
+        width: min(300px, calc(100vw - 20px)) !important;
         min-width: 0;
-        max-width: min(260px, calc(100vw - 20px)) !important;
+        max-width: min(300px, calc(100vw - 20px)) !important;
     }
 }
 

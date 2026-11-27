@@ -547,3 +547,50 @@ export function buildLocalDemoState(pack) {
         stammdaten: p.stammdaten || DEMO_STAMMDATEN
     };
 }
+
+/**
+ * Demo-Teilnehmer. Die ersten zwei freigegebenen Angebote gehören der angemeldeten E-Mail.
+ * @param {object[]} angebote
+ * @param {string} [accountEmail]
+ */
+export function buildDemoAttendees(angebote, accountEmail) {
+    const email = String(accountEmail || '')
+        .trim()
+        .toLowerCase();
+    const released = (angebote || []).filter((a) => a && a.status === 'freigegeben');
+    const mineIds = new Set(
+        released
+            .slice()
+            .sort((a, b) => String(a.datum || '').localeCompare(String(b.datum || '')) || String(a.title || '').localeCompare(String(b.title || '')))
+            .slice(0, 2)
+            .map((a) => a.angebotId)
+    );
+    const rows = [];
+    const occupancy = {};
+    released.forEach((a, idx) => {
+        const sid = a.bookingsServiceId || 'demo-svc-' + a.angebotId;
+        const cap = Number(a.kapazitaet) || 1;
+        const filled = Math.min(cap, 3 + (idx % 5));
+        occupancy[sid] = {
+            filled,
+            max: cap,
+            angebotId: a.angebotId,
+            title: a.title
+        };
+        for (let n = 0; n < filled; n++) {
+            const mine = !!(email && mineIds.has(a.angebotId) && n === 0);
+            rows.push({
+                appointmentId: 'demo-ap-' + idx + '-' + n,
+                serviceId: sid,
+                angebotId: a.angebotId,
+                angebotTitle: a.title,
+                datum: a.datum,
+                name: mine ? 'Angemeldetes Konto' : 'Schüler ' + (idx + 1) + '-' + (n + 1),
+                email: mine ? email : 'schueler.' + idx + n + '@kurtrocks.onmicrosoft.com',
+                phone: '',
+                klasse: mine ? '' : ['1AK', '2AK', '3AK'][n % 3]
+            });
+        }
+    });
+    return { rows, occupancy };
+}

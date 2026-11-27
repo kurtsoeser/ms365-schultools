@@ -12,7 +12,7 @@ export const DASHBOARD_SPEC_TOOL_DESCRIPTIONS = {
     klassenvorstaende:
         'Sammelgruppe oder Verteiler aller Klassenvorstände automatisch befüllen.',
     klassenchats:
-        'Gruppenchats oder private Kanäle im Lehrerteam für alle Lehrkräfte einer Klasse – inkl. Klassenvorstand.',
+        'Schul-IT legt Gruppenchats oder private Kanäle für die Lehrkräfte einer Klasse an – inkl. Klassenvorstand.',
     'arge-fachgruppen':
         'Eine Gruppe pro Fach oder Arbeitsgemeinschaft – aus den Listen in den Stammdaten.',
     'weitere-teams-gruppen': 'Sonderfälle und zusätzliche Teams oder Gruppen anlegen und pflegen.',

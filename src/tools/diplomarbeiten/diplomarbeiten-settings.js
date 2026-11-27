@@ -1,8 +1,16 @@
 /**
  * Diplomarbeiten / VWA – Betriebsmodus und Typ.
+ * Der Schlüssel liegt im Schul-Paket „school-apps-settings“ der IT-Bibliothek.
  */
+import { notifyAppLocalDataChanged } from '../../shared/app-local-data-notify.js';
+import {
+    CONFIG_BUNDLE_KIND,
+    CONFIG_BUNDLE_SCHEMA_VERSION,
+    fingerprintLocalStorageSlice
+} from '../../shared/stammdaten-sharepoint-config-bundle.js';
 
-const KEY = 'ms365-diplomarbeiten-settings-v1';
+export const DIPLOM_SETTINGS_KEY = 'ms365-diplomarbeiten-settings-v1';
+const KEY = DIPLOM_SETTINGS_KEY;
 
 /** @typedef {'diplom'|'vwa'} ArbeitTyp */
 /** @typedef {'channels'|'legacy'} Betriebsmodus */
@@ -56,5 +64,33 @@ export function saveDiplomSettings(partial) {
     } catch {
         /* ignore */
     }
+    notifyAppLocalDataChanged('diplomarbeiten-settings');
     return next;
+}
+
+/**
+ * Eine Schul-Datei fortschreiben, ohne die übrigen Schlüssel darin zu ersetzen.
+ * @param {unknown} part
+ * @param {string} settingsJson
+ */
+export function embedSettingsInSchoolAppsPart(part, settingsJson) {
+    const src = part && typeof part === 'object' ? /** @type {Record<string, unknown>} */ (part) : {};
+    const prevLs =
+        src.localStorage && typeof src.localStorage === 'object'
+            ? /** @type {Record<string, string>} */ (src.localStorage)
+            : {};
+    const localStorageSlice = Object.assign({}, prevLs, {
+        [KEY]: String(settingsJson || '')
+    });
+    return {
+        schemaVersion: CONFIG_BUNDLE_SCHEMA_VERSION,
+        bundleKind: CONFIG_BUNDLE_KIND,
+        bundlePart: 'school-apps-settings',
+        exportedAt: new Date().toISOString(),
+        schoolName: src.schoolName || null,
+        domain: src.domain || null,
+        keyCount: Object.keys(localStorageSlice).length,
+        fingerprint: fingerprintLocalStorageSlice(localStorageSlice),
+        localStorage: localStorageSlice
+    };
 }

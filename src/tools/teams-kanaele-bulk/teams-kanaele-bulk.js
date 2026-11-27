@@ -1,25 +1,27 @@
 (function () {
     'use strict';
 
-    const GRAPH_SCOPES = [
+    const SEARCH_SCOPES = [
         'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/Group.Read.All',
+        'https://graph.microsoft.com/Group.Read.All'
+    ];
+    const GRAPH_SCOPES = SEARCH_SCOPES.concat([
         'https://graph.microsoft.com/Channel.ReadBasic.All',
         'https://graph.microsoft.com/Channel.Create',
         'https://graph.microsoft.com/ChannelSettings.ReadWrite.All'
-    ];
+    ]);
 
     const GROUP_SELECT = 'id,displayName,mail,mailNickname,resourceProvisioningOptions';
     const STEP_HINTS = {
-        1: 'Schritt 1: Teams auswählen.',
-        2: 'Schritt 2: Kanalnamen festlegen.',
-        3: 'Schritt 3: Vorschau prüfen.',
-        4: 'Schritt 4: Ergebnis.'
+        1: 'Teams auswählen – danach Kanäle, Vorschau und Anlegen.',
+        2: 'Kanalnamen festlegen – Vorlage oder eigene Liste.',
+        3: 'Vorschau prüfen – was würde passieren?',
+        4: 'Kontrolliert ausführen und Ergebnis sehen.'
     };
     const NEXT_LABELS = {
-        1: 'Weiter zu Kanälen',
-        2: 'Weiter zur Vorschau',
-        3: 'Zum Ergebnis',
+        1: 'Weiter: Kanäle',
+        2: 'Weiter: Vorschau',
+        3: 'Weiter: Anlegen',
         4: 'Fertig'
     };
 
@@ -69,11 +71,18 @@
     }
 
     function isInteractionRequired(e) {
+        if (!e) return false;
+        const code = String(e.errorCode || e.code || '').toLowerCase();
+        const msg = String(e.message || '').toLowerCase();
         return (
-            e &&
-            (e.name === 'InteractionRequiredAuthError' ||
-                e.errorCode === 'interaction_required' ||
-                (typeof e.message === 'string' && e.message.indexOf('interaction_required') !== -1))
+            e.name === 'InteractionRequiredAuthError' ||
+            code === 'interaction_required' ||
+            code === 'consent_required' ||
+            code === 'login_required' ||
+            code === 'monitor_window_timeout' ||
+            msg.indexOf('interaction_required') !== -1 ||
+            msg.indexOf('monitor_window_timeout') !== -1 ||
+            msg.indexOf('token acquisition in iframe failed') !== -1
         );
     }
 
@@ -124,23 +133,28 @@
         return pca;
     }
 
-    async function getGraphToken() {
+    async function getGraphToken(scopes) {
+        const list = scopes && scopes.length ? scopes : GRAPH_SCOPES;
         if (!IT_AUTH_URL) {
             throw new Error(
                 'Die IT-App ms365-schultools-it ist nicht erreichbar (Modulpfad). Schreibzugriffe laufen nicht über die Portal-App.'
             );
         }
         const itMod = await import(IT_AUTH_URL);
-        const itToken = await itMod.acquireItTokenIfRequired(GRAPH_SCOPES, { mode: 'interactive' });
-        if (itToken) return itToken;
+        if (typeof itMod.scopesRequireItApp === 'function' && itMod.scopesRequireItApp(list)) {
+            return itMod.acquireItAppToken(list, { mode: 'popup' });
+        }
+        if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
+            return window.ms365AuthAcquireTokenPopup(list);
+        }
         const instance = await getPca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {
-            await instance.loginPopup({ scopes: GRAPH_SCOPES, prompt: 'select_account' });
+            await instance.loginPopup({ scopes: list, prompt: 'select_account' });
             accounts = instance.getAllAccounts();
         }
         if (!accounts.length) throw new Error('Anmeldung abgebrochen.');
-        const req = { scopes: GRAPH_SCOPES, account: accounts[0] };
+        const req = { scopes: list, account: accounts[0] };
         try {
             return (await instance.acquireTokenSilent(req)).accessToken;
         } catch (e) {
@@ -339,8 +353,18 @@
         if (hidden) hidden.value = value;
         const hyphen = document.getElementById('tkbStyleHyphen');
         const space = document.getElementById('tkbStyleSpace');
-        if (hyphen) hyphen.classList.toggle('is-active', value === 'hyphen');
-        if (space) space.classList.toggle('is-active', value === 'space');
+        if (hyphen) {
+            const on = value === 'hyphen';
+            hyphen.classList.toggle('is-selected', on);
+            hyphen.classList.toggle('is-active', on);
+            hyphen.setAttribute('aria-checked', on ? 'true' : 'false');
+        }
+        if (space) {
+            const on = value === 'space';
+            space.classList.toggle('is-selected', on);
+            space.classList.toggle('is-active', on);
+            space.setAttribute('aria-checked', on ? 'true' : 'false');
+        }
     }
 
     function recommendEnabled() {
@@ -621,6 +645,48 @@
             }),
             'bi-people'
         );
+
+        const box = document.getElementById('tkbPreviewSummaryBox');
+        const title = document.getElementById('tkbPreviewSummaryTitle');
+        const list = document.getElementById('tkbPreviewSummaryList');
+        const ready = teams.length > 0 && specs.length > 0;
+        if (box) box.className = 'pw-msg ' + (ready ? 'pw-msg--ok' : 'pw-msg--warn');
+        if (title) {
+            title.textContent = ready
+                ? 'Bereit zum Anlegen'
+                : teams.length
+                  ? 'Noch Kanalnamen festlegen'
+                  : 'Noch Teams auswählen';
+        }
+        if (list) {
+            const items = [];
+            if (teams.length) {
+                items.push(
+                    '✓ ' +
+                        teams.length +
+                        ' Team' +
+                        (teams.length === 1 ? '' : 's') +
+                        ' ausgewählt'
+                );
+            } else {
+                items.push('⚠ Noch keine Teams ausgewählt');
+            }
+            if (specs.length) {
+                items.push(
+                    '✓ ' +
+                        specs.length +
+                        ' Kanal' +
+                        (specs.length === 1 ? '' : 'e') +
+                        ' werden je Team geprüft'
+                );
+            } else {
+                items.push('⚠ Noch keine Kanalnamen');
+            }
+            items.push('✓ Vorhandene Kanäle werden nicht dupliziert');
+            list.innerHTML = items.map(function (t) {
+                return '<li>' + t + '</li>';
+            }).join('');
+        }
     }
 
     function renderResultSummary(summary, dryRun) {
@@ -629,8 +695,11 @@
             : null;
         const wrap = document.getElementById('tkbResultSummary');
         const lead = document.getElementById('tkbResultLead');
+        const title = document.getElementById('tkbResultTitle');
+        const exec = document.getElementById('tkbExecPanel');
         if (!summary) {
             if (wrap) wrap.hidden = true;
+            if (exec) exec.hidden = true;
             if (lead) {
                 lead.textContent =
                     'Noch kein Lauf – nach der Vorschau „Jetzt anlegen“ oder Dry-Run starten.';
@@ -638,6 +707,7 @@
             updateGlanceValues();
             return;
         }
+        if (exec) exec.hidden = true;
         if (wrap) wrap.hidden = false;
         const c = document.getElementById('tkbStatCreated');
         const e = document.getElementById('tkbStatExisted');
@@ -645,6 +715,14 @@
         if (c) c.textContent = String(summary.created);
         if (e) e.textContent = String(summary.existed);
         if (f) f.textContent = String(summary.fail);
+        if (title) {
+            title.textContent =
+                summary.fail === 0
+                    ? dryRun
+                        ? 'Dry-Run fertig ✓'
+                        : 'Fertig ✓'
+                    : summary.created + summary.existed + ' von ' + summary.total + ' ok';
+        }
         if (lead) {
             lead.textContent = dryRun
                 ? 'Dry-Run abgeschlossen – es wurde nichts angelegt.'
@@ -653,22 +731,48 @@
         updateGlanceValues();
     }
 
+    function paintExecList(rows) {
+        const list = document.getElementById('tkbExecList');
+        const meta = document.getElementById('tkbExecMeta');
+        if (!list) return;
+        list.innerHTML = rows
+            .map(function (r) {
+                let cls = 'is-wait';
+                let mark = '○ Wartet';
+                if (r.state === 'run') {
+                    cls = 'is-run';
+                    mark = '● Wird verarbeitet …';
+                } else if (r.state === 'ok') {
+                    cls = 'is-ok';
+                    mark = '✓ Erledigt';
+                } else if (r.state === 'fail') {
+                    cls = 'is-fail';
+                    mark = '✕ Fehler';
+                }
+                return (
+                    '<li class="' +
+                    cls +
+                    '"><span><strong>' +
+                    String(r.label || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;') +
+                    '</strong></span><span>' +
+                    mark +
+                    '</span></li>'
+                );
+            })
+            .join('');
+        if (meta) {
+            const done = rows.filter(function (r) {
+                return r.state === 'ok' || r.state === 'fail';
+            }).length;
+            meta.textContent = done + ' von ' + rows.length + ' abgeschlossen';
+        }
+    }
+
     function updateGlanceValues() {
-        const g1 = document.getElementById('tkbGlance1');
-        const g2 = document.getElementById('tkbGlance2');
-        const g3 = document.getElementById('tkbGlance3');
-        const g4 = document.getElementById('tkbGlance4');
         const nTeams = selectedTeams().length;
         const nCh = channelSpecs().length;
-        if (g1) g1.textContent = nTeams ? nTeams + ' gewählt' : 'Auswählen';
-        if (g2) g2.textContent = nCh ? nCh + ' Kanäle' : 'Festlegen';
-        if (g3) g3.textContent = nTeams && nCh ? 'Bereit' : 'Prüfen';
-        if (g4) {
-            if (!lastSummary) g4.textContent = 'Offen';
-            else if (lastSummary.fail) g4.textContent = 'Mit Fehlern';
-            else g4.textContent = lastSummary.dryRun ? 'Dry-Run ok' : 'Erledigt';
-        }
-
         const tab1 = document.getElementById('tkbTab1');
         const tab2 = document.getElementById('tkbTab2');
         const tab3 = document.getElementById('tkbTab3');
@@ -695,7 +799,10 @@
             if (pane) pane.hidden = !active;
             if (tab) {
                 tab.classList.toggle('is-active', active);
+                tab.classList.toggle('is-done', i < wizardStep);
                 tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                if (active) tab.setAttribute('aria-current', 'step');
+                else tab.removeAttribute('aria-current');
             }
         }
 
@@ -707,12 +814,22 @@
         if (back) back.disabled = wizardStep <= 1;
         if (fwd) {
             fwd.disabled = wizardStep >= 4;
+            fwd.className = 'fb-btn';
             fwd.innerHTML =
                 wizardStep >= 4
                     ? '<i class="bi bi-check2"></i>Fertig'
                     : '<i class="bi bi-arrow-right"></i>' + (NEXT_LABELS[wizardStep] || 'Weiter');
         }
+        if (back) back.className = 'fb-btn fb-btn--ghost';
         updateGlanceValues();
+        const heading = document.getElementById('tkbStep' + wizardStep + 'Heading');
+        if (heading && typeof heading.focus === 'function') {
+            try {
+                heading.focus({ preventScroll: false });
+            } catch {
+                heading.focus();
+            }
+        }
     }
 
     function applyPresetIfEmpty() {
@@ -746,10 +863,13 @@
         }
         const btn = document.getElementById('tkbBulkSearch');
         if (btn) btn.disabled = true;
-        bulkResults = [];
-        renderBulkResults();
+        const empty = document.getElementById('tkbTeamsEmpty');
+        if (empty) {
+            empty.hidden = false;
+            empty.textContent = 'Suche läuft …';
+        }
         try {
-            const token = await getGraphToken();
+            const token = await getGraphToken(SEARCH_SCOPES);
             const groups = await listTeamGroupsFromGraph(token);
             const logic = L();
             const matched =
@@ -827,6 +947,21 @@
 
         clearLog();
         renderResultSummary(null);
+        const execPanel = document.getElementById('tkbExecPanel');
+        if (execPanel) execPanel.hidden = false;
+        const execTitle = document.getElementById('tkbExecTitle');
+        if (execTitle) {
+            execTitle.textContent = dryRun
+                ? 'Dry-Run läuft'
+                : 'Kanäle werden angelegt';
+        }
+        const execRows = selected.map(function (team) {
+            return {
+                label: team.displayName || team.mailNickname || team.id,
+                state: 'wait'
+            };
+        });
+        paintExecList(execRows);
         appendLog(
             (dryRun ? 'Dry-Run' : 'Anlage') +
                 ' für ' +
@@ -841,6 +976,7 @@
             token = await getGraphToken();
         } catch (e) {
             appendLog('Anmeldung/Token: ' + ((e && e.message) || e), 'err');
+            if (execPanel) execPanel.hidden = true;
             if (btnCreate) btnCreate.disabled = false;
             if (btnDry) btnDry.disabled = false;
             if (btnSearch) btnSearch.disabled = false;
@@ -853,6 +989,8 @@
         for (let i = 0; i < selected.length; i++) {
             const team = selected[i];
             const label = team.displayName || team.mailNickname || team.id;
+            execRows[i].state = 'run';
+            paintExecList(execRows);
             appendLog('[' + (i + 1) + '/' + selected.length + '] ' + label);
 
             try {
@@ -905,9 +1043,13 @@
                         }
                     }
                 }
+                execRows[i].state = 'ok';
+                paintExecList(execRows);
             } catch (eTeam) {
                 appendLog('  Team-Fehler: ' + ((eTeam && eTeam.message) || eTeam), 'err');
                 allResults.push({ ok: false });
+                execRows[i].state = 'fail';
+                paintExecList(execRows);
             }
         }
 
@@ -942,7 +1084,7 @@
 
     async function onLogin() {
         try {
-            await getGraphToken();
+            await getGraphToken(SEARCH_SCOPES);
             toast('Angemeldet.');
         } catch (e) {
             toast(String((e && e.message) || e));

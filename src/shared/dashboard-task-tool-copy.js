@@ -58,6 +58,11 @@ export const TOOL_PRACTICE_COPY = {
         title: 'Alle Lehrkräfte in M365',
         desc: 'Lehrkräfte-Sammelgruppe verwalten und synchronisieren'
     },
+    'tools/schueler-lehrer-gruppen.html': {
+        title: 'Schüler- und Lehrkräfte-Sammelgruppen',
+        desc: 'Sammelgruppen pflegen und mit Microsoft abgleichen'
+    },
+
     'tools/verwaltung.html': {
         title: 'Schulleitung & Verwaltung',
         desc: 'Zwei Sammelgruppen (Direktion vs. Personal) matchen und synchronisieren'
@@ -198,6 +203,14 @@ export const TOOL_PRACTICE_COPY = {
 
 /** Spezialfälle mit Query-Parametern */
 const TOOL_PRACTICE_COPY_QUERY = {
+    'tools/schueler-lehrer-gruppen.html?kind=schueler': {
+        title: 'Alle Schüler:innen in M365',
+        desc: 'Sammelgruppe pflegen und mit Microsoft abgleichen'
+    },
+    'tools/schueler-lehrer-gruppen.html?kind=lehrer': {
+        title: 'Alle Lehrkräfte in M365',
+        desc: 'Lehrkräfte-Sammelgruppe verwalten und synchronisieren'
+    },
     'tools/verwaltung.html?kind=schulleitung': {
         title: 'Schulleitung',
         desc: 'Direktion-Sammelgruppe in Microsoft 365 matchen und synchronisieren'
@@ -206,6 +219,7 @@ const TOOL_PRACTICE_COPY_QUERY = {
         title: 'Verwaltung (Personal)',
         desc: 'Sekretariat und Verwaltungspersonal getrennt von der Direktion abgleichen'
     },
+
     'tools/kursteams.html?mode=single': {
         title: 'Einzelne Teams nachziehen',
         desc: 'Ein Unterrichtsteam manuell anlegen oder reparieren'
@@ -416,7 +430,7 @@ export const DASH_TASK_SCENARIOS = [
         icon: 'bi-people',
         situation: 'Sammelgruppe stimmt nicht',
         taskId: 'dashTaskGruppen',
-        href: 'tools/schueler-sammelgruppe.html',
+        href: 'tools/schueler-lehrer-gruppen.html?kind=schueler',
         toolLabel: 'Schüler:innen-Sammelgruppe'
     }
 ];

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -10,495 +10,15 @@
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Personen</title>
     <link rel="stylesheet" href="../app.css?v=28">
-        <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
-<link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
-    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
-
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=2">
+    <link rel="stylesheet" href="../src/shared/membership-groups-fluent.css?v=2">
+    <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
+    <link rel="stylesheet" href="../src/tools/personen-verwaltung/personen-verwaltung.css?v=2">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .page-card { max-width: var(--app-max-width); margin: 0 auto; }
-        .layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            align-items: start;
-            padding-bottom: 20px;
-        }
-        @media (max-width: 1050px) {
-            .layout { grid-template-columns: 1fr; }
-        }
-        .panel {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: #fff;
-            overflow: hidden;
-        }
-        .panel-head {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            background: var(--soft);
-        }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: var(--heading); font-weight: 700; }
-        .panel-body { padding: 14px 16px; }
-        .muted { color: var(--muted); }
-
-        .tree-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-        .tree-actions .btn { margin: 0; padding: 10px 12px; border-radius: 10px; }
-        .small-btn { padding: 8px 10px !important; font-size: 0.92em; }
-
-        .tree-filter { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-        .tree-filter label { display: block; font-weight: 700; color: #495057; margin-bottom: 6px; font-size: 0.92em; }
-        .tree-filter select, .tree-filter input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font: inherit;
-            box-sizing: border-box;
-        }
-        .pv-filter-sort { grid-column: 1 / -1; }
-        @media (min-width: 640px) {
-            .tree-filter.pv-filters-3 { grid-template-columns: 1fr 1fr; }
-        }
-        @media (min-width: 900px) {
-            .tree-filter.pv-filters-3 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-        }
-
-        #pvAdSummary .pv-ad-filter-link {
-            appearance: none;
-            border: 0;
-            background: transparent;
-            color: inherit;
-            font: inherit;
-            padding: 0;
-            margin: 0;
-            cursor: pointer;
-            text-decoration: underline;
-            text-underline-offset: 2px;
-        }
-        #pvAdSummary .pv-ad-filter-link:hover { color: var(--brand1); }
-
-        .tree {
-            margin: 12px 0 0;
-            padding: 0;
-            list-style: none;
-            max-height: min(64vh, 560px);
-            overflow: auto;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-        }
-        .tree li { border-bottom: 1px solid #f0f1f3; }
-        .tree li:last-child { border-bottom: 0; }
-        .tree button.pv-tree-row {
-            width: 100%;
-            text-align: left;
-            background: transparent;
-            border: 0;
-            padding: 10px 12px;
-            cursor: pointer;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            font: inherit;
-            box-sizing: border-box;
-        }
-        .tree button.pv-tree-row:hover { background: color-mix(in srgb, var(--brand1) 6%, transparent); }
-        .tree button.pv-tree-row[aria-current="true"] { background: color-mix(in srgb, var(--brand1) 10%, transparent); }
-        .pv-tree-icon {
-            flex: 0 0 auto;
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: color-mix(in srgb, var(--brand1) 10%, transparent);
-            color: var(--brand1);
-            font-size: 1.1rem;
-        }
-        .pv-tree-main { flex: 1 1 auto; min-width: 0; }
-        .pv-tree-title { font-weight: 800; color: var(--heading); line-height: 1.25; word-break: break-word; }
-        .pv-tree-sub { font-size: 0.86em; color: var(--muted); margin-top: 2px; word-break: break-all; }
-        .pv-tree-meta { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            border: 1px solid #e9ecef;
-            background: #fafbff;
-            color: #495057;
-            font-weight: 800;
-            font-size: 0.78em;
-            white-space: nowrap;
-        }
-        .pill.ok { border-color: rgba(13,128,80,0.18); background: rgba(13,128,80,0.08); color: #0d8050; }
-        .pill.err { border-color: rgba(176,0,32,0.22); background: rgba(176,0,32,0.07); color: #b00020; }
-        .pill.muted-pill { border-color: #e9ecef; background: #f8f9fa; color: #6c757d; }
-
-        .stats {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-        .stat {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 10px 12px;
-            background: #fff;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-        }
-        .stat .n { font-weight: 700; font-size: 1.15em; color: var(--heading); }
-        .stat .l { font-size: 0.88em; color: var(--muted); margin-top: 2px; }
-
-        .gd-page-info {
-            margin: 16px 0 0;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: var(--card);
-        }
-        .gd-page-info > summary {
-            cursor: pointer;
-            padding: 12px 14px;
-            font-weight: 750;
-            color: var(--brand1);
-            list-style: none;
-            font-size: 0.92em;
-        }
-        .gd-page-info > summary::-webkit-details-marker { display: none; }
-        .gd-page-info > summary i { margin-right: 8px; }
-        .gd-page-info__body {
-            padding: 0 14px 14px;
-            border-top: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 0.92em;
-            line-height: 1.55;
-        }
-        .gd-page-info__body p { margin: 10px 0 0; }
-
-        /* Detail-Tabs: Styles kommen aus app.css (Design-Foundation) */
-
-        .hint {
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--soft);
-            color: #495057;
-            line-height: 1.45;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 12px;
-        }
-        @media (max-width: 900px) {
-            .form-grid { grid-template-columns: 1fr; }
-        }
-        .field label { display: block; font-weight: 700; margin: 0 0 6px; color: #495057; }
-        .field input[readonly] {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font: inherit;
-            box-sizing: border-box;
-            background: #f8f9fa;
-            color: var(--heading);
-        }
-        .field-full { grid-column: 1 / -1; }
-
-        .pv-groups-wrap {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: auto;
-            max-height: min(48vh, 420px);
-        }
-        .pv-groups-wrap table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
-        .pv-groups-wrap th, .pv-groups-wrap td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #f0f1f3;
-            text-align: left;
-            vertical-align: top;
-        }
-        .pv-groups-wrap thead th {
-            background: color-mix(in srgb, var(--brand1) 6%, transparent);
-            font-weight: 800;
-            color: var(--heading);
-            position: sticky;
-            top: 0;
-        }
-        .pv-schulstruktur-cat { margin: 0 0 18px; }
-        .pv-schulstruktur-cat__title {
-            margin: 0 0 8px;
-            font-size: 0.95rem;
-            font-weight: 800;
-            color: var(--heading);
-        }
-        .pv-schulstruktur-table-wrap { max-height: min(36vh, 280px); }
-        .pv-schulstruktur-detail {
-            font-size: 0.88em;
-            color: #6c757d;
-        }
-        .pv-schulstruktur-empty {
-            border: 1px dashed var(--border, #ced4da);
-            border-radius: 12px;
-            padding: 16px 18px;
-            background: color-mix(in srgb, var(--brand1, #635bff) 4%, transparent);
-        }
-        .pv-lic-usage-row,
-        .pv-lic-assign-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .pv-group-checklist {
-            border: 1px solid var(--border, #ced4da);
-            border-radius: 10px;
-            padding: 6px 4px;
-            max-height: 220px;
-            overflow-y: auto;
-            background: var(--surface, #fff);
-            margin-top: 8px;
-        }
-        .pv-group-checklist-hint {
-            display: block;
-            padding: 6px 10px;
-            color: var(--muted, #6c757d);
-            font-size: 0.92em;
-        }
-        .pv-group-checklist-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 6px 10px;
-            border-radius: 7px;
-            cursor: pointer;
-            user-select: none;
-        }
-        .pv-group-checklist-item:hover {
-            background: color-mix(in srgb, var(--brand1) 8%, transparent);
-        }
-        .pv-group-checklist-item input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-            cursor: pointer;
-            accent-color: var(--brand1);
-        }
-        .pv-group-checklist-item.is-checked {
-            background: color-mix(in srgb, var(--brand1) 12%, transparent);
-            font-weight: 600;
-        }
-        .pv-group-checklist-selectall {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 10px 6px;
-            border-bottom: 1px solid var(--border, #eef1f4);
-            margin-bottom: 2px;
-            font-size: 0.88em;
-            color: var(--muted, #6c757d);
-            cursor: pointer;
-            user-select: none;
-        }
-        .pv-group-checklist-selectall:hover { color: var(--brand1); }
-        .pv-lic-usage-row input,
-        .pv-lic-assign-row select,
-        .pv-lic-assign-row input {
-            flex: 1 1 160px;
-            min-width: 0;
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font: inherit;
-            box-sizing: border-box;
-        }
-        .pv-lic-assign-row { margin: 10px 0 8px; }
-        .pv-lic-section-title {
-            margin: 16px 0 8px;
-            font-size: 0.95em;
-            font-weight: 700;
-            color: var(--heading);
-        }
-
-        .pv-log {
-            max-height: 180px;
-            overflow: auto;
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: #fff;
-            font-family: Consolas, monospace;
-            font-size: 0.82em;
-            line-height: 1.45;
-        }
-
-        .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; align-items: center; }
-        .detail-actions .btn { margin: 0; }
-
-        .field input:not([readonly]), .field textarea:not([readonly]) {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font: inherit;
-            box-sizing: border-box;
-            background: #fff;
-            color: var(--heading);
-        }
-        #pvPanelProfil .field-editable label { color: var(--heading); }
-        #pvPanelProfil .field-editable input,
-        #pvPanelProfil .field-editable select {
-            background: #fff;
-            border-color: color-mix(in srgb, var(--brand1) 55%, transparent);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand1) 12%, transparent);
-        }
-        #pvPanelProfil .field-readonly label {
-            color: #868e96;
-            font-weight: 650;
-        }
-        #pvPanelProfil .field-readonly input {
-            background: #eef0f2;
-            color: #6c757d;
-            border-color: #dee2e6;
-            cursor: default;
-        }
-        .field .pv-checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 4px;
-        }
-        .field .pv-checkbox-row input[type="checkbox"] { width: auto; margin: 0; }
-
-        .pv-modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.55);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 18px;
-            z-index: 9999;
-        }
-        .pv-modal-backdrop.active { display: flex; }
-        .pv-modal {
-            width: min(720px, 96vw);
-            max-height: 92vh;
-            overflow: auto;
-            background: #fff;
-            border-radius: 16px;
-            border: 1px solid color-mix(in srgb, var(--brand1) 22%, transparent);
-            box-shadow: 0 24px 70px rgba(0,0,0,0.35);
-        }
-        .pv-modal-head {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            background: var(--soft);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-        }
-        .pv-modal-head h3 { margin: 0; color: var(--heading); font-size: 1.05em; font-weight: 700; }
-        .pv-modal-body { padding: 14px 16px; }
-        .pv-modal-close {
-            border: 1px solid color-mix(in srgb, var(--brand1) 22%, transparent);
-            background: #fff;
-            border-radius: 12px;
-            padding: 8px 10px;
-            cursor: pointer;
-            font-weight: 700;
-            color: var(--heading);
-        }
-
-        .pv-onboard {
-            margin: 0 0 14px;
-            text-align: left;
-            background: color-mix(in srgb, var(--brand1) 10%, #fff);
-            border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border));
-            border-radius: 14px;
-            padding: 12px 14px 14px;
-        }
-        .pv-onboard__kicker {
-            margin: 0 0 4px;
-            color: var(--heading);
-            font-size: 0.95em;
-            font-weight: 700;
-        }
-        .pv-onboard__why {
-            margin: 0 0 10px;
-            color: #495057;
-            font-size: 0.86em;
-            font-weight: 650;
-            line-height: 1.45;
-        }
-        .pv-onboard__steps {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-        }
-        @media (max-width: 640px) {
-            .pv-onboard__steps { grid-template-columns: 1fr; }
-        }
-        .pv-onboard__steps li {
-            background: #fff;
-            color: var(--heading);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            padding: 10px 12px;
-            display: grid;
-            grid-template-columns: auto 1fr;
-            grid-template-rows: auto auto;
-            column-gap: 10px;
-            row-gap: 2px;
-            align-items: start;
-        }
-        .pv-onboard__steps li.is-current {
-            border-color: color-mix(in srgb, var(--brand1) 55%, var(--border));
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 18%, transparent);
-        }
-        .pv-onboard__n {
-            grid-row: 1 / span 2;
-            width: 26px;
-            height: 26px;
-            border-radius: 999px;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(135deg, var(--brand1), var(--brand2));
-            color: #fff;
-            font-weight: 700;
-            font-size: 0.85em;
-        }
-        .pv-onboard__t {
-            font-weight: 700;
-            font-size: 0.9em;
-            color: var(--heading);
-            line-height: 1.25;
-        }
-        .pv-onboard__d {
-            font-size: 0.78em;
-            line-height: 1.35;
-            color: #495057;
-            font-weight: 600;
-        }
-    /* Welle 3 personen */
-.panel{border-radius:10px;background:var(--card);}
-.panel-head h2{font-weight:650!important;}
-.btn-success{background:var(--brand1)!important;border-color:var(--brand1)!important;color:var(--on-accent,#04211d)!important;}
-
-/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
 .page-card.tm-page,
 .container.page-card {
     --brand: var(--brand1);
@@ -516,11 +36,10 @@ button.btn-success {
     border-color: var(--brand1);
     color: var(--on-accent, #04211d);
 }
-
-</style>
+    </style>
 </head>
-<body>
-    <div class="container page-card">
+<body class="app-shell-chrome">
+    <div class="container page-card mg-page pv-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
@@ -529,106 +48,142 @@ button.btn-success {
             </div>
             <p>Konten suchen, anlegen und Lizenzen prüfen.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-personen-verwaltung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html"><i class="bi bi-database"></i>Stammdaten</a>
+                <a class="btn" href="gaeste-verwalten.html"><i class="bi bi-person-plus"></i>Gäste</a>
             </div>
         </div>
 
         <div class="content">
+            <section class="mg-hero" aria-label="Stand">
+                <h1 class="fb-greet">Personen-Verwaltung</h1>
+                <p class="fb-sub">Liste links · Profil, Lizenzen und Gruppen rechts · neues Konto über Neu.</p>
+            </section>
+
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Personen geladen. Melden Sie sich an und lesen Sie Konten ein – oder starten Sie die Demo für lokale Stammdaten."></div>
 
-            <div class="layout">
+            <div class="gd-layout">
                 <section class="panel" aria-label="Personenliste">
-                    <div class="panel-head">
-                        <h2><i class="bi bi-people" style="margin-right:10px;"></i>Personen</h2>
-                        <div class="tree-actions">
-                            <button type="button" class="btn btn-success small-btn" id="pvBtnNeu"><i class="bi bi-plus-circle"></i>Neu</button>
-                            <button type="button" class="btn btn-success small-btn" id="pvBtnLoad"><i class="bi bi-cloud-download"></i>Personen einlesen</button>
-                            <button type="button" class="btn small-btn" id="pvBtnCsv"><i class="bi bi-download"></i>CSV</button>
-                            <button type="button" class="btn small-btn" id="pvBtnExportAdSync" title="Alle AD-gesyncten Konten als Bericht"><i class="bi bi-hdd-network"></i>AD‑Sync‑Bericht</button>
-                            <button type="button" class="btn small-btn" id="pvBtnExportAdFlagged" title="Markierte Konten für lokalen Admin"><i class="bi bi-clipboard-data"></i>Markierte</button>
-                        </div>
-                        <div class="tree-filter pv-filters-3" aria-label="Filter">
-                            <div>
-                                <label for="pvFilterUserType">Kontotyp</label>
-                                <select id="pvFilterUserType" autocomplete="off">
-                                    <option value="">(alle)</option>
-                                    <option value="Member">Mitglied</option>
-                                    <option value="Guest">Gast</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="pvFilterAccount">Konto</label>
-                                <select id="pvFilterAccount" autocomplete="off">
-                                    <option value="">(alle)</option>
-                                    <option value="1">Nur aktive</option>
-                                    <option value="0">Nur deaktivierte</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="pvFilterDepartment">Abteilung</label>
-                                <select id="pvFilterDepartment" autocomplete="off">
-                                    <option value="">(alle)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="pvFilterLicense">Lizenz</label>
-                                <select id="pvFilterLicense" autocomplete="off">
-                                    <option value="">(alle Lizenzen)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="pvFilterAdSync">AD‑Sync</label>
-                                <select id="pvFilterAdSync" autocomplete="off" title="Konten aus lokalem Active Directory (Hybrid)">
-                                    <option value="" selected>(alle)</option>
-                                    <option value="adSync">Mit lokalem AD synchronisiert</option>
-                                    <option value="cloud">Nur Cloud (kein AD‑Sync)</option>
-                                    <option value="flagged">Nur markiert (für Admin)</option>
-                                </select>
-                            </div>
-                            <div class="pv-filter-sort">
-                                <label for="pvFilterText">Suche</label>
-                                <input type="text" id="pvFilterText" placeholder="z. B. Name, UPN, SAM‑Account …" autocomplete="off">
-                            </div>
-                            <div class="pv-filter-sort">
-                                <label for="pvSortKey">Sortierung</label>
-                                <select id="pvSortKey" autocomplete="off">
-                                    <option value="displayName:asc">Anzeigename A–Z</option>
-                                    <option value="displayName:desc">Anzeigename Z–A</option>
-                                    <option value="userPrincipalName:asc">Benutzername A–Z</option>
-                                    <option value="department:asc">Abteilung A–Z</option>
-                                    <option value="mail:asc">E-Mail A–Z</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
                     <div class="panel-body">
+                        <div class="gd-master-head">
+                            <div class="gd-master-head__titles">
+                                <h2>Personen</h2>
+                                <p class="gd-master-head__count" id="pvListSummary">Noch nicht eingelesen</p>
+                            </div>
+                            <div class="gd-master-head__actions">
+                                <button type="button" class="btn btn-success" id="pvBtnNeu"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="btn btn-success" id="pvBtnLoad"><i class="bi bi-cloud-download"></i>Einlesen</button>
+                                <details class="gd-overflow" id="pvMasterOverflow">
+                                    <summary aria-label="Weitere Aktionen" title="Weitere Aktionen">···</summary>
+                                    <div class="gd-overflow__menu" role="menu">
+                                        <button type="button" id="pvBtnCsv" role="menuitem"><i class="bi bi-download" aria-hidden="true"></i>CSV exportieren</button>
+                                        <button type="button" id="pvBtnExportAdSync" role="menuitem" title="Alle AD-gesyncten Konten als Bericht"><i class="bi bi-hdd-network" aria-hidden="true"></i>AD‑Sync‑Bericht</button>
+                                        <button type="button" id="pvBtnExportAdFlagged" role="menuitem" title="Markierte Konten für lokalen Admin"><i class="bi bi-clipboard-data" aria-hidden="true"></i>Markierte exportieren</button>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+
+                        <div class="field pv-search">
+                            <label class="visually-hidden" for="pvFilterText">Personen suchen</label>
+                            <input type="search" id="pvFilterText" placeholder="Name, UPN, SAM-Account …" autocomplete="off">
+                        </div>
+
+                        <details class="pv-filters" id="pvFiltersPanel">
+                            <summary>Filter &amp; Sortierung</summary>
+                            <div class="pv-filters__body">
+                                <div class="tree-filter" aria-label="Filter">
+                                    <div>
+                                        <label for="pvFilterUserType">Kontotyp</label>
+                                        <select id="pvFilterUserType" autocomplete="off">
+                                            <option value="">(alle)</option>
+                                            <option value="Member">Mitglied</option>
+                                            <option value="Guest">Gast</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="pvFilterAccount">Konto</label>
+                                        <select id="pvFilterAccount" autocomplete="off">
+                                            <option value="">(alle)</option>
+                                            <option value="1">Nur aktive</option>
+                                            <option value="0">Nur deaktivierte</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="pvFilterDepartment">Abteilung</label>
+                                        <select id="pvFilterDepartment" autocomplete="off">
+                                            <option value="">(alle)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="pvFilterLicense">Lizenz</label>
+                                        <select id="pvFilterLicense" autocomplete="off">
+                                            <option value="">(alle Lizenzen)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="pvFilterAdSync">AD‑Sync</label>
+                                        <select id="pvFilterAdSync" autocomplete="off" title="Konten aus lokalem Active Directory (Hybrid)">
+                                            <option value="" selected>(alle)</option>
+                                            <option value="adSync">Mit lokalem AD synchronisiert</option>
+                                            <option value="cloud">Nur Cloud (kein AD‑Sync)</option>
+                                            <option value="flagged">Nur markiert (für Admin)</option>
+                                        </select>
+                                    </div>
+                                    <div class="pv-filter-sort">
+                                        <label for="pvSortKey">Sortierung</label>
+                                        <select id="pvSortKey" autocomplete="off">
+                                            <option value="displayName:asc">Anzeigename A–Z</option>
+                                            <option value="displayName:desc">Anzeigename Z–A</option>
+                                            <option value="userPrincipalName:asc">Benutzername A–Z</option>
+                                            <option value="department:asc">Abteilung A–Z</option>
+                                            <option value="mail:asc">E-Mail A–Z</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
                         <ul class="stats" aria-label="Übersicht">
                             <li class="stat"><div class="n" id="pvStatTotal">–</div><div class="l">Personen</div></li>
                             <li class="stat"><div class="n" id="pvStatMember">–</div><div class="l">Mitglieder</div></li>
                             <li class="stat"><div class="n" id="pvStatGuest">–</div><div class="l">Gäste</div></li>
                             <li class="stat"><div class="n" id="pvStatActive">–</div><div class="l">Konto aktiv</div></li>
                         </ul>
-                        <p class="hint" id="pvAdSummary" style="display:none;margin:10px 0 0;line-height:1.45;"></p>
-                        <p id="pvCacheBanner" style="display:none;margin:8px 2px 0;padding:8px 12px;background:color-mix(in srgb, var(--brand1) 9%, transparent);border:1px solid color-mix(in srgb, var(--brand1) 25%, transparent);border-radius:10px;font-size:0.9em;color: var(--heading);"></p>
-                        <p id="pvProgress" class="muted" style="margin:10px 2px 0;font-size:0.92em;min-height:1.35em;"></p>
+                        <p class="pv-ad-summary" id="pvAdSummary" style="display:none;"></p>
+                        <p class="pv-cache-banner" id="pvCacheBanner" style="display:none;"></p>
+                        <p id="pvProgress" class="muted pv-progress"></p>
                         <ul class="tree tree--scroll" id="pvTree" aria-label="Personen (Liste)"></ul>
                     </div>
                 </section>
 
                 <section class="panel" aria-label="Details">
-                    <div class="panel-head">
-                        <h2><i class="bi bi-pencil-square" style="margin-right:10px;"></i>Details</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="hint" id="pvHint">
-                            Links eine Person auswählen, um <strong>Profil</strong>, <strong>Lizenzen</strong> und <strong>Gruppen</strong> anzuzeigen. Zuerst <strong>Personen einlesen</strong> wählen.
+                    <div class="panel-body pv-detail-host">
+                        <div class="gd-empty-detail" id="pvHint">
+                            <p class="gd-empty-detail__title">Keine Person ausgewählt</p>
+                            <p class="gd-empty-detail__text">
+                                Links eine Person wählen, um <strong>Profil</strong>, <strong>Lizenzen</strong> und <strong>Gruppen</strong> zu sehen.
+                                Zuerst <strong>Einlesen</strong> – oder <strong>Neu</strong> für ein Organisationskonto.
+                            </p>
                         </div>
 
                         <div id="pvDetail" style="display:none;">
-                            <p style="margin:0 0 8px;font-weight: 700;color: var(--heading);font-size:1.02em;" id="pvManageTitle"></p>
-                            <div id="pvAdSyncPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb, #fbbf24 35%, transparent);background:color-mix(in srgb, #fbbf24 10%, transparent);">
-                                <div style="font-weight: 700;color:#856404;margin-bottom:6px;">
+                            <div class="gd-object-header">
+                                <div class="gd-object-header__main">
+                                    <h2 id="pvManageTitle"></h2>
+                                    <p class="gd-object-header__kind" id="pvManageSub"></p>
+                                </div>
+                                <div class="gd-object-header__actions detail-actions" id="pvDetailActions">
+                                    <button type="button" class="btn btn-success" id="pvBtnSave"><i class="bi bi-save"></i>Speichern</button>
+                                    <button type="button" class="btn" id="pvBtnCancelEdit">Zurücksetzen</button>
+                                    <button type="button" class="btn btn-danger" id="pvBtnDelete"><i class="bi bi-slash-circle"></i>Konto beenden …</button>
+                                </div>
+                            </div>
+
+                            <div id="pvAdSyncPanel" class="pv-ad-sync-panel" style="display:none;">
+                                <div class="pv-ad-sync-panel__title">
                                     <i class="bi bi-hdd-network" aria-hidden="true"></i>
                                     Aus lokalem Active Directory synchronisiert
                                 </div>
@@ -654,15 +209,16 @@ button.btn-success {
                                     </div>
                                 </div>
                                 <div class="detail-actions" style="margin-top:10px;">
-                                    <label class="checkbox-label" for="pvAdFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+                                    <label class="checkbox-label" for="pvAdFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:700;">
                                         <input type="checkbox" id="pvAdFlagged">
                                         Für lokalen Admin markieren
                                     </label>
-                                    <button type="button" class="btn btn-success small-btn" id="pvAdFlagSave"><i class="bi bi-bookmark-check"></i>Marke speichern</button>
+                                    <button type="button" class="btn btn-success" id="pvAdFlagSave"><i class="bi bi-bookmark-check"></i>Marke speichern</button>
                                 </div>
                             </div>
-                            <div id="pvCloudFlagPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--soft);">
-                                <div style="font-weight: 700;color: var(--heading);margin-bottom:6px;">
+
+                            <div id="pvCloudFlagPanel" class="pv-cloud-flag-panel" style="display:none;">
+                                <div class="pv-cloud-flag-panel__title">
                                     <i class="bi bi-cloud" aria-hidden="true"></i>
                                     Cloud‑Konto (kein AD‑Sync)
                                 </div>
@@ -671,17 +227,12 @@ button.btn-success {
                                     <textarea id="pvCloudFlagNote" rows="2" placeholder="Optional …"></textarea>
                                 </div>
                                 <div class="detail-actions" style="margin-top:10px;">
-                                    <label class="checkbox-label" for="pvCloudFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+                                    <label class="checkbox-label" for="pvCloudFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:700;">
                                         <input type="checkbox" id="pvCloudFlagged">
                                         Markieren
                                     </label>
-                                    <button type="button" class="btn small-btn" id="pvCloudFlagSave"><i class="bi bi-bookmark-check"></i>Speichern</button>
+                                    <button type="button" class="btn" id="pvCloudFlagSave"><i class="bi bi-bookmark-check"></i>Speichern</button>
                                 </div>
-                            </div>
-                            <div class="detail-actions" id="pvDetailActions">
-                                <button type="button" class="btn btn-success small-btn" id="pvBtnSave"><i class="bi bi-save"></i>Speichern</button>
-                                <button type="button" class="btn small-btn" id="pvBtnCancelEdit">Zurücksetzen</button>
-                                <button type="button" class="btn btn-danger small-btn" id="pvBtnDelete"><i class="bi bi-slash-circle"></i>Konto beenden …</button>
                             </div>
 
                             <div class="detail-tabs-sticky" aria-label="Detail-Tabs">
@@ -695,7 +246,7 @@ button.btn-success {
 
                             <div id="pvPanelProfil" class="tab-panel active" role="tabpanel" aria-labelledby="pvTabProfil">
                                 <p class="hint" id="pvProfileHint" style="margin:0 0 12px;">
-                                    Felder mit violettem Rahmen sind direkt editierbar – <strong>Speichern</strong> schreibt nach Microsoft Graph (wie <strong>Update</strong> bei Gruppen).
+                                    Felder mit hervorgehobenem Rahmen sind direkt editierbar – <strong>Speichern</strong> schreibt nach Microsoft Graph.
                                     Die SMTP-Adresse kann Graph ablehnen (dann den UPN ändern). Bei AD-synchronisierten Konten sind manche Felder schreibgeschützt.
                                 </p>
                                 <div class="form-grid" id="pvProfileFields"></div>
@@ -710,7 +261,7 @@ button.btn-success {
                                         <label for="pvLicUsageLocation">Nutzungsort (Ländercode)</label>
                                         <div class="pv-lic-usage-row">
                                             <input type="text" id="pvLicUsageLocation" maxlength="2" autocomplete="off" placeholder="AT" spellcheck="false">
-                                            <button type="button" class="btn small-btn" id="pvLicUsageSave">Speichern</button>
+                                            <button type="button" class="btn" id="pvLicUsageSave">Speichern</button>
                                         </div>
                                     </div>
                                 </div>
@@ -732,7 +283,7 @@ button.btn-success {
                                     <select id="pvLicAssignSelect" autocomplete="off">
                                         <option value="">(Lizenz wählen)</option>
                                     </select>
-                                    <button type="button" class="btn btn-success small-btn" id="pvLicAssignBtn">Zuweisen</button>
+                                    <button type="button" class="btn btn-success" id="pvLicAssignBtn">Zuweisen</button>
                                 </div>
                                 <p id="pvLicStatus" class="muted" style="margin:0;font-size:0.88em;"></p>
                             </div>
@@ -743,14 +294,14 @@ button.btn-success {
                                 </p>
                                 <div class="pv-lic-assign-row" style="margin-top:0;">
                                     <input type="search" id="pvGroupSearch" autocomplete="off" placeholder="Gruppenname, Mail, Alias oder Gruppen-ID">
-                                    <button type="button" class="btn small-btn" id="pvGroupSearchBtn"><i class="bi bi-search"></i>Suchen</button>
+                                    <button type="button" class="btn" id="pvGroupSearchBtn"><i class="bi bi-search"></i>Suchen</button>
                                 </div>
                                 <div id="pvGroupSearchResults" class="pv-group-checklist" aria-label="Suchergebnisse Gruppen">
                                     <span class="pv-group-checklist-hint">(zuerst suchen)</span>
                                 </div>
                                 <div class="pv-lic-assign-row" style="margin-top:8px;">
-                                    <button type="button" class="btn btn-success small-btn" id="pvGroupAddBtn"><i class="bi bi-person-plus"></i>Zu gewählten Gruppen hinzufügen</button>
-                                    <button type="button" class="btn small-btn" id="pvGroupsReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                    <button type="button" class="btn btn-success" id="pvGroupAddBtn"><i class="bi bi-person-plus"></i>Zu gewählten Gruppen hinzufügen</button>
+                                    <button type="button" class="btn" id="pvGroupsReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
                                 </div>
                                 <p id="pvGroupsProgress" class="muted" style="margin:0 0 10px;font-size:0.9em;"></p>
                                 <div class="pv-groups-wrap">
@@ -774,7 +325,7 @@ button.btn-success {
                                 </p>
                                 <div class="pv-lic-assign-row" style="margin-top:0;margin-bottom:10px;">
                                     <p id="pvSchulstrukturMeta" class="muted" style="margin:0;font-size:0.9em;flex:1;"></p>
-                                    <button type="button" class="btn small-btn" id="pvSchulstrukturReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                    <button type="button" class="btn" id="pvSchulstrukturReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
                                 </div>
                                 <div id="pvSchulstrukturRoot"></div>
                             </div>
@@ -783,8 +334,10 @@ button.btn-success {
                 </section>
             </div>
 
-            <h3 style="margin:0 0 8px;font-size:1rem;color: var(--heading);">Protokoll</h3>
-            <div id="pvLog" class="pv-log"></div>
+            <details class="pv-log-block" id="pvLogBlock">
+                <summary>Protokoll</summary>
+                <div id="pvLog" class="pv-log"></div>
+            </details>
 
             <details class="gd-page-info" id="pvPageInfo">
                 <summary><i class="bi bi-info-circle" aria-hidden="true"></i>Hinweise zu diesem Werkzeug</summary>
@@ -797,8 +350,8 @@ button.btn-success {
                         Tab <strong>Schulstruktur</strong>: read-only Zuordnungen aus Tenant-Stammdaten / Organigramm.
                     </p>
                     <p>
-                        <strong>Neue Person:</strong> Zuerst Konto anlegen, dann Nutzungsort (Ländercode, z. B. AT),
-                        dann Lizenz. Ohne Nutzungsort lehnt Graph die Lizenzzuweisung ab. Gruppen sind danach optional.
+                        <strong>Neue Person:</strong> Im Dialog Konto anlegen (Nutzungsort z. B. AT gleich mitsetzen),
+                        danach im Tab Lizenzen die Education-Lizenz zuweisen. Ohne Nutzungsort lehnt Graph die Lizenzzuweisung ab. Gruppen sind optional.
                     </p>
                 </div>
             </details>
@@ -808,82 +361,102 @@ button.btn-success {
     <div id="toast" class="toast" role="status"></div>
 
     <div class="pv-modal-backdrop" id="pvModalCreateBackdrop" aria-hidden="true">
-        <div class="pv-modal" role="dialog" aria-modal="true" aria-labelledby="pvModalCreateTitle">
+        <div class="pv-modal pv-modal--create" role="dialog" aria-modal="true" aria-labelledby="pvModalCreateTitle">
             <div class="pv-modal-head">
-                <h3 id="pvModalCreateTitle">Neue Person (Mitglied)</h3>
-                <button type="button" class="pv-modal-close" id="pvModalCreateClose" aria-label="Schließen">×</button>
+                <div class="pv-modal-head__titles">
+                    <h3 id="pvModalCreateTitle">Neue Person (Mitglied)</h3>
+                    <p class="pv-modal-head__sub">Organisationskonto in Microsoft&nbsp;365 – nicht für Gäste.</p>
+                </div>
+                <button type="button" class="pv-modal-close" id="pvModalCreateClose" aria-label="Schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             </div>
             <div class="pv-modal-body">
                 <div class="pv-onboard" role="region" aria-labelledby="pvOnboardTitle">
-                    <p id="pvOnboardTitle" class="pv-onboard__kicker">Ablauf für dieses neue Konto</p>
-                    <p class="pv-onboard__why">
-                        Dieses Formular ist Schritt&nbsp;1. Microsoft weist keine Lizenz zu, solange kein Nutzungsort (Land) gesetzt ist. Gruppen danach optional.
-                    </p>
-                    <ol class="pv-onboard__steps">
-                        <li class="is-current">
-                            <span class="pv-onboard__n" aria-hidden="true">1</span>
-                            <span class="pv-onboard__t">Anlegen</span>
-                            <span class="pv-onboard__d">Formular ausfüllen und unten auf „Anlegen“ klicken.</span>
-                        </li>
-                        <li>
-                            <span class="pv-onboard__n" aria-hidden="true">2</span>
-                            <span class="pv-onboard__t">Nutzungsort</span>
-                            <span class="pv-onboard__d">Danach im Tab „Lizenzen“ das Land setzen (Österreich: AT).</span>
-                        </li>
-                        <li>
-                            <span class="pv-onboard__n" aria-hidden="true">3</span>
-                            <span class="pv-onboard__t">Lizenz</span>
-                            <span class="pv-onboard__d">Education-Lizenz zuweisen (A1, A3 oder A5).</span>
-                        </li>
-                    </ol>
+                    <p id="pvOnboardTitle" class="pv-create-steps__hint" style="margin:0 0 8px;font-weight:700;">Ablauf für dieses neue Konto</p>
+                    <p class="pv-create-steps__hint">Dieses Formular ist Schritt&nbsp;1. Microsoft weist keine Lizenz zu, solange kein Nutzungsort (Land) gesetzt ist. Gruppen danach optional.</p>
+                    <nav class="pv-create-steps" aria-label="Ablauf neues Konto">
+                        <ol class="pv-create-steps__list">
+                            <li class="is-current"><span class="pv-create-steps__n">1</span><span class="pv-create-steps__t">Anlegen</span></li>
+                            <li><span class="pv-create-steps__n">2</span><span class="pv-create-steps__t">Nutzungsort</span></li>
+                            <li><span class="pv-create-steps__n">3</span><span class="pv-create-steps__t">Lizenz</span></li>
+                        </ol>
+                        <p class="pv-create-steps__hint">Nach dem Anlegen öffnet sich der Tab Lizenzen – dort Lizenz zuweisen. Nutzungsort können Sie hier schon setzen.</p>
+                    </nav>
                 </div>
-                <p class="muted" style="margin:0 0 12px;line-height:1.45;font-size:0.9em;">
-                    Es wird ein <strong>Organisationskonto</strong> (Mitglied) angelegt – nicht für Gäste/Einladungen. Passwort muss die <strong>Kennwortrichtlinien</strong> des Mandanten erfüllen.
-                </p>
-                <div class="form-grid">
-                    <div class="field field-full">
-                        <label for="pvCreateUpn">Benutzername (UPN) <span style="color:#b00020">*</span></label>
-                        <input type="text" id="pvCreateUpn" autocomplete="off" placeholder="max.mustermann@schule.at">
-                    </div>
-                    <div class="field field-full">
-                        <label for="pvCreateDisplayName">Anzeigename <span style="color:#b00020">*</span></label>
-                        <input type="text" id="pvCreateDisplayName" autocomplete="name" placeholder="Max Mustermann">
-                    </div>
-                    <div class="field">
-                        <label for="pvCreateMailNick">Mail-Nickname <span style="color:#b00020">*</span></label>
-                        <input type="text" id="pvCreateMailNick" autocomplete="off" placeholder="maxmustermann (ohne @)">
-                    </div>
-                    <div class="field">
-                        <label for="pvCreatePassword">Initiales Kennwort <span style="color:#b00020">*</span></label>
-                        <input type="password" id="pvCreatePassword" autocomplete="new-password" placeholder="starkes Kennwort">
-                    </div>
-                    <div class="field">
-                        <label for="pvCreateGiven">Vorname</label>
-                        <input type="text" id="pvCreateGiven" autocomplete="given-name">
-                    </div>
-                    <div class="field">
-                        <label for="pvCreateSurname">Nachname</label>
-                        <input type="text" id="pvCreateSurname" autocomplete="family-name">
-                    </div>
-                    <div class="field field-full">
-                        <label for="pvCreateMail">E-Mail (SMTP, optional)</label>
-                        <input type="email" id="pvCreateMail" autocomplete="off" placeholder="leer = automatisch laut Tenant">
-                    </div>
-                    <div class="field field-full">
-                        <div class="pv-checkbox-row">
-                            <input type="checkbox" id="pvCreateForcePw" checked>
-                            <label for="pvCreateForcePw" style="margin:0;font-weight:600;">Kennwort bei nächster Anmeldung ändern</label>
+
+                <form id="pvCreateForm" class="pv-create-form" autocomplete="off" novalidate>
+                    <fieldset class="pv-create-block">
+                        <legend>Person</legend>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="pvCreateGiven">Vorname</label>
+                                <input type="text" id="pvCreateGiven" autocomplete="given-name" placeholder="Max">
+                            </div>
+                            <div class="field">
+                                <label for="pvCreateSurname">Nachname</label>
+                                <input type="text" id="pvCreateSurname" autocomplete="family-name" placeholder="Mustermann">
+                            </div>
+                            <div class="field field-full">
+                                <label for="pvCreateDisplayName">Anzeigename <span class="pv-req" aria-hidden="true">*</span></label>
+                                <input type="text" id="pvCreateDisplayName" autocomplete="name" placeholder="Max Mustermann" required>
+                                <p class="pv-field-hint">Wird aus Vor- und Nachname vorgeschlagen.</p>
+                            </div>
                         </div>
-                        <div class="pv-checkbox-row">
-                            <input type="checkbox" id="pvCreateEnabled" checked>
-                            <label for="pvCreateEnabled" style="margin:0;font-weight:600;">Konto aktiv</label>
+                    </fieldset>
+
+                    <fieldset class="pv-create-block">
+                        <legend>Konto</legend>
+                        <div class="form-grid">
+                            <div class="field field-full">
+                                <label for="pvCreateUpn">Benutzername (UPN) <span class="pv-req" aria-hidden="true">*</span></label>
+                                <input type="text" id="pvCreateUpn" autocomplete="off" placeholder="max.mustermann@schule.at" required>
+                                <p class="pv-field-hint">Anmeldename inkl. Domäne des Mandanten.</p>
+                            </div>
+                            <div class="field">
+                                <label for="pvCreateMailNick">Mail-Nickname <span class="pv-req" aria-hidden="true">*</span></label>
+                                <input type="text" id="pvCreateMailNick" autocomplete="off" placeholder="max.mustermann" required>
+                                <p class="pv-field-hint">Ohne @ – aus dem UPN vorausgefüllt.</p>
+                            </div>
+                            <div class="field">
+                                <label for="pvCreatePassword">Initiales Kennwort <span class="pv-req" aria-hidden="true">*</span></label>
+                                <div class="pv-pw-row">
+                                    <input type="text" id="pvCreatePassword" autocomplete="new-password" placeholder="starkes Kennwort" required spellcheck="false">
+                                    <button type="button" class="btn btn-sm" id="pvCreatePwGen" title="Kennwort vorschlagen">Vorschlagen</button>
+                                </div>
+                                <p class="pv-field-hint">Muss die Kennwortrichtlinie des Mandanten erfüllen.</p>
+                            </div>
+                            <div class="field field-full">
+                                <label for="pvCreateMail">E-Mail (SMTP, optional)</label>
+                                <input type="email" id="pvCreateMail" autocomplete="off" placeholder="leer = automatisch laut Tenant">
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <p style="margin:14px 0 0;display:flex;flex-wrap:wrap;gap:10px;">
-                    <button type="button" class="btn btn-success" id="pvModalCreateSubmit">Anlegen</button>
+                    </fieldset>
+
+                    <fieldset class="pv-create-block">
+                        <legend>Bereitstellung</legend>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="pvCreateUsageLocation">Nutzungsort (Land)</label>
+                                <input type="text" id="pvCreateUsageLocation" maxlength="2" spellcheck="false" placeholder="AT" value="AT" aria-describedby="pvCreateUsageHint">
+                                <p class="pv-field-hint" id="pvCreateUsageHint">Zweistellig, z.&nbsp;B. AT – nötig vor der Lizenz.</p>
+                            </div>
+                            <div class="field field-full pv-create-checks">
+                                <div class="pv-checkbox-row">
+                                    <input type="checkbox" id="pvCreateForcePw" checked>
+                                    <label for="pvCreateForcePw">Kennwort bei nächster Anmeldung ändern</label>
+                                </div>
+                                <div class="pv-checkbox-row">
+                                    <input type="checkbox" id="pvCreateEnabled" checked>
+                                    <label for="pvCreateEnabled">Konto aktiv</label>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+
+                <div class="pv-modal-foot">
                     <button type="button" class="btn" id="pvModalCreateCancel">Abbrechen</button>
-                </p>
+                    <button type="submit" form="pvCreateForm" class="btn btn-success" id="pvModalCreateSubmit"><i class="bi bi-person-plus" aria-hidden="true"></i>Konto anlegen</button>
+                </div>
             </div>
         </div>
     </div>
@@ -904,7 +477,7 @@ button.btn-success {
                         <label for="pvDeleteHard" style="margin:0;font-weight:700;">Benutzer dauerhaft aus Entra entfernen (<code>DELETE</code>)</label>
                     </div>
                 </div>
-                <p id="pvDeleteHardWarn" style="display:none;margin:0 0 12px;color:#b00020;font-weight:800;line-height:1.45;">
+                <p id="pvDeleteHardWarn" style="display:none;margin:0 0 12px;color:var(--danger1,#b00020);font-weight:700;line-height:1.45;">
                     <strong>DELETE</strong> entfernt das Objekt dauerhaft. Wiederherstellung nur über Microsoft‑Backups möglich.
                 </p>
                 <p class="muted" style="margin:0 0 12px;line-height:1.45;">Zur Bestätigung den <strong>exakten</strong> Benutzernamen (UPN) eintragen:</p>
@@ -927,8 +500,9 @@ button.btn-success {
     <script type="module" src="../src/shared/graph-licenses.js"></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/tools/personen-verwaltung/personen-verwaltung.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

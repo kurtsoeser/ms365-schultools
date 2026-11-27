@@ -349,6 +349,31 @@
     border-color: var(--brand1) !important;
     color: var(--on-accent, #04211d) !important;
 }
+.utk-hero {
+    margin: 0 0 12px;
+}
 .fb-greet { margin: 0 0 6px; }
 .fb-sub { margin: 0 0 16px; }
 .fb-actions-row { margin-top: 16px; }
+
+.utk-page .tm-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.utk-page .tm-hero__actions .utk-stats {
+    margin: 0;
+    margin-right: auto;
+}
+.utk-page .tm-hero__actions .fb-btn,
+.utk-page .toolbar .fb-btn {
+    margin: 0;
+    gap: 8px;
+}
+.utk-page .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}

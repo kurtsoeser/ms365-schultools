@@ -32,8 +32,8 @@ export function readSchoolItAccessDeniedParams(search) {
 function messageForReason(reason) {
     if (reason === 'school-it') {
         return {
-            title: 'Stammdaten nur für Schul-IT',
-            text: 'Die Stammdatenverwaltung ist für Konten mit Schul-IT-Rolle freigeschaltet. Sie bleiben auf der Startseite und können die Alltagswerkzeuge weiter nutzen.'
+            title: 'Nur für die Schul-IT',
+            text: 'Dieses Werkzeug richtet die Schul-IT ein. Sie bleiben auf der Startseite und können die Alltagswerkzeuge weiter nutzen.'
         };
     }
     return {

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,72 +9,71 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Klassenvorstände</title>
-    <link rel="stylesheet" href="../app.css?v=14">
-    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css?v=2">
+    <link rel="stylesheet" href="../src/shared/membership-groups-fluent.css?v=2">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .kv-class-table-wrap { margin-top: 12px; max-height: 320px; overflow: auto; }
-        .kv-class-table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
-        .kv-class-table th, .kv-class-table td {
-            text-align: left;
-            padding: 6px 8px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: top;
-        }
-        .kv-class-table th {
-            position: sticky;
-            top: 0;
-            background: var(--soft);
-            font-size: 0.72em;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        .kv-class-table .kv-missing { color: #b00020; }
-        .kv-class-table .kv-ok { color: var(--muted); }
+/* ===== Welle 3 UI chrome ===== */
+.page-card.tm-page,
+.container.page-card {
+    --brand: var(--brand1);
+    --primary: var(--brand1);
+}
+.btn-success,
+.btn.btn-success,
+button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+.kv-class-table-wrap { margin-top: 12px; max-height: 320px; }
     </style>
 </head>
-<body>
-    <div class="container page-card">
+<body class="app-shell-chrome">
+    <div class="container page-card mg-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-person-vcard"></i>Klassenvorstände</span>
             </div>
-            <p>
-                Eine Sammelgruppe für alle <strong>Klassenvorstände</strong> (KV‑E‑Mails aus der Klassenliste der Stammdaten)
-                matchen oder anlegen – wie bei den Sammelgruppen Schüler/Lehrkräfte und ARGE.
-                Beim Anlegen wählen Sie: <strong>nur E‑Mail‑Verteiler</strong> oder <strong>Microsoft&nbsp;365‑Gruppe inkl.&nbsp;Team</strong>.
-                Mitglieder lassen sich mit der Klassenliste abgleichen.
-            </p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-klassenvorstaende" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Sammelgruppe für alle Klassenvorstände – aus den Stammdaten verknüpfen, anlegen und Mitglieder abgleichen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-klassenvorstaende" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
-                        <a class="btn" href="jahrgangsgruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-3"></i>Klassengruppen</a>
-                    </div>
-                </div>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html"><i class="bi bi-database"></i>Stammdaten</a>
+                <a class="btn" href="jahrgangsgruppen.html"><i class="bi bi-diagram-3"></i>Klassengruppen</a>
             </div>
         </div>
 
         <div class="content">
-            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen mit Klassenvorstand. Pflegen Sie die Klassenliste in den Stammdaten – danach können Sie hier die KV‑Gruppe matchen oder anlegen."></div>
-            <div class="gd-layout gd-layout--split">
+            <section class="mg-hero" aria-label="Stand">
+                <h1 class="fb-greet">Klassenvorstände</h1>
+                <p class="fb-sub">Eine Gruppe für alle KV-Adressen · darunter die Klassenliste · rechts Live-Details aus Microsoft&nbsp;365.</p>
+            </section>
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen mit Klassenvorstand. Pflegen Sie die Klassenliste in den Stammdaten – danach können Sie hier die KV‑Gruppe mit Microsoft 365 verknüpfen oder anlegen."></div>
+            <div class="gd-layout">
                 <section class="panel" aria-label="Klassenvorstände auswählen">
-                    <div class="panel-head">
-                        <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Liste</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">
-                            Quelle: <strong>Klassenvorstand</strong> je Klasse im aktuellen Schuljahr.
-                            Rechts: <strong>Liste</strong> (eindeutige KV‑E‑Mails) und <strong>Gruppe</strong> (Mitglieder in Microsoft&nbsp;365).
-                        </p>
-                    </div>
                     <div class="panel-body">
-                        <div class="gd-filter-row" style="margin:0 0 10px; justify-content:flex-end;">
-                            <button type="button" class="btn" id="kvBtnReloadLists" title="Klassen und KV-E-Mails aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                        <div class="gd-master-head">
+                            <div class="gd-master-head__titles">
+                                <h2>Klassenvorstände</h2>
+                                <p class="gd-master-head__count">Stammdaten · Microsoft 365</p>
+                            </div>
+                            <div class="gd-master-head__actions">
+                                <button type="button" class="btn btn-ghost" id="kvBtnReloadLists" title="Klassen und KV-E-Mails aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                            </div>
                         </div>
                         <ul class="tree" id="kvListItems" aria-label="Klassenvorstände-Gruppe">
                             <li>
@@ -86,12 +85,12 @@
                                     <span class="slg-side-count slg-side-count--dual" id="kvGroupCounts">
                                         <span class="slg-side-kpi">
                                             <span class="n" id="kvListCount">0</span>
-                                            <span class="l">Liste</span>
+                                            <span class="l">erwartet</span>
                                         </span>
-                                        <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                                        <span class="slg-side-kpi-sep" aria-hidden="true">·</span>
                                         <span class="slg-side-kpi">
                                             <span class="n" id="kvGroupCount">–</span>
-                                            <span class="l">Gruppe</span>
+                                            <span class="l">in M365</span>
                                         </span>
                                     </span>
                                 </button>
@@ -163,10 +162,12 @@
                 </div>
             </details>
 
-            <div class="toolbar bottom-toolbar" style="margin-top:22px;" aria-label="Zwischenstand">
-                <button type="button" class="btn" id="kvBtnSaveState"><i class="bi bi-floppy"></i>Speichern</button>
-                <button type="button" class="btn" id="kvBtnLoadState"><i class="bi bi-folder2-open"></i>Laden</button>
-                <button type="button" class="btn btn-danger" id="kvBtnClearStorage"><i class="bi bi-trash"></i>Zurücksetzen</button>
+            <div class="toolbar bottom-toolbar tool-state-bar" aria-label="Zwischenstand">
+                <div class="tool-state-bar__actions">
+                    <button type="button" class="fb-btn fb-btn--ghost" id="kvBtnSaveState"><i class="bi bi-floppy"></i>Speichern</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="kvBtnLoadState"><i class="bi bi-folder2-open"></i>Laden</button>
+                    <button type="button" class="fb-btn fb-btn--ghost fb-btn--danger" id="kvBtnClearStorage"><i class="bi bi-trash"></i>Zurücksetzen</button>
+                </div>
             </div>
         </div>
     </div>
@@ -174,6 +175,7 @@
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/action-log.js" defer></script>
@@ -187,6 +189,6 @@
     <script type="module" src="../src/shared/membership-reconcile.js"></script>
     <script type="module" src="../src/shared/membership-review-render.js"></script>
     <script src="../src/tools/klassenvorstaende/klassenvorstaende.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

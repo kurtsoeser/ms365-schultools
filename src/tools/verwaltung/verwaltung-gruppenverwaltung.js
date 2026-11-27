@@ -432,27 +432,49 @@
         const groupN = graphCountFor(gid);
         const prefix = kind === 'schulleitung' ? 'Schulleitung' : 'Verwaltung';
         const wrap = document.getElementById('slg' + prefix + 'Counts');
-        const listEl = document.getElementById('slg' + prefix + 'Count');
-        const groupEl = document.getElementById('slg' + prefix + 'GroupCount');
         const lineEl = document.getElementById('slg' + prefix + 'Line');
-        if (listEl) listEl.textContent = String(listN);
-        if (groupEl) groupEl.textContent = gid ? (groupN === null ? '–' : String(groupN)) : '–';
         if (lineEl) {
-            lineEl.textContent = gid ? 'Gematcht: ' + gid : 'Noch kein Match';
+            lineEl.textContent = '';
+            const badge = document.createElement('span');
+            badge.className =
+                'jg-match-badge gd-sync-badge ' +
+                (gid ? 'is-ok gd-sync-badge--ok' : 'is-warn gd-sync-badge--warn');
+            badge.innerHTML = gid
+                ? '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>Verknüpft'
+                : '<i class="bi bi-exclamation-circle" aria-hidden="true"></i>Nicht verknüpft';
+            lineEl.appendChild(badge);
         }
-        if (!wrap) return;
-        wrap.classList.remove('is-match', 'is-mismatch');
-        const known = gid && groupN !== null;
-        if (known) {
-            const same = listN === groupN;
-            wrap.classList.add(same ? 'is-match' : 'is-mismatch');
-            wrap.title = same
-                ? meta.label + ': Liste und Gruppe je ' + listN + ' – stimmt überein.'
-                : meta.label + ': Liste ' + listN + ' · Gruppe ' + groupN + ' Mitglieder.';
-        } else {
-            wrap.title = gid
-                ? meta.label + ': ' + listN + ' E-Mails in der Liste (Graph lädt …).'
-                : meta.label + ': ' + listN + ' E-Mails. Noch keine Gruppe gematcht.';
+        const G = window.ms365GroupDetail;
+        const painted =
+            G && typeof G.paintMasterMemberSyncCounts === 'function'
+                ? G.paintMasterMemberSyncCounts(wrap, {
+                      listN: listN,
+                      groupN: groupN,
+                      linked: !!gid,
+                      memberWord: 'Mitglieder'
+                  })
+                : null;
+        if ((activeView === 'schulleitung' || activeView === 'verwaltung') && kind === activeView) {
+            const syncLine = document.getElementById('slgSyncStatusLine');
+            const preview = document.getElementById('slgSyncPreview');
+            if (syncLine && !(preview && !preview.hidden)) {
+                if (painted && painted.known && painted.same) {
+                    syncLine.textContent =
+                        listN === 1 ? '✓ 1 Mitglied synchron' : '✓ ' + String(listN) + ' Mitglieder synchron';
+                } else if (painted && painted.known) {
+                    syncLine.textContent =
+                        '⚠ ' +
+                        painted.delta +
+                        (painted.delta === 1 ? ' Abweichung' : ' Abweichungen') +
+                        ' (' +
+                        listN +
+                        ' erwartet · ' +
+                        groupN +
+                        ' in M365)';
+                } else {
+                    syncLine.textContent = meta.label + ' mit Stammdaten abgleichen.';
+                }
+            }
         }
     }
 
@@ -1520,8 +1542,8 @@
             if (title) title.textContent = 'Sammelgruppe ' + meta.label;
             if (sub) {
                 sub.textContent = gid
-                    ? 'Gematchte Microsoft‑365‑Gruppe · ' + emailsForSammelKind(activeView).length + ' E-Mails in der Liste'
-                    : 'Gruppe matchen oder anlegen';
+                    ? 'Verknüpfte Microsoft‑365‑Gruppe · ' + emailsForSammelKind(activeView).length + ' E-Mails in der Liste'
+                    : 'Mit Microsoft 365 verknüpfen oder anlegen';
             }
             fillCreateFormFromDraft();
             live().setMatchedMode(!!gid);
@@ -2060,10 +2082,73 @@
         live().resetCaches();
     }
 
-    async function runSyncMembers() {
+    /** @type {{ gid: string, label: string, joinEmails: string[], leaveEmails: string[], stayCount: number }|null} */
+    let syncPreviewState = null;
+
+    function hideSyncPreview() {
+        syncPreviewState = null;
+        const G = window.ms365GroupDetail;
+        if (G && typeof G.setSyncPreviewVisible === 'function') G.setSyncPreviewVisible(false);
+        else {
+            const el = document.getElementById('slgSyncPreview');
+            if (el) el.hidden = true;
+        }
+    }
+
+    function showSyncPreview(state) {
+        syncPreviewState = state;
+        const G = window.ms365GroupDetail;
+        if (G && typeof G.fillSyncPreviewLines === 'function') {
+            G.fillSyncPreviewLines(state.joinEmails.length, state.leaveEmails.length, state.stayCount);
+        }
+        if (G && typeof G.setSyncPreviewVisible === 'function') G.setSyncPreviewVisible(true);
+        else {
+            const el = document.getElementById('slgSyncPreview');
+            if (el) el.hidden = false;
+        }
+    }
+
+    async function computeVwSyncDiff(token, gid, emails) {
+        let joinEmails = emails;
+        let leaveEmails = [];
+        if (typeof gug().fetchGroupMembers === 'function') {
+            const mem = await gug().fetchGroupMembers(token, gid);
+            const current = (mem.items || [])
+                .map(function (m) {
+                    return String((m && (m.mail || m.userPrincipalName)) || '')
+                        .trim()
+                        .toLowerCase();
+                })
+                .filter(function (em) {
+                    return em.indexOf('@') !== -1;
+                });
+            const M = window.ms365MembershipReconcile;
+            if (M && typeof M.diffMemberships === 'function') {
+                const diff = M.diffMemberships(emails, current);
+                joinEmails = diff.onlyLocal;
+                leaveEmails = diff.onlyGraph;
+            } else {
+                const lc = window.ms365StudentClassLifecycle;
+                if (lc && typeof lc.reconcileSammelgruppe === 'function') {
+                    const rec = lc.reconcileSammelgruppe(emails, current);
+                    joinEmails = rec.join;
+                    leaveEmails = rec.leave;
+                }
+            }
+        }
+        const allowLeaveEl = document.getElementById('slgSyncAllowLeave');
+        if (leaveEmails.length && !(allowLeaveEl && allowLeaveEl.checked)) leaveEmails = [];
+        return {
+            joinEmails: joinEmails,
+            leaveEmails: leaveEmails,
+            stayCount: Math.max(0, emails.length - joinEmails.length)
+        };
+    }
+
+    async function runSyncPreview() {
         const gid = getActiveMatchedId();
         if (!gid) {
-            toast('Zuerst eine Gruppe matchen oder anlegen.');
+            toast('Zuerst eine Gruppe mit Microsoft 365 verknüpfen oder anlegen.');
             return;
         }
         const meta = activeSammelMeta();
@@ -2073,46 +2158,53 @@
             return;
         }
         clearSyncLog();
-        appendSyncLog('Start: ' + meta.label + ' (' + emails.length + ' Adressen) …', '');
+        appendSyncLog('Prüfen: ' + meta.label + ' (' + emails.length + ' Adressen) …', '');
         try {
             const token = await getGraphToken();
-            let joinEmails = emails;
-            let leaveEmails = [];
-            if (typeof gug().fetchGroupMembers === 'function') {
-                const mem = await gug().fetchGroupMembers(token, gid);
-                const current = (mem.items || [])
-                    .map(function (m) {
-                        return String((m && (m.mail || m.userPrincipalName)) || '')
-                            .trim()
-                            .toLowerCase();
-                    })
-                    .filter(function (em) {
-                        return em.indexOf('@') !== -1;
-                    });
-                const M = window.ms365MembershipReconcile;
-                if (M && typeof M.diffMemberships === 'function') {
-                    const diff = M.diffMemberships(emails, current);
-                    joinEmails = diff.onlyLocal;
-                    leaveEmails = diff.onlyGraph;
-                } else {
-                    const lc = window.ms365StudentClassLifecycle;
-                    if (lc && typeof lc.reconcileSammelgruppe === 'function') {
-                        const rec = lc.reconcileSammelgruppe(emails, current);
-                        joinEmails = rec.join;
-                        leaveEmails = rec.leave;
-                    }
-                }
-                appendSyncLog(
-                    'Abgleich mit Stammdaten-Liste: +' + joinEmails.length + ' / −' + leaveEmails.length + '.',
-                    ''
-                );
+            const diff = await computeVwSyncDiff(token, gid, emails);
+            appendSyncLog(
+                'Vorschau: +' + diff.joinEmails.length + ' / −' + diff.leaveEmails.length + ' (noch keine Graph-Änderungen).',
+                'ok'
+            );
+            showSyncPreview({
+                gid: gid,
+                label: meta.label,
+                joinEmails: diff.joinEmails,
+                leaveEmails: diff.leaveEmails,
+                stayCount: diff.stayCount
+            });
+            if (!diff.joinEmails.length && !diff.leaveEmails.length) {
+                toast('Keine Änderungen gegenüber der Stammdaten-Liste.');
             }
+        } catch (e) {
+            appendSyncLog('Abbruch: ' + (e.message || e), 'err');
+            toast('Fehler: ' + (e.message || e));
+            hideSyncPreview();
+        }
+    }
+
+    async function runSyncApply() {
+        if (!syncPreviewState) {
+            toast('Zuerst „Änderungen prüfen“.');
+            return;
+        }
+        const state = syncPreviewState;
+        const gid = state.gid;
+        const label = state.label;
+        const joinEmails = state.joinEmails.slice();
+        let leaveEmails = state.leaveEmails.slice();
+        hideSyncPreview();
+        appendSyncLog('Übernehmen: +' + joinEmails.length + ' / −' + leaveEmails.length + ' …', '');
+        try {
+            const token = await getGraphToken();
+            const allowLeaveEl = document.getElementById('slgSyncAllowLeave');
+            if (leaveEmails.length && !(allowLeaveEl && allowLeaveEl.checked)) leaveEmails = [];
             if (joinEmails.length) {
-                const r = await gug().syncEmailsToGroup(token, gid, joinEmails, meta.label, appendSyncLog);
+                const r = await gug().syncEmailsToGroup(token, gid, joinEmails, label, appendSyncLog);
                 appendSyncLog('Aufnehmen: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
             }
             if (leaveEmails.length && typeof gug().removeEmailsFromGroup === 'function') {
-                const r = await gug().removeEmailsFromGroup(token, gid, leaveEmails, meta.label, appendSyncLog);
+                const r = await gug().removeEmailsFromGroup(token, gid, leaveEmails, label, appendSyncLog);
                 appendSyncLog('Entfernen: ' + r.ok + ' OK, übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
             }
             if (!joinEmails.length && !leaveEmails.length) {
@@ -2122,7 +2214,7 @@
             live().invalidateMembership();
             await live().loadMembers();
             await refreshGraphMemberCounts();
-            toast('Synchronisation abgeschlossen.');
+            toast('Änderungen übernommen.');
         } catch (e) {
             appendSyncLog('Abbruch: ' + (e.message || e), 'err');
             toast('Fehler: ' + (e.message || e));
@@ -2443,7 +2535,24 @@
             });
         }
         onClick('slgBtnSync', function () {
-            runSyncMembers();
+            void runSyncPreview();
+        });
+        onClick('slgBtnSyncApply', function () {
+            void runSyncApply();
+        });
+        onClick('slgBtnSyncCancel', function () {
+            hideSyncPreview();
+            updateMismatchUi();
+        });
+        onClick('slgBtnShowSyncLog', function () {
+            const ov = document.getElementById('slgSyncOverflow');
+            if (ov) ov.open = false;
+            const G = window.ms365GroupDetail;
+            if (G && typeof G.setSyncLogVisible === 'function') G.setSyncLogVisible(true);
+            else {
+                const wrap = document.getElementById('slgSyncLogWrap');
+                if (wrap) wrap.hidden = false;
+            }
         });
         onClick('slgBtnSaveState', function () {
             saveState();
@@ -2514,6 +2623,21 @@
             }, 50);
         })(0);
     }
+
+    /**
+     * Soft-Navigation aus der IT-Rail (Schulleitung ↔ Verwaltung) ohne Seitenreload.
+     * @param {string} kind
+     */
+    window.ms365VerwaltungNavigateKind = function (kind) {
+        const next = String(kind || '');
+        if (next === 'schulleitung' || next === 'verwaltung') {
+            setActiveView(next);
+            return;
+        }
+        if (next.indexOf('audience:') === 0) {
+            setActiveView(next);
+        }
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

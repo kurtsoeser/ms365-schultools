@@ -201,45 +201,96 @@
         ns.updateSingleTeamPreview();
     };
 
+    function refreshSingleTeamRowChrome() {
+        const wrap = document.getElementById('singleTeamRows');
+        if (!wrap) return;
+        const rows = Array.from(wrap.querySelectorAll('.single-team-row'));
+        rows.forEach((rowEl, idx) => {
+            const label = rowEl.querySelector('.kt-single-row__label');
+            if (label) label.textContent = 'Team ' + (idx + 1);
+
+            const klasse = fieldVal(rowEl, 'klasse');
+            const fach = fieldVal(rowEl, 'fach');
+            const lehrer = fieldVal(rowEl, 'lehrer');
+            const gruppe = fieldVal(rowEl, 'gruppe');
+            const owner = fieldVal(rowEl, 'owner');
+            const started = !!(klasse || fach || lehrer || gruppe || owner);
+            const team = started
+                ? ns.buildTeamEntryFromSingleRow({ klasse, fach, lehrer, gruppe, owner })
+                : null;
+            const ok = !!(team && team.isValid);
+
+            const pill = rowEl.querySelector('.kt-single-row__status');
+            if (pill) {
+                pill.className = 'kt-single-row__status fb-pill' + (ok ? ' fb-pill--ok' : started ? ' fb-pill--warn' : '');
+                pill.textContent = ok ? 'Bereit' : started ? 'Unvollständig' : 'Leer';
+            }
+
+            const meta = rowEl.querySelector('.kt-single-row__meta');
+            if (meta) {
+                if (ok) {
+                    meta.classList.add('is-ready');
+                    meta.innerHTML =
+                        '<div><strong>Name:</strong> ' +
+                        ns.escapeHtml(team.teamName) +
+                        '</div>' +
+                        '<div><strong>Gruppenmail:</strong> <code>' +
+                        ns.escapeHtml(team.gruppenmail) +
+                        '</code></div>' +
+                        '<div><strong>Besitzer:</strong> ' +
+                        ns.escapeHtml(team.besitzer) +
+                        '</div>';
+                } else {
+                    meta.classList.remove('is-ready');
+                    meta.replaceChildren();
+                }
+            }
+        });
+    }
+
     ns.updateSingleTeamPreview = function updateSingleTeamPreview() {
+        refreshSingleTeamRowChrome();
         const box = document.getElementById('singleTeamPreview');
         if (!box) return;
         const built = ns.buildAllSingleTeamEntries();
         const ready = built.filter((x) => x.team && x.team.isValid);
-        const incomplete = built.filter((x) => x.row.klasse || x.row.fach || x.row.lehrer).filter((x) => !x.team || !x.team.isValid);
+        const incomplete = built
+            .filter((x) => x.row.klasse || x.row.fach || x.row.lehrer)
+            .filter((x) => !x.team || !x.team.isValid);
 
         if (!ready.length && !incomplete.length) {
             box.innerHTML =
-                '<p class="muted" style="margin:0;">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>';
+                '<p class="kt-single-preview__empty">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>';
             return;
         }
 
-        let html = '<div style="display:grid;gap:10px;">';
+        let html = '<div class="fb-rows">';
         ready.forEach((x, i) => {
             const t = x.team;
             html +=
-                '<div style="padding-bottom:8px;border-bottom:1px solid var(--border);">' +
-                '<div style="font-weight:600;margin-bottom:4px;">Team ' +
+                '<div class="fb-row">' +
+                '<div class="fb-row__title">Team ' +
                 (i + 1) +
-                '</div>' +
-                '<div><strong>Name:</strong> ' +
+                ' · ' +
                 ns.escapeHtml(t.teamName) +
                 '</div>' +
-                '<div><strong>Gruppenmail:</strong> <code>' +
+                '<div class="fb-row__text">Gruppenmail <code>' +
                 ns.escapeHtml(t.gruppenmail) +
-                '</code></div>' +
-                '<div><strong>Besitzer:</strong> ' +
+                '</code> · Besitzer ' +
                 ns.escapeHtml(t.besitzer) +
                 '</div>' +
                 '</div>';
         });
+        html += '</div>';
         if (incomplete.length) {
             html +=
-                '<div style="color:var(--danger,#c0392b);font-size:0.9em;">' +
+                '<div class="pw-msg pw-msg--warn">' +
+                '<p class="pw-msg__title">' +
                 incomplete.length +
-                ' Zeile(n) noch unvollständig (Klasse, Fach, Lehrkraft, Besitzer-E-Mail).</div>';
+                ' Zeile(n) noch unvollständig</p>' +
+                '<p class="pw-msg__meta">Klasse, Fach, Lehrkraft und Besitzer-E-Mail werden benötigt.</p>' +
+                '</div>';
         }
-        html += '</div>';
         box.innerHTML = html;
     };
 
@@ -290,40 +341,47 @@
         const id = 'st-row-' + ++rowSeq;
         const p = prefill && typeof prefill === 'object' ? prefill : {};
         const row = document.createElement('div');
-        row.className = 'single-team-row';
+        row.className = 'single-team-row kt-single-row';
         row.id = id;
         row.innerHTML =
-            '<div class="filter-group">' +
+            '<div class="kt-single-row__head">' +
+            '<span class="kt-single-row__label">Team</span>' +
+            '<span class="kt-single-row__status fb-pill">Leer</span>' +
+            '<button type="button" class="fb-btn fb-btn--ghost kt-single-row__remove single-team-row__remove" data-st-remove title="Zeile entfernen" aria-label="Zeile entfernen"><i class="bi bi-trash"></i></button>' +
+            '</div>' +
+            '<div class="kt-single-row__fields">' +
+            '<div class="kt-field filter-group">' +
             '<label>Klasse</label>' +
             '<input type="text" data-st-field="klasse" list="singleTeamKlasseList" placeholder="z. B. 4AK" autocomplete="off" value="' +
             attrEsc(p.klasse || '') +
             '">' +
             '</div>' +
-            '<div class="filter-group">' +
+            '<div class="kt-field filter-group">' +
             '<label>Fach</label>' +
             '<input type="text" data-st-field="fach" list="singleTeamFachList" placeholder="z. B. WINF" autocomplete="off" value="' +
             attrEsc(p.fach || '') +
             '">' +
             '</div>' +
-            '<div class="filter-group">' +
+            '<div class="kt-field filter-group">' +
             '<label>Lehrkraft</label>' +
             '<input type="text" data-st-field="lehrer" list="singleTeamLehrerList" placeholder="z. B. MEI" autocomplete="off" value="' +
             attrEsc(p.lehrer || '') +
             '">' +
             '</div>' +
-            '<div class="filter-group">' +
+            '<div class="kt-field filter-group">' +
             '<label>Gruppe</label>' +
             '<input type="text" data-st-field="gruppe" placeholder="opt." autocomplete="off" value="' +
             attrEsc(p.gruppe || '') +
             '">' +
             '</div>' +
-            '<div class="filter-group">' +
+            '<div class="kt-field filter-group">' +
             '<label>Besitzer-E-Mail</label>' +
             '<input type="email" data-st-field="owner" placeholder="aus Stammdaten" autocomplete="off" value="' +
             attrEsc(p.owner || '') +
             '">' +
             '</div>' +
-            '<button type="button" class="btn btn-small single-team-row__remove" data-st-remove title="Zeile entfernen" aria-label="Zeile entfernen"><i class="bi bi-trash"></i></button>';
+            '</div>' +
+            '<div class="kt-single-row__meta" aria-live="polite"></div>';
         wireRowInputs(row);
         return row;
     };
@@ -363,6 +421,17 @@
         if (genBtn) {
             genBtn.style.display = mode === 'single' ? 'none' : '';
         }
+        const details = document.getElementById('kursteamNameBuilderDetails');
+        if (details) {
+            // Single: Bausteine zugeklappt (Fokus auf Zeilen); Bulk: offen für Schema-Arbeit
+            if (mode === 'single') {
+                details.open = false;
+                details.removeAttribute('open');
+            } else {
+                details.open = true;
+                details.setAttribute('open', '');
+            }
+        }
         if (typeof ns.renderTeamNameBuilder === 'function') {
             try {
                 ns.renderTeamNameBuilder();
@@ -376,7 +445,10 @@
         const on = !!active;
         const setDisp = (id, show) => {
             const el = document.getElementById(id);
-            if (el) el.style.display = show ? '' : 'none';
+            if (!el) return;
+            el.style.display = show ? '' : 'none';
+            if (show) el.removeAttribute('hidden');
+            else el.setAttribute('hidden', '');
         };
         setDisp('kursteamWizardSteps', !on);
         setDisp('kursteamBulkStep0Header', !on);
@@ -416,7 +488,11 @@
     ns.showSingleTeamForm = function showSingleTeamForm(show) {
         const form = document.getElementById('kursteamSingleForm');
         const cards = document.getElementById('kursteamStep0Cards');
-        if (form) form.style.display = show ? 'block' : 'none';
+        if (form) {
+            form.style.display = show ? 'block' : 'none';
+            if (show) form.removeAttribute('hidden');
+            else form.setAttribute('hidden', '');
+        }
         if (cards) cards.style.display = show ? 'none' : '';
         ns.applySingleTeamChrome(!!show);
     };
@@ -444,6 +520,12 @@
         const first = document.querySelector('#singleTeamRows [data-st-field="klasse"]');
         if (first) first.focus();
         ns.updateSingleTeamPreview();
+        // Nach Init/Render nochmals sicherstellen (Bulk-Default mount kann details.open setzen)
+        const details = document.getElementById('kursteamNameBuilderDetails');
+        if (details) {
+            details.open = false;
+            details.removeAttribute('open');
+        }
         if (typeof ns.showToast === 'function') {
             ns.showToast('Namensschema oben einstellen, Zeilen ausfüllen – mit + weitere Teams.');
         }

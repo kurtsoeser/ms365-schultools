@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,30 +9,58 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Datenhygiene</title>
-    <link rel="stylesheet" href="../app.css?v=14">
-    <link rel="stylesheet" href="../src/shared/membership-hygiene.css">
+    <link rel="stylesheet" href="../app.css?v=28">
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/membership-hygiene.css?v=2">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
+    <style>
+.page-card.tm-page,
+.container.page-card { --brand: var(--brand1); --primary: var(--brand1); }
+.btn-success, .btn.btn-success, button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
+.btn-primary:not(.btn-ghost):not(.btn-outline) {
+    background: var(--brand1);
+    border-color: var(--brand1);
+    color: var(--on-accent, #04211d);
+}
+    </style>
 </head>
-<body>
-    <div class="container page-card">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page dh-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-shield-check"></i>Datenhygiene (Abgleich M365)</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-shield-check"></i>Datenhygiene</span>
             </div>
-            <p>
-                Querschnitts-Abgleich mit Microsoft&nbsp;365: Stammlisten vs. Gruppenmitglieder
-                und Klassenfeld in den Stammdaten vs. Entra-Attribute. Bei Abweichungen springen Sie ins jeweilige Werkzeug.
-            </p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-datenhygiene" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Stammlisten und Microsoft&nbsp;365 abgleichen – Abweichungen finden und im richtigen Werkzeug beheben.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-datenhygiene" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div class="content">
+            <section class="dh-hero" aria-label="Stand">
+                <h1 class="fb-greet" id="dhHeroTitle">Datenhygiene prüfen</h1>
+                <p class="fb-sub" id="dhHeroSub">Gruppenmitglieder und Klassenfelder mit Microsoft&nbsp;365 vergleichen.</p>
+            </section>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="../tenant.html">Stammdaten ↗</a>
+                <a href="leere-gruppen-report.html">Leere Gruppen ↗</a>
+                <a href="cleanup-playbook.html">Cleanup-Playbook ↗</a>
+            </nav>
+
             <div data-ms365-empty-state data-ms365-empty-message="Für den Hygiene-Abgleich brauchen Sie Stammdaten in diesem Browser. Stammdaten öffnen oder Demo laden."></div>
 
             <section class="dash-hygiene" id="dashHygiene" aria-label="Datenhygiene Gruppenabgleich">
@@ -40,12 +68,12 @@
                     <div class="dash-hygiene__head-main">
                         <h2><i class="bi bi-intersect" aria-hidden="true"></i>Gruppenabgleich</h2>
                         <p class="dash-hygiene__lead">
-                            „Jetzt prüfen“ lädt die Mitgliederzahlen aus Microsoft 365 (Anmeldung erforderlich).
-                            Grün = konsistent, rot = Abweichung zwischen Liste und Gruppe.
+                            „Jetzt prüfen“ lädt die Mitgliederzahlen aus Microsoft&nbsp;365.
+                            Grün = konsistent, Abweichungen springen ins passende Werkzeug.
                         </p>
                     </div>
                     <div class="dash-hygiene__actions">
-                        <button type="button" class="btn btn-success" id="dashHygieneScan">
+                        <button type="button" class="fb-btn" id="dashHygieneScan">
                             <i class="bi bi-arrow-clockwise"></i>Jetzt prüfen
                         </button>
                         <p class="dash-hygiene__status" id="dashHygieneStatus" role="status" aria-live="polite"></p>
@@ -70,17 +98,17 @@
                 </div>
             </section>
 
-            <section class="dash-hygiene" id="stammdatenHealth" aria-label="Stammdaten vs. Entra-Attribute" style="margin-top:28px;">
+            <section class="dash-hygiene" id="stammdatenHealth" aria-label="Stammdaten vs. Entra-Attribute">
                 <div class="dash-hygiene__head">
                     <div class="dash-hygiene__head-main">
-                        <h2><i class="bi bi-person-vcard" aria-hidden="true"></i>Klassenfeld-Abgleich (Stammdaten ↔ Entra)</h2>
+                        <h2><i class="bi bi-person-vcard" aria-hidden="true"></i>Klassenfeld-Abgleich</h2>
                         <p class="dash-hygiene__lead">
-                            Vergleicht die Klasse in den lokalen Stammdaten mit <code>department</code>/<code>officeLocation</code> im Tenant
-                            (oft aus dem AD synchronisiert). Weicht das Feld ab, sind Gruppen-Abgleiche wertlos.
+                            Vergleicht die Klasse in den Stammdaten mit <code>department</code>/<code>officeLocation</code> in Entra.
+                            Weicht das Feld ab, sind Gruppen-Abgleiche oft wertlos.
                         </p>
                     </div>
                     <div class="dash-hygiene__actions">
-                        <button type="button" class="btn btn-success" id="shScan">
+                        <button type="button" class="fb-btn" id="shScan">
                             <i class="bi bi-search"></i>Attribute prüfen
                         </button>
                         <p class="dash-hygiene__status" id="shStatus" role="status" aria-live="polite"></p>
@@ -136,6 +164,6 @@
         }, 100);
     </script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
 </body>
 </html>

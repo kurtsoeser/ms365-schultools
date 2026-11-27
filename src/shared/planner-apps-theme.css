@@ -232,7 +232,7 @@
 }
 
 .pw-filters {
-    background: color-mix(in srgb, var(--brand1) 5%, var(--card));
+    background: var(--card);
     border-color: var(--border);
 }
 
@@ -241,8 +241,8 @@
 }
 
 .pw-filters__reset {
-    background: var(--card);
-    color: var(--brand1);
+    background: transparent;
+    color: var(--heading);
     border-color: var(--border);
 }
 
@@ -253,65 +253,6 @@
 .pw-setup-log {
     background: color-mix(in srgb, var(--brand1) 6%, var(--soft));
     color: var(--text);
-}
-
-/* KPI & Status-Kacheln */
-.pw-kpi--ok {
-    background: color-mix(in srgb, #22c55e 10%, var(--card));
-}
-
-.pw-kpi--warn {
-    background: color-mix(in srgb, #f59e0b 10%, var(--card));
-}
-
-.pw-kpi--bad {
-    background: color-mix(in srgb, #ef4444 10%, var(--card));
-}
-
-html[data-theme='dark'] .pw-kpi--ok .pw-kpi__top > i {
-    color: #6ee7b7;
-}
-
-html[data-theme='dark'] .pw-kpi--warn .pw-kpi__top > i {
-    color: #fcd34d;
-}
-
-html[data-theme='dark'] .pw-kpi--bad .pw-kpi__top > i {
-    color: #fda4af;
-}
-
-.pw-badge {
-    background: var(--surface-muted);
-    color: var(--text);
-}
-
-.pw-badge--beantragt {
-    background: color-mix(in srgb, #f59e0b 22%, var(--card));
-    color: #fcd34d;
-}
-
-.pw-badge--freigegeben {
-    background: color-mix(in srgb, #22c55e 18%, var(--card));
-    color: #6ee7b7;
-}
-
-.pw-badge--abgelehnt,
-.pw-badge--abgesagt {
-    background: color-mix(in srgb, #ef4444 18%, var(--card));
-    color: #fda4af;
-}
-
-html[data-theme='light'] .pw-badge--beantragt {
-    color: #92400e;
-}
-
-html[data-theme='light'] .pw-badge--freigegeben {
-    color: #065f46;
-}
-
-html[data-theme='light'] .pw-badge--abgelehnt,
-html[data-theme='light'] .pw-badge--abgesagt {
-    color: #991b1b;
 }
 
 /* Panels innerhalb der Planer */
@@ -341,18 +282,6 @@ html[data-theme='dark'] .pw-page .tm-panel,
 html[data-theme='dark'] .akt-page .tm-panel,
 html[data-theme='dark'] .fr-page .tm-panel {
     box-shadow: var(--shadow);
-}
-
-html[data-theme='dark'] .pw-conn--ok {
-    color: #6ee7b7;
-}
-
-html[data-theme='dark'] .pw-conn--demo {
-    color: #93c5fd;
-}
-
-html[data-theme='dark'] .pw-conn--wait {
-    color: #fcd34d;
 }
 
 /* Schultool-Karten / Fokus / Primär-Akzente an Marke */
@@ -546,7 +475,10 @@ html[data-theme='dark'] .pw-conn--wait {
 .fr-page .fr-table th,
 .lfr-page .lfr-table th,
 .srdp-page .srdp-table th,
-.sa-page .sa-table th {
+.sa-page .sa-table th,
+.pw-page .pw-table th,
+.pw-page .pw-cal th,
+.pw-page .pw-plan th {
     background: var(--surface-2, #f1f5f9);
     color: color-mix(in srgb, var(--text) 82%, #000);
     position: static;

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="src/shared/theme-boot.js?v=4"></script>
+    <script src="src/shared/theme-boot.js?v=6"></script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="src/shared/fluent-blocks.css?v=6">
     <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=5">
-    <link rel="stylesheet" href="src/shared/tenant-register-ui.css?v=20261122-workbench17">
+    <link rel="stylesheet" href="src/shared/tenant-register-ui.css?v=20261126-embed-rail">
     <link rel="stylesheet" href="src/tools/datenlandkarte/datenlandkarte.css">
     <link rel="stylesheet" href="src/tools/schul-organigramm/schul-organigramm.css?v=20261122-ux5">
     <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
@@ -1596,12 +1596,12 @@
                                                 </div>
                                             </details>
                                             <button type="button" class="btn fb-btn fb-btn--ghost ts-act-danger-quiet" id="tenantBtnUnmatchSgaGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
-                                                <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                                <i class="bi bi-x-circle" aria-hidden="true"></i> M365-Verknüpfung lösen
                                             </button>
                                         </div>
                                         <span class="ts-act-sep" aria-hidden="true"></span>
                                         <div class="ts-act-group">
-                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenSgaGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenSgaGroup" title="Verknüpfte Gruppe in Microsoft Entra öffnen" hidden>
                                                 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
                                             </button>
                                         </div>
@@ -1731,7 +1731,7 @@
                                                 <i class="bi bi-people-fill" aria-hidden="true"></i> M365 ergänzen
                                             </button>
                                             <button type="button" class="btn fb-btn fb-btn--ghost ts-act-danger-quiet" id="tenantBtnUnmatchLehrerGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
-                                                <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                                <i class="bi bi-x-circle" aria-hidden="true"></i> M365-Verknüpfung lösen
                                             </button>
                                         </div>
                                         <span class="ts-act-sep" aria-hidden="true"></span>
@@ -1739,7 +1739,7 @@
                                             <button type="button" class="btn fb-btn fb-btn--ghost" data-tenant-intranet-sync="lehrer" aria-label="Intranet: Lehrkräfte" title="Lehrerinnen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
                                                 <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet
                                             </button>
-                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenLehrerGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenLehrerGroup" title="Verknüpfte Gruppe in Microsoft Entra öffnen" hidden>
                                                 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
                                             </button>
                                         </div>
@@ -1988,7 +1988,7 @@
                                                 <i class="bi bi-people-fill" aria-hidden="true"></i> M365 ergänzen
                                             </button>
                                             <button type="button" class="btn fb-btn fb-btn--ghost ts-act-danger-quiet" id="tenantBtnUnmatchSchuelerGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
-                                                <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                                <i class="bi bi-x-circle" aria-hidden="true"></i> M365-Verknüpfung lösen
                                             </button>
                                         </div>
                                         <span class="ts-act-sep" aria-hidden="true"></span>
@@ -1996,7 +1996,7 @@
                                             <button type="button" class="btn fb-btn fb-btn--ghost" data-tenant-intranet-sync="schueler" aria-label="Intranet: Schüler:innen" title="Schülerinnen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
                                                 <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet
                                             </button>
-                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenSchuelerGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenSchuelerGroup" title="Verknüpfte Gruppe in Microsoft Entra öffnen" hidden>
                                                 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
                                             </button>
                                         </div>
@@ -2224,12 +2224,12 @@
                                                 </div>
                                             </details>
                                             <button type="button" class="btn fb-btn fb-btn--ghost ts-act-danger-quiet" id="tenantBtnUnmatchStudentCouncilGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
-                                                <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                                <i class="bi bi-x-circle" aria-hidden="true"></i> M365-Verknüpfung lösen
                                             </button>
                                         </div>
                                         <span class="ts-act-sep" aria-hidden="true"></span>
                                         <div class="ts-act-group">
-                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenStudentCouncilGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                            <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnOpenStudentCouncilGroup" title="Verknüpfte Gruppe in Microsoft Entra öffnen" hidden>
                                                 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
                                             </button>
                                         </div>
@@ -2321,7 +2321,7 @@
                                             <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnVerifyClassesGraph" title="Klassengruppen in Microsoft 365 suchen und den Abgleich anzeigen">
                                                 <i class="bi bi-microsoft" aria-hidden="true"></i> Gruppen prüfen
                                             </button>
-                                            <a class="btn fb-btn fb-btn--ghost" id="tenantLinkKlassengruppenVerwalten" href="tools/jahrgangsgruppen.html" title="Klassengruppen matchen und pflegen">
+                                            <a class="btn fb-btn fb-btn--ghost" id="tenantLinkKlassengruppenVerwalten" href="tools/jahrgangsgruppen.html" title="Klassengruppen verknüpfen und pflegen">
                                                 <i class="bi bi-diagram-3" aria-hidden="true"></i> Klassengruppen
                                             </a>
                                             <button type="button" class="btn fb-btn fb-btn--ghost" id="tenantBtnEnrichClassesFromGroups" title="Fehlende Klassenfelder aus den verknüpften Microsoft-365-Gruppen übernehmen">
@@ -2443,7 +2443,7 @@
                             </div>
                             <div class="ts-register-save-bar__tools" aria-label="Backup und IT-Sicherung">
                                 <details class="ts-register-save-drop">
-                                    <summary class="btn fb-btn fb-btn--ghost ts-register-save-drop__trigger">Backup<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                    <summary class="btn fb-btn fb-btn--ghost ts-register-save-drop__trigger">Backup<i class="bi bi-chevron-up ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                                     <div class="ts-register-save-drop__panel" role="menu">
                                         <button type="button" class="ts-register-save-link" data-ms365-backup="export" role="menuitem" title="Alle lokalen App-Daten als JSON speichern"><i class="bi bi-download" aria-hidden="true"></i>Exportieren</button>
                                         <label class="ts-register-save-link" for="browserBackupImportFile" role="menuitem" title="JSON-Backup aus einem anderen Browser laden"><i class="bi bi-upload" aria-hidden="true"></i>Importieren</label>
@@ -2493,7 +2493,7 @@
     <script type="module" src="src/shared/utils/school-year.js"></script>
     <script type="module" src="src/shared/dashboard-persona-session.js"></script>
     <script type="module" src="src/shared/msal-auth-ui.js?v=20261122b"></script>
-    <script src="src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="src/shared/theme-toggle.js?v=5" defer></script>
     <script type="module" src="src/shared/graph-unified-groups.js"></script>
     <script src="src/shared/group-photo-thumb.js" defer></script>
     <script src="src/shared/user-photo-thumb.js" defer></script>
@@ -2547,4 +2547,5 @@
     <script src="src/shared/declarative-actions.js" defer></script>
 </body>
 </html>
+
 

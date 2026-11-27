@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="../app.css?v=28">
     <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
     <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
-    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="../src/shared/system-admin-shell.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
@@ -54,7 +55,20 @@
             color: var(--muted);
             line-height: 1.45;
         }
-    
+        .es-hero {
+            margin: 0 0 18px;
+        }
+        .es-result {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--brand1) 8%, transparent);
+        }
+        .ms-sys-links .fb-btn {
+            text-decoration: none;
+        }
+
 /* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
 .page-card.tm-page,
 .container.page-card {
@@ -76,8 +90,8 @@ button.btn-success {
 
 </style>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page es-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
@@ -86,16 +100,23 @@ button.btn-success {
             </div>
             <p>Grundanlage für den Elternsprechtag in Microsoft Bookings: eine Buchungsumgebung, <strong>ein neuer Dienst pro Sprechtag</strong>, alle Lehrkräfte als Mitarbeiter – Eltern wählen die Lehrkraft auf der Buchungsseite. Tag und Zeitfenster hier setzen; Feinschliff (Fragen, Branding, einzelne Lehrerzeiten) danach im Bookings-Portal.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-elternsprechtag-bookings" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
-                <a class="btn" href="https://bookings.cloud.microsoft/bookings/homepage" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Bookings</a>
+                <a class="fb-btn fb-btn--ghost" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="fb-btn fb-btn--ghost" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+                <a class="fb-btn fb-btn--ghost" href="https://bookings.cloud.microsoft/bookings/homepage" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Bookings</a>
             </div>
         </div>
 
         <div class="content">
-            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
-                <span class="tm-perm"><i class="bi bi-shield-check"></i>Bookings.ReadWrite.All</span>
+            <section class="es-hero" aria-label="Stand">
+                <h1 class="fb-greet">Elternsprechtag (Bookings)</h1>
+                <p class="fb-sub">Buchungsumgebung, Sprechtags-Dienst und Lehrkräfte – danach Feinschliff im Bookings-Portal.</p>
+            </section>
+
+            <div class="pw-msg" role="note" aria-label="Status">
+                <p class="pw-msg__title">Berechtigung</p>
+                <p class="pw-msg__meta" style="margin:0;"><i class="bi bi-shield-check"></i> Bookings.ReadWrite.All</p>
             </div>
 
             <div class="ms-sys" id="esSys">
@@ -124,7 +145,7 @@ button.btn-success {
                         <label for="esBizQuery">Suche / Name (optional)</label>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
                             <input type="text" id="esBizQuery" placeholder="z. B. Elternsprechtag" style="flex:1;min-width:180px;" spellcheck="false">
-                            <button type="button" class="btn" id="esBtnLoadBiz"><i class="bi bi-search"></i>Suchen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="esBtnLoadBiz"><i class="bi bi-search"></i>Suchen</button>
                         </div>
                         <label for="esBizExisting">Treffer</label>
                         <select id="esBizExisting" style="width:100%;margin-bottom:10px;">
@@ -133,9 +154,12 @@ button.btn-success {
                         <label for="esBizIdManual">Oder Business-ID / Bookings-Mail direkt</label>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                             <input type="text" id="esBizIdManual" placeholder="z. B. Elternsprechtag@schule.onmicrosoft.com" style="flex:1;min-width:220px;" spellcheck="false" autocomplete="off">
-                            <button type="button" class="btn btn-ghost" id="esBtnVerifyBiz"><i class="bi bi-check2-circle"></i>Prüfen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" id="esBtnVerifyBiz"><i class="bi bi-check2-circle"></i>Prüfen</button>
                         </div>
-                        <p class="es-hint">Die komplette Liste liefert Graph oft mit <code>UnknownError</code>. Besser: Suchbegriff oder die Bookings-Adresse aus dem Portal (Geschäftsinformationen / Kalender-Mail).</p>
+                        <div class="pw-msg" role="note" style="margin-top:10px;">
+                            <p class="pw-msg__title">Hinweis zur Suche</p>
+                            <p class="pw-msg__meta" style="margin:0;">Die komplette Liste liefert Graph oft mit <code>UnknownError</code>. Besser: Suchbegriff oder die Bookings-Adresse aus dem Portal (Geschäftsinformationen / Kalender-Mail).</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -178,7 +202,10 @@ button.btn-success {
                         <input type="text" id="esTimeZone" value="Europe/Vienna" spellcheck="false">
                     </div>
                 </div>
-                <p class="es-hint">Der Dienst ist nur an diesem <strong>einen Kalendertag</strong> buchbar. Bei einer <strong>bestehenden Buchungsseite</strong> wird immer ein <strong>neuer Dienst</strong> angelegt (wie „Termin Elternsprechtag 2025“) – ältere Dienste bleiben erhalten.</p>
+                <div class="pw-msg" role="note" style="margin-top:12px;">
+                    <p class="pw-msg__title">Ein Tag, neuer Dienst</p>
+                    <p class="pw-msg__meta" style="margin:0;">Der Dienst ist nur an diesem <strong>einen Kalendertag</strong> buchbar. Bei einer <strong>bestehenden Buchungsseite</strong> wird immer ein <strong>neuer Dienst</strong> angelegt (wie „Termin Elternsprechtag 2025“) – ältere Dienste bleiben erhalten.</p>
+                </div>
                 <label class="checkbox-label" style="display:flex;gap:8px;margin:12px 0 0;align-items:flex-start;">
                     <input type="checkbox" id="esPublish" checked>
                     <span>Buchungsseite veröffentlichen (nötig für den öffentlichen Link)</span>
@@ -194,9 +221,9 @@ button.btn-success {
                     </div>
                 </header>
                 <div class="tm-actions" style="margin-bottom:10px;">
-                    <button type="button" class="btn" id="esBtnReloadTeachers"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
-                    <button type="button" class="btn btn-ghost" id="esBtnSelectAll">Alle</button>
-                    <button type="button" class="btn btn-ghost" id="esBtnSelectNone">Keine</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="esBtnReloadTeachers"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="esBtnSelectAll">Alle</button>
+                    <button type="button" class="fb-btn fb-btn--ghost" id="esBtnSelectNone">Keine</button>
                 </div>
                 <div class="es-table-wrap">
                     <table>
@@ -222,9 +249,9 @@ button.btn-success {
                     </div>
                 </header>
                 <div class="ms-sys-links">
-                    <a class="btn ms-sys-btn-secondary" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
-                    <a class="btn ms-sys-btn-ghost" href="https://bookings.cloud.microsoft/bookings/homepage" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Bookings</a>
-                    <a class="btn ms-sys-btn-ghost" href="../hilfe.html#tool-elternsprechtag-bookings"><i class="bi bi-life-preserver"></i>Hilfe</a>
+                    <a class="fb-btn fb-btn--ghost" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+                    <a class="fb-btn fb-btn--ghost" href="https://bookings.cloud.microsoft/bookings/homepage" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Bookings</a>
+                    <a class="fb-btn fb-btn--ghost" href="../hilfe.html#tool-elternsprechtag-bookings"><i class="bi bi-life-preserver"></i>Hilfe</a>
                 </div>
             </section>
 
@@ -249,18 +276,25 @@ button.btn-success {
                 </div>
                 <div id="esSummary" class="tm-log" style="min-height:48px;margin-bottom:12px;"></div>
                 <div class="tm-actions">
-                    <button type="button" class="btn btn-success" id="esBtnRun"><i class="bi bi-play-fill"></i>Grundanlage starten</button>
+                    <button type="button" class="fb-btn" id="esBtnRun"><i class="bi bi-play-fill"></i>Grundanlage starten</button>
                 </div>
-                <div id="esResultCard" class="es-result" hidden style="margin-top:16px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb, var(--brand1, #0e7490) 8%, transparent);">
+                <div id="esResultCard" class="es-result" hidden>
                     <h4 style="margin:0 0 8px;font-size:1.05em;"><i class="bi bi-link-45deg"></i> Buchungsformular</h4>
                     <p id="esResultHint" class="muted" style="margin:0 0 10px;font-size:0.9em;"></p>
                     <label for="esPublicUrl" class="muted" style="display:block;font-size:0.85em;margin-bottom:4px;">Öffentlicher Link</label>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;">
                         <input type="url" id="esPublicUrl" readonly spellcheck="false" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--input-border, var(--border));border-radius:8px;font:inherit;">
-                        <button type="button" class="btn" id="esBtnCopyUrl" title="Link kopieren"><i class="bi bi-clipboard"></i>Kopieren</button>
-                        <a class="btn btn-success" id="esBtnOpenUrl" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                        <button type="button" class="fb-btn fb-btn--ghost" id="esBtnCopyUrl" title="Link kopieren"><i class="bi bi-clipboard"></i>Kopieren</button>
+                        <a class="fb-btn" id="esBtnOpenUrl" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                     </div>
                     <p style="margin:10px 0 0;"><a href="https://bookings.cloud.microsoft/bookings/homepage" target="_blank" rel="noopener">Bookings-Portal (Admin)</a></p>
+                </div>
+                <div style="margin-top:16px;">
+                    <button type="button" class="fb-btn" id="esBtnSpiegel"><i class="bi bi-cloud-arrow-up"></i>Buchungen übernehmen</button>
+                    <div class="pw-msg" role="note" style="margin-top:10px;">
+                        <p class="pw-msg__title">Spiegel in den Planer</p>
+                        <p class="pw-msg__meta" style="margin:0;">Schreibt die Buchungen dieses Tages in die Liste Elternsprechtag-Termine auf der Planer-Website. Lehrkräfte sehen dort nur die eigene Zeile. Ein erneuter Lauf ersetzt den Tag.</p>
+                    </div>
                 </div>
                 <details class="tm-tech" style="margin-top:14px;" open>
                     <summary>Protokoll</summary>
@@ -271,12 +305,13 @@ button.btn-success {
     </div>
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script type="module" src="../src/tools/elternsprechtag-bookings/elternsprechtag-bookings.js"></script>
 </body>
 </html>

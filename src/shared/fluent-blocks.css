@@ -102,6 +102,72 @@
     border: 1px solid var(--border);
 }
 
+/* Danger als Ghost – wie Stammdaten „Mehr“, nicht filled Rot */
+.fb-btn--ghost.fb-btn--danger,
+.fb-btn.fb-btn--danger {
+    background: transparent;
+    color: var(--danger1, #c0392b);
+    border: 1px solid color-mix(in srgb, var(--danger1, #c0392b) 42%, var(--border));
+}
+.fb-btn--ghost.fb-btn--danger:hover,
+.fb-btn.fb-btn--danger:hover {
+    background: color-mix(in srgb, var(--danger1, #c0392b) 8%, transparent);
+    border-color: var(--danger1, #c0392b);
+    color: var(--danger1, #c0392b);
+}
+
+/**
+ * Zwischenstand-Leiste über Werkzeuge hinweg.
+ * Referenz: Schulprofil/Stammdaten – ruhige Ghost-Actions, kein filled Teal.
+ */
+.tool-state-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+    padding: 10px 12px;
+}
+.tool-state-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+.tool-state-bar .fb-btn,
+.tool-state-bar .fb-btn--ghost {
+    margin: 0;
+    min-height: 36px;
+    padding: 0 14px;
+    font-weight: 650;
+    box-shadow: none;
+}
+.tool-state-bar .fb-btn .bi,
+.tool-state-bar .fb-btn--ghost .bi {
+    margin-right: 6px;
+}
+/* Legacy-.btn in der Leiste → ebenfalls Ghost (Migration / Fallback) */
+.tool-state-bar .btn:not(.btn-danger):not(.fb-btn) {
+    background: transparent !important;
+    color: var(--heading) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    margin: 0;
+    min-height: 36px;
+    padding: 0 14px;
+}
+.tool-state-bar .btn.btn-danger:not(.fb-btn) {
+    background: transparent !important;
+    color: var(--danger1, #c0392b) !important;
+    border: 1px solid color-mix(in srgb, var(--danger1, #c0392b) 42%, var(--border)) !important;
+    box-shadow: none !important;
+    margin: 0;
+    min-height: 36px;
+    padding: 0 14px;
+}
+
 .fb-steps {
     display: flex;
     flex-wrap: wrap;

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -11,21 +11,70 @@
     <meta name="ms365-graph-it-client-id" content="a1f27f94-78c2-4503-9603-192c86924842">
     <title>MS365-Schul-Tools – Kursteams</title>
     <link rel="stylesheet" href="../app.css?v=28">
-        <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
-<link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
-    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
-
+    <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
+    <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=9">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/kursteams/kursteams-single.css?v=1">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../src/shared/kursteam-m365-import-status.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
         /* =============================================
-           KURSTEAMS – PAGE-LEVEL DESIGN
+           KURSTEAMS – PAGE-LEVEL DESIGN (Fluent-Tiefe)
         ============================================= */
+.page-card.tm-page,
+.container.page-card,
+.container { --brand: var(--brand1); --primary: var(--brand1); }
+.btn-success, .btn.btn-success, button.btn-success {
+    background: var(--brand1) !important;
+    border-color: var(--brand1) !important;
+    color: var(--on-accent, #04211d) !important;
+}
 
         /* Schritt-Inhalt: etwas mehr Luft */
-        .step-content { padding: 28px 30px; }
+        .step-content { padding: 28px 30px; max-width: 1100px; margin-inline: auto; }
         @media (max-width: 640px) { .step-content { padding: 18px 14px; } }
+
+        /* Fluent Stepper Skin über Legacy .steps */
+        #kursteamWizardSteps.steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 0 0 16px;
+            padding: 0 8px;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+        #kursteamWizardSteps .step {
+            border: 0 !important;
+            background: transparent !important;
+            color: var(--muted) !important;
+            border-radius: 8px;
+            padding: 8px 12px !important;
+            font-size: 0.86rem !important;
+            font-weight: 500 !important;
+            box-shadow: none !important;
+            min-width: 0 !important;
+        }
+        #kursteamWizardSteps .step:hover {
+            background: color-mix(in srgb, var(--heading) 4%, transparent) !important;
+            color: var(--heading) !important;
+        }
+        #kursteamWizardSteps .step.active {
+            background: color-mix(in srgb, var(--brand1) 10%, transparent) !important;
+            color: var(--heading) !important;
+            font-weight: 650 !important;
+            box-shadow: inset 0 -2px 0 var(--brand1) !important;
+        }
+        #kursteamWizardSteps .step.completed::before,
+        #kursteamWizardSteps .step.done::before {
+            content: '✓ ';
+            color: var(--brand1);
+            font-weight: 700;
+        }
 
         /* Schritt-Header mit Icon-Badge */
         .kt-step-header {
@@ -34,15 +83,15 @@
             gap: 14px;
             margin-bottom: 20px;
             padding-bottom: 16px;
-            border-bottom: 2px solid var(--border);
+            border-bottom: 1px solid var(--border);
         }
         .kt-step-badge {
-            width: 44px; height: 44px; min-width: 44px;
-            border-radius: 50%;
-            background: var(--brand1);
-            color: #fff;
+            width: 36px; height: 36px; min-width: 36px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--brand1) 14%, transparent);
+            color: var(--brand1);
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.3em;
+            font-size: 1rem;
             box-shadow: none;
         }
         .kt-step-header-text h2 {
@@ -88,18 +137,19 @@
             margin-top: 12px;
         }
         .kursteam-start-card {
-            border: 2px solid var(--border);
-            border-radius: 16px;
-            padding: 22px 20px 18px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 14px 14px;
             background: var(--card);
-            box-shadow: var(--shadow);
+            box-shadow: none;
             text-align: left;
             display: flex;
             flex-direction: column;
-            transition: border-color .18s, box-shadow .18s;
+            transition: border-color .12s, background .12s;
         }
         .kursteam-start-card:hover {
-            border-color: var(--brand1);
+            border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+            background: color-mix(in srgb, var(--heading) 2.5%, var(--card));
             box-shadow: none;
         }
         .kursteam-start-card .ks-card-icon {
@@ -110,6 +160,14 @@
         .kursteam-start-card .step-nav-row {
             margin-top: auto;
             padding-top: 14px;
+        }
+        .kursteam-start-card .fb-btn,
+        .kt-step-footer .fb-btn {
+            gap: 8px;
+        }
+        .kt-step-footer .fb-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
         .kursteam-start-card h3 {
             margin: 0 0 8px;
@@ -123,49 +181,7 @@
         .kursteam-name-config-block {
             margin-bottom: 4px;
         }
-        body.kursteam-mode-single .kursteam-name-config-block {
-            padding: 14px 16px;
-            background: var(--soft);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 16px;
-        }
-        .single-team-row {
-            display: grid;
-            grid-template-columns: minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(80px, 0.7fr) minmax(160px, 1.4fr) auto;
-            gap: 8px;
-            align-items: end;
-            padding: 10px 12px;
-            background: var(--soft);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-        }
-        .single-team-row .filter-group {
-            margin: 0;
-            min-width: 0;
-        }
-        .single-team-row .filter-group label {
-            font-size: 0.78em;
-            display: block;
-            margin-bottom: 4px;
-        }
-        .single-team-row .filter-group input {
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .single-team-row__remove {
-            margin-bottom: 2px;
-            flex-shrink: 0;
-        }
-        @media (max-width: 900px) {
-            .single-team-row {
-                grid-template-columns: 1fr 1fr;
-            }
-            .single-team-row__remove {
-                grid-column: 1 / -1;
-                justify-self: start;
-            }
-        }
+        /* Single-Modus-Styles: src/tools/kursteams/kursteams-single.css */
         .kursteam-start-card p {
             margin: 0;
             color: var(--text-secondary);
@@ -426,38 +442,40 @@ button.btn-success {
 
 </style>
 </head>
-<body>
-    <div class="container">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-mortarboard"></i>Kursteams</span>
             </div>
-            <p>Unterrichtsdaten aus <strong>WebUntis, Sokrates oder Excel</strong> importieren oder manuell erfassen → Team-Namen generieren → <strong>Kursteam-Anlage.cmd</strong> per Doppelklick starten.</p>
-            <p class="header-help-row"><a href="../hilfe.html#tool-kursteams" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Unterrichtsteams aus Belegung erzeugen – Import oder manuell, dann Namen und CMD-Anlage.</p>
+            <p class="muted" style="margin:4px 0 0;font-size:0.9rem;">WebUntis · Sokrates · Excel · Kursteam-Anlage.cmd</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-kursteams" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="../index.html" title="Zurück zum Dashboard" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="spielwiesen.html" title="Demo-Teams für Schilf" style="text-decoration:none;display:inline-block;"><i class="bi bi-joystick"></i>Spielwiese</a>
-                        <a class="btn" href="unterrichtsteams-katalog.html" title="Unterrichtsteams anzeigen und bearbeiten" style="text-decoration:none;display:inline-block;"><i class="bi bi-table"></i>Katalog</a>
-                    </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;"></div>
-                </div>
+                <a class="btn" href="../index.html" title="Zurück zum Dashboard"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div id="panelWebuntis">
-            <div class="steps steps--one-line" id="kursteamWizardSteps" role="navigation" aria-label="Kursteams-Assistent">
+            <nav class="pw-related" aria-label="Verwandte Tools" style="padding:0 8px;margin:8px 0 4px;">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="spielwiesen.html">Spielwiesen ↗</a>
+                <a href="unterrichtsteams-katalog.html">Katalog ↗</a>
+                <a href="klassenchats.html">KlassenChats ↗</a>
+            </nav>
+
+            <div class="steps steps--one-line pw-steps" id="kursteamWizardSteps" role="navigation" aria-label="Kursteams-Assistent">
                 <div class="step active" data-step="0">Start</div>
-                <div class="step" data-step="1">1. Daten importieren</div>
-                <div class="step" data-step="2">2. Daten bereinigen</div>
-                <div class="step" data-step="3">3. Manuelle Eingabe</div>
-                <div class="step" data-step="4">4. Lehrer zuordnen</div>
-                <div class="step" data-step="5">5. Teams konfigurieren</div>
-                <div class="step" data-step="7" title="Empfohlener Anlageweg">6. Anlegen (CSV/CMD)</div>
-                <div class="step step--optional" data-step="8" title="Optional">7. Optional: Schüler</div>
+                <div class="step" data-step="1">1 · Import</div>
+                <div class="step" data-step="2">2 · Bereinigen</div>
+                <div class="step" data-step="3">3 · Manuell</div>
+                <div class="step" data-step="4">4 · Lehrer</div>
+                <div class="step" data-step="5">5 · Namen</div>
+                <div class="step" data-step="7" title="Empfohlener Anlageweg">6 · Anlegen</div>
+                <div class="step step--optional" data-step="8" title="Optional">7 · Schüler</div>
             </div>
 
             <div class="content">
@@ -472,16 +490,22 @@ button.btn-success {
                         </div>
                     </div>
 
-                    <div class="kt-step-header" id="kursteamSingleStep0Header" style="display:none;">
-                        <div class="kt-step-badge" style="background: var(--brand1);"><i class="bi bi-plus-square-fill"></i></div>
-                        <div class="kt-step-header-text">
-                            <h2>Einzelne Unterrichtsteams hinzufügen</h2>
-                            <p>Eine oder mehrere Zeilen – dann direkt anlegen. Ohne Bulk-Assistent.</p>
+                    <div class="kt-single-hero" id="kursteamSingleStep0Header" style="display:none;" hidden>
+                        <div class="kt-single-hero__badge" aria-hidden="true"><i class="bi bi-plus-square-fill"></i></div>
+                        <div>
+                            <h2 class="fb-greet">Einzelne Unterrichtsteams hinzufügen</h2>
+                            <p class="fb-sub">Eine oder mehrere Zeilen – dann direkt anlegen. Ohne Bulk-Assistent.</p>
                         </div>
                     </div>
 
-                    <div id="kursteamBulkIntro" class="alert alert-info" style="margin-bottom:18px;">
-                        <strong>So funktioniert es:</strong> Daten importieren oder manuell eingeben, Lehrer-E-Mails prüfen, Team-Namen generieren → <strong>Kursteam-Anlage.cmd</strong> herunterladen und per Doppelklick starten.
+                    <div id="kursteamBulkIntro" class="pw-msg" style="margin-bottom:18px;">
+                        <p class="pw-msg__title">So funktioniert es</p>
+                        <ol class="pw-msg__list">
+                            <li>Daten importieren oder manuell eingeben</li>
+                            <li>Lehrer-E-Mails prüfen</li>
+                            <li>Team-Namen generieren</li>
+                            <li><strong>Kursteam-Anlage.cmd</strong> herunterladen und per Doppelklick starten</li>
+                        </ol>
                     </div>
 
                     <div id="kursteamBulkChecklist" style="background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
@@ -496,30 +520,39 @@ button.btn-success {
                         </ul>
                     </div>
 
-                    <div id="kursteamSingleBanner" class="alert alert-info" style="display:none;margin-bottom:18px;">
-                        <strong>Kurz:</strong> Namensschema einstellen → Zeilen ausfüllen → anlegen. Mit <strong>+</strong> weitere Teams.
-                        <button type="button" class="btn btn-small" style="margin-left:8px;" data-ms365-call="cancelKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zum Start</button>
+                    <div id="kursteamSingleBanner" class="pw-msg kt-single-help" style="display:none;" hidden>
+                        <p class="pw-msg__title">Kurzablauf</p>
+                        <ol class="pw-msg__list">
+                            <li>Namensschema prüfen (bei Bedarf Bausteine anpassen)</li>
+                            <li>Zeilen ausfüllen – mit + weitere Teams</li>
+                            <li>Zur Anlage vorbereiten und online oder per CMD anlegen</li>
+                        </ol>
+                        <div class="pw-msg__meta">
+                            <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="cancelKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zum Start</button>
+                        </div>
                     </div>
 
-                    <div id="kursteamSingleForm" class="filter-section" style="display:none;margin-bottom:20px;">
-                        <h3><i class="bi bi-plus-square" style="color:var(--brand1);"></i> Einzelne Unterrichtsteams hinzufügen</h3>
-                        <p style="margin:0 0 14px;font-size:0.9em;color:var(--text-secondary);">
-                            Pro Zeile ein Team (z.&nbsp;B. <code>4AK</code> · <code>WINF</code> · Lehrkraft). Besitzer-E-Mail kommt aus den Stammdaten und steht in derselben Zeile.
+                    <div id="kursteamSingleForm" class="kt-single-form" style="display:none;" hidden>
+                        <p class="kt-single-form__lead">
+                            Pro Zeile ein Team (z.&nbsp;B. <code>4AK</code> · <code>WINF</code> · Lehrkraft). Die Besitzer-E-Mail kommt aus den Stammdaten und steht in derselben Zeile.
                         </p>
-                        <div id="kursteamNameConfigHostSingle" class="kursteam-name-config-host" style="margin-bottom:16px;"></div>
+                        <p class="pw-sec">Team-Namen</p>
+                        <div id="kursteamNameConfigHostSingle" class="kursteam-name-config-host"></div>
+                        <p class="pw-sec">Unterrichtsteams</p>
                         <datalist id="singleTeamKlasseList"></datalist>
                         <datalist id="singleTeamFachList"></datalist>
                         <datalist id="singleTeamLehrerList"></datalist>
-                        <div id="singleTeamRows" class="single-team-rows" aria-label="Unterrichtsteams"></div>
-                        <div style="margin-top:10px;">
-                            <button type="button" class="btn btn-small" id="singleTeamAddRowBtn" data-ms365-call="addSingleTeamRow"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
+                        <div id="singleTeamRows" class="single-team-rows kt-single-rows" aria-label="Unterrichtsteams"></div>
+                        <div class="kt-single-add-wrap">
+                            <button type="button" class="fb-btn fb-btn--ghost" id="singleTeamAddRowBtn" data-ms365-call="addSingleTeamRow"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
                         </div>
-                        <div id="singleTeamPreview" style="margin-top:14px;padding:12px 14px;background:var(--soft);border:1px solid var(--border);border-radius:10px;">
-                            <p class="muted" style="margin:0;">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>
+                        <p class="pw-sec">Vorschau</p>
+                        <div id="singleTeamPreview" class="kt-single-preview" aria-live="polite">
+                            <p class="kt-single-preview__empty">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>
                         </div>
-                        <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;">
-                            <button type="button" class="btn btn-brand" data-ms365-call="commitSingleTeamAndGoCreate"><i class="bi bi-rocket-takeoff"></i>Zur Anlage vorbereiten</button>
-                            <button type="button" class="btn" data-ms365-call="cancelKursteamSingleTeam"><i class="bi bi-x-lg"></i>Abbrechen</button>
+                        <div class="kt-single-nav">
+                            <button type="button" class="fb-btn" data-ms365-call="commitSingleTeamAndGoCreate"><i class="bi bi-rocket-takeoff"></i>Zur Anlage vorbereiten</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="cancelKursteamSingleTeam"><i class="bi bi-x-lg"></i>Abbrechen</button>
                         </div>
                     </div>
 
@@ -529,7 +562,7 @@ button.btn-success {
                             <h3>Datei oder Paste importieren</h3>
                             <p>WebUntis-Export, Sokrates-CSV oder eigene Excel-Vorlage – wird automatisch erkannt und eingelesen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" data-ms365-call="startKursteamFromWebuntis"><i class="bi bi-arrow-right-circle"></i>Weiter: Daten importieren</button>
+                                <button type="button" class="fb-btn" data-ms365-call="startKursteamFromWebuntis"><i class="bi bi-arrow-right-circle"></i>Weiter: Daten importieren</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
@@ -537,7 +570,7 @@ button.btn-success {
                             <h3>Manuell erfassen</h3>
                             <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln eingeben – für wenige Teams oder zum Ergänzen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" data-ms365-call="startKursteamManual"><i class="bi bi-pencil-square"></i>Weiter: Manuelle Eingabe</button>
+                                <button type="button" class="fb-btn" data-ms365-call="startKursteamManual"><i class="bi bi-pencil-square"></i>Weiter: Manuelle Eingabe</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
@@ -545,7 +578,7 @@ button.btn-success {
                             <h3>Einzelne Teams</h3>
                             <p>Ein oder mehrere fehlende Unterrichtsteams ohne Stundenplan-Import – Zeile für Zeile eintragen und anlegen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-plus-lg"></i>Einzelne Unterrichtsteams hinzufügen</button>
+                                <button type="button" class="fb-btn" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-plus-lg"></i>Einzelne Unterrichtsteams hinzufügen</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
@@ -663,7 +696,7 @@ button.btn-success {
 
                     <div class="kt-step-footer kt-step-footer--forward-only" id="step1Footer">
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="2" id="continueBtn1" disabled aria-describedby="continueBtn1Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Fächer bereinigen</button>
+                            <button type="button" class="fb-btn" data-ms365-call="goToStep" data-ms365-arg="2" id="continueBtn1" disabled aria-describedby="continueBtn1Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Fächer bereinigen</button>
                             <p class="kt-continue-hint" id="continueBtn1Hint">Bitte zuerst Daten importieren (Paste oder Datei).</p>
                         </div>
                     </div>
@@ -771,7 +804,7 @@ button.btn-success {
 
                     <div class="kt-step-footer kt-step-footer--forward-only">
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="3" id="continueBtn2" disabled aria-describedby="continueBtn2Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Manuelle Eingabe</button>
+                            <button type="button" class="fb-btn" data-ms365-call="goToStep" data-ms365-arg="3" id="continueBtn2" disabled aria-describedby="continueBtn2Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Manuelle Eingabe</button>
                             <p class="kt-continue-hint" id="continueBtn2Hint">Bitte zuerst „Filter anwenden“.</p>
                         </div>
                     </div>
@@ -852,9 +885,9 @@ button.btn-success {
                         </div>
                     </div>
                     <div class="kt-step-footer">
-                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="2"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="goToStep" data-ms365-arg="2"><i class="bi bi-arrow-left"></i>Zurück</button>
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="4" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter: Lehrer zuordnen</button>
+                            <button type="button" class="fb-btn" data-ms365-call="goToStep" data-ms365-arg="4" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter: Lehrer zuordnen</button>
                         </div>
                     </div>
                 </div>
@@ -987,9 +1020,9 @@ button.btn-success {
                     </details>
 
                     <div class="kt-step-footer">
-                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="3"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="goToStep" data-ms365-arg="3"><i class="bi bi-arrow-left"></i>Zurück</button>
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="5" id="continueBtn3" aria-describedby="continueBtn3Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Teams konfigurieren</button>
+                            <button type="button" class="fb-btn" data-ms365-call="goToStep" data-ms365-arg="5" id="continueBtn3" aria-describedby="continueBtn3Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Teams konfigurieren</button>
                             <p class="kt-continue-hint" id="continueBtn3Hint" hidden></p>
                         </div>
                     </div>
@@ -1015,58 +1048,63 @@ button.btn-success {
                         <div id="kursteamNameConfigHostStep5" class="kursteam-name-config-host"></div>
                         <div id="kursteamNameConfigBlock" class="kursteam-name-config-block">
                         <h3>Team-Namen</h3>
-                        <div class="filter-group">
-                            <label for="yearPrefix">Schuljahr-Präfix:</label>
-                            <input type="text" id="yearPrefix" value="" placeholder="z.B. SJ26, WS25, SS25" title="Wird automatisch aus dem aktuellen Datum berechnet">
+                        <div class="kt-name-basics">
+                            <div class="filter-group kt-field">
+                                <label for="yearPrefix">Schuljahr-Präfix</label>
+                                <input type="text" id="yearPrefix" value="" placeholder="z.B. SJ26, WS25, SS25" title="Wird automatisch aus dem aktuellen Datum berechnet">
+                            </div>
+                            <div class="filter-group kt-field">
+                                <label for="classCombineMode">Mehrklassen im Teamnamen</label>
+                                <select id="classCombineMode" title="Wie mehrere Klassen (z. B. 1HMA,1HMB) im Teamnamen zusammengeführt werden">
+                                    <option value="concat">Vollständig anhängen (1HMA1HMB)</option>
+                                    <option value="smart">Intelligentes Präfix (1HMAB)</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="filter-group">
-                            <p style="color: var(--muted);margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
-                        </div>
-                        <div class="kt-toggle-row" style="margin-bottom:16px;">
+                        <div class="kt-toggle-row" style="margin-bottom:12px;">
                             <input type="checkbox" id="stripSubjectTrailingDigits">
                             <label for="stripSubjectTrailingDigits">Fach-Endziffern im Teamnamen weglassen (<code>OMAI1</code>&nbsp;&rarr; <code>OMAI</code>; Ziffer wird als Gruppe genutzt, falls leer)</label>
                         </div>
-                        <div class="filter-group">
-                            <label for="classCombineMode">Mehrklassen im Teamnamen:</label>
-                            <select id="classCombineMode" title="Wie mehrere Klassen (z. B. 1HMA,1HMB) im Teamnamen zusammengeführt werden">
-                                <option value="concat">Vollständig anhängen (1HMA1HMB)</option>
-                                <option value="smart">Intelligentes Präfix (1HMAB)</option>
-                            </select>
-                        </div>
-                        <p style="margin:-8px 0 14px;font-size:0.85em;color:var(--text-secondary);">
-                            Bei Parallelgruppen denselben Basisnamen: Baustein <strong>Gruppe</strong> oder <strong>Lehrer</strong> im Namensschema ergänzen, sonst kollidieren Namen/Mails.
-                            „Intelligentes Präfix“ kürzt z.&nbsp;B. <code>1HMA,1HMB</code> zu <code>1HMAB</code> bzw. <code>1HMA,1HMB,2HMA,2HMB</code> zu <code>12HMAB</code>.
-                        </p>
-                        <div class="filter-group">
-                            <label>Team‑Name zusammenbauen (Drag &amp; Drop):</label>
-                            <div class="name-builder">
-                                <div id="teamNameBuilder" class="name-builder-dropzone" aria-label="Team-Name Bausteine (ziehbar zum Sortieren)"></div>
-                                <div class="name-builder-actions">
-                                    <button type="button" class="btn btn-small" id="teamNameResetDefault">Standard</button>
-                                </div>
-                            </div>
-                            <div class="name-builder-palette" aria-label="Bausteine">
-                                <button type="button" class="btn btn-small" data-teamname-token="yearPrefix">+ Schuljahr</button>
-                                <button type="button" class="btn btn-small" data-teamname-token="klasse">+ Klasse</button>
-                                <button type="button" class="btn btn-small" data-teamname-token="fach">+ Fach</button>
-                                <button type="button" class="btn btn-small" data-teamname-token="gruppe">+ Gruppe</button>
-                                <button type="button" class="btn btn-small" data-teamname-token="lehrer">+ Lehrer-Kürzel</button>
-                            </div>
-                            <div class="name-builder-inputs" aria-label="Eigene Texte">
-                                <div class="filter-group">
-                                    <label for="teamNameSepValue">Trenner</label>
-                                    <input type="text" id="teamNameSepValue" value=" | " placeholder="z. B.  |  oder -">
-                                </div>
-                                <button type="button" class="btn btn-small" id="teamNameAddSep">Trenner hinzufügen</button>
-                                <div class="filter-group">
-                                    <label for="teamNameTextValue">Eigener Text</label>
-                                    <input type="text" id="teamNameTextValue" value="" placeholder="z. B. SJ oder 2026">
-                                </div>
-                                <button type="button" class="btn btn-small" id="teamNameAddText">Text hinzufügen</button>
-                            </div>
-                            <input type="hidden" id="teamSeparator" value=" | ">
+                        <div class="kt-name-preview-wrap">
                             <div id="teamNamePreview" class="name-preview"></div>
                         </div>
+                        <details id="kursteamNameBuilderDetails" class="kt-name-builder-details">
+                            <summary>Namensbausteine anpassen</summary>
+                            <p style="color: var(--muted);margin:0 0 10px 0;font-size:0.9em;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
+                            <p style="margin:0 0 12px;font-size:0.85em;color:var(--text-secondary);">
+                                Bei Parallelgruppen denselben Basisnamen: Baustein <strong>Gruppe</strong> oder <strong>Lehrer</strong> im Namensschema ergänzen, sonst kollidieren Namen/Mails.
+                                „Intelligentes Präfix“ kürzt z.&nbsp;B. <code>1HMA,1HMB</code> zu <code>1HMAB</code> bzw. <code>1HMA,1HMB,2HMA,2HMB</code> zu <code>12HMAB</code>.
+                            </p>
+                            <div class="filter-group">
+                                <label>Team‑Name zusammenbauen (Drag &amp; Drop)</label>
+                                <div class="name-builder">
+                                    <div id="teamNameBuilder" class="name-builder-dropzone" aria-label="Team-Name Bausteine (ziehbar zum Sortieren)"></div>
+                                    <div class="name-builder-actions">
+                                        <button type="button" class="fb-btn fb-btn--ghost" id="teamNameResetDefault">Standard</button>
+                                    </div>
+                                </div>
+                                <div class="name-builder-palette" aria-label="Bausteine">
+                                    <button type="button" class="fb-btn fb-btn--ghost" data-teamname-token="yearPrefix">+ Schuljahr</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" data-teamname-token="klasse">+ Klasse</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" data-teamname-token="fach">+ Fach</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" data-teamname-token="gruppe">+ Gruppe</button>
+                                    <button type="button" class="fb-btn fb-btn--ghost" data-teamname-token="lehrer">+ Lehrer-Kürzel</button>
+                                </div>
+                                <div class="name-builder-inputs" aria-label="Eigene Texte">
+                                    <div class="filter-group kt-field">
+                                        <label for="teamNameSepValue">Trenner</label>
+                                        <input type="text" id="teamNameSepValue" value=" | " placeholder="z. B.  |  oder -">
+                                    </div>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="teamNameAddSep">Trenner hinzufügen</button>
+                                    <div class="filter-group kt-field">
+                                        <label for="teamNameTextValue">Eigener Text</label>
+                                        <input type="text" id="teamNameTextValue" value="" placeholder="z. B. SJ oder 2026">
+                                    </div>
+                                    <button type="button" class="fb-btn fb-btn--ghost" id="teamNameAddText">Text hinzufügen</button>
+                                </div>
+                                <input type="hidden" id="teamSeparator" value=" | ">
+                            </div>
+                        </details>
                         </div>
                         <button type="button" class="btn btn-brand kursteam-generate-teams-btn" id="btnGenerateTeamNames" data-ms365-call="generateTeamNames"><i class="bi bi-magic"></i>Team-Namen generieren</button>
                         <p id="unterrichtsbelegungHint" class="kt-continue-hint" style="margin-top:10px;" hidden></p>
@@ -1165,7 +1203,7 @@ button.btn-success {
                     </div>
                     <div class="kt-step-footer kt-step-footer--forward-only">
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="7" id="continueBtn4" disabled aria-describedby="continueBtn4Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Kursteams anlegen</button>
+                            <button type="button" class="fb-btn" data-ms365-call="goToStep" data-ms365-arg="7" id="continueBtn4" disabled aria-describedby="continueBtn4Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Kursteams anlegen</button>
                             <p class="kt-continue-hint" id="continueBtn4Hint">Bitte zuerst „Team-Namen generieren“.</p>
                         </div>
                     </div>
@@ -1330,23 +1368,23 @@ button.btn-success {
                     </div>
 
                     <div class="kt-step-footer kt-step-footer--back-only">
-                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="7"><i class="bi bi-arrow-left"></i>Zurück: Kursteams anlegen</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="goToStep" data-ms365-arg="7"><i class="bi bi-arrow-left"></i>Zurück: Kursteams anlegen</button>
                     </div>
                 </div>
 
                 <!-- Schritt 7 (CSV/PowerShell), data-step 7 -->
                 <div class="step-content" data-step="7">
-                    <div class="kt-step-header">
+                    <div class="kt-step-header kt-single-create-hero">
                         <div class="kt-step-badge" style="background:linear-gradient(135deg,#2dce89 0%,#11998e 100%);"><i class="bi bi-rocket-fill"></i></div>
                         <div class="kt-step-header-text">
                             <h2 id="kursteamCreateStepTitle">Schritt 6 – Kursteams anlegen</h2>
                             <p id="kursteamCreateStepSub">Kursteams online über das Azure-Backend anlegen oder alternativ die CMD-Datei per Doppelklick starten.</p>
                         </div>
                     </div>
-                    <div id="kursteamSingleCreateNav" style="display:none;margin-bottom:14px;">
-                        <button type="button" class="btn btn-ghost" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zurück zum Formular</button>
+                    <div id="kursteamSingleCreateNav" style="display:none;" hidden>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zurück zum Formular</button>
                     </div>
-                    <div class="kt-download-box" id="kursteamBackendBox" style="border-color:var(--brand1);background:linear-gradient(135deg,#eef0ff 0%,#f5f0ff 100%);">
+                    <div class="kt-download-box" id="kursteamBackendBox" style="border-color:var(--brand1);background:color-mix(in srgb, var(--brand1) 6%, var(--card));">
                         <div class="kt-dl-icon" style="background: var(--brand1);color:#fff;border-radius:12px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-cloud-upload-fill"></i></div>
                         <div style="flex:1;">
                             <h4>Online anlegen (Azure-Backend)</h4>
@@ -1438,26 +1476,24 @@ Connect-MicrosoftTeams
                         <p style="margin:8px 0 0;">Kursteams folgen dem Schulalltag: <strong>jedes Jahr × jede Klasse × jedes Fach</strong> (und bei Bedarf jede Gruppe) erhält ein eigenes Unterrichtsteam – so wie der Unterricht abgerechnet und dargestellt wird. Ein neues Schuljahr bedeutet neue Klassen und damit neue Kursteams; alte Teams gehören zum Vorjahr und werden nicht „weiterverwendet“.</p>
                     </div>
                     <div class="kt-step-footer">
-                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="5"><i class="bi bi-arrow-left"></i>Zurück: Teams konfigurieren</button>
+                        <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="goToStep" data-ms365-arg="5"><i class="bi bi-arrow-left"></i>Zurück: Teams konfigurieren</button>
                         <div class="step-nav-next-group">
-                            <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="8"><i class="bi bi-person-plus"></i>Optional: Schüler hinzufügen</button>
-                            <button type="button" class="btn btn-ghost" data-ms365-call="resetApp"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="goToStep" data-ms365-arg="8"><i class="bi bi-person-plus"></i>Optional: Schüler hinzufügen</button>
+                            <button type="button" class="fb-btn fb-btn--ghost" data-ms365-call="resetApp"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;">
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern"><i class="bi bi-floppy"></i>Speichern</button>
-                <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden"><i class="bi bi-folder2-open"></i>Stand laden</button>
-                <button type="button" class="btn" id="btnExportKursteamJson" title="Aktuellen Stand als JSON-Datei herunterladen"><i class="bi bi-download"></i>JSON exportieren</button>
-                <button type="button" class="btn" id="btnImportKursteamJson" title="Gespeicherten Stand aus JSON-Datei wiederherstellen"><i class="bi bi-upload"></i>JSON importieren</button>
-                <input type="file" id="kursteamImportJsonFile" accept="application/json,.json" style="display:none;">
-            </div>
-            <div>
-                <button type="button" class="btn btn-danger btn-small" id="btnClearStorage" title="Gespeicherten Zwischenstand löschen"><i class="bi bi-trash"></i>Speicher löschen</button>
+        <div class="toolbar bottom-toolbar tool-state-bar" aria-label="Zwischenstand">
+            <div class="tool-state-bar__actions">
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnSaveState" title="Aktuellen Stand im Browser speichern"><i class="bi bi-floppy"></i>Speichern</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnLoadState" title="Zuletzt gespeicherten Stand laden"><i class="bi bi-folder2-open"></i>Stand laden</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnExportKursteamJson" title="Aktuellen Stand als JSON-Datei herunterladen"><i class="bi bi-download"></i>JSON exportieren</button>
+                <button type="button" class="fb-btn fb-btn--ghost" id="btnImportKursteamJson" title="Gespeicherten Stand aus JSON-Datei wiederherstellen"><i class="bi bi-upload"></i>JSON importieren</button>
+                <button type="button" class="fb-btn fb-btn--ghost fb-btn--danger" id="btnClearStorage" title="Gespeicherten Zwischenstand löschen"><i class="bi bi-trash"></i>Speicher löschen</button>
+                <input type="file" id="kursteamImportJsonFile" accept="application/json,.json" hidden aria-hidden="true">
             </div>
         </div>
     </div>
@@ -1475,6 +1511,7 @@ Connect-MicrosoftTeams
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
@@ -1491,7 +1528,7 @@ Connect-MicrosoftTeams
       Weitere Abhängigkeiten folgen der Import-Reihenfolge in kursteam-teams.js.
     -->
     <script type="module" src="../src/tools/kursteams/kursteam-teams.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/declarative-actions.js" defer></script>
 </body>
 </html>

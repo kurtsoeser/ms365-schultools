@@ -4,7 +4,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     applyAuthMenuItAudience,
+    canUseItShellSwitch,
     ensureHeaderShellSwitch,
+    syncAuthMenuDashViewSection,
     syncHeaderShellSwitch
 } from '../src/shared/dashboard-auth-menu-policy.js';
 
@@ -193,9 +195,42 @@ describe('Kontomenü v11 / Header Portal-IT-Chip', () => {
         expect(itBtn.classList.contains('is-active')).toBe(false);
     });
 
+    it('Bereichswechsel nur bei klarem IT-Zugang, nicht für Schüler oder Lehrkraft', () => {
+        expect(canUseItShellSwitch({ loggedIn: true, isSchueler: true })).toBe(false);
+        expect(canUseItShellSwitch({ loggedIn: true, isLehrer: true })).toBe(false);
+        expect(canUseItShellSwitch({ loggedIn: false, isIt: true })).toBe(false);
+        expect(canUseItShellSwitch({ loggedIn: true, isIt: true })).toBe(true);
+        expect(canUseItShellSwitch({ loggedIn: true, designatedSchoolIt: true })).toBe(true);
+        expect(canUseItShellSwitch({ loggedIn: true, globalAdmin: true })).toBe(true);
+        expect(canUseItShellSwitch({ loggedIn: true, operator: true })).toBe(true);
+
+        const section = el('ms365AuthDashViewSection', { hidden: false });
+        byId.set('ms365AuthDashViewSection', section);
+
+        syncAuthMenuDashViewSection(
+            { loggedIn: true, isSchueler: true, isIt: false },
+            'apps-schueler'
+        );
+        expect(section.hidden).toBe(true);
+        expect(document.getElementById('ms365HeaderShellSwitch').hidden).toBe(true);
+
+        syncAuthMenuDashViewSection(
+            { loggedIn: true, isIt: true, designatedSchoolIt: true },
+            'full'
+        );
+        expect(section.hidden).toBe(false);
+        expect(document.getElementById('ms365HeaderShellSwitch').hidden).toBe(false);
+    });
+
+    it('Shell-CSS lässt versteckte Menüabschnitte wirklich unsichtbar', () => {
+        const css = readFileSync(join(projectRoot, 'src/shared/shell-fluent.css'), 'utf8');
+        expect(css).toContain('.ms365-auth-menu__section[hidden]');
+        expect(css).toContain('display: none !important');
+    });
+
     it('Auth-Menü-Markup v11 enthält Dunkles Design und keine Tenant-ID mehr', () => {
         const auth = readFileSync(join(projectRoot, 'src/shared/msal-auth-ui.js'), 'utf8');
-        expect(auth).toContain("data-ms365-auth-menu-v', '12'");
+        expect(auth).toContain("data-ms365-auth-menu-v', '13'");
         expect(auth).toContain('Dunkles Design');
         expect(auth).not.toContain('ms365AuthCtxTenant');
         expect(auth).not.toContain('schoolYearAddBtn');

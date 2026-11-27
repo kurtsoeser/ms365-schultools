@@ -174,6 +174,21 @@ function setStatus(msg, isError) {
     el.className = isError ? 'slc-status slc-status--err' : 'slc-status';
 }
 
+/** @param {1|2|3} active */
+function markSteps(active) {
+    const marks = [
+        { el: $('slcStep1Mark'), n: 1 },
+        { el: $('slcStep2Mark'), n: 2 },
+        { el: $('slcStep3Mark'), n: 3 }
+    ];
+    marks.forEach(function (m) {
+        if (!m.el) return;
+        m.el.classList.remove('is-current', 'is-done');
+        if (m.n < active) m.el.classList.add('is-done');
+        if (m.n === active) m.el.classList.add('is-current');
+    });
+}
+
 let lastDiff = null;
 let lastPreview = null;
 /** @type {Array<{ name: string, email: string, klasse: string }>|null} */
@@ -263,20 +278,40 @@ function runPreview() {
     lastPreview = previewMemberships(lastDiff, teams, sammel);
 
     const sum = summarizePreview(lastPreview);
-    $('slcDiffSummary').innerHTML =
-        '<strong>' +
-        lastDiff.added.length +
-        '</strong> Zugang · <strong>' +
-        lastDiff.removed.length +
-        '</strong> Abgang · <strong>' +
-        lastDiff.classChanged.length +
-        '</strong> Klassenwechsel · Graph-Vorschau: <strong>' +
-        sum.join +
-        '</strong> Join / <strong>' +
-        sum.leave +
-        '</strong> Leave in <strong>' +
-        sum.groupCount +
-        '</strong> Gruppen';
+    const addN = lastDiff.added.length;
+    const remN = lastDiff.removed.length;
+    const chgN = lastDiff.classChanged.length;
+    const graphGroups = lastPreview.groups || [];
+
+    function setText(id, text) {
+        const node = $(id);
+        if (node) node.textContent = text;
+    }
+    setText('slcStatAdd', String(addN));
+    setText('slcStatRem', String(remN));
+    setText('slcStatChg', String(chgN));
+    setText('slcStatGraph', sum.join + '/' + sum.leave);
+    setText('slcAddedCount', String(addN));
+    setText('slcRemovedCount', String(remN));
+    setText('slcChangedCount', String(chgN));
+    setText('slcGraphCount', String(graphGroups.length));
+
+    const summary = $('slcDiffSummary');
+    if (summary) {
+        summary.textContent =
+            addN +
+            ' Zugang · ' +
+            remN +
+            ' Abgang · ' +
+            chgN +
+            ' Klassenwechsel · Graph: ' +
+            sum.join +
+            ' Join / ' +
+            sum.leave +
+            ' Leave in ' +
+            sum.groupCount +
+            ' Gruppen';
+    }
 
     renderList($('slcAdded'), lastDiff.added, function (s) {
         return escapeHtml(s.name || s.email) + ' → <code>' + escapeHtml(s.klasse) + '</code>';
@@ -295,7 +330,7 @@ function runPreview() {
             '</code>'
         );
     });
-    renderList($('slcPreviewGroups'), lastPreview.groups || [], function (g) {
+    renderList($('slcPreviewGroups'), graphGroups, function (g) {
         return (
             '<strong>' +
             escapeHtml(g.label || g.groupId) +
@@ -303,12 +338,18 @@ function runPreview() {
             (g.join || []).length +
             ' / −' +
             (g.leave || []).length +
-            (g.groupId ? ' <span class="muted">(' + escapeHtml(g.groupId) + ')</span>' : ' <span class="muted">(keine Group-ID – nur Info)</span>')
+            (g.groupId
+                ? ' <span class="muted">(' + escapeHtml(g.groupId) + ')</span>'
+                : ' <span class="muted">(keine Group-ID – nur Info)</span>')
         );
     });
 
     const panel = $('slcPreviewPanel');
-    if (panel) panel.hidden = false;
+    if (panel) {
+        panel.hidden = false;
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    markSteps(2);
 
     const allowLeave = $('slcAllowLeave');
     const applyBtn = $('slcApply');
@@ -454,7 +495,11 @@ function wire() {
             savePrevSnapshot(students, 'Stammdaten');
             setStatus('Vorher-Stand gespeichert (' + students.length + ' Schüler).');
             const meta = $('slcSnapshotMeta');
-            if (meta) meta.textContent = 'Gespeichert: ' + new Date().toLocaleString('de-AT') + ' · ' + students.length + ' Personen';
+            if (meta) {
+                meta.textContent =
+                    'Gespeichert: ' + new Date().toLocaleString('de-AT') + ' · ' + students.length + ' Personen';
+            }
+            markSteps(1);
         });
     }
 
@@ -473,12 +518,15 @@ function wire() {
     const applyBtn = $('slcApply');
     if (applyBtn) {
         applyBtn.addEventListener('click', function () {
+            markSteps(3);
             setStatus(
-                'Graph-Apply ist in dieser Version bewusst an den bestehenden Sync (Schüler/Lehrkräfte, Jahrgangsgruppen) gekoppelt. Nutzen Sie die Deep-Links unten mit der Vorschau als Checkliste – kein stilles Massen-Remove.',
+                'Graph-Apply ist bewusst an Schüler/Lehrkräfte und Klassengruppen gekoppelt. Nutzen Sie die Links unter „Nachziehen“ mit dieser Vorschau als Checkliste – kein stilles Massen-Remove.',
                 false
             );
         });
     }
+
+    markSteps(1);
 
     const snap = loadPrevSnapshot();
     const meta = $('slcSnapshotMeta');

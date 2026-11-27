@@ -1,0 +1,358 @@
+/**
+ * Kursteams Single-Modus (?mode=single) – Fluent / IT-Setup-Linie.
+ * Prefix: kt-single- / scoped under body.kursteam-mode-single
+ * Plus Basis-Styles für den shared Name-Config-Block (auch Bulk Schritt 5).
+ */
+
+/* ── Shared Name-Config (Single + Bulk) ── */
+.kt-name-basics {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(180px, 1fr);
+    gap: 12px 16px;
+    align-items: end;
+    margin: 0 0 12px;
+}
+
+@media (max-width: 720px) {
+    .kt-name-basics {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kt-name-preview-wrap {
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--heading) 2.5%, var(--card));
+}
+
+.kt-name-preview-wrap .name-preview,
+#teamNamePreview {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--heading);
+}
+
+.kt-name-builder-details {
+    margin: 0 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--heading) 2%, var(--card));
+    padding: 0 12px 12px;
+}
+
+.kt-name-builder-details > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 4px;
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: var(--heading);
+}
+
+.kt-name-builder-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.kt-name-builder-details > summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 8px;
+    color: var(--brand1);
+    transition: transform 0.12s ease;
+}
+
+.kt-name-builder-details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.kt-name-builder-details .name-builder-palette,
+.kt-name-builder-details .name-builder-actions,
+.kt-name-builder-details .name-builder-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end;
+    margin-top: 10px;
+}
+
+.kt-name-builder-details .fb-btn {
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 0.86rem;
+    gap: 6px;
+}
+
+.kursteam-name-config-block .name-builder-dropzone {
+    border-radius: 8px;
+    border-color: var(--border);
+    background: color-mix(in srgb, var(--heading) 2%, var(--card));
+}
+
+/* Bulk-Chrome im Single-Modus hart ausblenden */
+body.kursteam-mode-single #kursteamWizardSteps,
+body.kursteam-mode-single #kursteamBulkStep0Header,
+body.kursteam-mode-single #kursteamBulkIntro,
+body.kursteam-mode-single #kursteamBulkChecklist,
+body.kursteam-mode-single #kursteamStep0Cards {
+    display: none !important;
+}
+
+/* ── Hero ── */
+body.kursteam-mode-single .kt-single-hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin: 0 0 16px;
+    padding: 0 0 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+body.kursteam-mode-single .kt-single-hero__badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--brand1) 14%, transparent);
+    color: var(--brand1);
+    font-size: 1.15rem;
+}
+
+body.kursteam-mode-single .kt-single-hero .fb-greet {
+    margin: 0 0 4px;
+    font-size: 1.35rem;
+}
+
+body.kursteam-mode-single .kt-single-hero .fb-sub {
+    margin: 0;
+    max-width: 62ch;
+}
+
+/* ── Kurzhilfe ── */
+body.kursteam-mode-single .kt-single-help {
+    margin: 0 0 18px;
+}
+
+body.kursteam-mode-single .kt-single-help .pw-msg__meta {
+    margin-top: 10px;
+}
+
+/* ── Formular-Panel ── */
+body.kursteam-mode-single #kursteamSingleForm.kt-single-form {
+    display: none;
+    margin: 0 0 20px;
+    padding: 18px 20px 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+}
+
+body.kursteam-mode-single #kursteamSingleForm.kt-single-form.is-visible,
+body.kursteam-mode-single #kursteamSingleForm.kt-single-form[style*='block'] {
+    display: block;
+}
+
+body.kursteam-mode-single .kt-single-form__lead {
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+body.kursteam-mode-single .kt-single-form .pw-sec {
+    margin: 18px 0 10px;
+}
+
+body.kursteam-mode-single .kt-single-form .pw-sec:first-child {
+    margin-top: 0;
+}
+
+/* ── Namensschema im Single-Host ── */
+body.kursteam-mode-single .kursteam-name-config-block {
+    margin: 0 0 8px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+}
+
+body.kursteam-mode-single .kursteam-name-config-block > h3 {
+    display: none;
+}
+
+body.kursteam-mode-single .kt-field {
+    margin: 0;
+    min-width: 0;
+}
+
+body.kursteam-mode-single .kt-field label {
+    display: block;
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--heading);
+}
+
+body.kursteam-mode-single .kt-field input[type='text'],
+body.kursteam-mode-single .kt-field input[type='email'],
+body.kursteam-mode-single .kt-field select {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border, var(--border));
+    background: var(--input-bg, var(--card));
+    color: var(--text);
+    font: inherit;
+}
+
+/* ── Team-Zeilen ── */
+body.kursteam-mode-single .single-team-rows,
+body.kursteam-mode-single .kt-single-rows {
+    display: grid;
+    gap: 12px;
+}
+
+body.kursteam-mode-single .kt-single-row,
+body.kursteam-mode-single .single-team-row {
+    display: grid;
+    gap: 12px;
+    padding: 14px 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--heading) 1.5%, var(--card));
+    grid-template-columns: 1fr;
+}
+
+body.kursteam-mode-single .kt-single-row__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+
+body.kursteam-mode-single .kt-single-row__label {
+    font-size: 0.92rem;
+    font-weight: 650;
+    color: var(--heading);
+}
+
+body.kursteam-mode-single .kt-single-row__head .kt-single-row__remove {
+    margin-left: auto;
+    min-width: 36px;
+    padding: 0 10px;
+}
+
+body.kursteam-mode-single .kt-single-row__fields {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(80px, 0.7fr) minmax(160px, 1.4fr);
+    gap: 10px 12px;
+    align-items: end;
+}
+
+body.kursteam-mode-single .kt-single-row__meta {
+    display: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card));
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: var(--text);
+}
+
+body.kursteam-mode-single .kt-single-row__meta.is-ready {
+    display: grid;
+    gap: 2px;
+}
+
+body.kursteam-mode-single .kt-single-row__meta strong {
+    font-weight: 650;
+    color: var(--heading);
+}
+
+body.kursteam-mode-single .kt-single-row__meta code {
+    font-size: 0.92em;
+}
+
+@media (max-width: 900px) {
+    body.kursteam-mode-single .kt-single-row__fields {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    body.kursteam-mode-single .kt-single-row__fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+body.kursteam-mode-single .kt-manual-add-row-wrap,
+body.kursteam-mode-single .kt-single-add-wrap {
+    margin-top: 12px;
+}
+
+/* ── Sammel-Vorschau ── */
+body.kursteam-mode-single .kt-single-preview {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--heading) 2%, var(--card));
+}
+
+body.kursteam-mode-single .kt-single-preview__empty {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+body.kursteam-mode-single .kt-single-preview .fb-rows {
+    margin: 0;
+}
+
+body.kursteam-mode-single .kt-single-preview .fb-row {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 0;
+}
+
+body.kursteam-mode-single .kt-single-preview .pw-msg {
+    margin-top: 10px;
+}
+
+/* ── Aktionsleiste ── */
+body.kursteam-mode-single .kt-single-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+body.kursteam-mode-single .kt-single-nav .fb-btn {
+    gap: 8px;
+}
+
+/* ── Create-Schritt (nur Single-Chrome) ── */
+body.kursteam-mode-single #kursteamSingleCreateNav {
+    margin: 0 0 16px;
+}
+
+body.kursteam-mode-single #kursteamBackendBox {
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card)) !important;
+    border-color: var(--brand1) !important;
+}
+
+body.kursteam-mode-single .kt-single-create-hero .kt-step-badge {
+    background: color-mix(in srgb, var(--brand1) 14%, transparent) !important;
+    color: var(--brand1);
+    border-radius: 10px;
+    box-shadow: none;
+}

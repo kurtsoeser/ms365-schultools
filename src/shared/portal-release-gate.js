@@ -1,6 +1,6 @@
 /**
- * b6 – IT-Go-Live-Gate für das Lehrer-Portal.
- * Erst wenn IT „Portal freigeben“ setzt, gilt portalReleased = true.
+ * b6 – IT-Checkliste für das Lehrer-Portal.
+ * Lehrkräfte mit Tool-Site und Listen sehen keinen zusätzlichen Freigabe-Hinweis.
  */
 
 import {
@@ -32,22 +32,12 @@ export function isPortalReleased(setup) {
 }
 
 /**
- * Lehrer-Ansicht: zusätzlich portalReleased nötig, sobald Lizenz erlaubt ist.
+ * Lehrer-Ansicht: ein nutzbares Portal (Tool-Site, Listen) gilt als freigegeben.
+ * Das lokale Freigabe-Datum bleibt die IT-Checkliste und wandert nicht in jeden Lehrer-Browser.
  * @param {Parameters<typeof evaluateLehrerPortalReadiness>[0] & { portalReleased?: boolean }} [input]
  */
 export function evaluateLehrerPortalWithReleaseGate(input) {
-    const o = input || {};
-    const base = evaluateLehrerPortalReadiness(o);
-    if (base.status !== 'ready') return base;
-    if (o.allowed !== true) return base;
-    if (o.portalReleased === true) return base;
-    return {
-        status: 'setup_incomplete',
-        missing: ['portalRelease'],
-        title: 'Portal noch nicht freigegeben',
-        message:
-            'Die IT hat das Lehrer-Portal noch nicht freigegeben. Bitte warten Sie, bis Domain, Klassen und Tool-Site stehen und die IT unter „Portal vorbereiten“ freigegeben hat.'
-    };
+    return evaluateLehrerPortalReadiness(input || {});
 }
 
 /**

@@ -5,6 +5,7 @@ import { escapeHtml } from '../../shared/utils/strings.js';
 import {
     formatBytes,
     suggestChannelMappings,
+    mergeChannelMapEdits,
     buildMigrationPlan,
     validateNcMigrateSelection,
     normalizeNextcloudBase,
@@ -40,15 +41,21 @@ import {
 
 const LS_KEY = 'ms365-nc-teams-migrate-v1';
 const SS_PASS = 'ms365-nc-teams-migrate-pass';
+const SS_JOB = 'ms365-nc-teams-migrate-job';
 
-const SCOPES = [
+/** Team suchen und Dokumentbibliothek lesen – Portal-App, ohne Kanal anlegen. */
+const SEARCH_SCOPES = [
     'https://graph.microsoft.com/User.Read',
-    'https://graph.microsoft.com/Group.Read.All',
+    'https://graph.microsoft.com/Group.Read.All'
+];
+
+/** Übertragung: Kanäle anlegen und Dateien schreiben. Channel.Create läuft über die IT-App. */
+const WRITE_SCOPES = SEARCH_SCOPES.concat([
     'https://graph.microsoft.com/Channel.ReadBasic.All',
     'https://graph.microsoft.com/Channel.Create',
     'https://graph.microsoft.com/Files.ReadWrite.All',
     'https://graph.microsoft.com/Sites.ReadWrite.All'
-];
+]);
 
 function $(id) {
     return document.getElementById(id);
@@ -137,6 +144,45 @@ function saveConn() {
     }
 }
 
+function saveJob() {
+    try {
+        const payload = {
+            sourceMode: state.sourceMode,
+            helperBase: state.helperBase,
+            helperUser: state.helperUser,
+            connected: !!(state.connected && state.sourceMode === 'helper'),
+            crumbs: state.crumbs,
+            selected: Array.from(state.selected),
+            dest: state.dest,
+            channelMaps: state.channelMaps
+        };
+        sessionStorage.setItem(SS_JOB, JSON.stringify(payload));
+    } catch {
+        /* ignore */
+    }
+}
+
+function loadJob() {
+    try {
+        const raw = sessionStorage.getItem(SS_JOB);
+        if (!raw) return null;
+        const job = JSON.parse(raw);
+        if (!job || typeof job !== 'object') return null;
+        return job;
+    } catch {
+        return null;
+    }
+}
+
+function commitChannelMapFields() {
+    state.channelMaps.forEach(function (m, idx) {
+        const name = document.querySelector('[data-nc-channel="' + idx + '"]');
+        const en = document.querySelector('[data-nc-channel-on="' + idx + '"]');
+        if (name) m.channelName = String(name.value || '').trim().slice(0, 50);
+        if (en) m.enabled = !!en.checked;
+    });
+}
+
 function connOpts() {
     return {
         baseUrl: normalizeNextcloudBase(($('ncUrl') && $('ncUrl').value) || ''),
@@ -146,12 +192,16 @@ function connOpts() {
     };
 }
 
-async function getToken() {
+async function getToken(scopes) {
+    const list = scopes && scopes.length ? scopes : SEARCH_SCOPES;
+    if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
+        return window.ms365AuthAcquireTokenPopup(list);
+    }
     if (typeof window.ms365AuthAcquireToken === 'function') {
-        return window.ms365AuthAcquireToken(SCOPES);
+        return window.ms365AuthAcquireToken(list);
     }
     const G = window.ms365GraphUnifiedGroups;
-    if (G && typeof G.getGraphToken === 'function') return G.getGraphToken(SCOPES);
+    if (G && typeof G.getGraphToken === 'function') return G.getGraphToken(list);
     throw new Error('Anmeldung (MSAL) nicht geladen – bitte oben bei Microsoft anmelden.');
 }
 
@@ -164,7 +214,7 @@ function guidLike(s) {
 async function searchTeams(query) {
     const q = String(query || '').trim();
     if (!q) throw new Error('Suchbegriff fehlt.');
-    const token = await getToken();
+    const token = await getToken(SEARCH_SCOPES);
     const G = window.ms365GraphUnifiedGroups;
     if (!G) throw new Error('Graph-Gruppenmodul fehlt.');
     if (guidLike(q)) {
@@ -371,8 +421,11 @@ function renderChannelMaps() {
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.checked = m.enabled !== false;
+        cb.setAttribute('data-nc-channel-on', String(idx));
         cb.addEventListener('change', function () {
             state.channelMaps[idx].enabled = cb.checked;
+            state.lastPlan = null;
+            saveJob();
         });
         tdEn.appendChild(cb);
         tr.appendChild(tdEn);
@@ -383,8 +436,11 @@ function renderChannelMaps() {
         const inp = document.createElement('input');
         inp.type = 'text';
         inp.value = m.channelName;
-        inp.addEventListener('change', function () {
+        inp.setAttribute('data-nc-channel', String(idx));
+        inp.addEventListener('input', function () {
             state.channelMaps[idx].channelName = inp.value.trim().slice(0, 50);
+            state.lastPlan = null;
+            saveJob();
         });
         tdCh.appendChild(inp);
         tr.appendChild(tdCh);
@@ -403,12 +459,18 @@ function renderPlanSummary(plan) {
         return;
     }
     const s = plan.summary;
+    const channelNames = new Set();
+    (plan.items || []).forEach(function (it) {
+        if (it && it.destKind === 'channel' && it.channelName) channelNames.add(it.channelName);
+    });
     el.innerHTML =
         '<strong>' +
         s.fileCount +
         '</strong> Dateien · ' +
         formatBytes(s.totalBytes) +
         ' · Kanäle: <strong>' +
+        channelNames.size +
+        '</strong> · Dateien in Kanälen: <strong>' +
         s.channelCount +
         '</strong> · Stamm: <strong>' +
         s.teamRootCount +
@@ -469,7 +531,8 @@ function onFolderChosen(fileList) {
     mountLocalFs(vfs, 'Ordner (' + fileList.length + ' Dateien)');
 }
 
-async function connectHelper() {
+async function connectHelper(opts) {
+    const preserve = !!(opts && opts.preserve);
     saveConn();
     const base = norm(($('ncHelperUrl') && $('ncHelperUrl').value) || DEFAULT_HELPER_BASE);
     state.helperBase = base;
@@ -488,18 +551,31 @@ async function connectHelper() {
     });
     state.vfs = null;
     state.connected = true;
-    state.crumbs = [{ relPath: '', name: 'Stamm' }];
-    state.items = items;
-    state.selected.clear();
+    if (!preserve) {
+        state.crumbs = [{ relPath: '', name: 'Stamm' }];
+        state.items = items;
+        state.selected.clear();
+        state.channelMaps = [];
+        state.dest = { groupId: '', label: '', driveId: '' };
+        state.lastPlan = null;
+    }
     renderCrumb();
     renderBrowser();
     renderSelection();
+    if (!preserve) {
+        renderDest();
+        renderChannelMaps();
+        renderPlanSummary(null);
+    }
     if (statusEl) {
         statusEl.textContent =
             'Verbunden: ' + state.helperUser + ' @ ' + (health.nextcloudUrl || base);
     }
-    setHint('Helfer verbunden – Nextcloud-Struktur geladen.', true);
-    toast('Lokaler Helfer verbunden.');
+    if (!preserve) {
+        saveJob();
+        setHint('Helfer verbunden – Nextcloud-Struktur geladen.', true);
+        toast('Lokaler Helfer verbunden.');
+    }
 }
 
 async function openFolder(it) {
@@ -516,11 +592,15 @@ async function navigateCrumb(index) {
     renderBrowser();
 }
 
-async function refreshChannelMapsFromSelection() {
+async function refreshChannelMapsFromSelection(opts) {
+    const resetNames = !!(opts && opts.resetNames);
+    if (!resetNames) commitChannelMapFields();
+    const previous = resetNames ? [] : state.channelMaps.slice();
     const mapOn = !!( $('ncMapChannels') && $('ncMapChannels').checked );
     if (!mapOn) {
         state.channelMaps = [];
         renderChannelMaps();
+        saveJob();
         return;
     }
     // Nur die angehakten Ordner selbst → ein Kanal; Unterordner (21_22 …) bleiben Ordner darin
@@ -532,8 +612,9 @@ async function refreshChannelMapsFromSelection() {
                   const name = rel.split('/').filter(Boolean).pop() || rel;
                   return { name: name, isFolder: true, relPath: rel };
               });
-    state.channelMaps = suggestChannelMappings(samples);
+    state.channelMaps = mergeChannelMapEdits(suggestChannelMappings(samples), previous);
     renderChannelMaps();
+    saveJob();
 }
 
 function renderHits(hits) {
@@ -567,7 +648,7 @@ function renderHits(hits) {
 }
 
 async function pickDest(group) {
-    const token = await getToken();
+    const token = await getToken(SEARCH_SCOPES);
     const drive = await getGroupDrive(token, group.id);
     state.dest.groupId = group.id;
     state.dest.label = group.displayName || group.mailNickname || group.id;
@@ -579,6 +660,7 @@ async function pickDest(group) {
     }
     renderDest();
     log('Ziel-Team: ' + state.dest.label);
+    saveJob();
     toast('Ziel-Team geladen.');
 }
 
@@ -670,7 +752,8 @@ async function readSourceBlob(relPath) {
     return downloadBlob({ ...connOpts(), relPath });
 }
 
-async function runDryRun() {
+async function runDryRun(runOpts) {
+    const forTransfer = !!(runOpts && runOpts.forTransfer);
     const opts = connOpts();
     const v = validateNcMigrateSelection({
         sourceMode: state.sourceMode,
@@ -719,14 +802,15 @@ async function runDryRun() {
         'Dry-Run OK: ' + plan.summary.fileCount + ' Dateien (' + formatBytes(plan.summary.totalBytes) + ')',
         true
     );
-    toast('Dry-Run fertig – siehe Protokoll.');
+    if (!forTransfer) toast('Dry-Run fertig – siehe Protokoll.');
+    saveJob();
     return plan;
 }
 
 async function runMigrate() {
     if (state.running) return;
-    let plan = state.lastPlan;
-    if (!plan) plan = await runDryRun();
+    saveJob();
+    const plan = await runDryRun({ forTransfer: true });
     if (!plan || !plan.items.length) {
         toast('Nichts zu übertragen.');
         return;
@@ -747,7 +831,8 @@ async function runMigrate() {
     state.running = true;
     state.abort = false;
     setProgress(0, items.length);
-    const token = await getToken();
+    saveJob();
+    const token = await getToken(WRITE_SCOPES);
 
     /** @type {Map<string, { driveId: string, folderId: string }>} */
     const channelFolderCache = new Map();
@@ -815,6 +900,31 @@ async function runMigrate() {
     toast('Fertig: ' + done + ' OK, ' + failed + ' Fehler.');
 }
 
+async function restoreHelperJob(job) {
+    if ($('ncHelperUrl') && job.helperBase) $('ncHelperUrl').value = job.helperBase;
+    await connectHelper({ preserve: true });
+    state.crumbs = Array.isArray(job.crumbs) && job.crumbs.length ? job.crumbs : state.crumbs;
+    state.selected = new Set(Array.isArray(job.selected) ? job.selected : []);
+    state.channelMaps = Array.isArray(job.channelMaps) ? job.channelMaps : [];
+    if (job.dest && job.dest.groupId) {
+        state.dest = {
+            groupId: job.dest.groupId || '',
+            label: job.dest.label || '',
+            driveId: job.dest.driveId || ''
+        };
+    }
+    state.items = await loadChildren(currentRel());
+    state.lastPlan = null;
+    renderCrumb();
+    renderBrowser();
+    renderSelection();
+    renderDest();
+    renderChannelMaps();
+    saveJob();
+    setHint('Letzte Auswahl ist wieder da. Kanalnamen prüfen, dann erneut übertragen.', true);
+    log('Auswahl wiederhergestellt: ' + state.selected.size + ' Ordner, Ziel ' + (state.dest.label || '—'));
+}
+
 function wire() {
     loadSavedConn();
     if (!state.sourceMode || state.sourceMode === 'webdav') setSourceMode('helper', false);
@@ -824,6 +934,13 @@ function wire() {
     renderChannelMaps();
     renderPlanSummary(null);
     setProgress(0, 0);
+
+    const pendingJob = loadJob();
+    if (pendingJob && pendingJob.connected && pendingJob.sourceMode === 'helper') {
+        restoreHelperJob(pendingJob).catch(function (e) {
+            log('Auswahl nicht wiederhergestellt: ' + (e.message || e));
+        });
+    }
 
     document.querySelectorAll('.nc-mode-tab').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -908,7 +1025,7 @@ function wire() {
         });
     $('ncBtnRefreshMaps') &&
         $('ncBtnRefreshMaps').addEventListener('click', function () {
-            refreshChannelMapsFromSelection()
+            refreshChannelMapsFromSelection({ resetNames: true })
                 .then(function () {
                     toast('Kanal-Vorschläge aktualisiert.');
                 })

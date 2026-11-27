@@ -1,5 +1,15 @@
 [
   {
+    "id": "rn_fluent_portal_it_2026-11-27",
+    "at": "2026-11-27T08:00:00.000Z",
+    "title": "Portal mit eigenen Kacheln, klarere Schul-IT und Elternsprechtag",
+    "kind": "feature",
+    "source": "manual",
+    "audience": "all",
+    "bodyHtml": "<p>Dieses Update macht den Start in der App ruhiger und die Schul-IT leichter navigierbar. Lehrkräfte sehen den eigenen Tag auf einen Blick; die IT arbeitet mit einer durchgängigen Fluent-Oberfläche.</p><p><strong>Für Lehrkräfte und den Schulalltag</strong></p><ul><li><strong>Persönliches Portal:</strong> Kacheln für Termine, Freistellungen, Schularbeiten, Aufgaben, Elternbriefe und Technik – frei wählbar und auf der Startseite angeordnet.</li><li><strong>Kurze Briefings:</strong> Viele Planer öffnen mit einer klaren Lage statt mit leeren Listen.</li><li><strong>Elternsprechtag:</strong> Eigene Tagesansicht mit Terminen und Spiegel – neben dem bestehenden Bookings-Setup.</li></ul><p><strong>Für die Schul-IT</strong></p><ul><li><strong>IT-Navigation:</strong> Ein gemeinsames Menü für Stammdaten, Mitgliedschaften und Werkzeuge, mit ruhigem Aufklappen ohne Flackern.</li><li><strong>Fluent in den Werkzeugen:</strong> Gruppen, Klassenchats, Personenverwaltung, Verwaltung und weitere IT-Seiten folgen derselben Oberfläche.</li><li><strong>Intranet-Hub:</strong> Zielgruppen und Einstieg in die Schulwebsite klarer getrennt.</li></ul><p><strong>Homepage und Rechtliches</strong></p><ul><li>Nutzungsbedingungen auf <a href=\"https://ms365.schule/\">ms365.schule</a></li><li>Neuigkeiten wie bisher in der App und auf der öffentlichen Seite</li></ul>",
+    "images": []
+  },
+  {
     "id": "rn_portal_design_2026-11-23",
     "at": "2026-11-23T15:00:00.000Z",
     "title": "Neues Portal: Schulalltag und Schul-IT in einer Oberfläche",

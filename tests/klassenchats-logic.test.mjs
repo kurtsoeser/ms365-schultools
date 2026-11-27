@@ -18,7 +18,8 @@ import {
     normalizeClassChatsState,
     normalizeTargetKind,
     kvEmailFromPlan,
-    normalizeExtraMemberEmails
+    normalizeExtraMemberEmails,
+    teamsHrefForPlan
 } from '../src/tools/klassenchats/klassenchats-logic.js';
 
 describe('klassenchats-logic', () => {
@@ -314,5 +315,32 @@ describe('klassenchats-logic', () => {
         expect(n.lehrerTeamId).toBe('tid');
         expect(n.items[0].channelId).toBe('c2');
         expect(n.items[0].chatId).toBe('');
+    });
+
+    it('baut den Teams-Link aus webUrl oder aus der Chat-ID', () => {
+        expect(teamsHrefForPlan({ webUrl: 'https://teams.microsoft.com/l/chat/abc/0' })).toBe(
+            'https://teams.microsoft.com/l/chat/abc/0'
+        );
+        expect(teamsHrefForPlan({ kind: 'groupChat', chatId: '19:chat@thread.v2' })).toBe(
+            'https://teams.microsoft.com/l/chat/19%3Achat%40thread.v2/0'
+        );
+        expect(teamsHrefForPlan({ kind: 'groupChat' })).toBe('');
+        const plans = buildClassChatPlans(
+            {
+                rows: [
+                    { klasse: '1A', lehrerEmail: 'a@x.at', fach: 'D' },
+                    { klasse: '1A', lehrerEmail: 'b@x.at', fach: 'M' }
+                ]
+            },
+            new Map(),
+            {
+                yearPrefix: 'SJ26',
+                existingByKlasse: new Map([
+                    ['1A', { chatId: 'cid', topic: 'alt', webUrl: 'https://teams.microsoft.com/l/chat/cid/0' }]
+                ])
+            }
+        );
+        expect(plans[0].webUrl).toBe('https://teams.microsoft.com/l/chat/cid/0');
+        expect(plans[0].status).toBe('sync');
     });
 });

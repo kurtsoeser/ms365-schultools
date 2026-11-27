@@ -3,7 +3,8 @@ import {
     angeboteToCsv,
     buildAngeboteIcs,
     buildWeekPlanPrintHtml,
-    buildAttendeesPrintHtml
+    buildAttendeesPrintHtml,
+    buildMinePrintHtml
 } from '../src/tools/projektwochen/projektwochen-export.js';
 
 describe('projektwochen-export', () => {
@@ -59,5 +60,17 @@ describe('projektwochen-export', () => {
         );
         expect(html).toContain('Anna');
         expect(html).toContain('1AK');
+    });
+
+    it('buildMinePrintHtml druckt nur die eigenen Termine', () => {
+        const html = buildMinePrintHtml(
+            [{ title: 'Zoo', when: '2026-06-15 · Mo · ganztags', ort: 'Schönbrunn' }],
+            { title: 'PW' }
+        );
+        expect(html).toContain('Zoo');
+        expect(html).toContain('Schönbrunn');
+        expect(html).toContain('data-print');
+        expect(html).not.toMatch(/\sonclick=/);
+        expect(buildMinePrintHtml([], { title: 'PW' })).toContain('Noch nichts gebucht');
     });
 });

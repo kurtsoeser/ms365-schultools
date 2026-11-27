@@ -64,28 +64,50 @@ export function showItAppChrome(personas) {
     }
 }
 
+const PERSONA_CACHE_KEY = 'ms365-dashboard-persona-cache-v2';
+const IT_WORKSPACE_FLAG_KEY = 'ms365-it-workspace-v1';
+
+/**
+ * Persona aus Memory oder Session-Cache (nach Reload oft nur Session).
+ * @returns {import('./dashboard-audience-resolve.js').DashboardPersonas|null}
+ */
+function readCachedPersonasSync() {
+    try {
+        const cached = typeof window !== 'undefined' ? window.__ms365DashboardPersonasLast : null;
+        if (cached && cached.loggedIn) return cached;
+    } catch {
+        /* ignore */
+    }
+    try {
+        const raw = sessionStorage.getItem(PERSONA_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const p = parsed && parsed.personas;
+        return p && p.loggedIn ? p : null;
+    } catch {
+        return null;
+    }
+}
+
 /** Synchron (Header-Bau in msal-auth-ui) – IT-Chrome erst nach Persona + IT-Shell. */
 export function shouldShowItAppChromeSync() {
     if (typeof document === 'undefined' || !isToolChromePage()) return true;
-    let loggedIn = false;
-    try {
-        loggedIn =
-            typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
-    } catch {
-        loggedIn = false;
-    }
-    if (!loggedIn) return false;
     try {
         if (readItShellChoice() !== 'full') return false;
     } catch {
         return false;
     }
+    const cached = readCachedPersonasSync();
+    if (cached) return showItAppChrome(cached);
+
+    // Während Seitenwechsel in der IT-Arbeitsfläche: Chrome nicht portal-first zurücksetzen
+    // (Auth/Persona sind beim Reload oft noch nicht da – sonst Flash von Portal-/Alt-Header).
     try {
-        const cached = window.__ms365DashboardPersonasLast;
-        if (cached && cached.loggedIn) return showItAppChrome(cached);
+        if (sessionStorage.getItem(IT_WORKSPACE_FLAG_KEY) === '1') return true;
     } catch {
         /* ignore */
     }
+
     return false;
 }
 
@@ -129,26 +151,27 @@ export async function refreshFrontendPlannerChromeAudience() {
         loggedIn = false;
     }
     if (!loggedIn) {
-        applyFrontendPlannerItChrome(false);
+        // Während MSAL noch startet: IT-Chrome nicht zurücksetzen (sonst FOUC-Flash).
+        applyFrontendPlannerItChrome(shouldShowItAppChromeSync());
         return;
     }
 
     try {
-        const cached = window.__ms365DashboardPersonasLast;
-        if (cached && cached.loggedIn) {
+        const cached = readCachedPersonasSync();
+        if (cached) {
             applyFrontendPlannerItChrome(showItAppChrome(cached));
         } else {
-            applyFrontendPlannerItChrome(false);
+            applyFrontendPlannerItChrome(shouldShowItAppChromeSync());
         }
     } catch {
-        applyFrontendPlannerItChrome(false);
+        applyFrontendPlannerItChrome(shouldShowItAppChromeSync());
     }
 
     try {
         const personas = await getDashboardPersonas({ force: false });
         applyFrontendPlannerItChrome(showItAppChrome(personas));
     } catch {
-        applyFrontendPlannerItChrome(false);
+        applyFrontendPlannerItChrome(shouldShowItAppChromeSync());
     }
 }
 
@@ -178,8 +201,9 @@ export function bootFrontendPlannerChromePolicy() {
         document.documentElement.setAttribute('data-ms365-portal-shell', '1');
     }
 
-    // Portal-first: sofort IT-Chrome verstecken, bis Persona + Shell geklärt sind
-    if (isToolChromePage()) applyFrontendPlannerItChrome(false);
+    // Portal-first nur wenn wir nicht schon sicher im IT-Bereich sind
+    // (sonst Flash von Portal-/Alt-UI bei jedem Gruppenwechsel in der IT-Nav).
+    if (isToolChromePage()) applyFrontendPlannerItChrome(shouldShowItAppChromeSync());
 
     run();
     window.addEventListener('ms365-auth-widget-ready', run);

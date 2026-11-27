@@ -24,6 +24,30 @@ function itPreviewStorageKey() {
     return tid ? IT_PREVIEW_KEY + ':' + tid : IT_PREVIEW_KEY;
 }
 
+/**
+ * Vor Auth ist oft nur der Tenant-Key gesetzt – Unscoped leer/portal.
+ * Dann alle Keys mit Prefix scannen und full bevorzugen (FOUC-/Rail-Schutz).
+ * @returns {'portal'|'full'|'schueler'|''}
+ */
+function scanItShellChoiceFromStorage() {
+    try {
+        let found = '';
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || k.indexOf(IT_PREVIEW_KEY) !== 0) continue;
+            const v = String(localStorage.getItem(k) || '')
+                .trim()
+                .toLowerCase();
+            if (v === 'full' || v === 'it') return 'full';
+            if (v === 'schueler' && !found) found = 'schueler';
+            if ((v === 'portal' || v === 'lehrer') && !found) found = 'portal';
+        }
+        return found;
+    } catch {
+        return '';
+    }
+}
+
 /** @typedef {'full'|'preview-lehrer'|'preview-schueler'|'apps-lehrer'|'apps-schueler'} DashboardLayoutMode */
 
 /**
@@ -31,11 +55,31 @@ function itPreviewStorageKey() {
  */
 export function readItShellChoice() {
     try {
-        const v = String(localStorage.getItem(itPreviewStorageKey()) || '')
+        const scoped = String(localStorage.getItem(itPreviewStorageKey()) || '')
             .trim()
             .toLowerCase();
-        if (v === 'full' || v === 'it') return 'full';
-        if (v === 'schueler') return 'schueler';
+        if (scoped === 'full' || scoped === 'it') return 'full';
+        if (scoped === 'schueler') return 'schueler';
+
+        // Während aktiver IT-Arbeitsfläche: Tenant-full schlägt veraltetes Unscoped-portal
+        // (sonst Flash zurück auf Lehrer-Portal beim Tool-Wechsel).
+        let inItWorkspace = false;
+        try {
+            inItWorkspace = sessionStorage.getItem('ms365-it-workspace-v1') === '1';
+        } catch {
+            inItWorkspace = false;
+        }
+        if (inItWorkspace || scoped === '' || scoped == null) {
+            const scanned = scanItShellChoiceFromStorage();
+            if (scanned === 'full') return 'full';
+            if (scanned === 'schueler') return 'schueler';
+        }
+
+        if (scoped === 'portal' || scoped === 'lehrer') return 'portal';
+
+        const scanned = scanItShellChoiceFromStorage();
+        if (scanned === 'full') return 'full';
+        if (scanned === 'schueler') return 'schueler';
         // leer, portal, lehrer → Schulportal zuerst
         return 'portal';
     } catch {
@@ -59,18 +103,20 @@ export function readItPreviewChoice() {
  * @returns {DashboardLayoutMode}
  */
 export function resolveLayoutModeFromPersonas(personas) {
-    // Unklar / ausgeloggt: Portal-Chrome, nie IT-Katalog flashen
+    const choice = readItShellChoice();
+    // Bewusst gewählte IT-Arbeitsfläche bleibt – auch während Auth, pending-directory
+    // oder wenn die Person zusätzlich als Lehrkraft geführt wird.
+    // Sonst landet jeder Tool-Wechsel zuerst auf „Guten Abend“ (Lehrer-Portal).
+    if (choice === 'full') return 'full';
+
     if (!personas || !personas.loggedIn) return 'preview-lehrer';
 
-    if (personas.isIt) {
-        const p = readItShellChoice();
-        if (p === 'full') return 'full';
-        if (p === 'schueler') return 'preview-schueler';
+    if (personas.isIt || personas.globalAdmin || personas.designatedSchoolIt || personas.operator) {
+        if (choice === 'schueler') return 'preview-schueler';
         return 'preview-lehrer';
     }
 
     if (personas.isLehrer) return 'apps-lehrer';
-    // Vor Verzeichnis-Sync: Lehrer-Shell mit neutraler Begrüßung (nicht Schüler/in)
     if (personas.unknownUser) return 'apps-lehrer';
     if (personas.isSchueler) return 'apps-schueler';
     return 'apps-lehrer';
@@ -103,10 +149,16 @@ export function catalogViewForLayout(mode) {
  */
 export function writeItPreviewChoice(mode) {
     try {
+        let value = 'portal';
+        if (mode === 'full') value = 'full';
+        else if (mode === 'preview-schueler') value = 'schueler';
+        else if (mode === 'preview-lehrer') value = 'portal';
         const storageKey = itPreviewStorageKey();
-        if (mode === 'full') localStorage.setItem(storageKey, 'full');
-        else if (mode === 'preview-lehrer') localStorage.setItem(storageKey, 'portal');
-        else if (mode === 'preview-schueler') localStorage.setItem(storageKey, 'schueler');
+        localStorage.setItem(storageKey, value);
+        // Unscoped Spiegel für theme-boot / FOUC vor Auth (Tenant-Key oft noch unbekannt)
+        if (storageKey !== IT_PREVIEW_KEY) {
+            localStorage.setItem(IT_PREVIEW_KEY, value);
+        }
     } catch {
         /* ignore */
     }

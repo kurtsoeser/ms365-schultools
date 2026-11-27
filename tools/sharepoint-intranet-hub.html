@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script src="../src/shared/theme-boot.js?v=4"></script>
+    <script src="../src/shared/theme-boot.js?v=5"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -10,175 +10,12 @@
     <link rel="stylesheet" href="../app.css?v=28">
     <link rel="stylesheet" href="../src/shared/design-tokens.css?v=2">
     <link rel="stylesheet" href="../src/shared/shell-fluent.css?v=10">
-    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=7">
+    <link rel="stylesheet" href="../src/shared/fluent-blocks.css?v=8">
+    <link rel="stylesheet" href="../src/shared/provisioning-wizard.css?v=1">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/sharepoint/sharepoint-intranet-hub.css?v=1">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
-        .ih-preview {
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            background: var(--card);
-            box-shadow: var(--shadow);
-            margin-bottom: 4px;
-        }
-        .ih-preview__chrome {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            background: var(--soft);
-            border-bottom: 1px solid var(--border);
-        }
-        .ih-preview__dots span {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: color-mix(in srgb, var(--muted) 45%, transparent);
-            margin-right: 4px;
-        }
-        .ih-preview__url {
-            flex: 1;
-            min-width: 0;
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: var(--brand1);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 6px 10px;
-            border-radius: 8px;
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-        }
-        .ih-preview__hero {
-            padding: 28px 22px 22px;
-            background:
-                radial-gradient(420px 120px at 10% 0%, color-mix(in srgb, var(--brand1) 28%, transparent), transparent 70%),
-                linear-gradient(135deg, color-mix(in srgb, var(--brand1) 88%, #000), color-mix(in srgb, var(--brand2) 88%, #000));
-            color: #fff;
-        }
-        .ih-preview__hero-kicker {
-            margin: 0 0 6px;
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            opacity: 0.9;
-        }
-        .ih-preview__hero h3 {
-            margin: 0 0 6px;
-            font-size: 1.45rem;
-            font-weight: 800;
-            line-height: 1.2;
-        }
-        .ih-preview__hero p {
-            margin: 0;
-            opacity: 0.92;
-            font-size: 0.95rem;
-            line-height: 1.4;
-            max-width: 42ch;
-        }
-        .ih-preview__tiles {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            padding: 14px;
-            background: var(--soft);
-        }
-        @media (max-width: 560px) {
-            .ih-preview__tiles { grid-template-columns: 1fr; }
-        }
-        .ih-preview__tile {
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--card);
-            padding: 12px;
-            min-height: 72px;
-        }
-        .ih-preview__tile i {
-            display: block;
-            color: var(--brand1);
-            font-size: 1.15rem;
-            margin-bottom: 6px;
-        }
-        .ih-preview__tile strong {
-            display: block;
-            font-size: 0.82rem;
-            color: var(--heading);
-            margin-bottom: 2px;
-        }
-        .ih-preview__tile span {
-            font-size: 0.75rem;
-            color: var(--muted);
-            line-height: 1.3;
-        }
-        .ih-hub-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 12px;
-            padding: 6px 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.18);
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
-        .ih-host-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-        }
-        .ih-host-row input { flex: 1; min-width: 220px; }
-        .spo-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px 18px;
-        }
-        @media (max-width: 720px) {
-            .spo-grid { grid-template-columns: 1fr; }
-        }
-        textarea.spo-ps {
-            width: 100%;
-            min-height: 120px;
-            font-family: Consolas, ui-monospace, monospace;
-            font-size: 0.85em;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--input-border);
-            background: var(--input-bg);
-            color: var(--text);
-            margin-top: 10px;
-        }
-        .ih-wizard-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-        .ih-wizard-glance--nav .tm-glance__card {
-            cursor: pointer;
-            text-align: left;
-            font: inherit;
-            width: 100%;
-        }
-        .ih-wizard-glance--nav .tm-glance__card:hover {
-            border-color: color-mix(in srgb, var(--brand1) 40%, var(--border));
-        }
-        .ih-wizard-glance--nav .tm-glance__card.is-active {
-            border-color: var(--brand1);
-            box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand1) 35%, transparent);
-        }
-        .ih-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label {
-            color: var(--heading);
-            font-weight: 800;
-        }
-        .ih-wizard-glance--nav .tm-glance__card.is-active i {
-            color: var(--brand1);
-        }
-        @media (max-width: 720px) {
-            .ih-wizard-glance { grid-template-columns: 1fr 1fr; }
-        }
-    
-/* ===== Welle 3 UI chrome (Schulwerkzeuge) ===== */
 .page-card.tm-page,
 .container.page-card {
     --brand: var(--brand1);
@@ -196,18 +33,26 @@ button.btn-success {
     border-color: var(--brand1);
     color: var(--on-accent, #04211d);
 }
-
+#ihAudienceStatus { display: none; margin: 0 0 12px; }
+html[data-ih-audience="pending"] #ihAudienceStatus,
+html[data-ih-audience="open"] #ihAudienceStatus,
+html[data-ih-audience="missing"] #ihAudienceStatus { display: block; }
+html[data-ih-audience="pending"] .content,
+html[data-ih-audience="open"] .content,
+html[data-ih-audience="missing"] .content { display: none; }
 </style>
+<script src="../src/pages/sharepoint-intranet-hub-boot.js"></script>
 </head>
-<body>
-    <div class="container page-card tm-page">
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page ih-page">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-house-door"></i>SharePoint – Intranet &amp; Hub</span>
             </div>
-            <p>Schulintranet anlegen und als Hub verbinden – Schritt für Schritt im Assistenten.</p>
+            <p>Schul-Intranet anlegen und als Hub verbinden – Schritt für Schritt im Assistenten.</p>
+            <p id="ihAudienceStatus">Die Intranet-Seite wird geöffnet …</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-intranet" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -215,255 +60,341 @@ button.btn-success {
         </div>
 
         <div class="content">
-            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
-                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="ihPhaseHint">Schritt 1 von 4: Kommunikationssite anlegen</span></span>
-                <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites anlegen &amp; Hub-Rechte</span>
-            </div>
-
-            <section class="tm-glance tm-glance--compact ih-wizard-glance ih-wizard-glance--nav" id="ihWizardGlance" role="tablist" aria-label="Intranet-Hub Schritte">
-                <button type="button" role="tab" class="tm-glance__card is-active" data-ih-wizard-step="1" aria-selected="true" aria-controls="ihWizardStep1">
-                    <i class="bi bi-cloud-plus" aria-hidden="true"></i>
-                    <span class="tm-glance__label">1 · Site</span>
-                </button>
-                <button type="button" role="tab" class="tm-glance__card" data-ih-wizard-step="2" aria-controls="ihWizardStep2">
-                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
-                    <span class="tm-glance__label">2 · Hub</span>
-                </button>
-                <button type="button" role="tab" class="tm-glance__card" data-ih-wizard-step="3" aria-controls="ihWizardStep3">
-                    <i class="bi bi-collection" aria-hidden="true"></i>
-                    <span class="tm-glance__label">3 · Listen</span>
-                </button>
-                <button type="button" role="tab" class="tm-glance__card" data-ih-wizard-step="4" aria-controls="ihWizardStep4">
-                    <i class="bi bi-people" aria-hidden="true"></i>
-                    <span class="tm-glance__label">4 · Fertig</span>
-                </button>
+            <section class="ih-hero" aria-label="Überblick">
+                <h2 class="fb-greet">Schul-Intranet einrichten</h2>
+                <p class="fb-sub">Vier Schritte: Site anlegen → Hub registrieren → Listen prüfen → fertigstellen.</p>
             </section>
+
+            <p class="ih-meta" aria-label="Status">
+                <span class="ih-meta__pill"><i class="bi bi-signpost-2" aria-hidden="true"></i><span id="ihPhaseHint">Schritt 1 von 4: Kommunikationssite anlegen</span></span>
+            </p>
+
+            <nav class="pw-related" aria-label="Verwandte Tools">
+                <span class="pw-related__label">Verwandte Tools</span>
+                <a href="playbook-intranet.html">Intranet-Playbook ↗</a>
+                <a href="sharepoint-liste-stammdaten.html">Stammdaten-Listen ↗</a>
+                <a href="stammdaten-uebergabe.html">Stammdaten-Übergabe ↗</a>
+            </nav>
+
+            <div class="ih-steps" id="ihWizardGlance" role="tablist" aria-label="Intranet-Hub Schritte">
+                <button type="button" role="tab" class="ih-step is-active" data-ih-wizard-step="1" aria-selected="true" aria-controls="ihWizardStep1">
+                    <i class="bi bi-cloud-plus" aria-hidden="true"></i>
+                    <span>1 · Site</span>
+                </button>
+                <button type="button" role="tab" class="ih-step" data-ih-wizard-step="2" aria-controls="ihWizardStep2">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    <span>2 · Hub</span>
+                </button>
+                <button type="button" role="tab" class="ih-step" data-ih-wizard-step="3" aria-controls="ihWizardStep3">
+                    <i class="bi bi-collection" aria-hidden="true"></i>
+                    <span>3 · Listen</span>
+                </button>
+                <button type="button" role="tab" class="ih-step" data-ih-wizard-step="4" aria-controls="ihWizardStep4">
+                    <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                    <span>4 · Fertig</span>
+                </button>
+            </div>
 
             <section class="tm-wizard" aria-label="Intranet- und Hub-Assistent">
                 <div class="tm-wizard__body">
                     <div id="ihWizardStep1" class="tm-wizard__pane" role="tabpanel">
                         <h3 class="tm-wizard__pane-title">Kommunikationssite erstellen</h3>
-                        <p class="tm-wizard__pane-lead">Name, Adresse und Besitzer – Vorschau unten. Mit „Site anlegen“ wird die Website in Microsoft 365 erstellt.</p>
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-eye" aria-hidden="true"></i>
-                    <div>
-                        <h3>Live-Vorschau</h3>
-                        <p>Titel, Beschreibung und Adresse – so wirkt das Intranet ungefähr.</p>
-                    </div>
-                </div>
-                <div class="ih-preview" aria-hidden="true">
-                    <div class="ih-preview__chrome">
-                        <div class="ih-preview__dots" aria-hidden="true"><span></span><span></span><span></span></div>
-                        <div class="ih-preview__url" id="ihPreviewChromeUrl">https://…/sites/intranet</div>
-                    </div>
-                    <div class="ih-preview__hero">
-                        <p class="ih-preview__hero-kicker">Kommunikationssite</p>
-                        <h3 id="ihPreviewTitle">Intranet</h3>
-                        <p id="ihPreviewDesc">Schulintranet</p>
-                        <div class="ih-hub-badge"><i class="bi bi-diagram-3"></i> Hub-fähig</div>
-                    </div>
-                    <div class="ih-preview__tiles">
-                        <div class="ih-preview__tile">
-                            <i class="bi bi-newspaper"></i>
-                            <strong>News</strong>
-                            <span>Aktuelles für die Schule</span>
-                        </div>
-                        <div class="ih-preview__tile">
-                            <i class="bi bi-calendar3"></i>
-                            <strong>Termine</strong>
-                            <span>Kalender &amp; Hinweise</span>
-                        </div>
-                        <div class="ih-preview__tile">
-                            <i class="bi bi-link-45deg"></i>
-                            <strong>Schnelllinks</strong>
-                            <span>Tools &amp; Portale</span>
-                        </div>
-                    </div>
-                </div>
-                <p class="hint" style="margin:12px 0 0;">Technische URL: <strong class="url-preview" id="fPreviewUrl" style="font-weight:800;color:var(--heading);word-break:break-all;">–</strong></p>
-            </section>
+                        <p class="tm-wizard__pane-lead">Name, Adresse und Besitzer festlegen. Die Vorschau aktualisiert sich mit.</p>
 
-            <section class="tm-panel">
-                <div class="spo-grid">
-                    <div class="tm-field" style="grid-column:1/-1;">
-                        <label for="fHost">SharePoint-Host</label>
-                        <div class="ih-host-row">
-                            <input type="text" id="fHost" placeholder="contoso.sharepoint.com" spellcheck="false">
-                            <button type="button" class="btn" id="btnHost"><i class="bi bi-search"></i>Hostname ermitteln</button>
+                        <div class="ih-split">
+                            <div class="ih-split__form">
+                                <section class="ih-panel">
+                                    <div class="ih-panel__head">
+                                        <h3>Website-Daten</h3>
+                                        <p>Host, Kurzname und Besitzer – Pflicht für die Anlage.</p>
+                                    </div>
+                                    <div class="spo-grid">
+                                        <div class="tm-field" style="grid-column:1/-1;">
+                                            <label for="fHost">SharePoint-Host</label>
+                                            <div class="ih-host-row">
+                                                <input type="text" id="fHost" placeholder="contoso.sharepoint.com" spellcheck="false">
+                                                <button type="button" class="btn" id="btnHost"><i class="bi bi-search"></i>Hostname ermitteln</button>
+                                            </div>
+                                        </div>
+                                        <div class="tm-field">
+                                            <label for="fSlug">Kurzname unter /sites/</label>
+                                            <input type="text" id="fSlug" value="intranet" spellcheck="false" autocomplete="off">
+                                        </div>
+                                        <div class="tm-field">
+                                            <label for="fLocale">Sprache</label>
+                                            <input type="text" id="fLocale" value="de-DE" spellcheck="false">
+                                        </div>
+                                        <div class="tm-field" style="grid-column:1/-1;">
+                                            <label for="fTitle">Titel der Website</label>
+                                            <input type="text" id="fTitle" value="Intranet" maxlength="200">
+                                        </div>
+                                        <div class="tm-field" style="grid-column:1/-1;">
+                                            <label for="fDesc">Beschreibung (optional)</label>
+                                            <input type="text" id="fDesc" value="Schulintranet" placeholder="Schulintranet" maxlength="500">
+                                        </div>
+                                        <div class="tm-field" style="grid-column:1/-1;">
+                                            <label for="fOwner">Website-Besitzer (E-Mail / UPN)</label>
+                                            <input type="email" id="fOwner" placeholder="wird aus Anmeldung übernommen" autocomplete="username">
+                                            <p class="hint" style="margin:6px 0 0;">Muss ein Benutzer in <em>diesem</em> Tenant sein. Bei neuen Mandanten zuerst SharePoint einmal im Browser öffnen.</p>
+                                        </div>
+                                    </div>
+                                    <div class="tm-toggle-grid" style="margin-top:10px;">
+                                        <label class="tm-toggle" for="fShareByMail">
+                                            <input type="checkbox" id="fShareByMail">
+                                            <span class="tm-toggle__icon"><i class="bi bi-envelope"></i></span>
+                                            <span>
+                                                <span class="tm-toggle__title">Teilen per E-Mail</span>
+                                                <span class="tm-toggle__desc">Für diese Site Freigaben per E-Mail erlauben.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="ih-panel">
+                                    <div class="ih-panel__head">
+                                        <h3>Startpaket (optional)</h3>
+                                        <p>Listen direkt mit anlegen – Nachziehen geht in Schritt 3.</p>
+                                    </div>
+                                    <p class="ih-sec">Empfohlen</p>
+                                    <div class="tm-toggle-grid ih-pack-grid">
+                                        <label class="tm-toggle" for="fPackLehrer">
+                                            <input type="checkbox" id="fPackLehrer" checked>
+                                            <span class="tm-toggle__icon"><i class="bi bi-people"></i></span>
+                                            <span>
+                                                <span class="tm-toggle__title">Lehrerliste</span>
+                                                <span class="tm-toggle__desc">Kürzel und E-Mail aus den Stammdaten.</span>
+                                            </span>
+                                        </label>
+                                        <label class="tm-toggle" for="fPackTermine">
+                                            <input type="checkbox" id="fPackTermine" checked>
+                                            <span class="tm-toggle__icon"><i class="bi bi-calendar3"></i></span>
+                                            <span>
+                                                <span class="tm-toggle__title">Schultermine</span>
+                                                <span class="tm-toggle__desc">Leere Liste mit Beginn, Ende, Kategorie.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <p class="ih-sec" style="margin-top:14px;">Zusätzlich</p>
+                                    <div class="tm-toggle-grid ih-pack-grid">
+                                        <label class="tm-toggle" for="fPackStammdaten">
+                                            <input type="checkbox" id="fPackStammdaten">
+                                            <span class="tm-toggle__icon"><i class="bi bi-database"></i></span>
+                                            <span>
+                                                <span class="tm-toggle__title">Stammdaten-Listen</span>
+                                                <span class="tm-toggle__desc">Schülerinnen, Fächer, Fachgruppen, ARGEs.</span>
+                                            </span>
+                                        </label>
+                                        <label class="tm-toggle" for="fPackSchularbeiten">
+                                            <input type="checkbox" id="fPackSchularbeiten">
+                                            <span class="tm-toggle__icon"><i class="bi bi-journal-check"></i></span>
+                                            <span>
+                                                <span class="tm-toggle__title">Schularbeiten-Paket</span>
+                                                <span class="tm-toggle__desc">Regelwerk, Fenster und Liste.</span>
+                                            </span>
+                                        </label>
+                                        <label class="tm-toggle" for="fPackProjektwochen">
+                                            <input type="checkbox" id="fPackProjektwochen">
+                                            <span class="tm-toggle__icon"><i class="bi bi-calendar2-week"></i></span>
+                                            <span>
+                                                <span class="tm-toggle__title">Projektwochen-Paket</span>
+                                                <span class="tm-toggle__desc">PW-Aktionen und PW-Angebote.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="tm-actions" style="margin-top:14px;">
+                                        <button type="button" class="btn" id="btnCreate"><i class="bi bi-plus-circle"></i>Site anlegen</button>
+                                    </div>
+                                    <details class="tm-tech" style="margin-top:10px;">
+                                        <summary>Technische Hinweise</summary>
+                                        <p class="hint" style="margin-top:10px;">Vorlage Kommunikationssite · Vorgang asynchron (Graph pollt den Status). Berechtigungen: Sites lesen/erstellen.</p>
+                                    </details>
+                                </section>
+                            </div>
+
+                            <aside class="ih-split__preview" aria-label="Live-Vorschau">
+                                <p class="ih-sec">Live-Vorschau</p>
+                                <div class="ih-preview" aria-hidden="true">
+                                    <div class="ih-preview__chrome">
+                                        <div class="ih-preview__dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                                        <div class="ih-preview__url" id="ihPreviewChromeUrl">https://…/sites/intranet</div>
+                                    </div>
+                                    <div class="ih-preview__hero">
+                                        <p class="ih-preview__hero-kicker">Kommunikationssite</p>
+                                        <h3 id="ihPreviewTitle">Intranet</h3>
+                                        <p id="ihPreviewDesc">Schulintranet</p>
+                                        <div class="ih-hub-badge"><i class="bi bi-diagram-3"></i> Hub-fähig</div>
+                                    </div>
+                                    <div class="ih-preview__tiles">
+                                        <div class="ih-preview__tile">
+                                            <i class="bi bi-newspaper"></i>
+                                            <strong>News</strong>
+                                            <span>Aktuelles</span>
+                                        </div>
+                                        <div class="ih-preview__tile">
+                                            <i class="bi bi-calendar3"></i>
+                                            <strong>Termine</strong>
+                                            <span>Kalender</span>
+                                        </div>
+                                        <div class="ih-preview__tile">
+                                            <i class="bi bi-link-45deg"></i>
+                                            <strong>Links</strong>
+                                            <span>Tools</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="hint" style="margin:10px 0 0;font-size:0.8rem;">URL: <strong class="url-preview" id="fPreviewUrl" style="font-weight:700;color:var(--heading);word-break:break-all;">–</strong></p>
+                            </aside>
                         </div>
-                    </div>
-                    <div class="tm-field">
-                        <label for="fSlug">Kurzname unter /sites/</label>
-                        <input type="text" id="fSlug" value="intranet" spellcheck="false" autocomplete="off">
-                    </div>
-                    <div class="tm-field">
-                        <label for="fLocale">Sprache</label>
-                        <input type="text" id="fLocale" value="de-DE" spellcheck="false">
-                    </div>
-                    <div class="tm-field" style="grid-column:1/-1;">
-                        <label for="fTitle">Titel der Website</label>
-                        <input type="text" id="fTitle" value="Intranet" maxlength="200">
-                    </div>
-                    <div class="tm-field" style="grid-column:1/-1;">
-                        <label for="fDesc">Beschreibung (optional)</label>
-                        <input type="text" id="fDesc" value="Schulintranet" placeholder="Schulintranet" maxlength="500">
-                    </div>
-                    <div class="tm-field" style="grid-column:1/-1;">
-                        <label for="fOwner">Website-Besitzer (E-Mail / UPN)</label>
-                        <input type="email" id="fOwner" placeholder="wird aus Anmeldung übernommen" autocomplete="username">
-                        <p class="hint" style="margin:6px 0 0;">Muss ein Benutzer in <em>diesem</em> Tenant sein (nicht nur Platzhalter). Bei neuen Mandanten zuerst SharePoint einmal im Browser öffnen.</p>
-                    </div>
-                </div>
-                <div class="tm-toggle-grid" style="margin-top:4px;">
-                    <label class="tm-toggle" for="fShareByMail">
-                        <input type="checkbox" id="fShareByMail">
-                        <span class="tm-toggle__icon"><i class="bi bi-envelope"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Teilen per E-Mail</span>
-                            <span class="tm-toggle__desc">Für diese Site Freigaben per E-Mail erlauben.</span>
-                        </span>
-                    </label>
-                </div>
-                <p class="hint" style="margin:14px 0 8px;">Optional direkt mit anlegen (Details &amp; Nachziehen in Schritt 3):</p>
-                <div class="tm-toggle-grid">
-                    <label class="tm-toggle" for="fPackLehrer">
-                        <input type="checkbox" id="fPackLehrer" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-people"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Lehrerliste mitanlegen</span>
-                            <span class="tm-toggle__desc">SharePoint-Liste aus den Stammdaten (Kürzel, E-Mail).</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="fPackTermine">
-                        <input type="checkbox" id="fPackTermine" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-calendar3"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Schultermine-Liste mitanlegen</span>
-                            <span class="tm-toggle__desc">Leere Liste mit Spalten (Beginn, Ende, Kategorie).</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="fPackStammdaten">
-                        <input type="checkbox" id="fPackStammdaten">
-                        <span class="tm-toggle__icon"><i class="bi bi-database"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Stammdaten-Listen mitanlegen</span>
-                            <span class="tm-toggle__desc">Schülerinnen, Fächer, Fachgruppen und ARGEs aus den Stammdaten (Abgleich).</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="fPackSchularbeiten">
-                        <input type="checkbox" id="fPackSchularbeiten">
-                        <span class="tm-toggle__icon"><i class="bi bi-journal-check"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Schularbeiten-Paket mitanlegen</span>
-                            <span class="tm-toggle__desc">Regelwerk, Terminfenster und Schularbeiten-Liste (ohne Stammdaten-Lookups).</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="fPackProjektwochen">
-                        <input type="checkbox" id="fPackProjektwochen">
-                        <span class="tm-toggle__icon"><i class="bi bi-calendar2-week"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Projektwochen-Paket mitanlegen</span>
-                            <span class="tm-toggle__desc">PW-Aktionen und PW-Angebote (Anträge; Bookings später).</span>
-                        </span>
-                    </label>
-                </div>
-                <div class="tm-actions" style="margin-top:14px;">
-                    <button type="button" class="btn" id="btnCreate"><i class="bi bi-plus-circle"></i>Site anlegen</button>
-                </div>
-                <details class="tm-tech">
-                    <summary>Technische Hinweise</summary>
-                    <p class="hint" style="margin-top:10px;">Vorlage Kommunikationssite · Vorgang läuft asynchron (Graph pollt den Status). Berechtigungen: Sites lesen/erstellen.</p>
-                </details>
-            </section>
                     </div>
 
                     <div id="ihWizardStep2" class="tm-wizard__pane" role="tabpanel" hidden>
                         <h3 class="tm-wizard__pane-title">Als Hub-Website registrieren</h3>
-                        <p class="tm-wizard__pane-lead">Macht die Site zum Navigations-Hub. Im Browser oft blockiert (CORS) – dann PowerShell oder Admin Center.</p>
-            <section class="tm-panel">
-                <input type="hidden" id="fLastSiteUrl" value="">
-                <div class="tm-field">
-                    <label for="fManualUrl">Site-URL (automatisch nach Schritt 1, oder manuell)</label>
-                    <input type="text" id="fManualUrl" placeholder="https://…sharepoint.com/sites/intranet" spellcheck="false">
-                </div>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="btnHub"><i class="bi bi-link-45deg"></i>Als Hub registrieren (Browser-Versuch)</button>
-                </div>
-                <p class="hint" style="margin-top:10px;">
-                    Empfohlen, wenn der Browser scheitert:
-                    <a id="fAdminHubLink" href="https://admin.microsoft.com/sharepoint" target="_blank" rel="noopener">SharePoint Admin Center – Aktive Sites</a>
-                    → Site wählen → <strong>Hub</strong> → <strong>Als Hub-Website registrieren</strong>
-                    (SharePoint-Admin-Recht nötig).
-                </p>
-                <details class="tm-tech" id="ihHubTech" open>
-                    <summary>PowerShell (zuverlässig)</summary>
-                    <p class="hint" style="margin-top:10px;">Skript kopieren, PowerShell als Admin-Benutzer ausführen. Danach ist die Intranet-Site ein Hub.</p>
-                    <textarea id="fPsHub" class="spo-ps" readonly aria-label="PowerShell Hub"></textarea>
-                    <div class="tm-actions" style="margin-top:10px;">
-                        <button type="button" class="btn" id="btnPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
-                    </div>
-                </details>
-            </section>
+                        <p class="tm-wizard__pane-lead">Macht die Site zum Navigations-Hub. Admin Center oder PowerShell sind zuverlässiger als der Browser-Versuch.</p>
+
+                        <section class="ih-panel" style="margin-bottom:12px;">
+                            <input type="hidden" id="fLastSiteUrl" value="">
+                            <div class="tm-field">
+                                <label for="fManualUrl">Site-URL</label>
+                                <input type="text" id="fManualUrl" placeholder="https://…sharepoint.com/sites/intranet" spellcheck="false">
+                                <p class="hint" style="margin:6px 0 0;">Automatisch nach Schritt 1 – oder manuell eintragen.</p>
+                            </div>
+                        </section>
+
+                        <div class="ih-paths">
+                            <div class="ih-path ih-path--primary">
+                                <span class="ih-path__badge"><i class="bi bi-stars" aria-hidden="true"></i> Empfohlen</span>
+                                <h4 class="ih-path__title">SharePoint Admin Center</h4>
+                                <p class="ih-path__text">
+                                    <a id="fAdminHubLink" href="https://admin.microsoft.com/sharepoint" target="_blank" rel="noopener">Aktive Sites öffnen</a>
+                                    → Site wählen → <strong>Hub</strong> → <strong>Als Hub-Website registrieren</strong>.
+                                    SharePoint-Admin-Recht nötig.
+                                </p>
+                            </div>
+
+                            <div class="ih-path">
+                                <h4 class="ih-path__title">Browser-Versuch</h4>
+                                <p class="ih-path__text">Direkt aus dem Assistenten – scheitert oft an CORS. Dann Admin Center oder PowerShell nutzen.</p>
+                                <div class="tm-actions">
+                                    <button type="button" class="btn" id="btnHub"><i class="bi bi-link-45deg"></i>Als Hub registrieren</button>
+                                </div>
+                            </div>
+
+                            <details class="ih-path tm-tech" id="ihHubTech">
+                                <summary style="font-weight:650;color:var(--heading);cursor:pointer;">PowerShell (zuverlässig)</summary>
+                                <p class="hint" style="margin-top:10px;">Skript kopieren und als Admin-Benutzer ausführen.</p>
+                                <textarea id="fPsHub" class="spo-ps" readonly aria-label="PowerShell Hub"></textarea>
+                                <div class="tm-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn" id="btnPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
+                                </div>
+                            </details>
+                        </div>
                     </div>
 
                     <div id="ihWizardStep3" class="tm-wizard__pane" role="tabpanel" hidden>
                         <h3 class="tm-wizard__pane-title">Listen &amp; Startpaket</h3>
                         <p class="tm-wizard__pane-lead">Prüfen, ob Lehrerliste, Stammdaten und Termine auf der Site stehen – oder mit den Tools nachziehen.</p>
-            <section class="tm-panel">
-                <div class="cp-steps" id="ihStarterSteps" style="display:grid;gap:10px;">
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="lehrer">
-                        <span><strong>Lehrerliste</strong> angelegt und geprüft<br><a href="sharepoint-liste-lehrer.html">→ Lehrerliste öffnen</a></span>
-                    </label>
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="stammdaten-listen">
-                        <span><strong>Stammdaten-Listen</strong> (Schüler, Fächer, Klassen)<br><a href="sharepoint-liste-stammdaten.html">→ Stammdaten-Listen öffnen</a></span>
-                    </label>
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="termine">
-                        <span><strong>Schultermine</strong> + Sync/CSV<br><a href="sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></span>
-                    </label>
-                </div>
-            </section>
+
+                        <div class="ih-check-list" id="ihStarterSteps">
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckLehrer" data-ih-check="lehrer">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+                                <label class="ih-check__body" for="ihCheckLehrer">
+                                    <span class="ih-check__title">Lehrerliste</span>
+                                    <span class="ih-check__text">Angelegt und geprüft</span>
+                                </label>
+                                <a class="ih-check__go" href="sharepoint-liste-lehrer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </div>
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckStammdatenListen" data-ih-check="stammdaten-listen">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-database"></i></span>
+                                <label class="ih-check__body" for="ihCheckStammdatenListen">
+                                    <span class="ih-check__title">Stammdaten-Listen</span>
+                                    <span class="ih-check__text">Schüler, Fächer, Klassen</span>
+                                </label>
+                                <a class="ih-check__go" href="sharepoint-liste-stammdaten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </div>
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckTermine" data-ih-check="termine">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-calendar3"></i></span>
+                                <label class="ih-check__body" for="ihCheckTermine">
+                                    <span class="ih-check__title">Schultermine</span>
+                                    <span class="ih-check__text">Sync / CSV eingerichtet</span>
+                                </label>
+                                <a class="ih-check__go" href="sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </div>
+                        </div>
+
+                        <div class="ih-progress" aria-live="polite">
+                            <div class="ih-progress__row">
+                                <span class="ih-progress__label">Listen-Check</span>
+                                <span class="ih-progress__count" id="ihListenProgress">0 / 3</span>
+                            </div>
+                            <div class="ih-progress__bar"><div class="ih-progress__fill" id="ihListenProgressFill" style="width:0%"></div></div>
+                        </div>
                     </div>
 
                     <div id="ihWizardStep4" class="tm-wizard__pane" role="tabpanel" hidden>
                         <h3 class="tm-wizard__pane-title">Intranet fertigstellen</h3>
                         <p class="tm-wizard__pane-lead">Navigation, Bibliotheken und Stammdaten-Anbindung – Haken bleiben in diesem Browser gespeichert.</p>
-            <section class="tm-panel">
-                <div class="cp-steps" style="display:grid;gap:10px;">
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="formulare">
-                        <span><strong>Bibliothek „Formulare“</strong> in SharePoint anlegen (manuell) und nur Lehrkräfte/Verwaltung freigeben</span>
-                    </label>
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="medien">
-                        <span><strong>Bibliothek „Medien“</strong> für Fotos/Pressematerial – Schreibrechte eng halten</span>
-                    </label>
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="news">
-                        <span><strong>News-Zielgruppe</strong>: Seite „Nur Kollegium“ vs. öffentliche Schul-News trennen</span>
-                    </label>
-                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-                        <input type="checkbox" data-ih-check="stammdaten">
-                        <span><strong>Stammdaten-Übergabe</strong> JSON in Document Library<br><a href="stammdaten-uebergabe.html">→ Übergabe öffnen</a></span>
-                    </label>
-                </div>
-                <p id="ihStarterProgress" class="muted" style="margin:12px 0 0;">0 / 7 erledigt</p>
-                <div class="tm-actions" style="margin-top:16px;">
-                    <a class="btn" href="../index.html"><i class="bi bi-house"></i>Zum Dashboard</a>
-                    <a class="btn" href="playbook-intranet.html"><i class="bi bi-journal-text"></i>Intranet-Playbook</a>
-                </div>
-            </section>
+
+                        <div class="ih-check-list">
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckFormulare" data-ih-check="formulare">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+                                <label class="ih-check__body" for="ihCheckFormulare">
+                                    <span class="ih-check__title">Bibliothek „Formulare“</span>
+                                    <span class="ih-check__text">Manuell anlegen – nur Lehrkräfte/Verwaltung freigeben</span>
+                                </label>
+                            </div>
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckMedien" data-ih-check="medien">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-images"></i></span>
+                                <label class="ih-check__body" for="ihCheckMedien">
+                                    <span class="ih-check__title">Bibliothek „Medien“</span>
+                                    <span class="ih-check__text">Fotos/Pressematerial – Schreibrechte eng halten</span>
+                                </label>
+                            </div>
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckNews" data-ih-check="news">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-newspaper"></i></span>
+                                <label class="ih-check__body" for="ihCheckNews">
+                                    <span class="ih-check__title">News-Zielgruppe</span>
+                                    <span class="ih-check__text">„Nur Kollegium“ vs. öffentliche Schul-News trennen</span>
+                                </label>
+                            </div>
+                            <div class="ih-check">
+                                <input type="checkbox" id="ihCheckStammdaten" data-ih-check="stammdaten">
+                                <span class="ih-check__icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span>
+                                <label class="ih-check__body" for="ihCheckStammdaten">
+                                    <span class="ih-check__title">Stammdaten-Übergabe</span>
+                                    <span class="ih-check__text">JSON in Document Library ablegen</span>
+                                </label>
+                                <a class="ih-check__go" href="stammdaten-uebergabe.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </div>
+                        </div>
+
+                        <div class="ih-progress" aria-live="polite">
+                            <div class="ih-progress__row">
+                                <span class="ih-progress__label">Gesamtfortschritt</span>
+                                <span class="ih-progress__count" id="ihStarterProgress">0 / 7 erledigt</span>
+                            </div>
+                            <div class="ih-progress__bar"><div class="ih-progress__fill" id="ihStarterProgressFill" style="width:0%"></div></div>
+                        </div>
+
+                        <div class="ih-finish-actions">
+                            <a class="btn" href="../index.html"><i class="bi bi-house"></i>Zum Dashboard</a>
+                            <a class="btn" href="playbook-intranet.html"><i class="bi bi-journal-text"></i>Intranet-Playbook</a>
+                        </div>
                     </div>
                 </div>
-                <details class="tm-tech" id="ihSharedLog" style="margin:0 20px 8px;">
+
+                <details class="tm-tech" id="ihSharedLog">
                     <summary>Protokoll &amp; technische Antworten</summary>
                     <div id="fLog" class="tm-log" style="margin-top:10px;">Noch keine Aktion.</div>
                     <pre id="fHubJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
                     <pre id="fJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
                 </details>
+
                 <footer class="tm-wizard__footer">
                     <button type="button" class="btn" id="ihWizardBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
                     <button type="button" class="btn btn-success" id="ihWizardNext">Weiter</button>
@@ -474,7 +405,7 @@ button.btn-success {
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js?v=4" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=5" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
@@ -486,6 +417,7 @@ button.btn-success {
     <script src="../src/tools/sharepoint/sharepoint-liste-schultermine.js" defer></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-schularbeiten.js"></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-projektwochen.js"></script>
+    <script type="module" src="../src/tools/sharepoint/sharepoint-intranet-hub-audience.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-intranet-hub.js" defer></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-intranet-hub-page.js"></script>
     <script src="../src/pages/sharepoint-intranet-hub.js"></script>

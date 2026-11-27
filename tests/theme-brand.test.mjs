@@ -88,8 +88,8 @@ describe('brand theme assets', () => {
         expect(js).not.toContain("wine: 'Wein'");
         expect(js).not.toContain("classic: 'Klassisch'");
         expect(js).not.toContain('Eigene Farbe');
-        expect(js).toContain("data-ms365-auth-menu-v', '12'");
-        expect(js).toContain("menuV !== '12'");
+        expect(js).toContain("data-ms365-auth-menu-v', '13'");
+        expect(js).toContain("menuV !== '13'");
     });
 
     it('Dashboard und Admin laden theme-boot zuerst, ohne eigene Markenliste', () => {

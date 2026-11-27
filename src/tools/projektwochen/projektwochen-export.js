@@ -40,7 +40,7 @@ export function angeboteToCsv(angebote) {
         'Status',
         'Datum',
         'Tag',
-        'Slot',
+        'Tageszeit',
         'Start',
         'Ende',
         'Ort',
@@ -264,13 +264,14 @@ export function buildWeekPlanPrintHtml(angebote, aktion) {
         '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>' +
         escHtml(title) +
         '</title><style>' +
-        'body{font-family:Segoe UI,system-ui,sans-serif;margin:24px;color:#111}' +
-        'h1{font-size:1.4rem;margin:0 0 4px} .meta{color:#555;margin-bottom:16px}' +
+        'body{font-family:Segoe UI,system-ui,sans-serif;margin:24px;color:#111;line-height:1.4}' +
+        'h1{font-size:1.25rem;font-weight:650;margin:0 0 4px} .meta{color:#555;margin:0 0 16px;font-size:13px}' +
         'table{border-collapse:collapse;width:100%;font-size:12px}' +
         'th,td{border:1px solid #ccc;padding:8px;vertical-align:top}' +
-        'th{background:#f3f4f6}' +
-        'td.ganztags{background:#f0f7ff}' +
+        'th{background:#f3f4f6;font-weight:650}' +
+        'td.ganztags{background:#f3f4f6}' +
         '.card{margin-bottom:6px;padding:4px 6px;background:#f8fafc;border-radius:4px}' +
+        'button[data-print]{font:inherit;padding:6px 12px;border:1px solid #ccc;background:#fff;border-radius:8px}' +
         '@media print{body{margin:12px} .no-print{display:none}}' +
         '</style></head><body>' +
         '<p class="no-print"><button type="button" data-print>Drucken</button></p>' +
@@ -320,10 +321,12 @@ export function buildAttendeesPrintHtml(rows, aktion) {
         '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>' +
         escHtml(title) +
         '</title><style>' +
-        'body{font-family:Segoe UI,system-ui,sans-serif;margin:24px}' +
+        'body{font-family:Segoe UI,system-ui,sans-serif;margin:24px;color:#111;line-height:1.4}' +
+        'h1{font-size:1.25rem;font-weight:650;margin:0 0 4px}' +
         'table{border-collapse:collapse;width:100%;font-size:13px}' +
         'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}' +
-        'th{background:#f3f4f6}' +
+        'th{background:#f3f4f6;font-weight:650}' +
+        'button[data-print]{font:inherit;padding:6px 12px;border:1px solid #ccc;background:#fff;border-radius:8px}' +
         '@media print{.no-print{display:none}}' +
         '</style></head><body>' +
         '<p class="no-print"><button type="button" data-print>Drucken</button></p>' +
@@ -337,6 +340,53 @@ export function buildAttendeesPrintHtml(rows, aktion) {
         '</p>' +
         '<table><thead><tr><th>Name</th><th>E-Mail</th><th>Klasse</th><th>Angebot</th><th>Datum</th></tr></thead><tbody>' +
         (body || '<tr><td colspan="5">Keine Daten</td></tr>') +
+        '</tbody></table></body></html>'
+    );
+}
+
+/**
+ * Druck der eigenen Termine einer Schülerin oder eines Schülers.
+ * @param {Array<{ title?: string, when?: string, ort?: string }>} rows
+ * @param {object|null} aktion
+ */
+export function buildMinePrintHtml(rows, aktion) {
+    const title = 'Meine Termine – ' + ((aktion && aktion.title) || 'Projektwoche');
+    const body = (rows || [])
+        .map((r) => {
+            return (
+                '<tr><td>' +
+                escHtml(r.title) +
+                '</td><td>' +
+                escHtml(r.when || '') +
+                '</td><td>' +
+                escHtml(r.ort || '') +
+                '</td></tr>'
+            );
+        })
+        .join('');
+    return (
+        '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>' +
+        escHtml(title) +
+        '</title><style>' +
+        'body{font-family:Segoe UI,system-ui,sans-serif;margin:24px;color:#111;line-height:1.4}' +
+        'h1{font-size:1.25rem;font-weight:650;margin:0 0 4px}' +
+        'table{border-collapse:collapse;width:100%;font-size:13px}' +
+        'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}' +
+        'th{background:#f3f4f6;font-weight:650}' +
+        'button[data-print]{font:inherit;padding:6px 12px;border:1px solid #ccc;background:#fff;border-radius:8px}' +
+        '@media print{.no-print{display:none}}' +
+        '</style></head><body>' +
+        '<p class="no-print"><button type="button" data-print>Drucken</button></p>' +
+        '<h1>' +
+        escHtml(title) +
+        '</h1>' +
+        '<p>' +
+        (rows || []).length +
+        ' Termine · ' +
+        escHtml(new Date().toLocaleString('de-AT')) +
+        '</p>' +
+        '<table><thead><tr><th>Angebot</th><th>Wann</th><th>Ort</th></tr></thead><tbody>' +
+        (body || '<tr><td colspan="3">Noch nichts gebucht</td></tr>') +
         '</tbody></table></body></html>'
     );
 }

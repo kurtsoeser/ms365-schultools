@@ -56,6 +56,17 @@ describe('Zentrale Gruppen-Detailansicht', () => {
         expect(js).toContain('gdDetailWrap');
         expect(js).toContain('gd-archive-card');
         expect(js).toContain('gd-detail-actions');
+        expect(js).toContain('Änderungen speichern');
+        expect(js).toContain('Änderungen prüfen');
+        expect(js).toContain('Änderungen übernehmen');
+        expect(js).toContain('paintMasterMemberSyncCounts');
+        expect(js).toContain('Direktion als Besitzer hinzufügen');
+        expect(js).toContain('M365-Verknüpfung lösen');
+        expect(js).toContain('gd-meta__value');
+        expect(js).toContain('gd-object-header');
+        expect(js).toContain('gd-person-row');
+        expect(js).toContain('gd-sync-preview');
+        expect(js).not.toContain('Nur Vorschau (Dry-Run)');
         expect(js).not.toContain('shouldSetSpoSiteReadOnlyForMembers');
         const css = read('src/shared/group-detail/group-detail.css');
         expect(css).toContain('.field-editable');
@@ -67,6 +78,12 @@ describe('Zentrale Gruppen-Detailansicht', () => {
         expect(css).toContain('.gd-archive-card');
         expect(css).toContain('.gd-detail-actions');
         expect(css).toContain('.gd-btn-danger');
+        expect(css).toContain('.gd-selection-bar');
+        expect(css).toContain('.gd-sync-badge');
+        expect(css).toContain('.gd-meta');
+        expect(css).toContain('max-width: 1120px');
+        expect(css).toContain('.gd-person-row');
+        expect(css).toContain('.slg-side-count--quiet');
     });
 
     it('hängt die Ansicht nur einmal ein', () => {
@@ -102,7 +119,7 @@ describe('Match-Module nutzen die zentrale Ansicht', () => {
         const html = read(htmlPath);
         expect(html).toContain('gd-layout');
         expect(html).toContain('id="slgBtnReloadLists"');
-        expect(html).toContain('Neu einlesen');
+        expect(html).toMatch(/Neu einlesen|Aktualisieren/);
         expect(html).toContain('gd-page-info');
         expect(html).not.toContain('id="slgBtnLogin"');
         expect(html).not.toContain('Bei Microsoft anmelden');

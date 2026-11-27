@@ -14,7 +14,7 @@ export const SCHOOL_APP_CHROME = [
     { id: 'schularbeiten', title: 'Schularbeiten', file: 'schularbeiten-planer.html', roles: { admin: 'Verwaltung', lehrer: 'Lehrkraft', schueler: 'Schüler/in' } },
     { id: 'projektwochen', title: 'Projektwochen', file: 'projektwochen.html', roles: { admin: 'Leitung', lehrer: 'Lehrkraft', schueler: 'Schüler/in' } },
     { id: 'srdp', title: 'sRDP-Anmeldung', file: 'srdp-anmeldung.html', roles: { admin: 'Direktion', lehrer: 'Lehrkraft', schueler: 'Schüler/in' } },
-    { id: 'wahlfach', title: 'Wahlfach-Zuteilung', file: 'wahlfach-zuteilung.html', roles: { admin: 'Leitung', lehrer: 'Lehrkraft' } },
+    { id: 'wahlfach', title: 'Wahlfach-Zuteilung', file: 'wahlfach-zuteilung.html', roles: { admin: 'Direktion', kv: 'Klassenvorstand', lehrer: 'Lehrkraft' } },
     { id: 'wahlfach-anmeldung', title: 'Wahlfach-Anmeldung', file: 'wahlfach-anmeldung.html', roles: { schueler: 'Schüler/in' }, portalOnly: true },
     { id: 'schulsprecherwahl', title: 'Schulsprecherwahl', file: 'schulsprecherwahl.html', portalOnly: true },
     { id: 'einsammler', title: 'Einsammler', file: 'einsammler.html', roles: { leitung: 'Leitung', lehrer: 'Lehrkraft' } },
@@ -26,7 +26,8 @@ export const SCHOOL_APP_CHROME = [
     { id: 'technik', title: 'Technik-Meldungen', file: 'technik-meldungen.html', roles: { leitung: 'Leitung', melder: 'Meldung' } },
     { id: 'raumplan', title: 'Raumplan', file: 'raumplan.html', roles: { leitung: 'Leitung', lehrer: 'Lehrkraft' } },
     { id: 'termine', title: 'Kalender und Termine', file: 'termine-hub.html', roles: { it: 'Schul-IT', lehrer: 'Lehrkraft', schueler: 'Schüler/in', self: 'Eigenes Konto' } },
-    { id: 'elternsprechtag', title: 'Elternsprechtag', file: 'elternsprechtag-bookings.html', portalOnly: true },
+    { id: 'elternsprechtag', title: 'Elternsprechtag', file: 'elternsprechtag.html', roles: { lehrer: 'Lehrkraft' } },
+    { id: 'elternsprechtag-bookings', title: 'Elternsprechtag Bookings', file: 'elternsprechtag-bookings.html', portalOnly: true },
     { id: 'teams-antrag', title: 'Team-Antrag', file: 'teams-antrag.html', portalOnly: true },
     { id: 'diplomarbeiten', title: 'Diplomarbeiten', file: 'diplomarbeiten.html', portalOnly: true },
     { id: 'it-berechtigungen', title: 'Berechtigungen', file: 'it-berechtigungen.html', roles: { it: 'Schul-IT' } }

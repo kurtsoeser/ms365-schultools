@@ -2,6 +2,7 @@ import {
     loadMergedReleaseNotes,
     getLastSeenAt,
     getNewReleaseNotes,
+    setLastSeenAt,
     filterNotesForViewer
 } from './release-notes-store.js';
 
@@ -20,6 +21,12 @@ function currentMode() {
     }
     if (document.documentElement.hasAttribute('data-dash-it-shell')) return 'full';
     return 'preview-lehrer';
+}
+
+function setStripVisible(strip, visible) {
+    strip.hidden = !visible;
+    strip.style.display = visible ? '' : 'none';
+    if (!visible) strip.classList.remove('dash-news-strip--fresh');
 }
 
 function placeStrip(isIt) {
@@ -51,20 +58,26 @@ async function paint() {
         notes: visible,
         lastSeenAtIso: getLastSeenAt(localStorage, viewer)
     });
-    strip.classList.toggle('dash-news-strip--fresh', fresh.length > 0);
+    setStripVisible(strip, fresh.length > 0);
+    if (!fresh.length) return;
+    strip.classList.add('dash-news-strip--fresh');
     const link = strip.querySelector('.dash-news-strip__link');
-    if (link) link.textContent = fresh.length ? 'Neuigkeiten lesen' : 'Lesen';
-    if (fresh.length) {
-        const first = fresh[0];
-        const more = fresh.length > 1 ? ' · ' + fresh.length + ' neue Einträge' : '';
-        text.textContent = (first.title || 'Neuer Eintrag') + more;
-        return;
+    const first = fresh[0];
+    const more = fresh.length > 1 ? ' · ' + fresh.length + ' neue Einträge' : '';
+    text.textContent = (first.title || 'Neuer Eintrag') + more;
+    if (link) {
+        link.textContent = 'Neuigkeiten lesen';
+        link.onclick = function () {
+            const latest = fresh.reduce(function (acc, note) {
+                const t = new Date(note.at).getTime();
+                if (!Number.isFinite(t)) return acc;
+                if (!acc || t > new Date(acc).getTime()) return note.at;
+                return acc;
+            }, '');
+            if (latest) setLastSeenAt(latest, localStorage, viewer);
+            setStripVisible(strip, false);
+        };
     }
-    text.textContent = visible.length
-        ? viewer === 'it'
-            ? 'Technische Hinweise für die Schul-IT.'
-            : 'Hinweise zum Schulalltag.'
-        : 'Hier erscheinen Hinweise, sobald welche veröffentlicht sind.';
 }
 
 function applyMode(mode) {

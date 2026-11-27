@@ -151,13 +151,6 @@ export function mountItWorkspaceStammdatenEmbed() {
         el.classList.remove('it-workspace-shell__block--other');
     });
 
-    sub.hidden = false;
-    const parentLink = block.querySelector(':scope > a.it-workspace-shell__item');
-    if (parentLink) {
-        parentLink.setAttribute('aria-expanded', 'true');
-        block.classList.remove('is-collapsed');
-    }
-
     sub.querySelectorAll('a.it-workspace-shell__subitem[href]').forEach(function (a) {
         const href = String(a.getAttribute('href') || '');
         if (!/tenant\.html/i.test(href) && !/^#/.test(href)) return;

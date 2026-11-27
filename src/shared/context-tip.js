@@ -12,7 +12,7 @@
         'task-intranet':
             'Wann? Schul-Website (Hub) und Stammdaten-Listen auf der Intranet-Site einrichten – Lehrerliste, Termine, Vertretung. Geführte Reihenfolge: Playbook Intranet.',
         'task-schulapps':
-            'Wann? Planer im Schulalltag: Schularbeiten-Termine, Schüler-Freistellungen, Projektwochen, Exkursionen/Aktivitäten, Freistellungen für Lehrkräfte. IT richtet zuerst die zugehörigen SharePoint-Listen ein.',
+            'Wann? Planer im Schulalltag: Schularbeiten-Termine, Schüler-Freistellungen, Projektwochen, Exkursionen/Aktivitäten, Freistellungen für Lehrkräfte und Schulwahlen. IT richtet zuerst die zugehörigen SharePoint-Listen ein.',
         'task-personen':
             'Wann? Einzelne Konten suchen, ein neues Konto anlegen oder externe Personen (Gäste) einladen – z. B. Eltern oder Projektpartner.',
         'task-schuljahr':

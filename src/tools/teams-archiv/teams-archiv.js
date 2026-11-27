@@ -182,10 +182,9 @@
         if (!el) return;
         const line = document.createElement('div');
         line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
-        if (kind === 'err') line.style.color = '#b00020';
-        else if (kind === 'ok') line.style.color = '#0d8050';
-        else if (kind === 'warn') line.style.color = '#856404';
-        else line.style.color = '#212529';
+        if (kind === 'err') line.className = 'is-err';
+        else if (kind === 'ok') line.className = 'is-ok';
+        else if (kind === 'warn') line.className = 'is-warn';
         el.appendChild(line);
         el.scrollTop = el.scrollHeight;
     }
@@ -417,12 +416,83 @@
         if (!el) return;
         const line = document.createElement('div');
         line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
-        if (kind === 'err') line.style.color = '#b00020';
-        else if (kind === 'ok') line.style.color = '#0d8050';
-        else if (kind === 'warn') line.style.color = '#856404';
-        else line.style.color = '#212529';
+        if (kind === 'err') line.className = 'is-err';
+        else if (kind === 'ok') line.className = 'is-ok';
+        else if (kind === 'warn') line.className = 'is-warn';
         el.appendChild(line);
         el.scrollTop = el.scrollHeight;
+    }
+
+    function showBulkPhase(phase) {
+        const results = document.getElementById('taBulkResultsWrap');
+        const exec = document.getElementById('taBulkExecPanel');
+        const result = document.getElementById('taBulkResultPanel');
+        if (results) results.hidden = phase !== 'select';
+        if (exec) exec.hidden = phase !== 'exec';
+        if (result) result.hidden = phase !== 'result';
+    }
+
+    function paintBulkExecList(rows) {
+        const list = document.getElementById('taBulkExecList');
+        const meta = document.getElementById('taBulkExecMeta');
+        if (!list) return;
+        list.innerHTML = rows
+            .map(function (r) {
+                let cls = 'is-wait';
+                let mark = '○ Wartet';
+                if (r.state === 'run') {
+                    cls = 'is-run';
+                    mark = '● Wird verarbeitet …';
+                } else if (r.state === 'ok') {
+                    cls = 'is-ok';
+                    mark = r.skipped ? '✓ Bereits im Zielstatus' : '✓ Erledigt';
+                } else if (r.state === 'fail') {
+                    cls = 'is-fail';
+                    mark = '✕ Fehlgeschlagen';
+                }
+                return (
+                    '<li class="' +
+                    cls +
+                    '"><span><strong>' +
+                    String(r.label || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;') +
+                    '</strong></span><span>' +
+                    mark +
+                    '</span></li>'
+                );
+            })
+            .join('');
+        if (meta) {
+            const done = rows.filter(function (r) {
+                return r.state === 'ok' || r.state === 'fail';
+            }).length;
+            meta.textContent = done + ' von ' + rows.length + ' abgeschlossen';
+        }
+    }
+
+    function updateBulkConfirm(nSel, archiveHint) {
+        const headline = document.getElementById('taBulkConfirmHeadline');
+        const btnA = document.getElementById('taBulkArchive');
+        const btnU = document.getElementById('taBulkUnarchive');
+        if (headline) {
+            headline.textContent = nSel
+                ? nSel + ' Teams ausgewählt'
+                : 'Keine Teams ausgewählt';
+        }
+        if (btnA) {
+            btnA.disabled = !nSel;
+            btnA.innerHTML =
+                '<i class="bi bi-archive-fill"></i>' +
+                (nSel ? nSel + ' Teams archivieren' : 'Ausgewählte archivieren');
+        }
+        if (btnU) {
+            btnU.disabled = !nSel;
+            btnU.innerHTML =
+                '<i class="bi bi-arrow-counterclockwise"></i>' +
+                (nSel ? nSel + ': Archivierung aufheben' : 'Archivierung aufheben');
+        }
+        void archiveHint;
     }
 
     function clearBulkLog() {
@@ -475,20 +545,31 @@
         const wrap = document.getElementById('taBulkResultsWrap');
         const body = document.getElementById('taBulkResultsBody');
         const summary = document.getElementById('taBulkResultsSummary');
+        const box = document.getElementById('taBulkSummaryBox');
         if (!wrap || !body) return;
 
         if (!bulkResults.length) {
-            wrap.style.display = 'none';
+            wrap.hidden = true;
             body.replaceChildren();
+            updateBulkConfirm(0);
             return;
         }
-        wrap.style.display = '';
+        wrap.hidden = false;
+        showBulkPhase('select');
         const nSel = bulkResults.filter(function (r) {
             return r.selected;
         }).length;
         if (summary) {
-            summary.textContent = bulkResults.length + ' Kursteam(s) gefunden, ' + nSel + ' ausgewählt.';
+            summary.textContent =
+                bulkResults.length +
+                ' Teams gefunden · ' +
+                nSel +
+                ' ausgewählt';
         }
+        if (box) {
+            box.className = 'pw-msg ' + (nSel ? 'pw-msg--ok' : 'pw-msg--warn');
+        }
+        updateBulkConfirm(nSel);
 
         body.replaceChildren();
         bulkResults.forEach(function (r, idx) {
@@ -498,6 +579,7 @@
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = !!r.selected;
+            cb.setAttribute('aria-label', 'Team ' + (r.displayName || r.mailNickname || '') + ' auswählen');
             cb.addEventListener('change', function () {
                 bulkResults[idx].selected = cb.checked;
                 renderBulkResults();
@@ -596,8 +678,25 @@
         if (btnS) btnS.disabled = true;
 
         clearBulkLog();
+        showBulkPhase('exec');
+        const execTitle = document.getElementById('taBulkExecTitle');
+        if (execTitle) {
+            execTitle.textContent = archive
+                ? 'Teams werden archiviert'
+                : 'Archivierung wird aufgehoben';
+        }
+        const execRows = selected.map(function (item) {
+            return {
+                label: item.displayName || item.mailNickname || item.id,
+                state: 'wait'
+            };
+        });
+        paintBulkExecList(execRows);
         appendBulkLog(
-            (archive ? 'Archivierung' : 'Aufheben der Archivierung') + ' für ' + selected.length + ' Team(s) starten …'
+            (archive ? 'Archivierung' : 'Aufheben der Archivierung') +
+                ' für ' +
+                selected.length +
+                ' Team(s) starten …'
         );
 
         let token;
@@ -605,6 +704,7 @@
             token = await getGraphToken();
         } catch (e) {
             appendBulkLog('Anmeldung/Token: ' + (e.message || e), 'err');
+            showBulkPhase('select');
             if (btnA) btnA.disabled = false;
             if (btnU) btnU.disabled = false;
             if (btnS) btnS.disabled = false;
@@ -616,6 +716,8 @@
         for (let i = 0; i < selected.length; i++) {
             const item = selected[i];
             const label = item.displayName || item.mailNickname || item.id;
+            execRows[i].state = 'run';
+            paintBulkExecList(execRows);
             appendBulkLog('[' + (i + 1) + '/' + selected.length + '] ' + label + ' …');
             try {
                 const path = '/teams/' + encodeURIComponent(item.id) + (archive ? '/archive' : '/unarchive');
@@ -625,14 +727,21 @@
                     throw new Error('HTTP ' + res.status + ' ' + t);
                 }
                 appendBulkLog('  OK (Anfrage angenommen): ' + label, 'ok');
+                execRows[i].state = 'ok';
+                paintBulkExecList(execRows);
                 okCount++;
             } catch (e) {
                 const msg = e && e.message ? e.message : String(e);
                 if (isAlreadyInTargetStateError(msg)) {
                     appendBulkLog('  Übersprungen (bereits im Zielstatus): ' + label, 'warn');
+                    execRows[i].state = 'ok';
+                    execRows[i].skipped = true;
+                    paintBulkExecList(execRows);
                     okCount++;
                 } else {
                     appendBulkLog('  Fehler bei ' + label + ': ' + msg, 'err');
+                    execRows[i].state = 'fail';
+                    paintBulkExecList(execRows);
                     failCount++;
                 }
             }
@@ -646,10 +755,42 @@
         }
 
         appendBulkLog(
-            'Fertig: ' + okCount + ' OK, ' + failCount + ' Fehler. Bereitstellung läuft im Hintergrund weiter (siehe Teams-Admin-Center).',
+            'Fertig: ' +
+                okCount +
+                ' OK, ' +
+                failCount +
+                ' Fehler. Bereitstellung läuft im Hintergrund weiter (siehe Teams-Admin-Center).',
             failCount ? 'warn' : 'ok'
         );
-        toast('Sammel-Archivierung: ' + okCount + ' OK' + (failCount ? ', ' + failCount + ' Fehler.' : '.'));
+
+        const resultTitle = document.getElementById('taBulkResultTitle');
+        const resultSub = document.getElementById('taBulkResultSub');
+        if (resultTitle) {
+            resultTitle.textContent =
+                failCount === 0
+                    ? 'Fertig ✓'
+                    : okCount === 0
+                      ? 'Nicht abgeschlossen'
+                      : okCount + ' von ' + selected.length + ' erledigt';
+        }
+        if (resultSub) {
+            resultSub.textContent =
+                failCount === 0
+                    ? okCount +
+                      ' Teams erfolgreich ' +
+                      (archive ? 'archiviert' : 'reaktiviert') +
+                      '.'
+                    : okCount +
+                      ' OK · ' +
+                      failCount +
+                      ' Fehler. Details im Protokoll.';
+        }
+        showBulkPhase('result');
+        toast(
+            failCount === 0
+                ? okCount + ' Teams erledigt.'
+                : okCount + ' von ' + selected.length + ' erledigt.'
+        );
 
         if (btnA) btnA.disabled = false;
         if (btnU) btnU.disabled = false;
@@ -672,7 +813,7 @@
             const found = await searchTeam(token, q);
             if (idInp) idInp.value = found.id;
             if (summary) {
-                summary.style.display = '';
+                summary.hidden = false;
                 summary.textContent =
                     'Gefunden: ' +
                     (found.displayName || '(ohne Name)') +
@@ -721,6 +862,13 @@
         if (btnBulkNone) btnBulkNone.addEventListener('click', () => setAllBulkSelected(false));
         if (btnBulkArchive) btnBulkArchive.addEventListener('click', () => runBulkArchiveOrUnarchive(true));
         if (btnBulkUnarchive) btnBulkUnarchive.addEventListener('click', () => runBulkArchiveOrUnarchive(false));
+        const btnResultBack = document.getElementById('taBulkResultBack');
+        if (btnResultBack) {
+            btnResultBack.addEventListener('click', function () {
+                showBulkPhase('select');
+                renderBulkResults();
+            });
+        }
     }
 
     if (document.readyState === 'loading') {

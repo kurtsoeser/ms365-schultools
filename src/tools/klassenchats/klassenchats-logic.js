@@ -23,6 +23,7 @@
  *   channelId: string,
  *   teamId: string,
  *   existingTopic: string,
+ *   webUrl?: string,
  *   status: 'neu'|'sync'|'ok'|'skip'
  * }} ClassChatPlan
  */
@@ -523,11 +524,39 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
             channelId,
             teamId,
             existingTopic,
+            webUrl: existing && existing.webUrl ? String(existing.webUrl) : '',
             status
         });
     });
 
     return plans;
+}
+
+/**
+ * Link „In Teams öffnen“. Gespeicherte webUrl, sonst Deep-Link aus Chat- oder Kanal-ID.
+ * @param {{ webUrl?: string, kind?: string, chatId?: string, channelId?: string, teamId?: string, topic?: string }} plan
+ * @returns {string}
+ */
+export function teamsHrefForPlan(plan) {
+    const p = plan && typeof plan === 'object' ? plan : {};
+    const direct = normStr(p.webUrl);
+    if (/^https:\/\//i.test(direct)) return direct;
+    const channelId = normStr(p.channelId);
+    const teamId = normStr(p.teamId);
+    if ((p.kind === 'privateChannel' || channelId) && channelId && teamId) {
+        const name = encodeURIComponent(normStr(p.topic) || 'Kanal');
+        return (
+            'https://teams.microsoft.com/l/channel/' +
+            encodeURIComponent(channelId) +
+            '/' +
+            name +
+            '?groupId=' +
+            encodeURIComponent(teamId)
+        );
+    }
+    const chatId = normStr(p.chatId);
+    if (!chatId) return '';
+    return 'https://teams.microsoft.com/l/chat/' + encodeURIComponent(chatId) + '/0';
 }
 
 export function summarizePlans(plans) {
@@ -636,7 +665,8 @@ export function existingByKlasseFromState(state, opts) {
             chatId: it.chatId,
             channelId: it.channelId,
             teamId: it.teamId,
-            topic: it.topic
+            topic: it.topic,
+            webUrl: it.webUrl
         };
         map.set(it.klasse, row);
         map.set(it.klasse.toUpperCase(), row);
@@ -813,6 +843,7 @@ export function buildManualClassChatPlan(input) {
         channelId,
         teamId,
         existingTopic,
+        webUrl: existing && existing.webUrl ? String(existing.webUrl) : '',
         status,
         source: 'manual'
     };

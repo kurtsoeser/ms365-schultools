@@ -1,9 +1,10 @@
 /**
- * Wahlfach-Zuteilung (Admin/SLG): Zugang über Schul-IT / SA-Admin / Schulleitung.
- * Kein Rollen-Switcher – Schüler nutzen die separate Anmelde-Seite.
- * IT-Vorschau: ?demoRole=1
+ * Wahlfach-Zuteilung: App-Rolle, nicht Portal-Persona.
+ * Direktion teilt zu. Klassenvorstand sieht nur die eigene Klasse.
+ * Lehrkraft ohne KV-Klasse sieht die Zuteilung nicht.
+ * Schüler nutzen die separate Anmelde-Seite.
+ * IT-Vorschau: ?demoRole=1 (Direktion), ?demoRole=kv, ?demoRole=lehrer.
  */
-import { readDemoRoleOverrideFromUrl } from '../../shared/app-role-switcher-policy.js';
 import { userIsDesignatedSchoolIt } from '../../shared/designated-school-it.js';
 import {
     fetchUserMemberGroupIds,
@@ -12,47 +13,188 @@ import {
 import { loadEffectivePermissionsConfig as loadSaPerms } from '../schularbeiten-planer/schularbeiten-planer-permissions.js';
 import { accountIsPlannerUserInList } from '../freistellung-planer/freistellung-planer-direktion-users.js';
 import { announceAppRole } from '../../shared/app-role-chrome.js';
+import { kvKlassenForEmail, readWzAccount } from './wahlfach-zuteilung-state.js';
 
-function finishWahlfach(result) {
-    let email = '';
+function accountEmail() {
+    return readWzAccount().email;
+}
+
+/**
+ * @returns {'direktion'|'kv'|'lehrer'|''}
+ */
+export function readWahlfachDemoRole() {
     try {
-        if (typeof window !== 'undefined' && typeof window.ms365AuthGetAccountInfo === 'function') {
-            const a = window.ms365AuthGetAccountInfo();
-            email = String((a && (a.username || a.upn)) || '')
-                .trim()
-                .toLowerCase();
-        }
+        const p = new URLSearchParams(
+            typeof window !== 'undefined' ? window.location.search || '' : ''
+        );
+        const v = String(p.get('demoRole') || '')
+            .trim()
+            .toLowerCase();
+        if (v === '1' || v === 'direktion' || v === 'admin') return 'direktion';
+        if (v === 'kv' || v === 'lehrer') return v;
     } catch {
         /* ignore */
     }
+    return '';
+}
+
+/**
+ * Klassen für die KV-Vorschau (?demoRole=kv). Standard: Demo-Klasse 3AK.
+ * @returns {string[]}
+ */
+export function demoKvKlassenFromUrl() {
+    try {
+        const p = new URLSearchParams(
+            typeof window !== 'undefined' ? window.location.search || '' : ''
+        );
+        const raw = String(p.get('klasse') || p.get('wzKlassen') || '3AK');
+        const out = [];
+        const seen = new Set();
+        for (const part of raw.split(/[;,]/)) {
+            const code = part.trim();
+            if (!code) continue;
+            const key = code.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(code);
+        }
+        return out.length ? out : ['3AK'];
+    } catch {
+        return ['3AK'];
+    }
+}
+
+function finishWahlfach(result) {
+    const email = result && result.email ? result.email : accountEmail();
+    const role = result && result.role;
     announceAppRole({
         appId: 'wahlfach',
-        role: result && result.ok ? 'admin' : 'lehrer',
-        source: result && result.demo ? 'demo' : '',
-        email
+        role: role === 'direktion' ? 'admin' : role === 'pending' ? '' : role || '',
+        source: result && result.demo ? 'demo' : (result && result.source) || '',
+        email,
+        demoMode: !!(result && result.demo)
     });
     return result;
 }
 
 /**
- * @returns {Promise<{ ok: boolean, reason: string, demo: boolean }>}
+ * @param {{ stammdaten?: { classes?: object[] }|null, direktion?: { ok?: boolean, reason?: string, source?: string }|null }} [opts]
+ * @returns {Promise<{ role: 'direktion'|'kv'|'lehrer'|'pending', ok: boolean, kvKlassen: string[], reason: string, source: string, demo: boolean, email: string }>}
  */
-export async function resolveWahlfachAdminAccess() {
-    const demo = readDemoRoleOverrideFromUrl(false);
-    if (demo) {
-        return finishWahlfach({ ok: true, reason: 'IT-Vorschau (?demoRole=1)', demo: true });
+export async function resolveWahlfachAppRole(opts) {
+    const demoRole = readWahlfachDemoRole();
+    if (demoRole === 'direktion') {
+        return finishWahlfach({
+            role: 'direktion',
+            ok: true,
+            kvKlassen: [],
+            reason: 'IT-Vorschau Direktion',
+            source: 'demo',
+            demo: true,
+            email: accountEmail()
+        });
+    }
+    if (demoRole === 'lehrer') {
+        return finishWahlfach({
+            role: 'lehrer',
+            ok: false,
+            kvKlassen: [],
+            reason: 'IT-Vorschau Lehrkraft',
+            source: 'demo',
+            demo: true,
+            email: accountEmail()
+        });
+    }
+    if (demoRole === 'kv') {
+        const kvKlassen = demoKvKlassenFromUrl();
+        return finishWahlfach({
+            role: 'kv',
+            ok: false,
+            kvKlassen,
+            reason: 'IT-Vorschau Klassenvorstand',
+            source: 'demo',
+            demo: true,
+            email: accountEmail()
+        });
     }
 
+    const known = opts && opts.direktion;
+    /** @type {{ ok: boolean, reason: string, source: string }} */
+    let direktion = known && typeof known.ok === 'boolean' ? known : { ok: false, reason: '', source: '' };
+    if (!(known && typeof known.ok === 'boolean')) {
+        direktion = await detectWahlfachDirektion();
+    }
+    if (direktion.ok) {
+        return finishWahlfach({
+            role: 'direktion',
+            ok: true,
+            kvKlassen: [],
+            reason: direktion.reason,
+            source: direktion.source,
+            demo: false,
+            email: accountEmail()
+        });
+    }
+
+    const email = accountEmail();
+    if (!email) {
+        return finishWahlfach({
+            role: 'pending',
+            ok: false,
+            kvKlassen: [],
+            reason: 'Konto wird gelesen',
+            source: 'konto-offen',
+            demo: false,
+            email: ''
+        });
+    }
+
+    const kvKlassen = kvKlassenForEmail(opts && opts.stammdaten, email);
+    if (kvKlassen.length) {
+        return finishWahlfach({
+            role: 'kv',
+            ok: false,
+            kvKlassen,
+            reason: 'Klassenvorstand ' + kvKlassen.join(', '),
+            source: 'stammdaten-kv',
+            demo: false,
+            email
+        });
+    }
+
+    return finishWahlfach({
+        role: 'lehrer',
+        ok: false,
+        kvKlassen: [],
+        reason: 'Lehrkraft ohne Klassenvorstand',
+        source: '',
+        demo: false,
+        email
+    });
+}
+
+/**
+ * Direktion prüfen, ohne die App-Rolle im Kopf zu setzen.
+ * @returns {Promise<{ ok: boolean, reason: string, source: string }>}
+ */
+export async function probeWahlfachDirektion() {
+    return detectWahlfachDirektion();
+}
+
+/**
+ * @returns {Promise<{ ok: boolean, reason: string, source: string }>}
+ */
+async function detectWahlfachDirektion() {
     try {
         if (await userIsEntraGlobalAdministrator()) {
-            return finishWahlfach({ ok: true, reason: 'Globaler Administrator', demo: false });
+            return { ok: true, reason: 'Globaler Administrator', source: 'global-admin' };
         }
     } catch {
         /* ignore */
     }
     try {
         if (await userIsDesignatedSchoolIt()) {
-            return finishWahlfach({ ok: true, reason: 'Schul-IT', demo: false });
+            return { ok: true, reason: 'Schul-IT', source: 'school-it' };
         }
     } catch {
         /* ignore */
@@ -69,40 +211,26 @@ export async function resolveWahlfachAdminAccess() {
         try {
             const member = await fetchUserMemberGroupIds([sa.groupAdminId]);
             if (member.has(String(sa.groupAdminId).toLowerCase())) {
-                return finishWahlfach({ ok: true, reason: 'Schulleitung / Admin-Gruppe', demo: false });
+                return { ok: true, reason: 'Schulleitung / Admin-Gruppe', source: 'entra' };
             }
         } catch {
             /* ignore */
         }
     }
 
-    let email = '';
-    try {
-        if (typeof window !== 'undefined' && typeof window.ms365AuthGetAccountInfo === 'function') {
-            const a = window.ms365AuthGetAccountInfo();
-            email = String((a && (a.username || a.upn)) || '')
-                .trim()
-                .toLowerCase();
-        }
-    } catch {
-        /* ignore */
-    }
+    const email = accountEmail();
     if (email && accountIsPlannerUserInList(email, sa.adminUsers || [])) {
-        return finishWahlfach({ ok: true, reason: 'Admin-Einzelperson', demo: false });
+        return { ok: true, reason: 'Direktion (Person)', source: 'admin-user' };
     }
 
-    // Ohne konfigurierte Admin-Gruppe: zugänglich (Setup-Phase), Hinweis bleibt
-    if (!sa.groupAdminId && !(sa.adminUsers && sa.adminUsers.length)) {
-        return finishWahlfach({
-            ok: true,
-            reason: 'Noch keine Admin-Gruppe konfiguriert (Schularbeiten-Setup)',
-            demo: false
-        });
-    }
+    return { ok: false, reason: '', source: '' };
+}
 
-    return finishWahlfach({
-        ok: false,
-        reason: 'Kein Zugang zur Wahlfach-Zuteilung. Nur Schulleitung/Admin bzw. Schul-IT.',
-        demo: false
-    });
+/**
+ * @param {{ stammdaten?: { classes?: object[] }|null }} [opts]
+ * @returns {Promise<{ ok: boolean, reason: string, demo: boolean }>}
+ */
+export async function resolveWahlfachAdminAccess(opts) {
+    const role = await resolveWahlfachAppRole(opts);
+    return { ok: role.role === 'direktion', reason: role.reason, demo: role.demo };
 }
